@@ -1,0 +1,25 @@
+
+{
+  "brand": "De Buyer",
+  "modelName": "Mineral B Carbon Steel Frying Pan",
+  "upi": "mineral-b-fry-20",
+  "description": "The Mineral B 20cm pan is an iconic technical cookware choice for professional chefs seeking natural performance. This variant is uniquely coated with a protective organic beeswax finish, which prevents oxidation and initiates the seasoning process. Its 2.5mm thick carbon steel body ensures exceptional heat retention for searing and browning, while the signature French-curved riveted handle provides ergonomic control. Induction-compatible and PFOA-free, this pan develops a natural non-stick patina with use, making it ideal for individual portions and side dishes in a demanding kitchen.",
+  "type": "Frying Pan",
+  "class": "Cookware",
+  "features": "Material: White carbon steel (99% iron, 1% carbon). Thickness: 2.5mm for consistent heat retention. Diameter: 20cm (base approx 14cm). Handle connection: Triple-riveted steel strip, oven safe for short periods (10 mins at 200°C).  Compatibility: All hobs including induction.",
+  "uses": "Searing steaks, frying eggs, caramelising onions, sautéing vegetables, omelettes.",
+  "accessories": [
+    {
+      "id": "acc-orgr5",
+      "name": "Beeswax Coating",
+      "description": "Protective layer against oxidation (must be removed prior to seasoning)",
+      "owned": false,
+      "type": "standard"
+    }
+  ],
+  "name": "De Buyer Mineral B Carbon Steel Frying Pan",
+  "status": "Available",
+  "id": "eq-hxe948gtd",
+  "createdAt": "2026-01-19T14:41:53.979Z",
+  "createdBy": "user-1"
+}

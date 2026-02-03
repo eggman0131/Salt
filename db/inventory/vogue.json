@@ -1,0 +1,25 @@
+
+{
+  "brand": "Vogue",
+  "modelName": "Tri-Wall Saucier with Lid",
+  "upi": "Vogue-TriWall-Saucier-20cm",
+  "description": "This premium kitchen bundle features the renowned Vogue Tri-Wall 20cm saucier paired with a matching heavy-duty stainless steel lid. The multi-clad construction ensures rapid and uniform heating throughout the pan's surface, while the included lid helps retain moisture and heat for more efficient cooking. This variant is specifically designed for professional chefs who require consistent results for complex reductions. The set includes the 200mm pan and a tight-fitting lid, both featuring durable riveted handles and a polished finish that resists tarnishing in commercial settings.",
+  "type": "Saucepan",
+  "class": "Cookware",
+  "features": "Construction: 3-Ply Tri-Wall (Stainless Steel / Aluminium / Stainless Steel). Diameter: 200mm. Thermal Capability: Rapid, even heat distribution via aluminium core. Compatibility: Induction, Gas, Electric, Ceramic hobs. Oven Safe: Yes. Geometry: Curved sides for whisking efficiency.",
+  "uses": "Reducing sauces, preparing custards and risottos, whisking emulsions, poaching.",
+  "accessories": [
+    {
+      "id": "acc-ofmfo",
+      "name": "Matching Lid",
+      "description": "Stainless steel lid sized for 200mm vessel to retain heat and moisture.",
+      "owned": true,
+      "type": "standard"
+    }
+  ],
+  "name": "Vogue Tri-Wall Saucier with Lid",
+  "status": "Available",
+  "id": "eq-0n9ttqy3d",
+  "createdAt": "2026-01-19T14:02:10.680Z",
+  "createdBy": "user-1"
+}

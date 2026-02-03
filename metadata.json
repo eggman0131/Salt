@@ -1,0 +1,7 @@
+{
+  "name": "Salt-2",
+  "description": "A minimalist recipe and kitchen equipment management application with Gemini AI integration.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
