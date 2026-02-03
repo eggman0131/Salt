@@ -1,0 +1,21 @@
+
+{
+  "brand": "Le Creuset",
+  "modelName": "3-Ply Stainless Steel Sauteuse",
+  "upi": "96100928000000",
+  "description": "This professional 28cm Sauteuse from Le Creuset’s 3-ply range is a versatile kitchen essential, featuring a multi-layered construction that ensures rapid, uniform heat distribution from base to rim. This specific 5.7-litre variant is distinguished by its generous capacity and dual stainless-steel side handles, making it ideal for batch cooking and seamless hob-to-table serving. Included in this package is the precision-fit stainless steel lid, which locks in moisture and nutrients during slow braising. Unlike smaller models, this 28cm version comfortably caters to large family meals of 6-8 portions.",
+  "type": "Sauté Pan",
+  "class": "Cookware",
+  "features": "Tri-ply construction (18/10 interior, aluminium core, 18/0 exterior), 360° pouring rim, capacity markings, helper handle.",
+  "uses": "Sautéing, reducing sauces, poaching, simmering risottos, searing.",
+  "accessories": [
+    { "id": "acc-yffcb", "name": "Stainless Steel Lid", "description": "Close-fitting 28cm lid to retain heat and moisture.", "owned": true, "type": "standard" },
+    { "id": "acc-9cvpy", "name": "Helper Handle", "description": "Integrated stainless steel handle for stability during lifting.", "owned": true, "type": "standard" },
+    { "id": "acc-of5zi", "name": "Splatter Guard", "description": "Stainless steel mesh guard to contain oil projection.", "owned": false, "type": "optional" }
+  ],
+  "name": "Le Creuset 3-Ply Stainless Steel Sauteuse",
+  "status": "Available",
+  "id": "eq-6ni68orab",
+  "createdAt": "2026-01-19T11:15:28.021Z",
+  "createdBy": "user-1"
+}

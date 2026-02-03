@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salt - Minimalist Kitchen Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        html {
+            font-size: 110%; /* Global text size increase - scales all rem units */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fcfcfc;
+            color: #111827;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Custom scrollbar for minimalist feel */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+
+        /* Markdown Styles for Chat Bubbles */
+        .markdown-body h1, .markdown-body h2 { font-weight: 700; color: #111827; margin-top: 1.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid #f3f4f6; padding-bottom: 0.25rem; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .markdown-body h3 { font-weight: 700; color: #374151; margin-top: 1rem; margin-bottom: 0.5rem; font-size: 1rem; }
+        .markdown-body p { margin-bottom: 1rem; line-height: 1.6; }
+        .markdown-body ul, .markdown-body ol { margin-bottom: 1rem; padding-left: 1.25rem; }
+        .markdown-body ul { list-style-type: disc; }
+        .markdown-body ol { list-style-type: decimal; }
+        .markdown-body li { margin-bottom: 0.25rem; }
+        .markdown-body strong { font-weight: 700; color: #111827; }
+        .markdown-body blockquote { border-left: 3px solid #e5e7eb; padding-left: 1rem; font-style: italic; color: #6b7280; margin: 1rem 0; }
+        .markdown-body hr { border: 0; border-top: 1px solid #f3f4f6; margin: 1.5rem 0; }
+        
+        /* User bubble specific markdown overrides */
+        .user-bubble .markdown-body h1, 
+        .user-bubble .markdown-body h2, 
+        .user-bubble .markdown-body h3, 
+        .user-bubble .markdown-body p, 
+        .user-bubble .markdown-body li, 
+        .user-bubble .markdown-body strong { color: white; border-color: rgba(255,255,255,0.2); }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react-dom/client": "https://esm.sh/react-dom@^19.2.4/client",
+    "zod": "https://esm.sh/zod@^4.3.6",
+    "marked": "https://esm.sh/marked@^17.0.1",
+    "firebase/": "https://esm.sh/firebase@^12.8.0/"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+</body>
+</html>

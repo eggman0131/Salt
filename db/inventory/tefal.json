@@ -1,0 +1,25 @@
+
+{
+  "brand": "Tefal",
+  "modelName": "Unlimited On Frying Pan 20cm",
+  "upi": "G2590243",
+  "description": "This professional-grade 20cm frying pan is a standout in the Tefal Unlimited On range, specifically designed for high-frequency use in UK kitchens. This variant includes a single 20cm pan featuring the premium Titanium Anti-Scratch non-stick coating, which is six times more durable than standard Tefal coatings. It incorporates the signature Thermo-Signal technology, where the central dot turns solid red at the optimal cooking temperature. The thick Thermo-Fusion+ induction base ensures rapid, even heat distribution across all hob types, making it ideal for precision searing of individual portions.",
+  "type": "Frying Pan",
+  "class": "Cookware",
+  "features": "Diameter: 20cm. Material: Aluminium base. Coating: Titanium Anti-Scratch non-stick (6x reinforcement). Thermal Indicator: Thermo-Signal technology (turns solid red at optimal searing temperature). Heat Source Compatibility: All hobs including induction (Thermo-Fusion+ base). Oven Safe: Up to 175°C.",
+  "uses": "Frying eggs, sautéing small portions of vegetables, searing single steaks, cooking omelettes.",
+  "accessories": [
+    {
+      "id": "acc-co1i0",
+      "name": "Pan Body",
+      "description": "20cm Aluminium vessel with non-stick coating.",
+      "owned": true,
+      "type": "standard"
+    }
+  ],
+  "name": "Tefal Unlimited On Frying Pan 20cm",
+  "status": "Available",
+  "id": "eq-sz4bsnrzx",
+  "createdAt": "2026-01-19T13:52:13.424Z",
+  "createdBy": "user-1"
+}

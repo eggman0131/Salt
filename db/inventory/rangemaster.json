@@ -1,0 +1,25 @@
+
+{
+  "brand": "Rangemaster",
+  "modelName": "Toledo 110 Dual Fuel",
+  "upi": "TOL110DFF",
+  "description": "The Rangemaster Toledo 110 Dual Fuel is a staple for professional-style home kitchens, offering two large 80-litre fan ovens and a dedicated glide-out grill. This standard 110cm model provides an expansive gas hob featuring five burners, specifically including a powerful 3.5kW multi-ring wok burner for high-heat sautéing. Unlike the XT variant, this classic version focuses on straightforward fan-assisted cooking in both cavities, complemented by a handy storage drawer for baking trays and a half-ribbed/half-smooth griddle plate that sits securely over the burners.",
+  "type": "Range Cooker",
+  "class": "Large Appliance",
+  "features": "5-zone gas hob configuration, 3.5kW multi-ring wok burner, dual 73L/80L programmable fan ovens, catalytic liners, cast iron pan supports, dedicated glide-out grill assembly.",
+  "uses": "Simultaneous high-volume baking, high-BTU wok searing, precision simmering, grilling, multi-rack convection roasting.",
+  "accessories": [
+    { "id": "acc-32fpu", "name": "Pan Supports", "description": "Heavy-duty cast iron supports for thermal stability and vessel retention.", "owned": true, "type": "standard" },
+    { "id": "acc-9b8jq", "name": "Wok Cradle", "description": "Stabilising attachment for concave cooking vessels on the 3.5kW burner.", "owned": true, "type": "standard" },
+    { "id": "acc-s3ecp", "name": "Griddle Plate", "description": "Cast aluminium flat-top surface for direct contact searing.", "owned": true, "type": "standard" },
+    { "id": "acc-d6ty8", "name": "Oven Shelves", "description": "Wire racks for multi-level cavity utilisation.", "owned": true, "type": "standard" },
+    { "id": "acc-riq4u", "name": "Handyrack", "description": "Door-mounted roasting tray system for accessible basting.", "owned": false, "type": "standard" },
+    { "id": "acc-oeaog", "name": "Grill Pan Assembly", "description": "Telescopic glide-out tray with trivet.", "owned": true, "type": "standard" },
+    { "id": "acc-uhfhv", "name": "Splashback", "description": "Rear vertical guard for thermal and debris protection.", "owned": false, "type": "optional" }
+  ],
+  "name": "Rangemaster Toledo 110 Dual Fuel",
+  "status": "Available",
+  "id": "eq-xlcx2pwng",
+  "createdAt": "2026-01-19T11:06:15.557Z",
+  "createdBy": "user-1"
+}

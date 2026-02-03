@@ -1,0 +1,22 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper to check if user is in the authorized 'users' collection
+    function isAuthorized() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/users/$(request.auth.token.email));
+    }
+
+    match /{document=**} {
+      // For development/emulators, you might want 'allow read, write: if true;' 
+      // but we'll stick to the production logic for testing.
+      allow read, write: if isAuthorized();
+    }
+    
+    // Allow initial users to be checked during login
+    match /users/{email} {
+      allow read: if true;
+    }
+  }
+}

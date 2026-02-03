@@ -1,0 +1,46 @@
+
+{
+  "brand": "Browin",
+  "modelName": "Pressure Ham Cooker Set 1.5kg (313016)",
+  "upi": "313016",
+  "description": "This professional-grade Browin 313016 set is a comprehensive solution for home meat processing, featuring a 1.5kg capacity pressure ham maker integrated with a dedicated water jacket pot. The set specifically includes a high-quality stainless steel ham cooker, a matching four-litre pot, a lid with a thermometer port, and a specialised digital probe thermometer for precision monitoring. It is designed for poaching meats in a controlled environment, ensuring succulent results for hams, terrines, and roulades. The water jacket design prevents direct contact with heating elements for uniform temperature distribution throughout the vessel.",
+  "type": "Ham Cooker",
+  "class": "Cookware",
+  "features": "1.5kg meat chamber capacity; 4L water jacket pot capacity for bain-marie style scalding; 18/10 stainless steel construction; Integrated pressure spring mechanism ensures consistent texture and binding; Flange-mounted lid with dedicated thermometer port; Compatible with electric, induction, and gas hobs; Includes digital probe thermometer for core temperature monitoring.",
+  "uses": "Curing and scalding homemade ham; Preparing luncheon meats and pressed terrines; Poaching rollades; Vegetarian blocks and vegan pates.",
+  "accessories": [
+    {
+      "id": "acc-k2oti",
+      "name": "Ham Cooker Vessel",
+      "description": "Cylindrical stainless steel chamber with pressure spring lid.",
+      "owned": true,
+      "type": "standard"
+    },
+    {
+      "id": "acc-d6o3h",
+      "name": "Water Jacket Pot",
+      "description": "4L stainless steel stockpot sized specifically to house the ham cooker for water bath cooking.",
+      "owned": true,
+      "type": "standard"
+    },
+    {
+      "id": "acc-m4qcg",
+      "name": "Digital Thermometer",
+      "description": "Probe thermometer for monitoring core meat temperature.",
+      "owned": true,
+      "type": "standard"
+    },
+    {
+      "id": "acc-i6h5x",
+      "name": "Ham Cooker Bags",
+      "description": "Plastic liners to facilitate meat removal and cleaning.",
+      "owned": true,
+      "type": "standard"
+    }
+  ],
+  "name": "Browin Pressure Ham Cooker Set 1.5kg (313016)",
+  "status": "Available",
+  "id": "eq-p2cv4y1yc",
+  "createdAt": "2026-01-19T15:12:33.919Z",
+  "createdBy": "user-1"
+}

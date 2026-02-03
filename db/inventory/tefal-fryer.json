@@ -1,0 +1,39 @@
+
+{
+  "brand": "Tefal",
+  "modelName": "OleoClean Pro FR804040",
+  "upi": "FR804040",
+  "description": "This Tefal OleoClean Pro FR804040 is a semi-professional deep fryer featuring a unique worldwide patented automatic oil filtration system. Once your cooking is complete and the oil has cooled, the device automatically drains and filters the oil into a storage box below for reuse. This specific 3.5L variant includes a large brushed stainless steel frying basket, a permanent metallic filter within the lid, and an adjustable thermostat. The viewing window allows for easy monitoring, while the fully dismantlable parts ensure hassle-free cleaning in a dishwasher.",
+  "type": "Deep Fat Fryer",
+  "class": "Worktop Appliance",
+  "features": "2300W power rating for rapid heat-up; 3.5L oil capacity; 1.2kg food capacity; Patented automatic oil filtration system; Adjustable thermostat (150°C to 190°C); Digital timer; Immersed heating element technology; Cool zone technology to prevent food debris burning.",
+  "uses": "Deep frying chips, fish, doughnuts, tempura, and breaded items with precise temperature control and clean oil management.",
+  "accessories": [
+    {
+      "id": "acc-mzugw",
+      "name": "Frying Basket",
+      "description": "Wire mesh basket with cool-touch handle for submerging and retrieving food.",
+      "owned": true,
+      "type": "standard"
+    },
+    {
+      "id": "acc-cg54w",
+      "name": "Oil Storage Box",
+      "description": "Integrated container for storing filtered oil beneath the frying unit.",
+      "owned": true,
+      "type": "standard"
+    },
+    {
+      "id": "acc-f6u4u",
+      "name": "Lid with Viewing Window",
+      "description": "Lid featuring a permanent metallic filter and viewing window for monitoring cooking progress.",
+      "owned": true,
+      "type": "standard"
+    }
+  ],
+  "name": "Tefal OleoClean Pro FR804040",
+  "status": "Available",
+  "id": "eq-4wogc441c",
+  "createdAt": "2026-01-19T14:37:34.221Z",
+  "createdBy": "user-1"
+}

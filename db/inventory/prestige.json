@@ -1,0 +1,39 @@
+
+{
+  "brand": "Prestige",
+  "modelName": "Made to Last Stainless Steel Stockpot & Steamer Set 24cm",
+  "upi": "PRESTIGE-MTL-STOCKPOT-STEAMER-24",
+  "description": "This professional-grade set features a robust 24cm stockpot crafted from high-quality stainless steel, designed for durability and longevity in busy kitchens. Included in this specific variant is the 24cm stockpot, a perfectly fitting 24cm steamer insert, and a toughened glass lid, allowing for versatile cooking methods from boiling to healthy steaming. The set boasts a thick encapsulated base for even heat distribution and is fully compatible with all hobs, including induction. Riveted stainless steel handles ensure a secure, comfortable grip for safe handling.",
+  "type": "Stockpot",
+  "class": "Cookware",
+  "features": "Construction: Stainless steel body with induction-suitable friction-bonded base. Capacity: High-volume cylindrical profile. Thermal Tolerance: Oven safe up to 180°C (350°F/Gas Mark 4). Lid: Toughened glass with steam vent and stainless steel rim. Handles: Securely riveted stainless steel side handles.",
+  "uses": "Boiling stocks and broths, steaming vegetables or fish, cooking pasta, blanching large quantities of ingredients.",
+  "accessories": [
+    {
+      "id": "acc-u9vcv",
+      "name": "24cm Stockpot Base",
+      "description": "Main stainless steel vessel for boiling and simmering.",
+      "owned": true,
+      "type": "standard"
+    },
+    {
+      "id": "acc-yd4np",
+      "name": "Multi-Steamer Insert",
+      "description": "Perforated stainless steel insert that fits atop the stockpot for steaming.",
+      "owned": true,
+      "type": "standard"
+    },
+    {
+      "id": "acc-th226",
+      "name": "Toughened Glass Lid",
+      "description": "See-through lid with steam vent, fits both the stockpot and steamer insert.",
+      "owned": true,
+      "type": "standard"
+    }
+  ],
+  "name": "Prestige Made to Last Stainless Steel Stockpot & Steamer Set 24cm",
+  "status": "Available",
+  "id": "eq-7diqj6c16",
+  "createdAt": "2026-01-19T14:51:56.890Z",
+  "createdBy": "user-1"
+}

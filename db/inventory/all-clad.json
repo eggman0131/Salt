@@ -1,0 +1,20 @@
+
+{
+  "brand": "All-Clad",
+  "modelName": "D3 Stainless 3-Ply Bonded Fry Pan with Lid, 10-Inch",
+  "upi": "D3-FP-10-LID",
+  "description": "The All-Clad D3 Stainless 10-Inch Fry Pan with Lid is a cornerstone of professional UK kitchens, featuring a classic tri-ply construction with a responsive aluminium core bonded between two layers of durable stainless steel. This specific variant includes a precision-fit stainless steel lid, which is not standard on the base fry pan models. The lid allows for moisture retention and versatile cooking techniques like poaching or finishing. Its flared edges facilitate drip-free pouring, while the riveted handle ensures a secure, heat-resistant grip during high-heat searing and pan-frying.",
+  "type": "Frying Pan",
+  "class": "Cookware",
+  "features": "3-ply bonded construction (steel/aluminum/steel), warp-resistant base, highly polished starburst finish, superior thermal conductivity, induction compatible.",
+  "uses": "Searing, browning, pan-frying, sautéing, oven finishing.",
+  "accessories": [
+    { "id": "acc-adf05", "name": "Main Pan Body", "description": "10-inch diameter vessel, 3-ply bonded stainless steel with aluminum core.", "owned": true, "type": "standard" },
+    { "id": "acc-z3ykn", "name": "Lid", "description": "Stainless steel fitted cover to retain moisture and heat.", "owned": true, "type": "standard" }
+  ],
+  "name": "All-Clad D3 Stainless 3-Ply Bonded Fry Pan with Lid, 10-Inch",
+  "status": "Available",
+  "id": "eq-3zlr1m5nu",
+  "createdAt": "2026-01-19T11:13:10.629Z",
+  "createdBy": "user-1"
+}
