@@ -3,6 +3,8 @@
 
 This document is a BINDING PROTOCOL for implementing the Salt production backend.
 
+SaltFirebaseBackend.ts must mirror the public method behaviour of SimulatedSaltBackend.ts exactly, differing only in persistence mechanism
+
 ## 🚫 THE RED LINE (DO NOT CROSS)
 - **DO NOT MODIFY `BaseSaltBackend.ts`.** All synthesis logic is inherited.
 - **DO NOT MODIFY `contract.ts`.** The schema is immutable.
