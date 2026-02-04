@@ -1,3 +1,4 @@
+
 # SALT - Recipe Module Guidelines
 
 This document defines the domain logic, AI protocols, and execution standards for the Recipe Module.
@@ -20,10 +21,10 @@ The AI must never update a recipe document directly from a chat message. It foll
 1. **The Discussion:** Natural language chat between User and AI.
 2. **The Consensus:** AI generates a `Consensus Draft` (JSON) summarizing agreed changes.
 3. **The Synthesis:** AI uses the draft to generate the final `Recipe` object.
-4. **The Snapshot:** A lean history entry (no images) is created before saving the update.
+4. **The Snapshot:** A lean history entry is created before saving the update.
 
 ## 3. Data Integrity
-- **Ingredient Pruning:** Before sending recipes to Gemini, strip `imageUrl` and `history` to prevent 400 Bad Request errors.
+- **Object Pruning:** Before sending objects to Gemini or creating history snapshots, ensure recursive metadata (like the `history` array itself) is pruned to keep data structures manageable.
 - **Metric Enforcement:** If the AI suggests 'cups', the backend must reject the update and request a re-conversion to grams (g) or millilitres (ml).
 
 ## 4. DO NOT MODIFY

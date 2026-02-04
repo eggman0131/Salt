@@ -1,3 +1,4 @@
+
 /**
  * !!! PROTECTION LOCK !!!
  * FILE: types/contract.ts
@@ -16,6 +17,12 @@ export const UserSchema = z.object({
   displayName: z.string(),
 });
 export type User = z.infer<typeof UserSchema>;
+
+// Global Kitchen Settings
+export const KitchenSettingsSchema = z.object({
+  directives: z.string(),
+});
+export type KitchenSettings = z.infer<typeof KitchenSettingsSchema>;
 
 // Equipment & Accessory Schemas
 export const AccessorySchema = z.object({
@@ -72,7 +79,7 @@ export const RecipeSchema = z.object({
     optimumToolLogic: z.string().optional(),
   }).optional(),
   history: z.array(RecipeHistoryEntrySchema).optional(),
-  imageUrl: z.string().optional(),
+  imagePath: z.string().optional(),
   collection: z.string().optional(),
   createdAt: z.string(),
   createdBy: z.string(),
@@ -114,18 +121,21 @@ export interface ISaltBackend {
   deleteUser: (id: string) => Promise<void>;
   getRecipes: () => Promise<Recipe[]>;
   getRecipe: (id: string) => Promise<Recipe | null>;
-  createRecipe: (recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy'>) => Promise<Recipe>;
-  updateRecipe: (id: string, updates: Partial<Recipe>) => Promise<Recipe>;
+  createRecipe: (recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>, imageData?: string) => Promise<Recipe>;
+  updateRecipe: (id: string, updates: Partial<Recipe>, imageData?: string) => Promise<Recipe>;
+  resolveImagePath: (path: string) => Promise<string>;
   deleteRecipe: (id: string) => Promise<void>;
   getInventory: () => Promise<Equipment[]>;
   getEquipment: (id: string) => Promise<Equipment | null>;
   createEquipment: (equipment: Omit<Equipment, 'id' | 'createdAt' | 'createdBy'>) => Promise<Equipment>;
   updateEquipment: (id: string, equipment: Partial<Equipment>) => Promise<Equipment>;
   deleteEquipment: (id: string) => Promise<void>;
+  getKitchenSettings: () => Promise<KitchenSettings>;
+  updateKitchenSettings: (settings: KitchenSettings) => Promise<KitchenSettings>;
   searchEquipmentCandidates: (query: string) => Promise<EquipmentCandidate[]>;
   generateEquipmentDetails: (candidate: EquipmentCandidate) => Promise<Partial<Equipment>>;
   validateAccessory: (equipmentName: string, accessoryName: string) => Promise<Omit<Accessory, 'id'>>;
-  generateRecipeFromPrompt: (prompt: string, currentRecipe?: Recipe) => Promise<Partial<Recipe>>;
+  generateRecipeFromPrompt: (prompt: string, currentRecipe?: Recipe, history?: {role: string, text: string}[]) => Promise<Partial<Recipe>>;
   chatWithRecipe: (recipe: Recipe, message: string, history: {role: string, text: string}[], onChunk?: (chunk: string) => void) => Promise<string>;
   summarizeAgreedRecipe: (history: {role: string, text: string}[], currentRecipe?: Recipe) => Promise<string>;
   chatForDraft: (history: {role: string, text: string}[]) => Promise<string>;
@@ -133,7 +143,7 @@ export interface ISaltBackend {
   importSystemState: (json: string) => Promise<void>;
   getPlans: () => Promise<Plan[]>;
   getPlanByDate: (date: string) => Promise<Plan | null>;
-  getPlanIncludingDate: (date: string) => Promise<Plan | null>;
-  createOrUpdatePlan: (plan: Omit<Plan, 'id' | 'createdAt' | 'createdBy'>) => Promise<Plan>;
+  getPlanIncludingDate(date: string): Promise<Plan | null>;
+  createOrUpdatePlan: (plan: Omit<Plan, 'id' | 'createdAt' | 'createdBy'> & { id?: string }) => Promise<Plan>;
   deletePlan: (id: string) => Promise<void>;
 }

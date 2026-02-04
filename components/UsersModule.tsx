@@ -43,18 +43,12 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
 
   return (
     <div className="space-y-8 md:space-y-12 animate-in fade-in duration-500">
-      <header className="border-b border-gray-100 pb-6 md:pb-8">
-        <h2 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">Kitchen Members</h2>
-        <p className="text-sm text-gray-500 font-medium font-sans mt-1">Authorised residents and invited guests.</p>
-      </header>
-      
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12">
-        {/* Invite Form */}
+        {/* User Form */}
         <section className="lg:col-span-5">
           <Card className="p-6 md:p-8 sticky top-24 shadow-xl shadow-blue-500/5">
             <div className="mb-8">
-              <h3 className="text-lg font-bold text-gray-900">Invite New Member</h3>
-              <p className="text-xs text-gray-400 mt-1 font-medium">Add a family member to the shared system.</p>
+              <h3 className="text-lg font-bold text-gray-900">Add User</h3>
             </div>
             
             <form onSubmit={handleAdd} className="space-y-6">
@@ -80,7 +74,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
                 </div>
               </div>
               <Button fullWidth type="submit" className="h-12 shadow-lg shadow-blue-500/10">
-                Grant Kitchen Access
+                Save User
               </Button>
             </form>
           </Card>
@@ -89,7 +83,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
         {/* Member List */}
         <section className="lg:col-span-7">
           <div className="mb-6 flex justify-between items-center px-1">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Current Members ({users.length})</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Staff List ({users.length})</h4>
           </div>
           
           <div className="grid grid-cols-1 gap-3">
@@ -118,7 +112,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
                     }`}
                     onClick={() => handleDelete(u.id)}
                   >
-                    {activeConfirmId === u.id ? 'Confirm Revoke' : 'Revoke'}
+                    {activeConfirmId === u.id ? 'Confirm' : 'Remove'}
                   </Button>
                 </div>
               </div>
@@ -127,7 +121,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
           
           {users.length === 0 && (
             <div className="p-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-              <p className="text-sm text-gray-400 font-medium italic">No members found.</p>
+              <p className="text-sm text-gray-400 font-medium italic">No users found.</p>
             </div>
           )}
         </section>
@@ -137,9 +131,9 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
         <div className="flex gap-4">
           <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5 shadow-sm">i</div>
           <div>
-            <h5 className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-1">Authorisation Notice</h5>
+            <h5 className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-1">Notice</h5>
             <p className="text-[11px] md:text-xs text-blue-700 font-medium leading-relaxed">
-              Kitchen members shared access to all indexed recipes and inventory units. Removing a member immediately revokes their session and ability to contribute to the shared manifest.
+              Users share access to all recipes and equipment.
             </p>
           </div>
         </div>

@@ -13,16 +13,18 @@ interface SidebarProps {
   onTabChange: (id: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  user: { displayName: string };
+  onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClose, user, onLogout }) => {
   const mode = getActiveBackendMode();
   const items: NavItem[] = [
-    { label: 'Dashboard', id: 'dashboard' },
+    { label: 'Home', id: 'dashboard' },
     { label: 'Planner', id: 'planner' },
+    { label: 'Sous-Chef', id: 'ai' },
     { label: 'Recipes', id: 'recipes' },
     { label: 'Equipment', id: 'inventory' },
-    { label: 'AI Assistant', id: 'ai' },
     { label: 'Admin', id: 'admin' },
   ];
 
@@ -35,11 +37,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
       />
       
       {/* Navigation Drawer/Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-[110] w-[280px] bg-white border-r border-gray-100 transform transition-transform duration-300 ease-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
+      <div className={`fixed inset-y-0 left-0 z-[110] w-[280px] bg-white border-r border-gray-100 transform transition-transform duration-300 ease-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col shadow-2xl lg:shadow-none`}>
         <div className="p-6 pb-10 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-black tracking-tighter text-gray-900">SALT</h1>
-            <p className="text-xs text-gray-400 uppercase font-black tracking-widest mt-1">Kitchen Systems</p>
           </div>
           <button 
             onClick={onClose} 
@@ -69,19 +70,25 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
           ))}
         </nav>
         
-        {/* Minimal System Footer */}
-        <div className="p-6 border-t border-gray-50">
-          <div className="px-4 py-2 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-between">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Node</span>
-            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
-              mode === 'firebase' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
-            }`}>
-              {mode}
-            </span>
+        {/* User & Meta at Bottom */}
+        <div className="p-4 space-y-4 border-t border-gray-50">
+          <div className="px-4 py-4 rounded-2xl bg-gray-50 border border-gray-100 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center text-white text-xs font-black shadow-sm shrink-0">
+              {user.displayName ? user.displayName[0] : '?'}
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-black text-gray-900 block truncate leading-tight">{user.displayName}</span>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{mode}</span>
+            </div>
           </div>
-          <div className="mt-4 text-center">
-             <p className="text-[0.6rem] text-gray-300 font-black uppercase tracking-[0.3em]">v0.1.0-alpha</p>
-          </div>
+          
+          <button 
+            onClick={onLogout}
+            className="w-full h-11 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-red-500 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Sign Out
+          </button>
         </div>
       </div>
     </>
@@ -89,12 +96,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
 };
 
 interface TopNavProps {
-  user: { displayName: string };
-  onLogout: () => void;
+  title: string;
   onMenuClick: () => void;
 }
 
-const TopNav: React.FC<TopNavProps> = ({ user, onLogout, onMenuClick }) => (
+const TopNav: React.FC<TopNavProps> = ({ title, onMenuClick }) => (
   <header className="sticky top-0 h-16 md:h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-4 md:px-10 z-[80]">
     <div className="flex items-center gap-4">
       <button 
@@ -105,20 +111,10 @@ const TopNav: React.FC<TopNavProps> = ({ user, onLogout, onMenuClick }) => (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 7h16M4 12h16m-16 5h16"/></svg>
       </button>
       
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gray-900 flex items-center justify-center text-white shadow-sm shrink-0">
-          <span className="text-xs font-black">{user.displayName ? user.displayName[0] : '?'}</span>
-        </div>
-        <div className="hidden sm:block">
-          <span className="text-sm font-bold text-gray-900 block leading-tight">{user.displayName}</span>
-          <span className="text-[0.6rem] text-gray-400 font-black uppercase tracking-widest">Kitchen Member</span>
-        </div>
+      <div>
+        <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">{title}</h2>
       </div>
     </div>
-
-    <Button variant="ghost" onClick={onLogout} className="text-xs font-black uppercase tracking-widest px-4 h-10">
-      Sign Out
-    </Button>
   </header>
 );
 
@@ -133,6 +129,18 @@ interface LayoutProps {
 export const DashboardLayout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, user, onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const getActiveTitle = () => {
+    switch(activeTab) {
+      case 'dashboard': return 'Home Kitchen';
+      case 'planner': return 'Planner';
+      case 'ai': return 'Sous-Chef';
+      case 'recipes': return 'Recipes';
+      case 'inventory': return 'Equipment';
+      case 'admin': return 'Admin';
+      default: return 'Salt';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#fcfcfc] flex">
       <Sidebar 
@@ -140,15 +148,16 @@ export const DashboardLayout: React.FC<LayoutProps> = ({ children, activeTab, on
         onTabChange={onTabChange} 
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        user={user}
+        onLogout={onLogout}
       />
-      <div className="flex-1 lg:ml-[280px] flex flex-col">
+      <div className="flex-1 lg:ml-[280px] flex flex-col min-w-0">
         <TopNav 
-          user={user} 
-          onLogout={onLogout} 
+          title={getActiveTitle()} 
           onMenuClick={() => setIsSidebarOpen(true)}
         />
-        <main className="p-4 md:p-10">
-          <div className="max-w-5xl mx-auto">
+        <main className="px-2 py-4 md:p-10">
+          <div className="max-w-5xl mx-auto min-w-0">
             {children}
           </div>
         </main>

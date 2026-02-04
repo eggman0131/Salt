@@ -1,36 +1,44 @@
+
 /**
  * !!! PROTECTION LOCK !!!
  * FILE: backend/base-backend.ts
- * ROLE: The Brain (AI Orchestration & SDK Logic)
+ * ROLE: The Brain (AI Orchestration & Prompt Logic)
  * 
- * DESIGN PATTERN: Strategy / Template Method.
- * This class houses ALL @google/genai logic and shared business rules.
- * 
- * FOR FUTURE AI UPDATES:
- * 1. Add new AI-driven features HERE (e.g., Grocery extraction).
- * 2. Ensure methods remain 'abstract' for persistence-heavy tasks.
- * 3. NEVER introduce database-specific code (Firebase/LocalStorage) here.
+ * DESIGN PATTERN: Template Method.
+ * This class houses ALL shared business rules and prompt templates.
+ * It is AGNOSTIC of how the AI is actually called (Transport).
  */
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GenerateContentParameters, GenerateContentResponse, Type } from "@google/genai";
 import { 
   ISaltBackend, User, Recipe, Equipment, EquipmentCandidate, 
-  Accessory, Plan, RecipeHistoryEntry 
+  Accessory, Plan, KitchenSettings 
 } from '../types/contract';
 import { SYSTEM_CORE, EQUIPMENT_PROMPTS, RECIPE_PROMPTS } from './prompts';
 
 export abstract class BaseSaltBackend implements ISaltBackend {
-  // -- AI CORE --
+  
+  // -- ABSTRACT AI TRANSPORT (The Security Bridge) --
+
+  /**
+   * Subclasses MUST implement this to define how AI content is generated.
+   * Simulated backend will call the SDK directly.
+   * Firebase backend can override this to call a secure Cloud Function.
+   */
+  protected abstract callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse>;
+
+  /**
+   * Subclasses MUST implement this for streaming support.
+   */
+  protected abstract callGenerateContentStream(params: GenerateContentParameters): Promise<AsyncIterable<GenerateContentResponse>>;
+
+  // -- SHARED LOGIC --
+
   protected sanitizeJson(text: string): string {
     const firstBrace = text.indexOf('{');
     const firstBracket = text.indexOf('[');
-
-    // If no structural characters found, return trimmed text
     if (firstBrace === -1 && firstBracket === -1) return text.trim();
-
-    // Determine which structure starts first to find the outer-most shell
     const isArray = firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace);
-
     if (isArray) {
       const lastBracket = text.lastIndexOf(']');
       return lastBracket !== -1 ? text.substring(firstBracket, lastBracket + 1) : text.trim();
@@ -40,19 +48,38 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     }
   }
 
-  protected getAI() {
-    // Adhering to strict SDK initialization rules
-    return new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  protected pruneHistory(history: {role: string, text: string}[], maxTurns = 15): {role: string, text: string}[] {
+    const maxMessages = maxTurns * 2;
+    if (history.length <= maxMessages) return history;
+    
+    const pruned = history.slice(-maxMessages);
+    while (pruned.length > 0 && pruned[0].role !== 'user') {
+      pruned.shift();
+    }
+    return pruned;
   }
 
-  // -- INHERITED AI METHODS (The Brain) --
+  protected async getLeanInventoryString(): Promise<string> {
+    const inventory = await this.getInventory();
+    if (inventory.length === 0) return 'Standard domestic tools only.';
+    return inventory.map(i => i.name).join(', ');
+  }
+
+  protected async getSystemInstruction(customContext?: string): Promise<string> {
+    const settings = await this.getKitchenSettings();
+    const houseRules = settings.directives ? `\nHOUSE RULES & PREFERENCES:\n${settings.directives}` : '';
+    return `${SYSTEM_CORE}${houseRules}${customContext ? `\n\n${customContext}` : ''}`;
+  }
+
+  // -- ORCHESTRATED AI METHODS (The Brain) --
+  
   async searchEquipmentCandidates(query: string): Promise<EquipmentCandidate[]> {
-    const ai = this.getAI();
-    const response = await ai.models.generateContent({
+    const instruction = await this.getSystemInstruction("You are an expert kitchen consultant.");
+    const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
       contents: EQUIPMENT_PROMPTS.search(query),
       config: { 
-        systemInstruction: `${SYSTEM_CORE}\nYou are an expert kitchen consultant.`,
+        systemInstruction: instruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -62,10 +89,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
               brand: { type: Type.STRING },
               modelName: { type: Type.STRING },
               description: { type: Type.STRING },
-              category: { 
-                type: Type.STRING,
-                enum: ['Complex Appliance', 'Technical Cookware', 'Standard Tool']
-              }
+              category: { type: Type.STRING, enum: ['Complex Appliance', 'Technical Cookware', 'Standard Tool'] }
             },
             required: ['brand', 'modelName', 'description', 'category']
           }
@@ -73,28 +97,23 @@ export abstract class BaseSaltBackend implements ISaltBackend {
       }
     });
     const cleaned = this.sanitizeJson(response.text || '[]');
-    try {
-      return JSON.parse(cleaned);
-    } catch (e) {
-      console.error("Failed to parse search results:", e, cleaned);
-      return [];
-    }
+    try { return JSON.parse(cleaned); } catch (e) { return []; }
   }
 
   async generateEquipmentDetails(candidate: EquipmentCandidate): Promise<Partial<Equipment>> {
-    const ai = this.getAI();
-    const response = await ai.models.generateContent({
+    const instruction = await this.getSystemInstruction("You are an expert kitchen specialist.");
+    const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
       contents: EQUIPMENT_PROMPTS.details(candidate.brand, candidate.modelName),
       config: { 
-        systemInstruction: `${SYSTEM_CORE}\nYou are an expert kitchen specialist.`,
+        systemInstruction: instruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            upi: { type: Type.STRING },
             brand: { type: Type.STRING },
             modelName: { type: Type.STRING },
+            upi: { type: Type.STRING },
             description: { type: Type.STRING },
             type: { type: Type.STRING },
             class: { type: Type.STRING },
@@ -114,74 +133,107 @@ export abstract class BaseSaltBackend implements ISaltBackend {
               }
             }
           },
-          required: ['upi', 'brand', 'modelName', 'description', 'type', 'class', 'accessories']
+          required: ['brand', 'modelName', 'description', 'type', 'class', 'accessories']
         }
       }
     });
-    
     const raw = JSON.parse(this.sanitizeJson(response.text || '{}'));
-    
-    // Salt Protocol: Hydrate accessories with unique IDs immediately after generation
-    // to ensure the UI can track selection state before the object is persisted.
     if (raw.accessories && Array.isArray(raw.accessories)) {
       raw.accessories = raw.accessories.map((acc: any) => ({
         ...acc,
         id: acc.id || `acc-${Math.random().toString(36).substr(2, 9)}`
       }));
     }
-    
     return raw;
   }
 
   async validateAccessory(equipmentName: string, accessoryName: string): Promise<Omit<Accessory, 'id'>> {
-    const ai = this.getAI();
-    const response = await ai.models.generateContent({
+    const instruction = await this.getSystemInstruction("You are an expert on professional kitchen equipment.");
+    const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
       contents: EQUIPMENT_PROMPTS.validateAccessory(equipmentName, accessoryName),
       config: { 
-        systemInstruction: `${SYSTEM_CORE}\nYou are an expert on professional kitchen kit.`,
+        systemInstruction: instruction,
+        responseMimeType: "application/json"
+      }
+    });
+    return JSON.parse(this.sanitizeJson(response.text || '{}'));
+  }
+
+  async generateRecipeFromPrompt(consensusDraft: string, currentRecipe?: Recipe, history?: {role: string, text: string}[]): Promise<Partial<Recipe>> {
+    const leanInventory = await this.getLeanInventoryString();
+    
+    let recipeContext = "No original recipe exists. This is a new creation.";
+    if (currentRecipe) {
+      const ingText = (currentRecipe.ingredients || []).map(ing => `- ${ing}`).join('\n');
+      const instText = (currentRecipe.instructions || []).map((inst, i) => `${i + 1}. ${inst}`).join('\n');
+      recipeContext = `EXISTING RECIPE:\nTITLE: ${currentRecipe.title}\nINGREDIENTS:\n${ingText}\nMETHOD:\n${instText}`;
+    }
+
+    const historySummary = history ? `FULL DISCUSSION CONTEXT:\n${history.slice(-30).map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n')}` : '';
+    const instruction = await this.getSystemInstruction("You are the Head Chef performing a technical synthesis. Adhere STRICTLY to the modification plan, conversation history, and house rules.");
+
+    const response = await this.callGenerateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `${RECIPE_PROMPTS.synthesis(consensusDraft, leanInventory, recipeContext)}\n\n${historySummary}`,
+      config: { 
+        systemInstruction: instruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            name: { type: Type.STRING },
+            title: { type: Type.STRING },
             description: { type: Type.STRING },
-            type: { type: Type.STRING, enum: ['standard', 'optional'] },
-            owned: { type: Type.BOOLEAN }
+            ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
+            instructions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            totalTime: { type: Type.STRING },
+            prepTime: { type: Type.STRING },
+            cookTime: { type: Type.STRING },
+            servings: { type: Type.STRING },
+            complexity: { type: Type.STRING, enum: ['Simple', 'Intermediate', 'Advanced'] },
+            equipmentNeeded: { type: Type.ARRAY, items: { type: Type.STRING } },
+            stepIngredients: { 
+              type: Type.ARRAY, 
+              items: { type: Type.ARRAY, items: { type: Type.INTEGER } },
+              description: "Array matching instructions length, where each inner array contains indices of ingredients used in that step."
+            },
+            stepAlerts: { 
+              type: Type.ARRAY, 
+              items: { type: Type.ARRAY, items: { type: Type.INTEGER } },
+              description: "Array matching instructions length, mapping to indices in technicalWarnings."
+            },
+            workflowAdvice: {
+              type: Type.OBJECT,
+              properties: {
+                technicalWarnings: { type: Type.ARRAY, items: { type: Type.STRING } },
+                optimumToolLogic: { type: Type.STRING }
+              }
+            }
           },
-          required: ['name', 'description', 'type', 'owned']
+          required: ['title', 'description', 'ingredients', 'instructions', 'totalTime', 'servings', 'complexity', 'stepIngredients']
         }
       }
     });
     return JSON.parse(this.sanitizeJson(response.text || '{}'));
   }
 
-  async generateRecipeFromPrompt(consensusDraft: string, currentRecipe?: Recipe): Promise<Partial<Recipe>> {
-    const inventory = await this.getInventory();
-    const leanInventory = inventory.length === 0 ? 'Standard tools' : inventory.map(i => i.name).join(', ');
-    const ai = this.getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: RECIPE_PROMPTS.synthesis(consensusDraft, leanInventory),
-      config: { 
-        systemInstruction: `${SYSTEM_CORE}\nYou are the Head Chef.`,
-        responseMimeType: "application/json" 
-      }
-    });
-    return JSON.parse(this.sanitizeJson(response.text || '{}'));
-  }
-
   async chatWithRecipe(recipe: Recipe, message: string, history: {role: string, text: string}[], onChunk?: (chunk: string) => void): Promise<string> {
-    const ai = this.getAI();
-    const inventory = await this.getInventory();
-    const leanInventory = inventory.map(i => i.name).join(', ');
-    const formattedHistory = history.map(h => ({ role: h.role === 'ai' ? 'model' : 'user', parts: [{ text: h.text }] }));
-    while (formattedHistory.length > 0 && formattedHistory[0].role !== 'user') formattedHistory.shift();
+    const leanInventory = await this.getLeanInventoryString();
+    const formattedIngredients = (recipe.ingredients || []).map(ing => `- ${ing}`).join('\n');
+    const formattedInstructions = (recipe.instructions || []).map((inst, i) => `${i + 1}. ${inst}`).join('\n');
+    const recipeString = `INGREDIENTS:\n${formattedIngredients}\n\nMETHOD:\n${formattedInstructions}`;
 
-    const stream = await ai.models.generateContentStream({
+    const pruned = this.pruneHistory(history, 12);
+    const formattedHistory = pruned.map(h => ({ role: h.role === 'ai' ? 'model' : 'user', parts: [{ text: h.text }] }));
+    
+    const settings = await this.getKitchenSettings();
+    const houseRules = settings.directives ? `\nHOUSE RULES:\n${settings.directives}` : '';
+    const instruction = `${RECIPE_PROMPTS.chatPersona(recipe.title, leanInventory, recipeString)}${houseRules}`;
+
+    const stream = await this.callGenerateContentStream({
       model: 'gemini-3-flash-preview',
       contents: [...formattedHistory, { role: 'user', parts: [{ text: message }] }] as any,
-      config: { systemInstruction: RECIPE_PROMPTS.chatPersona(recipe.title, leanInventory) }
+      config: { systemInstruction: instruction }
     });
     let fullText = "";
     for await (const chunk of stream) { if (chunk.text) { fullText += chunk.text; onChunk?.(chunk.text); } }
@@ -189,36 +241,64 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   }
 
   async summarizeAgreedRecipe(history: {role: string, text: string}[], currentRecipe?: Recipe): Promise<string> {
-    const ai = this.getAI();
-    const response = await ai.models.generateContent({
+    const prunedHistory = history.slice(-20);
+    const historySummary = prunedHistory.map(h => `${h.role.toUpperCase()}: ${h.text}`).join('\n');
+    
+    const leanRecipe = currentRecipe ? {
+      title: currentRecipe.title,
+      ingredients: currentRecipe.ingredients,
+      instructions: currentRecipe.instructions
+    } : {};
+
+    const instruction = await this.getSystemInstruction("You are the Head Chef identifying refinements. Focus only on agreed changes while respecting house rules.");
+
+    const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
-      contents: RECIPE_PROMPTS.consensusSummary(JSON.stringify(history), JSON.stringify(currentRecipe || {})),
+      contents: RECIPE_PROMPTS.consensusSummary(historySummary, JSON.stringify(leanRecipe)),
       config: { 
-        systemInstruction: `${SYSTEM_CORE}\nYou are the Head Chef summarizing our session.`,
-        responseMimeType: "application/json" 
+        systemInstruction: instruction,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            consensusDraft: { type: Type.STRING },
+            proposals: { 
+              type: Type.ARRAY, 
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  technicalInstruction: { type: Type.STRING }
+                },
+                required: ['id', 'description', 'technicalInstruction']
+              }
+            }
+          },
+          required: ['consensusDraft', 'proposals']
+        }
       }
     });
     return response.text || '';
   }
 
   async chatForDraft(history: {role: string, text: string}[]): Promise<string> {
-    const ai = this.getAI();
-    const inventory = await this.getInventory();
-    const leanInventory = inventory.map(i => i.name).join(', ');
-    const formattedHistory = history.map(h => ({ role: h.role === 'ai' ? 'model' : 'user', parts: [{ text: h.text }] }));
-    while (formattedHistory.length > 0 && formattedHistory[0].role !== 'user') formattedHistory.shift();
+    const leanInventory = await this.getLeanInventoryString();
+    const pruned = this.pruneHistory(history, 12);
+    const formattedHistory = pruned.map(h => ({ role: h.role === 'ai' ? 'model' : 'user', parts: [{ text: h.text }] }));
+    
+    const instruction = await this.getSystemInstruction(RECIPE_PROMPTS.draftingPersona(leanInventory));
 
-    const response = await ai.models.generateContent({
+    const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
       contents: formattedHistory as any,
-      config: { systemInstruction: RECIPE_PROMPTS.draftingPersona(leanInventory) }
+      config: { systemInstruction: instruction }
     });
     return response.text || '';
   }
 
   async generateRecipeImage(title: string): Promise<string> {
-    const ai = this.getAI();
-    const response = await ai.models.generateContent({
+    const response = await this.callGenerateContent({
       model: 'gemini-2.5-flash-image',
       contents: { parts: [{ text: RECIPE_PROMPTS.imagePrompt(title) }] },
       config: { imageConfig: { aspectRatio: "4:3" } }
@@ -227,8 +307,6 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     return part ? `data:image/png;base64,${part.inlineData.data}` : '';
   }
 
-  // -- ABSTRACT PERSISTENCE (The Hands) --
-  // Implementation of these must be provided by SaltSimulatedBackend or SaltFirebaseBackend.
   abstract login(email: string): Promise<User>;
   abstract logout(): Promise<void>;
   abstract getCurrentUser(): Promise<User | null>;
@@ -237,18 +315,21 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   abstract deleteUser(id: string): Promise<void>;
   abstract getRecipes(): Promise<Recipe[]>;
   abstract getRecipe(id: string): Promise<Recipe | null>;
-  abstract createRecipe(recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy'>): Promise<Recipe>;
-  abstract updateRecipe(id: string, updates: Partial<Recipe>): Promise<Recipe>;
+  abstract createRecipe(recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>, imageData?: string): Promise<Recipe>;
+  abstract updateRecipe(id: string, updates: Partial<Recipe>, imageData?: string): Promise<Recipe>;
+  abstract resolveImagePath(path: string): Promise<string>;
   abstract deleteRecipe(id: string): Promise<void>;
   abstract getInventory(): Promise<Equipment[]>;
   abstract getEquipment(id: string): Promise<Equipment | null>;
   abstract createEquipment(equipment: Omit<Equipment, 'id' | 'createdAt' | 'createdBy'>): Promise<Equipment>;
   abstract updateEquipment(id: string, updates: Partial<Equipment>): Promise<Equipment>;
   abstract deleteEquipment(id: string): Promise<void>;
+  abstract getKitchenSettings(): Promise<KitchenSettings>;
+  abstract updateKitchenSettings(settings: KitchenSettings): Promise<KitchenSettings>;
   abstract getPlans(): Promise<Plan[]>;
   abstract getPlanByDate(date: string): Promise<Plan | null>;
   abstract getPlanIncludingDate(date: string): Promise<Plan | null>;
-  abstract createOrUpdatePlan(p: Omit<Plan, 'id' | 'createdAt' | 'createdBy'>): Promise<Plan>;
+  abstract createOrUpdatePlan(p: Omit<Plan, 'id' | 'createdAt' | 'createdBy'> & { id?: string }): Promise<Plan>;
   abstract deletePlan(id: string): Promise<void>;
   abstract importSystemState(json: string): Promise<void>;
 }

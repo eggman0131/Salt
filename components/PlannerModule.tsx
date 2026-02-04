@@ -9,6 +9,8 @@ interface PlannerModuleProps {
   onRefresh: () => void;
 }
 
+const TEMPLATE_ID = 'plan-template';
+
 export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }) => {
   const [startDate, setStartDate] = useState(getFriday(new Date().toISOString().split('T')[0]));
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -16,11 +18,12 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   const [showHistory, setShowHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('saved');
-  const [activeConfirmId, setActiveConfirmId] = useState<string | null>(null);
-  const [activeDayIdx, setActiveDayIdx] = useState(0); // For mobile focus view
+  const [activeDayIdx, setActiveDayIdx] = useState(0); 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   
   const debounceTimerRef = useRef<number | null>(null);
   const lastSavedJsonRef = useRef<string>('');
+  const lastLoadedStartDateRef = useRef<string | null>(null);
 
   function getFriday(dStr: string) {
     const d = new Date(dStr);
@@ -30,13 +33,16 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     return friday.toISOString().split('T')[0];
   }
 
-  const loadAllPlans = async () => {
+  const loadAllPlans = useCallback(async () => {
     const plans = await saltBackend.getPlans();
     setAllPlans(plans);
-  };
+  }, []);
 
   const loadPlan = useCallback(async () => {
-    setIsLoading(true);
+    // Only show full loading spinner if the date has changed
+    const isInitialLoadForDate = lastLoadedStartDateRef.current !== startDate;
+    if (isInitialLoadForDate) setIsLoading(true);
+    
     try {
       const existing = await saltBackend.getPlanByDate(startDate);
       let targetPlan: Plan;
@@ -44,17 +50,23 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
       if (existing) {
         targetPlan = existing;
       } else {
+        const all = await saltBackend.getPlans();
+        const template = all.find(p => p.id === TEMPLATE_ID || p.startDate === 'template');
+
         const days: DayPlan[] = Array.from({ length: 7 }).map((_, i) => {
           const d = new Date(startDate);
           d.setDate(d.getDate() + i);
+          const tDay = template?.days[i];
+          
           return {
             date: d.toISOString().split('T')[0],
-            cookId: null,
-            presentIds: users.map(u => u.id),
-            userNotes: {},
-            mealNotes: '',
+            cookId: tDay?.cookId || null,
+            presentIds: tDay?.presentIds || users.map(u => u.id),
+            userNotes: tDay?.userNotes || {},
+            mealNotes: tDay?.mealNotes || '',
           };
         });
+
         targetPlan = {
           id: 'new',
           startDate,
@@ -65,6 +77,15 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
       }
 
       setPlan(targetPlan);
+      
+      // ONLY reset active day if the start date actually changed
+      if (isInitialLoadForDate) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayIdx = targetPlan.days.findIndex(d => d.date === todayStr);
+        setActiveDayIdx(todayIdx !== -1 ? todayIdx : 0);
+        lastLoadedStartDateRef.current = startDate;
+      }
+
       lastSavedJsonRef.current = JSON.stringify(targetPlan);
       setSaveStatus('saved');
       loadAllPlans();
@@ -73,18 +94,54 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     } finally {
       setIsLoading(false);
     }
-  }, [startDate, users]);
+  }, [startDate, users, loadAllPlans]);
 
-  useEffect(() => {
-    loadPlan();
-  }, [loadPlan]);
+  const loadTemplate = useCallback(async () => {
+    const isInitialLoadForDate = lastLoadedStartDateRef.current !== 'template';
+    if (isInitialLoadForDate) setIsLoading(true);
+    
+    try {
+      const all = await saltBackend.getPlans();
+      let template = all.find(p => p.id === TEMPLATE_ID || p.startDate === 'template');
+      
+      if (!template) {
+        template = {
+          id: TEMPLATE_ID,
+          startDate: 'template',
+          days: Array.from({ length: 7 }).map((_, i) => ({
+            date: `day-${i}`,
+            cookId: null,
+            presentIds: users.map(u => u.id),
+            userNotes: {},
+            mealNotes: '',
+          })),
+          createdAt: new Date().toISOString(),
+          createdBy: '',
+        };
+      }
+      setPlan(template);
+      
+      if (isInitialLoadForDate) {
+        setActiveDayIdx(0);
+        lastLoadedStartDateRef.current = 'template';
+      }
 
-  useEffect(() => {
-    if (activeConfirmId) {
-      const timer = setTimeout(() => setActiveConfirmId(null), 3000);
-      return () => clearTimeout(timer);
+      lastSavedJsonRef.current = JSON.stringify(template);
+      setSaveStatus('saved');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
-  }, [activeConfirmId]);
+  }, [users]);
+
+  useEffect(() => {
+    if (startDate === 'template') {
+      loadTemplate();
+    } else {
+      loadPlan();
+    }
+  }, [startDate, loadPlan, loadTemplate]);
 
   useEffect(() => {
     if (!plan || isLoading) return;
@@ -100,7 +157,12 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     debounceTimerRef.current = window.setTimeout(async () => {
       try {
         const { id, createdAt, createdBy, ...data } = plan;
-        const saved = await saltBackend.createOrUpdatePlan(data);
+        const payload = plan.id === TEMPLATE_ID || plan.startDate === 'template' 
+          ? { ...data, id: TEMPLATE_ID, startDate: 'template' } 
+          : { ...data, id: plan.id };
+          
+        const saved = await saltBackend.createOrUpdatePlan(payload as any);
+        
         if (plan.id === 'new') {
           setPlan(prev => prev ? { ...prev, id: saved.id } : null);
         }
@@ -116,7 +178,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     return () => {
       if (debounceTimerRef.current) window.clearTimeout(debounceTimerRef.current);
     };
-  }, [plan, isLoading, onRefresh]);
+  }, [plan, isLoading, onRefresh, loadAllPlans]);
 
   const handleUpdateDay = (index: number, updates: Partial<DayPlan>) => {
     if (!plan) return;
@@ -125,37 +187,31 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     setPlan({ ...plan, days: newDays });
   };
 
-  const handleDeletePlan = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (activeConfirmId === id) {
-      await saltBackend.deletePlan(id);
-      setActiveConfirmId(null);
-      loadAllPlans();
-      onRefresh();
-      if (plan?.id === id) {
-        setPlan(null); 
-        loadPlan();
-      }
-    } else {
-      setActiveConfirmId(id);
-    }
-  };
-
   const handlePlanNextCycle = () => {
-    if (allPlans.length === 0) {
+    const historical = allPlans.filter(p => p.id !== TEMPLATE_ID && p.startDate !== 'template');
+    if (historical.length === 0) {
       const nextFri = new Date();
       nextFri.setDate(nextFri.getDate() + (5 + 7 - nextFri.getDay()) % 7);
-      if (nextFri.toISOString().split('T')[0] === getFriday(new Date().toISOString().split('T')[0])) {
-          nextFri.setDate(nextFri.getDate() + 7);
-      }
-      setStartDate(getFriday(nextFri.toISOString().split('T')[0]));
-      return;
+      const nextFriStr = getFriday(nextFri.toISOString().split('T')[0]);
+      setStartDate(nextFriStr);
+    } else {
+      const latest = historical.sort((a,b) => b.startDate.localeCompare(a.startDate))[0]; 
+      const latestDate = new Date(latest.startDate);
+      latestDate.setDate(latestDate.getDate() + 7);
+      setStartDate(latestDate.toISOString().split('T')[0]);
     }
-    const latest = allPlans[0]; 
-    const latestDate = new Date(latest.startDate);
-    latestDate.setDate(latestDate.getDate() + 7);
-    setStartDate(latestDate.toISOString().split('T')[0]);
     setShowHistory(false);
+  };
+
+  const handleDeletePlan = async (id: string) => {
+    try {
+      await saltBackend.deletePlan(id);
+      setDeletingId(null);
+      loadAllPlans();
+      onRefresh();
+    } catch (err) {
+      alert("Failed to delete plan.");
+    }
   };
 
   if (isLoading || !plan) {
@@ -166,132 +222,184 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     );
   }
 
+  const isTemplateMode = plan.id === TEMPLATE_ID || plan.startDate === 'template';
+
   return (
-    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-gray-100 pb-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">Kitchen Planner</h2>
-            <div className="mt-1 shrink-0">
-              {saveStatus === 'saving' && (
-                <span className="text-[9px] font-black uppercase text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full animate-pulse">Syncing...</span>
-              )}
-              {saveStatus === 'saved' && (
-                <span className="text-[9px] font-black uppercase text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">Manifest Saved</span>
-              )}
-              {saveStatus === 'error' && (
-                <span className="text-[9px] font-black uppercase text-red-500 bg-red-50 px-2 py-0.5 rounded-full">Save Failed</span>
-              )}
+    <div className="flex flex-col w-full max-w-full min-w-0 box-border animate-in fade-in duration-500 overflow-hidden">
+      <div className="bg-[#fcfcfc] pb-3 w-full min-w-0 box-border border-b border-gray-100 mb-2">
+        <div className="flex items-center justify-between gap-2 px-0.5">
+          <div className="flex-1 max-w-[150px] min-w-0">
+            {isTemplateMode ? (
+              <div className="h-9 px-3 flex items-center bg-blue-50 text-[#2563eb] rounded-lg border border-blue-100 text-[10px] font-black uppercase tracking-widest">
+                Master Template
+              </div>
+            ) : (
+              <Input 
+                type="date" 
+                value={startDate} 
+                onChange={e => setStartDate(getFriday(e.target.value))} 
+                className="h-9 text-xs font-sans w-full shadow-inner box-border border-gray-100 bg-gray-50/30"
+              />
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <Button 
+              variant={showHistory ? 'primary' : 'secondary'} 
+              onClick={() => {
+                if (isTemplateMode) setStartDate(getFriday(new Date().toISOString().split('T')[0]));
+                setShowHistory(!showHistory);
+              }} 
+              className="h-9 px-4 text-[9px] uppercase font-black tracking-widest shrink-0 box-border whitespace-nowrap"
+            >
+              {showHistory ? 'Close History' : 'All Plans'}
+            </Button>
+            
+            <div className="flex items-center gap-1.5 min-w-[50px] justify-end">
+              <div className={`w-1.5 h-1.5 rounded-full ${saveStatus === 'saving' ? 'bg-blue-500 animate-pulse' : 'bg-green-400'}`} />
+              <span className={`text-[8px] font-black uppercase tracking-tighter ${saveStatus === 'saving' ? 'text-blue-500' : 'text-gray-300'}`}>
+                {saveStatus === 'saving' ? 'Syncing' : 'Synced'}
+              </span>
             </div>
           </div>
-          <p className="text-xs text-gray-500 font-medium font-sans mt-1">Friday to Thursday planning cycle.</p>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <Button 
-            variant="ghost" 
-            onClick={handlePlanNextCycle} 
-            className="flex-1 md:flex-none h-10 px-4 text-[9px] font-black uppercase tracking-widest border border-blue-100 text-blue-600 bg-blue-50/30"
-          >
-            + Next Cycle
-          </Button>
-          <Button 
-            variant="ghost" 
-            onClick={() => setShowHistory(!showHistory)} 
-            className="flex-1 md:flex-none h-10 px-4 text-[9px] font-black uppercase tracking-widest border border-gray-100"
-          >
-            {showHistory ? 'View Current' : 'History'}
-          </Button>
-          <div className="w-full md:w-44">
-            <Input 
-              type="date" 
-              value={startDate} 
-              onChange={e => setStartDate(getFriday(e.target.value))} 
-              className="h-10 text-xs font-sans"
-            />
-          </div>
-        </div>
-      </header>
 
-      {showHistory ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-top-4 duration-500">
-          {allPlans.map(p => (
-            <Card key={p.id} className="p-6 group hover:border-blue-200 transition-all cursor-pointer flex flex-col justify-between" onClick={() => { setStartDate(p.startDate); setShowHistory(false); }}>
-              <div>
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-sm">Friday {new Date(p.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</h4>
-                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">7-Day Kitchen Manifest</p>
-                  </div>
-                  <button 
-                    onClick={(e) => handleDeletePlan(p.id, e)}
-                    className={`text-[8px] font-black uppercase px-2 py-1 rounded transition-all ${
-                      activeConfirmId === p.id 
-                        ? 'bg-red-600 text-white shadow-lg' 
-                        : 'text-gray-300 hover:text-red-500'
-                    }`}
-                  >
-                    {activeConfirmId === p.id ? 'Confirm' : 'Delete'}
-                  </button>
-                </div>
-                <div className="space-y-1.5 mb-4">
-                  {p.days.slice(0, 3).map((d, i) => (
-                    <div key={i} className="flex gap-2 text-[11px] truncate">
-                      <span className="text-gray-300 font-bold uppercase w-6">{new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short' })[0]}</span>
-                      <span className="text-gray-600 font-medium truncate">{d.mealNotes || '---'}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <Button variant="secondary" fullWidth className="h-9 text-[8px] uppercase font-black tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Load Manifest</Button>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Mobile Day Strip Navigator */}
-          <div className="lg:hidden sticky top-16 md:top-20 bg-[#fcfcfc] z-40 py-2 -mx-4 px-4 overflow-x-auto no-scrollbar border-b border-gray-100 flex gap-2">
+        {!showHistory && (
+          <div className="lg:hidden w-full overflow-x-auto no-scrollbar flex gap-2 pt-3 px-0.5 snap-x snap-mandatory box-border">
             {plan.days.map((day, idx) => {
-              const d = new Date(day.date);
+              const isToday = !isTemplateMode && day.date === new Date().toISOString().split('T')[0];
               const isSelected = activeDayIdx === idx;
+              
+              let dayLabel, dateLabel;
+              if (isTemplateMode) {
+                const daysOfWeek = ['Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu'];
+                dayLabel = daysOfWeek[idx];
+                dateLabel = '---';
+              } else {
+                const d = new Date(day.date);
+                dayLabel = d.toLocaleDateString('en-GB', { weekday: 'short' });
+                dateLabel = d.getDate();
+              }
+
               return (
-                <button
-                  key={day.date}
-                  onClick={() => setActiveDayIdx(idx)}
-                  className={`flex flex-col items-center justify-center min-w-[56px] h-14 rounded-2xl transition-all border ${
+                <button 
+                  key={idx} 
+                  onClick={() => setActiveDayIdx(idx)} 
+                  className={`flex flex-col items-center justify-center min-w-[50px] flex-1 h-14 rounded-xl transition-all border snap-center shrink-0 ${
                     isSelected 
-                      ? 'bg-[#2563eb] border-[#2563eb] text-white shadow-lg shadow-blue-500/20' 
-                      : 'bg-white border-gray-100 text-gray-400'
+                      ? 'bg-[#2563eb] border-[#2563eb] text-white shadow-md' 
+                      : isToday 
+                        ? 'bg-blue-50 border-blue-100 text-[#2563eb]'
+                        : 'bg-white text-gray-400 border-gray-100'
                   }`}
                 >
-                  <span className={`text-[8px] font-black uppercase tracking-widest ${isSelected ? 'text-blue-100' : 'text-gray-300'}`}>
-                    {d.toLocaleDateString('en-GB', { weekday: 'short' })}
-                  </span>
-                  <span className="text-sm font-black">{d.getDate()}</span>
+                  <span className={`text-[7px] font-black uppercase ${isSelected ? 'text-blue-100' : 'text-gray-400'}`}>{dayLabel}</span>
+                  <span className="text-sm font-black">{dateLabel}</span>
                 </button>
               );
             })}
           </div>
+        )}
+      </div>
 
-          {/* Desktop Grid Layout */}
-          <div className="hidden lg:grid grid-cols-2 xl:grid-cols-3 gap-6">
+      {showHistory ? (
+        <div className="space-y-6 pt-2 w-full min-w-0 box-border overflow-hidden">
+          <div className="flex justify-between items-center px-1">
+             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Master & History</h4>
+             <Button onClick={handlePlanNextCycle} className="h-9 px-4 text-[9px] uppercase font-black tracking-widest">+ Plan Next</Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 box-border">
+            <Card 
+              className={`p-4 group cursor-pointer box-border border-l-4 transition-all ${startDate === 'template' ? 'bg-blue-50 border-blue-500' : 'bg-white border-l-gray-200 hover:border-l-blue-400'}`}
+              onClick={() => { setStartDate('template'); setShowHistory(false); }}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h4 className="font-black text-gray-900 text-[13px] uppercase tracking-wider">Master Template</h4>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase">Weekly Defaults</p>
+                </div>
+                <div className="w-6 h-6 rounded bg-blue-100 flex items-center justify-center">
+                  <svg className="w-3.3 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" /></svg>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-500 italic">Sets meal notes and assigned chefs for all new weeks.</p>
+            </Card>
+
+            {allPlans.filter(p => p.id !== TEMPLATE_ID && p.startDate !== 'template').map(p => {
+              const isConfirming = deletingId === p.id;
+              return (
+                <Card 
+                  key={p.id} 
+                  className={`p-4 group relative hover:border-blue-200 cursor-pointer bg-white box-border border-l-4 border-l-gray-100 transition-all ${isConfirming ? 'ring-2 ring-red-500' : ''}`} 
+                  onClick={() => { if(!isConfirming) { setStartDate(p.startDate); setShowHistory(false); } }}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="font-bold text-gray-900 text-[13px]">Fri {new Date(p.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</h4>
+                    </div>
+                    {isConfirming ? (
+                      <div className="flex gap-1 animate-in slide-in-from-right-2">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDeletePlan(p.id); }}
+                          className="bg-red-500 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase"
+                        >
+                          Confirm
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setDeletingId(null); }}
+                          className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[8px] font-black uppercase"
+                        >
+                          X
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setDeletingId(p.id); }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-500 transition-all"
+                        aria-label="Delete plan"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    {p.days.slice(0, 3).map((d, i) => (
+                      <div key={i} className="flex gap-2 text-[10px] truncate">
+                        <span className="text-gray-300 font-bold uppercase w-4 shrink-0">{new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short' })[0]}</span>
+                        <span className="text-gray-500 font-medium truncate italic">{d.mealNotes || '---'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col flex-1 lg:space-y-4 pt-4 w-full min-w-0 box-border overflow-hidden">
+          <div className="hidden lg:grid grid-cols-2 xl:grid-cols-4 gap-4 box-border">
             {plan.days.map((day, idx) => (
               <DayCard 
-                key={day.date} 
+                key={isTemplateMode ? `template-${idx}` : day.date} 
                 day={day} 
                 users={users} 
+                isTemplate={isTemplateMode}
                 onChange={(updates) => handleUpdateDay(idx, updates)} 
               />
             ))}
+            {!isTemplateMode && (
+              <Card className="p-6 bg-gray-50 border-gray-200 border-dashed flex flex-col justify-center items-center text-center box-border">
+                <Button variant="ghost" onClick={handlePlanNextCycle} className="h-9 text-[9px] font-black uppercase tracking-widest">Start Next Week</Button>
+              </Card>
+            )}
           </div>
 
-          {/* Mobile Focused Card */}
-          <div className="lg:hidden animate-in fade-in slide-in-from-right-4 duration-300">
+          <div className="lg:hidden w-full min-w-0 pb-12 box-border px-0.5">
             <DayCard 
               day={plan.days[activeDayIdx]} 
               users={users} 
-              onChange={(updates) => handleUpdateDay(activeDayIdx, updates)}
-              isMobile
+              isTemplate={isTemplateMode}
+              onChange={(updates) => handleUpdateDay(activeDayIdx, updates)} 
             />
           </div>
         </div>
@@ -300,97 +408,108 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   );
 };
 
-interface DayCardProps {
-  day: DayPlan;
-  users: User[];
-  onChange: (updates: Partial<DayPlan>) => void;
-  isMobile?: boolean;
-}
+const DayCard: React.FC<{ day: DayPlan; users: User[]; isTemplate: boolean; onChange: (updates: Partial<DayPlan>) => void }> = ({ day, users, isTemplate, onChange }) => {
+  const isToday = !isTemplate && day.date === new Date().toISOString().split('T')[0];
+  
+  let dayName = '';
+  let dateString = '';
 
-const DayCard: React.FC<DayCardProps> = ({ day, users, onChange, isMobile = false }) => {
-  const dateObj = new Date(day.date);
-  const dayName = dateObj.toLocaleDateString('en-GB', { weekday: 'long' });
-  const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+  if (isTemplate) {
+    const days = ['Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+    const idx = parseInt(day.date.split('-')[1]);
+    dayName = days[idx] || 'Unknown';
+    dateString = 'Default Schedule';
+  } else {
+    const d = new Date(day.date);
+    dayName = d.toLocaleDateString('en-GB', { weekday: 'long' });
+    dateString = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  const handleUserNoteChange = (userId: string, note: string) => {
+    const newUserNotes = { ...day.userNotes, [userId]: note };
+    onChange({ userNotes: newUserNotes });
+  };
 
   return (
-    <Card className={`flex flex-col overflow-hidden bg-white shadow-sm border-gray-100 ${isMobile ? 'min-h-[500px]' : ''}`}>
-      <div className="p-5 border-b border-gray-50 bg-gray-50/40">
-        <div className="flex justify-between items-center">
-          <div>
-            <h4 className="font-black text-gray-900 leading-tight text-lg">{dayName}</h4>
-            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{dateStr}</p>
-          </div>
-          {day.cookId && (
-            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shadow-sm">
-              <span className="text-[9px] font-black text-blue-600 uppercase">Chef</span>
-              <span className="text-xs font-bold text-blue-900 truncate max-w-[90px]">
-                {users.find(u => u.id === day.cookId)?.displayName}
-              </span>
-            </div>
-          )}
+    <Card className={`flex flex-col bg-white shadow-sm transition-all border-gray-100 w-full max-w-full min-w-0 box-border ${isToday ? 'ring-2 ring-blue-500/20 border-blue-100' : ''}`}>
+      <div className={`p-4 border-b flex justify-between items-center shrink-0 ${isToday ? 'bg-blue-50/30 border-blue-50' : (isTemplate ? 'bg-blue-50/10' : 'bg-gray-50/10')}`}>
+        <div className="min-w-0 flex-1">
+          <h4 className="font-black text-gray-900 text-sm flex items-center gap-2 truncate">
+            {dayName}
+            {isToday && <span className="w-1.5 h-1.5 rounded-full bg-[#2563eb] animate-pulse shrink-0" />}
+          </h4>
+          <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">{dateString}</p>
         </div>
+        {day.cookId && (
+          <div className="w-7 h-7 rounded-lg bg-[#2563eb] flex items-center justify-center text-white text-[10px] font-black shadow-sm shrink-0 ml-3">
+            {users.find(u => u.id === day.cookId)?.displayName?.[0] || '?'}
+          </div>
+        )}
       </div>
 
-      <div className="p-6 space-y-8 flex-1">
-        <div className="space-y-3">
-          <Label>Menu Planning</Label>
+      <div className="p-4 flex-1 space-y-6 flex flex-col min-w-0 box-border">
+        <div className="space-y-1.5 min-w-0 box-border">
+          <Label className="text-[9px]">{isTemplate ? 'Default Meal' : 'Meal Plan'}</Label>
           <textarea 
-            placeholder="What's for dinner?"
-            className="w-full p-5 border border-gray-100 rounded-2xl text-base font-sans focus:ring-4 focus:ring-blue-50 outline-none transition-all resize-none h-32 bg-gray-50/50 placeholder:text-gray-300"
+            placeholder={isTemplate ? "What's the usual plan for this day?" : "What's for dinner?"}
+            className="w-full p-3 border border-gray-100 rounded-xl text-sm font-medium font-sans leading-relaxed focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none h-24 bg-gray-50/30 placeholder:text-gray-200 box-border"
             value={day.mealNotes}
             onChange={e => onChange({ mealNotes: e.target.value })}
           />
         </div>
 
-        <div className="space-y-3">
-          <Label>Who's Cooking Today?</Label>
-          <div className="flex flex-wrap gap-2">
+        <div className="space-y-2 min-w-0 box-border">
+          <Label className="text-[9px]">Head Chef</Label>
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-1.5 min-w-0 box-border">
             {users.map(u => (
-              <button
-                key={u.id}
-                onClick={() => onChange({ cookId: day.cookId === u.id ? null : u.id })}
-                className={`flex-1 min-w-[80px] px-3 py-3 rounded-xl text-[10px] font-black uppercase transition-all border shadow-sm ${
+              <button 
+                key={u.id} 
+                onClick={() => onChange({ cookId: day.cookId === u.id ? null : u.id })} 
+                className={`px-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all border truncate flex items-center justify-center box-border ${
                   day.cookId === u.id 
-                    ? 'bg-[#2563eb] border-[#2563eb] text-white' 
-                    : 'bg-white border-gray-100 text-gray-400 hover:text-gray-600'
+                    ? 'bg-[#2563eb] border-[#2563eb] text-white shadow-sm' 
+                    : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
                 }`}
               >
-                {u.displayName}
+                {u.displayName.split(' ')[0]}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="space-y-5 pt-6 border-t border-gray-50">
-          <Label>Attendance & Family Notes</Label>
-          <div className="space-y-4">
+        <div className="space-y-4 pt-4 border-t border-gray-50 min-w-0 box-border">
+          <Label className="text-[9px]">Attendees & Notes</Label>
+          <div className="space-y-4 min-w-0 box-border">
             {users.map(u => {
               const isPresent = day.presentIds.includes(u.id);
               return (
-                <div key={u.id} className="group">
-                  <div className="flex items-center justify-between mb-2">
-                    <button
+                <div key={u.id} className="min-w-0 space-y-1.5 box-border">
+                  <div className="flex items-center gap-2 group w-full min-w-0 box-border">
+                    <button 
                       onClick={() => {
-                        const next = isPresent 
-                          ? day.presentIds.filter(id => id !== u.id)
-                          : [...day.presentIds, u.id];
+                        const next = isPresent ? day.presentIds.filter(id => id !== u.id) : [...day.presentIds, u.id];
                         onChange({ presentIds: next });
-                      }}
-                      className={`flex items-center gap-3 transition-opacity ${isPresent ? 'opacity-100' : 'opacity-30'}`}
+                      }} 
+                      className="flex items-center gap-2 flex-1 min-w-0 text-left"
                     >
-                      <div className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 ${isPresent ? 'bg-blue-500 border-blue-500 shadow-md shadow-blue-500/20' : 'border-gray-200'}`}>
-                        {isPresent && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg>}
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ${isPresent ? 'bg-[#2563eb] border-[#2563eb]' : 'border-gray-200'}`}>
+                        {isPresent && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg>}
                       </div>
-                      <span className={`text-sm font-bold ${isPresent ? 'text-gray-900' : 'text-gray-400'}`}>{u.displayName}</span>
+                      <span className={`text-xs font-bold truncate flex-1 ${isPresent ? 'text-gray-900' : 'text-gray-300'}`}>
+                        {u.displayName}
+                      </span>
                     </button>
                   </div>
                   {isPresent && (
-                    <input 
-                      placeholder={`Add dietary notes for ${u.displayName.split(' ')[0]}...`}
-                      className="w-full px-4 py-2 text-xs font-sans text-gray-600 border-0 border-l-2 border-blue-100 focus:ring-0 bg-transparent placeholder:text-gray-200 italic"
-                      value={day.userNotes[u.id] || ''}
-                      onChange={e => onChange({ userNotes: { ...day.userNotes, [u.id]: e.target.value } })}
-                    />
+                    <div className="pl-6 w-full min-w-0 box-border">
+                      <input 
+                        type="text"
+                        placeholder="Timing/Special reqs..."
+                        className="w-full py-1 text-[11px] font-medium font-sans text-gray-500 border-b border-gray-100 focus:border-blue-300 bg-transparent outline-none placeholder:text-gray-200 transition-colors truncate box-border"
+                        value={day.userNotes[u.id] || ''}
+                        onChange={e => handleUserNoteChange(u.id, e.target.value)}
+                      />
+                    </div>
                   )}
                 </div>
               );

@@ -1,16 +1,19 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salt - Minimalist Kitchen Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Salt - Kitchen Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        html {
-            font-size: 110%; /* Global text size increase - scales all rem units */
+        html, body {
+            max-width: 100vw;
+            overflow-x: hidden;
+            position: relative;
         }
         body {
             font-family: 'Inter', sans-serif;
@@ -24,6 +27,10 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+
+        /* Utility for clean horizontal pickers */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
         /* Markdown Styles for Chat Bubbles */
         .markdown-body h1, .markdown-body h2 { font-weight: 700; color: #111827; margin-top: 1.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid #f3f4f6; padding-bottom: 0.25rem; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em; }

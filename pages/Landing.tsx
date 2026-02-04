@@ -7,41 +7,40 @@ interface LandingProps {
 }
 
 export const LandingPage: React.FC<LandingProps> = ({ onStart }) => {
-  const handleStart = () => {
-    // Guidelines: Removed mandatory openSelectKey() check as we are prioritising 
-    // standard Flash models which utilise the provided environment key.
-    onStart();
-  };
-
   return (
-    <div className="min-h-screen bg-[#fcfcfc] flex flex-col items-center justify-center p-6">
-      <div className="max-w-2xl text-center space-y-12">
-        <div className="space-y-3">
-          <h1 className="text-6xl font-bold tracking-tighter text-gray-900">SALT</h1>
-          <p className="text-xl text-gray-400 font-medium tracking-tight">Home Kitchen Management, simplified.</p>
+    <div className="min-h-screen bg-[#fcfcfc] flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 right-0 -mr-32 -mt-32 w-[500px] h-[500px] bg-blue-50/40 rounded-full blur-3xl opacity-60" />
+      <div className="absolute bottom-0 left-0 -ml-32 -mb-32 w-[500px] h-[500px] bg-gray-100/50 rounded-full blur-3xl opacity-60" />
+
+      <main className="z-10 text-center space-y-8 max-w-lg animate-in fade-in zoom-in-95 duration-1000">
+        <div className="space-y-2">
+          <h1 className="text-8xl md:text-9xl font-black tracking-tighter text-gray-900 leading-none">
+            SALT
+          </h1>
+          <p className="text-lg md:text-xl text-gray-400 font-medium tracking-tight">
+            Your Kitchen Assistant
+          </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-          <div className="bg-white p-8 rounded-lg border border-gray-100 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-3 text-lg">Recipe Collection</h3>
-            <p className="text-sm text-gray-500 leading-relaxed font-medium">Organise ingredients, methods, and shared family notes with minimalist domestic precision.</p>
-          </div>
-          <div className="bg-white p-8 rounded-lg border border-gray-100 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-3 text-lg">Equipment Inventory</h3>
-            <p className="text-sm text-gray-500 leading-relaxed font-medium">Track your appliances and their verified accessories in one shared, intelligent manifest.</p>
-          </div>
-        </div>
-
-        <div className="pt-6 flex justify-center">
-          <Button onClick={handleStart} className="px-16 py-5 text-lg uppercase tracking-widest font-bold">
+        <div className="pt-4">
+          <Button 
+            onClick={onStart} 
+            className="px-12 py-6 text-base uppercase tracking-[0.3em] font-black shadow-2xl shadow-blue-500/20 hover:-translate-y-1 transition-all active:scale-95 h-auto rounded-2xl"
+          >
             Enter Kitchen
           </Button>
         </div>
+      </main>
 
-        <p className="text-[10px] text-gray-300 uppercase tracking-[0.4em] font-black pt-16">
-          Powered by Gemini AI
-        </p>
-      </div>
+      <footer className="absolute bottom-10 left-0 right-0 flex justify-center">
+        <div className="flex items-center gap-2 opacity-30">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+          <p className="text-[10px] text-gray-400 uppercase tracking-[0.4em] font-black">
+            Gemini Core
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
