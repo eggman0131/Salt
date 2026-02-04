@@ -13,8 +13,7 @@ export const Button: React.FC<ButtonProps> = ({
   className = '', 
   ...props 
 }) => {
-  // Standardised to min-h-[44px] for standard touch targets, with tighter padding for density
-  const base = "px-5 py-2 min-h-[44px] rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center gap-2";
+  const base = "px-5 py-2 min-h-[44px] rounded-xl font-bold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center gap-2";
   const variants = {
     primary: "bg-[#2563eb] text-white hover:bg-[#1d4ed8] focus:ring-blue-500 shadow-sm",
     secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-300",
@@ -34,7 +33,7 @@ export const Button: React.FC<ButtonProps> = ({
 export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, className = '', ...props }) => (
   <div 
     {...props} 
-    className={`bg-white border border-gray-100 rounded-lg shadow-sm ${className}`}
+    className={`bg-white border border-gray-100 rounded-2xl shadow-sm ${className}`}
   >
     {children}
   </div>
@@ -45,8 +44,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input 
       {...props}
       ref={ref}
-      // Standardised to min-h-[44px] and reduced padding for density. Text-base on mobile prevents auto-zoom.
-      className={`w-full px-4 py-2 min-h-[44px] border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-[#2563eb] outline-none transition-all bg-white text-gray-900 text-base md:text-sm placeholder:text-gray-400 font-normal ${props.className || ''}`}
+      className={`w-full px-4 py-2 min-h-[44px] border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-[#2563eb] outline-none transition-all bg-white text-gray-900 text-base md:text-sm placeholder:text-gray-400 font-normal ${props.className || ''}`}
     />
   )
 );

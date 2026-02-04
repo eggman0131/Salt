@@ -2,10 +2,11 @@
 /**
  * !!! PROTECTION LOCK !!!
  * FILE: types/contract.ts
- * ROLE: The Law (Data Schema)
+ * ROLE: The Law (Absolute Data Schema)
  * 
  * DO NOT MODIFY THIS FILE WITHOUT EXPLICIT USER CONSENT.
- * Changing this file breaks manifest compatibility and existing backups.
+ * This file defines the Salt Manifest. Changing it breaks compatibility 
+ * with existing backups and the AI synthesis engine.
  */
 
 import { z } from 'zod';
@@ -126,12 +127,12 @@ export interface ISaltBackend {
   resolveImagePath: (path: string) => Promise<string>;
   deleteRecipe: (id: string) => Promise<void>;
   getInventory: () => Promise<Equipment[]>;
-  getEquipment: (id: string) => Promise<Equipment | null>;
+  getEquipment(id: string): Promise<Equipment | null>;
   createEquipment: (equipment: Omit<Equipment, 'id' | 'createdAt' | 'createdBy'>) => Promise<Equipment>;
   updateEquipment: (id: string, equipment: Partial<Equipment>) => Promise<Equipment>;
   deleteEquipment: (id: string) => Promise<void>;
-  getKitchenSettings: () => Promise<KitchenSettings>;
-  updateKitchenSettings: (settings: KitchenSettings) => Promise<KitchenSettings>;
+  getKitchenSettings(): Promise<KitchenSettings>;
+  updateKitchenSettings(settings: KitchenSettings): Promise<KitchenSettings>;
   searchEquipmentCandidates: (query: string) => Promise<EquipmentCandidate[]>;
   generateEquipmentDetails: (candidate: EquipmentCandidate) => Promise<Partial<Equipment>>;
   validateAccessory: (equipmentName: string, accessoryName: string) => Promise<Omit<Accessory, 'id'>>;
@@ -141,8 +142,8 @@ export interface ISaltBackend {
   chatForDraft: (history: {role: string, text: string}[]) => Promise<string>;
   generateRecipeImage: (recipeTitle: string) => Promise<string>;
   importSystemState: (json: string) => Promise<void>;
-  getPlans: () => Promise<Plan[]>;
-  getPlanByDate: (date: string) => Promise<Plan | null>;
+  getPlans(): Promise<Plan[]>;
+  getPlanByDate(date: string): Promise<Plan | null>;
   getPlanIncludingDate(date: string): Promise<Plan | null>;
   createOrUpdatePlan: (plan: Omit<Plan, 'id' | 'createdAt' | 'createdBy'> & { id?: string }) => Promise<Plan>;
   deletePlan: (id: string) => Promise<void>;

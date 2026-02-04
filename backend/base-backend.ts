@@ -4,9 +4,9 @@
  * FILE: backend/base-backend.ts
  * ROLE: The Brain (AI Orchestration & Prompt Logic)
  * 
- * DESIGN PATTERN: Template Method.
- * This class houses ALL shared business rules and prompt templates.
- * It is AGNOSTIC of how the AI is actually called (Transport).
+ * DO NOT MODIFY THIS FILE WITHOUT EXPLICIT USER CONSENT.
+ * This class houses the domain logic and AI synthesis engine.
+ * Subclasses (The Hands) are only responsible for Persistence and Transport.
  */
 
 import { GenerateContentParameters, GenerateContentResponse, Type } from "@google/genai";
@@ -21,18 +21,15 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   // -- ABSTRACT AI TRANSPORT (The Security Bridge) --
 
   /**
-   * Subclasses MUST implement this to define how AI content is generated.
-   * Simulated backend will call the SDK directly.
-   * Firebase backend can override this to call a secure Cloud Function.
+   * Transport Strategy: 
+   * Implementation classes MUST instantiate GoogleGenAI using process.env.API_KEY
+   * inside these methods. This ensures the backend always uses the latest key
+   * provided by the environment or SelectKey dialog.
    */
   protected abstract callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse>;
-
-  /**
-   * Subclasses MUST implement this for streaming support.
-   */
   protected abstract callGenerateContentStream(params: GenerateContentParameters): Promise<AsyncIterable<GenerateContentResponse>>;
 
-  // -- SHARED LOGIC --
+  // -- SHARED LOGIC (DO NOT RE-IMPLEMENT IN SUBCLASSES) --
 
   protected sanitizeJson(text: string): string {
     const firstBrace = text.indexOf('{');
@@ -51,11 +48,8 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   protected pruneHistory(history: {role: string, text: string}[], maxTurns = 15): {role: string, text: string}[] {
     const maxMessages = maxTurns * 2;
     if (history.length <= maxMessages) return history;
-    
     const pruned = history.slice(-maxMessages);
-    while (pruned.length > 0 && pruned[0].role !== 'user') {
-      pruned.shift();
-    }
+    while (pruned.length > 0 && pruned[0].role !== 'user') pruned.shift();
     return pruned;
   }
 
@@ -71,7 +65,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     return `${SYSTEM_CORE}${houseRules}${customContext ? `\n\n${customContext}` : ''}`;
   }
 
-  // -- ORCHESTRATED AI METHODS (The Brain) --
+  // -- ORCHESTRATED AI METHODS --
   
   async searchEquipmentCandidates(query: string): Promise<EquipmentCandidate[]> {
     const instruction = await this.getSystemInstruction("You are an expert kitchen consultant.");
@@ -152,27 +146,19 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
       contents: EQUIPMENT_PROMPTS.validateAccessory(equipmentName, accessoryName),
-      config: { 
-        systemInstruction: instruction,
-        responseMimeType: "application/json"
-      }
+      config: { systemInstruction: instruction, responseMimeType: "application/json" }
     });
     return JSON.parse(this.sanitizeJson(response.text || '{}'));
   }
 
   async generateRecipeFromPrompt(consensusDraft: string, currentRecipe?: Recipe, history?: {role: string, text: string}[]): Promise<Partial<Recipe>> {
     const leanInventory = await this.getLeanInventoryString();
-    
-    let recipeContext = "No original recipe exists. This is a new creation.";
+    let recipeContext = "No original recipe exists.";
     if (currentRecipe) {
-      const ingText = (currentRecipe.ingredients || []).map(ing => `- ${ing}`).join('\n');
-      const instText = (currentRecipe.instructions || []).map((inst, i) => `${i + 1}. ${inst}`).join('\n');
-      recipeContext = `EXISTING RECIPE:\nTITLE: ${currentRecipe.title}\nINGREDIENTS:\n${ingText}\nMETHOD:\n${instText}`;
+      recipeContext = `EXISTING RECIPE:\nTITLE: ${currentRecipe.title}\nINGREDIENTS:\n${(currentRecipe.ingredients || []).join('\n')}\nMETHOD:\n${(currentRecipe.instructions || []).join('\n')}`;
     }
-
-    const historySummary = history ? `FULL DISCUSSION CONTEXT:\n${history.slice(-30).map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n')}` : '';
-    const instruction = await this.getSystemInstruction("You are the Head Chef performing a technical synthesis. Adhere STRICTLY to the modification plan, conversation history, and house rules.");
-
+    const historySummary = history ? `DISCUSSION:\n${history.slice(-30).map(m => `${m.role}: ${m.text}`).join('\n')}` : '';
+    const instruction = await this.getSystemInstruction("You are the Head Chef performing synthesis.");
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
       contents: `${RECIPE_PROMPTS.synthesis(consensusDraft, leanInventory, recipeContext)}\n\n${historySummary}`,
@@ -191,23 +177,11 @@ export abstract class BaseSaltBackend implements ISaltBackend {
             cookTime: { type: Type.STRING },
             servings: { type: Type.STRING },
             complexity: { type: Type.STRING, enum: ['Simple', 'Intermediate', 'Advanced'] },
-            equipmentNeeded: { type: Type.ARRAY, items: { type: Type.STRING } },
-            stepIngredients: { 
-              type: Type.ARRAY, 
-              items: { type: Type.ARRAY, items: { type: Type.INTEGER } },
-              description: "Array matching instructions length, where each inner array contains indices of ingredients used in that step."
-            },
-            stepAlerts: { 
-              type: Type.ARRAY, 
-              items: { type: Type.ARRAY, items: { type: Type.INTEGER } },
-              description: "Array matching instructions length, mapping to indices in technicalWarnings."
-            },
+            stepIngredients: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.INTEGER } } },
+            stepAlerts: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.INTEGER } } },
             workflowAdvice: {
               type: Type.OBJECT,
-              properties: {
-                technicalWarnings: { type: Type.ARRAY, items: { type: Type.STRING } },
-                optimumToolLogic: { type: Type.STRING }
-              }
+              properties: { technicalWarnings: { type: Type.ARRAY, items: { type: Type.STRING } }, optimumToolLogic: { type: Type.STRING } }
             }
           },
           required: ['title', 'description', 'ingredients', 'instructions', 'totalTime', 'servings', 'complexity', 'stepIngredients']
@@ -219,17 +193,10 @@ export abstract class BaseSaltBackend implements ISaltBackend {
 
   async chatWithRecipe(recipe: Recipe, message: string, history: {role: string, text: string}[], onChunk?: (chunk: string) => void): Promise<string> {
     const leanInventory = await this.getLeanInventoryString();
-    const formattedIngredients = (recipe.ingredients || []).map(ing => `- ${ing}`).join('\n');
-    const formattedInstructions = (recipe.instructions || []).map((inst, i) => `${i + 1}. ${inst}`).join('\n');
-    const recipeString = `INGREDIENTS:\n${formattedIngredients}\n\nMETHOD:\n${formattedInstructions}`;
-
+    const recipeString = `RECIPE: ${recipe.title}\nINGREDIENTS: ${(recipe.ingredients || []).join(', ')}`;
     const pruned = this.pruneHistory(history, 12);
     const formattedHistory = pruned.map(h => ({ role: h.role === 'ai' ? 'model' : 'user', parts: [{ text: h.text }] }));
-    
-    const settings = await this.getKitchenSettings();
-    const houseRules = settings.directives ? `\nHOUSE RULES:\n${settings.directives}` : '';
-    const instruction = `${RECIPE_PROMPTS.chatPersona(recipe.title, leanInventory, recipeString)}${houseRules}`;
-
+    const instruction = `${RECIPE_PROMPTS.chatPersona(recipe.title, leanInventory, recipeString)}`;
     const stream = await this.callGenerateContentStream({
       model: 'gemini-3-flash-preview',
       contents: [...formattedHistory, { role: 'user', parts: [{ text: message }] }] as any,
@@ -241,17 +208,9 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   }
 
   async summarizeAgreedRecipe(history: {role: string, text: string}[], currentRecipe?: Recipe): Promise<string> {
-    const prunedHistory = history.slice(-20);
-    const historySummary = prunedHistory.map(h => `${h.role.toUpperCase()}: ${h.text}`).join('\n');
-    
-    const leanRecipe = currentRecipe ? {
-      title: currentRecipe.title,
-      ingredients: currentRecipe.ingredients,
-      instructions: currentRecipe.instructions
-    } : {};
-
-    const instruction = await this.getSystemInstruction("You are the Head Chef identifying refinements. Focus only on agreed changes while respecting house rules.");
-
+    const historySummary = history.slice(-20).map(h => `${h.role}: ${h.text}`).join('\n');
+    const leanRecipe = currentRecipe ? { title: currentRecipe.title, ingredients: currentRecipe.ingredients } : {};
+    const instruction = await this.getSystemInstruction("Head Chef Consensus Summary.");
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
       contents: RECIPE_PROMPTS.consensusSummary(historySummary, JSON.stringify(leanRecipe)),
@@ -262,18 +221,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
           type: Type.OBJECT,
           properties: {
             consensusDraft: { type: Type.STRING },
-            proposals: { 
-              type: Type.ARRAY, 
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  technicalInstruction: { type: Type.STRING }
-                },
-                required: ['id', 'description', 'technicalInstruction']
-              }
-            }
+            proposals: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { id: {type: Type.STRING}, description: {type: Type.STRING}, technicalInstruction: {type: Type.STRING} }, required: ['id', 'description', 'technicalInstruction'] } }
           },
           required: ['consensusDraft', 'proposals']
         }
@@ -284,11 +232,8 @@ export abstract class BaseSaltBackend implements ISaltBackend {
 
   async chatForDraft(history: {role: string, text: string}[]): Promise<string> {
     const leanInventory = await this.getLeanInventoryString();
-    const pruned = this.pruneHistory(history, 12);
-    const formattedHistory = pruned.map(h => ({ role: h.role === 'ai' ? 'model' : 'user', parts: [{ text: h.text }] }));
-    
+    const formattedHistory = this.pruneHistory(history, 12).map(h => ({ role: h.role === 'ai' ? 'model' : 'user', parts: [{ text: h.text }] }));
     const instruction = await this.getSystemInstruction(RECIPE_PROMPTS.draftingPersona(leanInventory));
-
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
       contents: formattedHistory as any,

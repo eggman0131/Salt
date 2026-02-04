@@ -70,6 +70,29 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
     finally { setIsGenerating(false); }
   };
 
+  const handleRefreshEquipment = async () => {
+    if (!editingItem || !editingItem.brand || !editingItem.modelName) return;
+    setIsGenerating(true);
+    try {
+      const candidate: EquipmentCandidate = {
+        brand: editingItem.brand,
+        modelName: editingItem.modelName,
+        description: '',
+        category: (editingItem.class as any) || 'Complex Appliance'
+      };
+      const details = await saltBackend.generateEquipmentDetails(candidate);
+      setEditingItem({
+        ...editingItem,
+        ...details,
+        name: details.brand && details.modelName ? `${details.brand} ${details.modelName}` : editingItem.name,
+      });
+    } catch (err) {
+      alert("Refresh failed. AI could not retrieve updated specs.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!editingItem) return;
     try {
@@ -130,7 +153,13 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
       <header className="flex justify-end items-center pb-3">
-        <Button onClick={() => { setIsAdding(true); setEditingItem(null); setCandidates([]); setSearchQuery(''); setIsDeletingConfirm(false); }} className="h-10 px-6">Add Item</Button>
+        <button 
+          onClick={() => { setIsAdding(true); setEditingItem(null); setCandidates([]); setSearchQuery(''); setIsDeletingConfirm(false); }} 
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#2563eb] text-white shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+          title="Add New Equipment"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+        </button>
       </header>
 
       <div className="relative">
@@ -152,8 +181,8 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
               <div className="p-6 md:p-10 space-y-8">
                 <div className="flex justify-between items-center">
                   <h3 className="text-xl font-bold text-gray-900">Search Catalogue</h3>
-                  <button onClick={() => setIsAdding(false)} className="p-2 text-gray-400 hover:text-gray-900">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                  <button onClick={() => setIsAdding(false)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-900">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -170,21 +199,67 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col">
-                <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-lg z-20 shadow-sm">
-                  <h3 className="text-xl font-bold text-gray-900">Equipment Detail</h3>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" className="px-4 h-11 text-xs" onClick={() => { setEditingItem(null); if(!editingItem.id) setIsAdding(false); setIsDeletingConfirm(false); }}>Discard</Button>
-                    <Button onClick={handleSave} className="px-6 h-11 text-xs">Save</Button>
+              <div className="flex flex-col relative">
+                {isGenerating && (
+                  <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-10 text-center space-y-4">
+                    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#2563eb]">AI Synthesis in Progress...</p>
+                  </div>
+                )}
+                
+                <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-lg z-20 shadow-sm min-h-[72px]">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-900 truncate mr-2">Equipment Detail</h3>
+                  <div className="flex items-center gap-1">
                     {editingItem.id && (
-                      <div className="relative">
+                      <button 
+                        className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-[#2563eb] transition-all disabled:opacity-30" 
+                        onClick={handleRefreshEquipment} 
+                        disabled={isGenerating}
+                        title="Refresh Technical Specs"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                      </button>
+                    )}
+
+                    <button 
+                      className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-green-600 transition-all disabled:opacity-30" 
+                      onClick={handleSave} 
+                      disabled={isGenerating}
+                      title="Save Changes"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </button>
+
+                    {editingItem.id && (
+                      <div className="relative flex items-center">
                         {isDeletingConfirm ? (
-                          <Button variant="primary" className="bg-red-600 hover:bg-red-700 px-4 h-11 text-xs" onClick={(e) => handleDelete(editingItem.id!, e)}>Confirm</Button>
+                          <button 
+                            className="bg-red-600 hover:bg-red-700 text-white px-3 h-8 rounded-lg text-[10px] font-black uppercase tracking-widest animate-in slide-in-from-right-1 ml-1" 
+                            onClick={(e) => handleDelete(editingItem.id!, e)}
+                          >
+                            Confirm
+                          </button>
                         ) : (
-                          <Button variant="ghost" className="px-4 h-11 text-red-500 text-xs" onClick={() => setIsDeletingConfirm(true)}>Delete</Button>
+                          <button 
+                            className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-red-500 transition-all" 
+                            onClick={() => setIsDeletingConfirm(true)}
+                            title="Delete Item"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          </button>
                         )}
                       </div>
                     )}
+
+                    <div className="w-px h-6 bg-gray-100 mx-2" />
+
+                    <button 
+                      onClick={() => { setEditingItem(null); if(!editingItem.id) setIsAdding(false); setIsDeletingConfirm(false); }} 
+                      className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-900 transition-all"
+                      title="Close"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
                   </div>
                 </div>
                 <div className="p-6 md:p-10 space-y-10">
@@ -205,14 +280,33 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
                   <div className="space-y-6">
                     <div className="flex justify-between items-end border-b border-gray-100 pb-3">
                       <h4 className="font-black text-gray-900 uppercase tracking-[0.2em] text-[10px]">Accessories</h4>
-                      <Button variant="ghost" className="text-[10px] py-1 h-9 font-black" onClick={() => setIsAddingManualAcc(true)}>+ Add</Button>
+                      <button 
+                        onClick={() => setIsAddingManualAcc(true)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-[#2563eb] transition-all"
+                        title="Add Accessory"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+                      </button>
                     </div>
                     {isAddingManualAcc && (
-                      <div className="p-6 bg-gray-50 rounded-lg border border-gray-100 space-y-4 shadow-inner">
+                      <div className="p-6 bg-gray-50 rounded-lg border border-gray-100 space-y-4 shadow-inner animate-in slide-in-from-top-2">
                         <Input placeholder="Accessory name..." value={manualAccName} onChange={e => setManualAccName(e.target.value)} className="font-sans h-12" />
                         <div className="flex gap-2 justify-end">
-                          <Button variant="secondary" onClick={() => setIsAddingManualAcc(false)} className="h-11 px-6">Cancel</Button>
-                          <Button onClick={handleAddManualAcc} disabled={isValidatingAcc} className="h-11 px-6">{isValidatingAcc ? 'Validating...' : 'Add'}</Button>
+                          <button 
+                            onClick={() => setIsAddingManualAcc(false)} 
+                            className="w-11 h-11 flex items-center justify-center rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-gray-900 shadow-sm"
+                            title="Cancel"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                          </button>
+                          <button 
+                            onClick={handleAddManualAcc} 
+                            disabled={isValidatingAcc} 
+                            className="w-11 h-11 flex items-center justify-center rounded-xl bg-[#2563eb] text-white shadow-lg shadow-blue-500/20 disabled:opacity-30"
+                            title="Add"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="4"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                          </button>
                         </div>
                       </div>
                     )}

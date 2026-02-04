@@ -118,7 +118,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     };
   }, [isWakeLockActive, mode]);
 
-  // Use direct scrollTop for stabilization instead of scrollIntoView
   useEffect(() => { 
     if (mobileTab === 'assistant' && chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -296,7 +295,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                     onClick={() => setPendingProposals(prev => prev ? prev.map(item => item.id === p.id ? { ...item, selected: !item.selected } : item) : null)}
                     className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-4 ${p.selected ? 'bg-blue-50/50 border-blue-500 shadow-sm' : 'bg-white border-gray-100 opacity-60 grayscale'}`}
                    >
-                     <div className={`mt-1 w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${p.selected ? 'bg-blue-500 border-blue-500' : 'bg-white border-gray-300'}`}>
+                     <div className={`mt-1 w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${p.selected ? 'bg-blue-500 border-blue-500' : 'bg-white border-gray-200'}`}>
                        {p.selected && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg>}
                      </div>
                      <span className={`text-[15px] font-bold font-sans leading-relaxed ${p.selected ? 'text-blue-900' : 'text-gray-400'}`}>{p.description}</span>
@@ -313,7 +312,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
       )}
 
       <Card className="w-full max-sm:h-[100dvh] max-w-7xl bg-white shadow-2xl border-0 h-full flex flex-col rounded-none md:rounded-lg overflow-hidden relative" onClick={e => e.stopPropagation()}>
-        {/* Unified Mobile/Desktop Header - RIGID HEIGHT LOCK */}
         <div className="h-16 md:h-20 border-b border-gray-100 flex justify-between items-center px-4 bg-white shrink-0 z-50 overflow-hidden flex-none box-border">
           <div className="flex flex-col min-w-0 flex-1 justify-center mr-2">
             <div className="h-4 flex items-center">
@@ -323,42 +321,38 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
             </div>
             <div className="flex items-center gap-2 truncate mt-1">
               <h3 className="text-sm md:text-base font-bold text-gray-900 truncate leading-none">{recipe.title}</h3>
-              {mode === 'cook' && (
-                <button 
-                  onClick={() => setIsWakeLockActive(!isWakeLockActive)} 
-                  className={`hidden sm:flex items-center px-2 py-0.5 rounded-full border transition-all ${isWakeLockActive ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-gray-50 border-gray-100 text-gray-400'}`}
-                >
-                  <span className="text-[7px] font-black uppercase tracking-widest">{isWakeLockActive ? 'Stay Awake: ON' : 'Stay Awake: OFF'}</span>
-                </button>
-              )}
             </div>
           </div>
           
-          <div className="flex items-center gap-2 shrink-0 h-full py-2">
-            {/* Nav Switcher - Unified segment control for Recipe, Chef, Cook */}
-            <div className="flex items-center bg-gray-100 p-1 rounded-xl shadow-inner border border-gray-200/50 h-full box-border">
+          <div className="flex items-center gap-1.5 shrink-0 h-full py-2">
+            <div className="flex items-center bg-gray-50 p-1 rounded-xl shadow-inner border border-gray-200/50 h-full box-border">
               <button 
                 onClick={() => { setMode('refine'); setMobileTab('recipe'); }} 
-                className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all h-full ${mode === 'refine' && mobileTab === 'recipe' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${mode === 'refine' && mobileTab === 'recipe' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`}
+                title="Recipe Documentation"
               >
-                Recipe
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
               </button>
               <button 
                 onClick={() => { setMode('refine'); setMobileTab('assistant'); }} 
-                className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all h-full ${mode === 'refine' && mobileTab === 'assistant' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${mode === 'refine' && mobileTab === 'assistant' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`}
+                title="Discuss with Sous-Chef"
               >
-                Chef
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
               </button>
               <button 
                 onClick={() => { setMode('cook'); setCurrentStep(0); }} 
-                className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all h-full ${mode === 'cook' ? 'bg-white text-[#2563eb] shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-[#2563eb]'}`}
+                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${mode === 'cook' ? 'bg-white text-[#2563eb] shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-[#2563eb]'}`}
+                title="Start Service"
               >
-                Cook
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.99 7.99 0 0120 13a7.98 7.98 0 01-2.343 5.657z"/></svg>
               </button>
             </div>
 
-            <button onClick={onClose} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-gray-400 hover:text-gray-900 transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            <div className="w-px h-6 bg-gray-100 mx-1" />
+
+            <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-900 transition-colors" title="Close">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
         </div>
@@ -367,10 +361,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
           <div className="h-full bg-[#2563eb] transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
         </div>
 
-        {/* Combined Content Area - flex-1 ensures it fills remaining space below the fixed header */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-          
-          {/* Main Content Area */}
           <div className={`flex-1 overflow-y-auto bg-white border-r border-gray-100 ${mode === 'refine' && mobileTab === 'assistant' ? 'hidden md:block' : 'block'}`}>
             <div className="p-6 md:p-12 pb-40">
               {mode === 'cook' ? (
@@ -407,9 +398,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                       <div className="aspect-[4/3] rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm group relative">
                         <RemoteImage path={recipe.imagePath} className={`w-full h-full object-cover transition-opacity duration-500 ${isRegeneratingImage ? 'opacity-40' : 'opacity-100'}`} alt={recipe.title} />
                         {isRegeneratingImage && <div className="absolute inset-0 flex items-center justify-center"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}
-                        <div className="absolute inset-0 bg-black/40 flex flex-col gap-2 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="primary" className="h-10 text-[10px] uppercase px-4" onClick={() => setIsEditingImage(true)}>Edit Photo</Button>
-                          <Button variant="secondary" className="h-10 text-[10px] uppercase px-4" onClick={handleRegenerateImage} disabled={isRegeneratingImage}>Regenerate AI</Button>
+                        <div className="absolute inset-0 bg-black/40 flex flex-col gap-2 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-4">
+                          <Button variant="primary" className="h-11 px-6 uppercase tracking-widest text-[10px] font-black" onClick={() => setIsEditingImage(true)}>Edit Photo</Button>
+                          <Button variant="secondary" className="h-11 px-6 uppercase tracking-widest text-[10px] font-black" onClick={handleRegenerateImage} disabled={isRegeneratingImage}>Regenerate</Button>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3"><div className="bg-gray-50 p-4 rounded-2xl text-center"><p className="text-[9px] font-black uppercase text-gray-400 mb-1">Time</p><p className="font-bold text-gray-900">{recipe.totalTime}</p></div><div className="bg-gray-50 p-4 rounded-2xl text-center"><p className="text-[9px] font-black uppercase text-gray-400 mb-1">Serves</p><p className="font-bold text-gray-900">{recipe.servings}</p></div></div>
@@ -417,33 +408,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                     <div className="flex-1 space-y-12">
                       <section><h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-6 pb-2 border-b border-gray-100">Ingredients</h4><ul className="grid grid-cols-1 md:grid-cols-2 gap-4">{ingredients.map((ing, i) => (<li key={i} className="flex items-center gap-3 text-base text-gray-700 font-sans"><div className="w-1.5 h-1.5 rounded-full bg-blue-100" />{ing}</li>))}</ul></section>
                       <section><h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-8 pb-2 border-b border-gray-100">Method</h4><div className="space-y-10">{instructions.map((inst, i) => (<div key={i} className="flex gap-8 group"><span className="text-4xl font-black text-gray-100 group-hover:text-blue-100 transition-colors">{String(i + 1).padStart(2, '0')}</span><p className="text-lg text-gray-800 font-sans leading-relaxed pt-1">{inst}</p></div>))}</div></section>
-                      <section className="pt-8 border-t border-gray-50">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-8 pb-2 border-b border-gray-100">History</h4>
-                        <div className="space-y-6">
-                          {recipe.history?.length ? (
-                            [...recipe.history].reverse().map((entry, idx) => {
-                              const entryId = `${entry.timestamp}-${entry.userName}`;
-                              const isConfirming = confirmRestoreId === entryId;
-                              return (
-                                <div key={idx} className="flex gap-6 relative group">
-                                  {idx !== (recipe.history?.length || 0) - 1 && (<div className="absolute left-[7px] top-6 bottom-[-24px] w-px bg-gray-100" />)}
-                                  <div className={`w-4 h-4 rounded-full border-2 transition-colors z-10 mt-1 shrink-0 ${isConfirming ? 'border-red-500 bg-red-500' : 'border-[#2563eb] bg-white group-hover:bg-[#2563eb]'}`} />
-                                  <div className="flex-1 space-y-1.5 pb-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.1em]">{entry.userName || 'Chef'}</span>
-                                        <span className="text-[10px] text-gray-400 font-medium">{new Date(entry.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
-                                      </div>
-                                      <button onClick={(e) => handleRestoreVersion(entry, e)} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded transition-all ${isConfirming ? 'bg-red-500 text-white opacity-100' : 'text-[#2563eb] hover:bg-blue-50 opacity-0 group-hover:opacity-100'}`}>Restore</button>
-                                    </div>
-                                    <p className="text-sm text-gray-800 font-bold font-sans leading-relaxed italic">{entry.changeDescription}</p>
-                                  </div>
-                                </div>
-                              );
-                            })
-                          ) : (<div className="py-10 text-center"><p className="text-xs text-gray-300 font-medium italic">No revisions.</p></div>)}
-                        </div>
-                      </section>
                     </div>
                   </div>
                 </div>
@@ -451,9 +415,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
             </div>
           </div>
 
-          {/* Sous-Chef Sidebar */}
           <div className={`${mode === 'cook' ? 'hidden' : (mobileTab === 'assistant' ? 'flex' : 'hidden md:flex')} w-full md:w-[320px] lg:w-[380px] flex-col bg-gray-50/50 md:border-l border-gray-100 shrink-0 h-full overflow-hidden`}>
-            {/* Header placeholder to keep height synced with main layout on Desktop */}
             <div className="hidden md:flex p-4 md:p-6 border-b border-gray-100 bg-white items-center justify-between shrink-0 h-16 md:h-20">
               <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#2563eb]">Sous-Chef</h4>
               {pendingProposals && <span className="bg-blue-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest animate-pulse">Update Ready</span>}
@@ -470,7 +432,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
             
             <div className="p-3 bg-white border-t border-gray-100 space-y-2 shrink-0">
               {messages.length > 0 && !pendingProposals && (
-                <Button fullWidth variant="secondary" onClick={handleApplyUpdate} disabled={isUpdating || isTyping} className="h-9 text-[9px] uppercase font-black tracking-widest">Process Changes</Button>
+                <button 
+                  onClick={handleApplyUpdate} 
+                  disabled={isUpdating || isTyping} 
+                  className="w-full h-10 flex items-center justify-center rounded-xl bg-gray-50 border border-gray-100 text-gray-400 hover:text-[#2563eb] hover:bg-white hover:shadow-sm transition-all disabled:opacity-30"
+                  title="Process discussed refinements"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
               )}
               <form onSubmit={handleSendMessage} className="flex gap-2 pb-safe">
                 <Input placeholder="Adjustments..." value={chatInput} onChange={e => setChatInput(e.target.value)} className="h-10 text-sm bg-gray-50 border-0 shadow-inner" disabled={isTyping || isUpdating || !!pendingProposals} />
@@ -531,7 +500,13 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
           </span>
         </div>
-        <Button onClick={onNewRecipe} className="h-11 px-8 text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 whitespace-nowrap">+ New Recipe</Button>
+        <button 
+          onClick={onNewRecipe} 
+          className="w-11 h-11 flex items-center justify-center rounded-xl bg-[#2563eb] text-white shadow-lg shadow-blue-500/20 active:scale-95 transition-all whitespace-nowrap"
+          title="Create New Recipe"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -540,12 +515,22 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
             <div className="aspect-[4/3] bg-gray-50 relative overflow-hidden">
               <RemoteImage path={recipe.imagePath} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={recipe.title} />
               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={(e) => handleDelete(recipe.id, e)}
-                  className={`p-2 rounded-lg backdrop-blur-md transition-all ${isDeletingConfirm === recipe.id ? 'bg-red-500 text-white' : 'bg-white/80 text-gray-400 hover:text-red-500'}`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                </button>
+                {isDeletingConfirm === recipe.id ? (
+                  <button 
+                    onClick={(e) => handleDelete(recipe.id, e)}
+                    className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-xl animate-in slide-in-from-right-1"
+                  >
+                    Confirm
+                  </button>
+                ) : (
+                  <button 
+                    onClick={(e) => handleDelete(recipe.id, e)}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/80 backdrop-blur-md text-gray-400 hover:text-red-500 transition-colors shadow-sm"
+                    title="Delete Recipe"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
+                )}
               </div>
               <div className="absolute bottom-4 left-4">
                  <span className="text-[9px] font-black uppercase tracking-widest bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-gray-900 border border-gray-100">Level: {recipe.complexity}</span>

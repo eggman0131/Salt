@@ -37,9 +37,15 @@ Fields required:
 - class: Placement category (e.g., "Worktop Appliance", "Cookware").
 - features: Key technical specs separated by semicolons.
 - uses: Primary culinary applications.
-- accessories: An array of objects with {name, description, type: 'standard'|'optional', owned: true}. Standard items are those in the box; Optional are verified add-ons.`,
+- accessories: An array of objects with {name, description, type: 'standard'|'optional', owned: true}. Standard items are those in the box; Optional are verified add-ons.
+
+STRICT CULINARY FILTER: 
+Exclude any items that do not have a direct culinary impact. 
+DO NOT include: carrying cases, storage bags, instruction manuals, physical knobs/dials, generic cookbooks, registration cards, or warranty documents. 
+ONLY include tools that interact with food, heat, or the processing of ingredients.`,
 
   validateAccessory: (equipment: string, accessory: string) => `Validate if "${accessory}" is a genuine, compatible component for the "${equipment}". 
+STRICT RULE: Only validate items with direct culinary impact. If the item is a case, manual, or cookbook, reject it as a non-technical accessory.
 Return a JSON object with:
 - name: The official accessory name.
 - description: Its specific culinary function.

@@ -1,41 +1,39 @@
+
 # SALT - Firebase Migration Roadmap (MANDATORY PROTOCOL)
 
-This document is a BINDING PROTOCOL for any AI agent tasked with migrating Salt to Firebase. 
+This document is a BINDING PROTOCOL for implementing the Salt production backend.
 
 ## 🚫 THE RED LINE (DO NOT CROSS)
-- **DO NOT MODIFY `BaseSaltBackend.ts`.** All AI orchestration, Gemini SDK logic, and persona rules are LOCKED. 
-- **DO NOT MODIFY `prompts.ts`.** The Head Chef's voice is immutable.
-- **DO NOT MODIFY `contract.ts`.** The Salt Manifest schema is the law.
-- **DO NOT INTRODUCE `firebase.Timestamp`.** All dates must remain ISO Strings as per the contract.
+- **DO NOT MODIFY `BaseSaltBackend.ts`.** All synthesis logic is inherited.
+- **DO NOT MODIFY `contract.ts`.** The schema is immutable.
+- **DO NOT INTRODUCE `firebase.Timestamp`.** Use ISO Strings.
 
-## PHASE 1: The Skeleton (FirebaseBackend.ts)
-Implement the class structure in `backend/firebase-backend.ts`. 
-- **Rule:** It MUST extend `BaseSaltBackend`. 
-- **Rule:** It MUST NOT import `@google/genai`. All AI logic is inherited.
-- **Rule:** Focus exclusively on `collection()`, `doc()`, and `getDoc()` logic.
+## PHASE 1: Authentication (Family Only)
+- **Mechanism:** `firebase/auth` with Google Provider or Email.
+- **Auth Guard:** Successful login MUST be followed by a `getDoc(doc(db, 'users', email))` check.
+- **Failure:** If the user is not in the `users` collection, sign them out immediately and throw "Access Denied". Salt is for a specific kitchen staff only.
 
-## PHASE 2: Authentication (Login/Logout)
-- Use `firebase/auth`.
-- Upon successful login, you MUST check the `users` collection in Firestore.
-- If a user does not exist in the `users` collection, the login must fail (Authorised Family Only).
+## PHASE 2: Firestore Topology
+Map the Salt Manifest to these root collections:
+- `users`: Keyed by email.
+- `inventory`: Keyed by `id` (eq-...).
+- `recipes`: Keyed by `id` (rec-...).
+- `plans`: Keyed by `id` (plan-...). Special case: `plan-template`.
+- `settings`: Single doc `global`.
 
-## PHASE 3: Data Mapping & Sanitation
-When writing to or reading from Firestore:
-- **Write:** Ensure `createdAt` and `timestamp` fields are `new Date().toISOString()`.
-- **Read:** If you encounter a legacy Firebase Timestamp, you MUST convert it to a string immediately before returning it to the system.
-- **ID Management:** Use the document ID as the object `id`. Do not store duplicate IDs inside the document body.
+## PHASE 3: Storage Integration
+- Implement `resolveImagePath` using `firebase/storage`.
+- In `createRecipe` and `updateRecipe`, if `imageData` is provided:
+  1. Upload the base64 string as a JPEG blob.
+  2. Set `imagePath` to the storage location.
+  3. Return the updated Recipe object.
 
-## PHASE 4: The Switcher (api.ts)
-- Update `backend/api.ts` only when all persistence methods are implemented.
-- The system must remain switchable via environment variables.
+## PHASE 4: Manifest Restoration
+- `importSystemState` must handle the full JSON manifest.
+- **Atomicity:** Use `writeBatch()` for large imports.
+- **Cleansing:** Optionally clear existing collections before restore (verify with user).
 
-## PHASE 5: Batch Restoration
-Update `importSystemState` to handle the JSON manifest.
-- Use `writeBatch()` for efficiency.
-- Re-validate every incoming object against the Zod schemas in `contract.ts` before writing.
-
-## FAILURE MODE PROTOCOL
-If you encounter a conflict between Firestore's native behavior and the Salt Contract:
-1. **DO NOT** change the contract.
-2. **DO NOT** "improvise" a new data shape.
-3. **STOP** and ask the User for a "Technical Dispensation".
+## PHASE 5: Transition
+1. Implement `SaltFirebaseBackend.ts`.
+2. Update `api.ts` to check `VITE_BACKEND_MODE === 'firebase'`.
+3. Test by exporting a manifest from Simulation and importing it into Firebase.
