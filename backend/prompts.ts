@@ -19,13 +19,15 @@ TONE & STYLE:
 5. METRIC ONLY: Everything is in grams (g), millilitres (ml), or Celsius (°C). Never use "cups".`;
 
 export const EQUIPMENT_PROMPTS = {
-  search: (query: string) => `The user is searching the UK market for: "${query}". 
-Identify the top 3 specific professional or high-end domestic models available in the UK.
-For each, provide:
-- brand: The manufacturer.
-- modelName: The specific model name/number.
-- description: A concise chef-focused summary of why this equipment is significant (power, capacity, build).
-- category: One of ['Complex Appliance', 'Technical Cookware', 'Standard Tool'].`,
+  search: (query: string) => `The user is searching for: "${query}". 
+Identify the most accurate specific professional or high-end domestic models available in the UK that match this EXACT query. 
+- If the query specifies a specific brand and model (e.g. "Sage Control Freak"), only return that exact item and perhaps one very close competitor if relevant. 
+- Do not suggest generic or lower-end alternatives if a premium model is specified.
+- For each, provide:
+  - brand: The manufacturer.
+  - modelName: The specific model name/number.
+  - description: A concise chef-focused summary of why this equipment is significant.
+  - category: One of ['Complex Appliance', 'Technical Cookware', 'Standard Tool'].`,
 
   details: (brand: string, model: string) => `Provide a full professional technical specification for the ${brand} ${model}.
 Fields required:
@@ -46,34 +48,62 @@ Return a JSON object with:
 };
 
 export const RECIPE_PROMPTS = {
-  synthesis: (plan: string, inventory: string) => `Construct a professional recipe based on this plan: "${plan}".
+  synthesis: (plan: string, inventory: string, originalRecipe: string) => `Construct the final recipe based on the provided technical plan.
+
+${originalRecipe !== "No original recipe. Create one from scratch." ? `
+ORIGINAL RECIPE (SOURCE OF TRUTH):
+${originalRecipe}
+
+TASK: Perform a DIFFERENTIAL UPDATE. Keep all instructions and ingredients EXACTLY as they are in the Original Recipe UNLESS the Modification Plan specifically demands a change.
+` : `
+TASK: Create a NEW RECIPE from scratch based on the discussion plan.
+`}
+
+MODIFICATION PLAN / DISCUSSION SUMMARY:
+"${plan}"
 
 USER'S KITCHEN EQUIPMENT: ${inventory || 'Standard tools only.'}
 
-Rules:
-1. Tailor the method to the specific equipment listed (e.g. use the Magimix for kneading if they have one).
-2. All measurements must be in grams/ml.
-3. Use British culinary terms throughout.
-4. Keep instructions clear and technical but accessible.`,
+STRICT RULES:
+1. Maintain the professional Chef tone and British/Metric standards.
+2. If updating, do not rewrite steps that aren't being changed.
+3. TECHNICAL MAPPING: You must provide 'stepIngredients'. This is an array of arrays where each inner array contains the 0-indexed indices of ingredients used in that specific instruction step. 
+4. WORKFLOW ADVICE: Provide technical warnings for safety or complex techniques (e.g. "Don't overmix the batter"). Use 'stepAlerts' to map these warnings to specific steps.`,
 
-  chatPersona: (title: string, inventory: string) => `${SYSTEM_CORE}
+  chatPersona: (title: string, inventory: string, currentRecipe: string) => `${SYSTEM_CORE}
 You are the Head Chef consulting on the recipe: "${title}". 
 
 USER'S EQUIPMENT: ${inventory || 'Standard domestic tools'}.
 
-CRITICAL: Talk like a chef. If the user has specific professional equipment (like an Anova or Magimix), suggest using it. 
-Refer to their "equipment", never their "manifest" or "kit". 
-Be concise. Give direct culinary advice.`,
+ABSOLUTE SOURCE OF TRUTH (THE WRITTEN RECIPE):
+${currentRecipe}
 
-  consensusSummary: (history: string, current: string) => `Review our discussion and provide a "Kitchen Plan" for the final recipe.
+CRITICAL DIRECTIVES:
+1. You MUST refer to the recipe EXACTLY as written above.
+2. If the user refers to "Step 2", you must look at the written Step 2 above. 
+3. DO NOT hallucinate improvements, merge steps, or change the method unless the user explicitly asks for an adjustment.
+4. If you suggest a change, clearly state: "I suggest modifying Step X to..." so the user knows you are proposing a deviation from the current written version.
+5. Talk like a professional chef. Be concise.`,
+
+  consensusSummary: (history: string, current: string) => `Review our culinary discussion and capture the technical consensus for the final dish.
 
 HISTORY: ${history}
-CURRENT RECIPE: ${current}
+${current ? `CURRENT RECIPE: ${current}` : 'TASK: Draft a NEW recipe based on the conversation.'}
+
+CRITICAL: You must identify exactly what was agreed upon. 
+If this is a NEW dish, summarize the entire planned recipe (Title, main ingredients, key method points).
+If this is an UPDATE, list only the discrete changes.
 
 Return JSON:
 {
-  "changeSummary": "A brief summary of what we're changing.",
-  "consensusDraft": "A full, detailed description of the final dish and method."
+  "consensusDraft": "A technical summary of the agreed recipe or modifications for the synthesis engine.",
+  "proposals": [
+    {
+      "id": "short-unique-id",
+      "description": "User-facing summary of a specific change (e.g. 'Reduced salt by 50%').",
+      "technicalInstruction": "Instruction for the synthesis engine."
+    }
+  ]
 }`,
 
   draftingPersona: (inventory: string) => `${SYSTEM_CORE}
@@ -85,5 +115,5 @@ CRITICAL: Lead with the equipment the user actually has. If they have a Rangemas
 Ask about portions, ingredients, and which parts of their equipment they want to use. 
 Sound like a professional chef, not a chatbot.`,
 
-  imagePrompt: (title: string) => `A high-end minimalist photograph of ${title} in a professional domestic UK kitchen. Overhead shot, natural light, 4:3 aspect ratio.`
+  imagePrompt: (title: string) => `A professional, close-up macro food photograph of ${title}. The dish is the absolute star of the show, beautifully plated and appetising. Focus on rich textures, steam, and vibrant natural colours. Shallow depth of field with a soft, blurred minimalist kitchen background. Natural light, 4:3 aspect ratio.`
 };

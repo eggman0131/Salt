@@ -23,7 +23,7 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       const user = await saltBackend.login(email);
       onLoginSuccess(user);
     } catch (err: any) {
-      setError(err.message || "No authorised kitchen member found with this address.");
+      setError(err.message || "Login failed.");
     } finally {
       setLoading(false);
     }
@@ -33,13 +33,12 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     <div className="min-h-screen bg-[#fcfcfc] flex items-center justify-center p-6">
       <Card className="w-full max-sm p-10 border-0 shadow-2xl">
         <div className="text-center mb-10">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Kitchen Access</h2>
-          <p className="text-sm text-gray-400 mt-2 font-medium">Authenticate to join the shared system.</p>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Salt Login</h2>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="space-y-2">
-            <Label htmlFor="email">Kitchen ID (Email)</Label>
+            <Label htmlFor="email">Email</Label>
             <Input 
               id="email"
               type="email" 
@@ -54,7 +53,7 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               autoFocus
             />
             {error && (
-              <p className="text-[11px] font-bold text-red-500 mt-2 text-center animate-bounce">
+              <p className="text-[11px] font-bold text-red-500 mt-2 text-center">
                 {error}
               </p>
             )}
@@ -62,14 +61,14 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           
           <div className="space-y-4">
             <Button type="submit" fullWidth disabled={loading} className="py-4 shadow-xl shadow-blue-500/20">
-              {loading ? 'Verifying Identity...' : 'Sign In'}
+              {loading ? 'Verifying...' : 'Sign In'}
             </Button>
           </div>
         </form>
 
         <div className="mt-10 pt-8 border-t border-gray-50 text-center">
           <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">
-            Authorised Family Only
+            SALT
           </p>
         </div>
       </Card>
