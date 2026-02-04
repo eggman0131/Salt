@@ -73,9 +73,16 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
                   />
                 </div>
               </div>
-              <Button fullWidth type="submit" className="h-12 shadow-lg shadow-blue-500/10">
-                Save User
-              </Button>
+              <div className="flex justify-end">
+                <button 
+                  type="submit" 
+                  disabled={!name || !email}
+                  className="w-12 h-12 flex items-center justify-center rounded-xl bg-[#2563eb] text-white shadow-lg shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-30"
+                  title="Save User"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="4"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </button>
+              </div>
             </form>
           </Card>
         </section>
@@ -103,17 +110,22 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
                 </div>
                 
                 <div className="flex items-center">
-                  <Button 
-                    variant={activeConfirmId === u.id ? 'primary' : 'ghost'} 
-                    className={`text-[10px] md:text-[11px] uppercase font-black tracking-widest px-4 h-10 md:h-11 transition-all ${
-                      activeConfirmId === u.id 
-                        ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/20' 
-                        : 'text-gray-400 hover:text-red-500'
-                    }`}
-                    onClick={() => handleDelete(u.id)}
-                  >
-                    {activeConfirmId === u.id ? 'Confirm' : 'Remove'}
-                  </Button>
+                   {activeConfirmId === u.id ? (
+                      <button 
+                        onClick={() => handleDelete(u.id)}
+                        className="bg-red-600 hover:bg-red-700 text-white px-3 h-10 rounded-xl text-[10px] font-black uppercase tracking-widest animate-in slide-in-from-right-1"
+                      >
+                        Confirm
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleDelete(u.id)}
+                        className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-50 hover:text-red-500 transition-all"
+                        title="Remove User"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      </button>
+                    )}
                 </div>
               </div>
             ))}

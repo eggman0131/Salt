@@ -39,7 +39,6 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   }, []);
 
   const loadPlan = useCallback(async () => {
-    // Only show full loading spinner if the date has changed
     const isInitialLoadForDate = lastLoadedStartDateRef.current !== startDate;
     if (isInitialLoadForDate) setIsLoading(true);
     
@@ -78,7 +77,6 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
 
       setPlan(targetPlan);
       
-      // ONLY reset active day if the start date actually changed
       if (isInitialLoadForDate) {
         const todayStr = new Date().toISOString().split('T')[0];
         const todayIdx = targetPlan.days.findIndex(d => d.date === todayStr);
@@ -230,7 +228,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
         <div className="flex items-center justify-between gap-2 px-0.5">
           <div className="flex-1 max-w-[150px] min-w-0">
             {isTemplateMode ? (
-              <div className="h-9 px-3 flex items-center bg-blue-50 text-[#2563eb] rounded-lg border border-blue-100 text-[10px] font-black uppercase tracking-widest">
+              <div className="h-10 px-4 flex items-center bg-blue-50 text-[#2563eb] rounded-xl border border-blue-100 text-[10px] font-black uppercase tracking-widest shadow-sm">
                 Master Template
               </div>
             ) : (
@@ -238,28 +236,30 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
                 type="date" 
                 value={startDate} 
                 onChange={e => setStartDate(getFriday(e.target.value))} 
-                className="h-9 text-xs font-sans w-full shadow-inner box-border border-gray-100 bg-gray-50/30"
+                className="h-10 text-xs font-sans w-full shadow-inner box-border border-gray-100 bg-gray-50/30 rounded-xl"
               />
             )}
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <Button 
-              variant={showHistory ? 'primary' : 'secondary'} 
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button 
+              className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border ${showHistory ? 'bg-[#2563eb] border-[#2563eb] text-white' : 'bg-white border-gray-100 text-gray-400 hover:text-[#2563eb] hover:bg-gray-50'}`}
               onClick={() => {
                 if (isTemplateMode) setStartDate(getFriday(new Date().toISOString().split('T')[0]));
                 setShowHistory(!showHistory);
               }} 
-              className="h-9 px-4 text-[9px] uppercase font-black tracking-widest shrink-0 box-border whitespace-nowrap"
+              title="All Weekly Plans"
             >
-              {showHistory ? 'Close History' : 'All Plans'}
-            </Button>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+            </button>
             
-            <div className="flex items-center gap-1.5 min-w-[50px] justify-end">
-              <div className={`w-1.5 h-1.5 rounded-full ${saveStatus === 'saving' ? 'bg-blue-500 animate-pulse' : 'bg-green-400'}`} />
-              <span className={`text-[8px] font-black uppercase tracking-tighter ${saveStatus === 'saving' ? 'text-blue-500' : 'text-gray-300'}`}>
+            <div className="w-px h-6 bg-gray-100 mx-1" />
+
+            <div className="flex flex-col items-end pr-1">
+              <span className={`text-[7px] font-black uppercase tracking-tighter ${saveStatus === 'saving' ? 'text-blue-500 animate-pulse' : 'text-gray-300'}`}>
                 {saveStatus === 'saving' ? 'Syncing' : 'Synced'}
               </span>
+              <div className={`w-1.5 h-1.5 rounded-full ${saveStatus === 'saving' ? 'bg-blue-500 animate-pulse' : 'bg-green-400'}`} />
             </div>
           </div>
         </div>
@@ -306,7 +306,13 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
         <div className="space-y-6 pt-2 w-full min-w-0 box-border overflow-hidden">
           <div className="flex justify-between items-center px-1">
              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Master & History</h4>
-             <Button onClick={handlePlanNextCycle} className="h-9 px-4 text-[9px] uppercase font-black tracking-widest">+ Plan Next</Button>
+             <button 
+               onClick={handlePlanNextCycle} 
+               className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#2563eb] text-white shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+               title="Create next weekly plan"
+             >
+               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 box-border">
             <Card 
@@ -318,8 +324,8 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
                   <h4 className="font-black text-gray-900 text-[13px] uppercase tracking-wider">Master Template</h4>
                   <p className="text-[9px] text-gray-400 font-bold uppercase">Weekly Defaults</p>
                 </div>
-                <div className="w-6 h-6 rounded bg-blue-100 flex items-center justify-center">
-                  <svg className="w-3.3 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" /></svg>
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" /></svg>
                 </div>
               </div>
               <p className="text-[10px] text-gray-500 italic">Sets meal notes and assigned chefs for all new weeks.</p>
@@ -341,13 +347,13 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
                       <div className="flex gap-1 animate-in slide-in-from-right-2">
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleDeletePlan(p.id); }}
-                          className="bg-red-500 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase"
+                          className="bg-red-500 text-white px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-md"
                         >
                           Confirm
                         </button>
                         <button 
                           onClick={(e) => { e.stopPropagation(); setDeletingId(null); }}
-                          className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[8px] font-black uppercase"
+                          className="bg-gray-100 text-gray-500 px-2 py-1 rounded-lg text-[8px] font-black uppercase"
                         >
                           X
                         </button>
@@ -355,10 +361,10 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
                     ) : (
                       <button 
                         onClick={(e) => { e.stopPropagation(); setDeletingId(p.id); }}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-500 transition-all"
+                        className="opacity-0 group-hover:opacity-100 w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
                         aria-label="Delete plan"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                       </button>
                     )}
                   </div>
@@ -387,11 +393,6 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
                 onChange={(updates) => handleUpdateDay(idx, updates)} 
               />
             ))}
-            {!isTemplateMode && (
-              <Card className="p-6 bg-gray-50 border-gray-200 border-dashed flex flex-col justify-center items-center text-center box-border">
-                <Button variant="ghost" onClick={handlePlanNextCycle} className="h-9 text-[9px] font-black uppercase tracking-widest">Start Next Week</Button>
-              </Card>
-            )}
           </div>
 
           <div className="lg:hidden w-full min-w-0 pb-12 box-border px-0.5">

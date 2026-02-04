@@ -1,31 +1,26 @@
+
 # SALT - Backend Guidelines
 
-The backend implements the `ISaltBackend` interface via a strict inheritance hierarchy.
+The Salt backend is built on a strict inheritance hierarchy designed to keep "Intelligence" (Prompting/Logic) separate from "Execution" (Persistence/Transport).
 
-## 1. The Golden Rule of Inheritance
-Salt uses a "Split-Brain" architecture:
-- **BaseSaltBackend (The Brain):** Houses ALL prompt processing, shared logic, and JSON sanitization. It is transport-agnostic and defines AI requirements via abstract methods.
-- **Specific Implementation (The Hands):** (Simulated or Firebase) Houses ONLY persistence, authentication, and the actual AI delivery mechanism.
+## 1. The Split-Brain Architecture
+- **BaseSaltBackend (The Brain):** Houses ALL AI orchestration, JSON sanitization, and prompt assembly. It is abstract and must never be modified during persistence migrations.
+- **Hands Implementation (Simulated or Firebase):** Responsible ONLY for CRUD operations, Authentication, and the final delivery of AI requests to the Gemini SDK.
 
-## 2. Generative Transport (Security)
-To ensure the application can be made production-ready:
-- **Base class** defines `protected abstract callGenerateContent` and `callGenerateContentStream`.
-- **Simulated backend** implements these using the client-side Gemini SDK for ease of development.
-- **Firebase backend** implements these to facilitate the transition to server-side security. 
-- **Production Security:** When deploying publicly, `SaltFirebaseBackend` should simply replace its transport implementation with a `fetch()` call to a secure Firebase Function. This hides the API key from the browser while preserving all "Brain" logic in the base class.
+## 2. Technical Dispensation: Gemini SDK Location
+To ensure production readiness and allow for future Proxy/Serverless migration:
+- **SDK Instantiation:** The `GoogleGenAI` client MUST be instantiated inside the `callGenerateContent` and `callGenerateContentStream` methods of the *subclass*.
+- **Named Parameters:** Always use `new GoogleGenAI({ apiKey: process.env.API_KEY })`.
+- **Why?** This prevents the base class from becoming "transport-aware" and allows the subclass to easily swap the client-side SDK for a `fetch()` call to a secure server if needed.
 
-## 3. Persistence Standards
-- **Firestore Mapping:** Map Firestore Collections to Salt Entities:
-  - `inventory` -> `Equipment`
-  - `recipes` -> `Recipe`
-  - `plans` -> `Plan`
-  - `users` -> `User`
-- **Strict Strings:** Never allow Firebase-specific types (Timestamps, GeoPoints) to leak into the application state. Convert them at the entry/exit point of the backend implementation.
+## 3. Storage & Image Handling
+- **Simulated Mode:** Uses `localStorage` with a 600px JPEG compression bridge (defined in `SaltSimulatedBackend`) to prevent quota issues.
+- **Firebase Mode:** Must use **Firebase Storage** for images. `Recipe.imagePath` should store the storage reference path, and `resolveImagePath` should use `getDownloadURL`.
 
-## 4. Gemini SDK Constraints
-- The `GoogleGenAI` SDK should only be instantiated and called within the concrete transport implementations in the "Hands" classes.
-- Use the `sanitizeJson` helper provided by the "Brain" for all AI outputs.
+## 4. Contract Enforcement (Zod)
+- Every data operation (read/write) should ideally be wrapped in Zod validation if the source is external (e.g. `importSystemState`).
+- Use `.strict()` to ensure no "database rot" (leaking internal DB fields like `_v` or `_createdAt`) enters the app state.
 
-## 5. DO NOT MODIFY
-- Do not change the `ISaltBackend` interface signature.
-- Do not bypass the transport layer when adding new AI features to the "Brain".
+## 5. Persistence Mapping
+- **Timestamps:** Firestore native `Timestamp` objects MUST NOT leak into the app. Convert them to ISO 8601 strings in the `FirebaseBackend` wrapper.
+- **ID Strategy:** Use document IDs as the object `id`. Avoid storing the ID twice (inside the document body AND as the doc ID) if possible, but prioritize consistency with the `ISaltBackend` return types.

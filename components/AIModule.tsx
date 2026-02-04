@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, Button, Input, Label } from './UI';
 import { saltBackend, sanitizeJson } from '../backend/api';
@@ -47,10 +48,6 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated }) => {
     }
   };
 
-  /**
-   * Finalises the recipe with full history context to prevent deviation.
-   * Employs standard delays (500ms) for UI feedback now that project keys are valid.
-   */
   const handleFinalise = async () => {
     if (status !== 'idle' || messages.length < 2) return;
     
@@ -60,11 +57,9 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated }) => {
       const cleanedConsensus = sanitizeJson(consensusResponse);
       const { consensusDraft } = JSON.parse(cleanedConsensus);
       
-      // Minimal delay for visual feedback
       await new Promise(r => setTimeout(r, 500));
 
       setStatus('organizing');
-      // Pass full history context to synthesis to ensure new recipe reflects the conversation accurately
       const recipeData = await saltBackend.generateRecipeFromPrompt(
         consensusDraft || "A professional recipe based on the agreed plan.",
         undefined,
@@ -122,17 +117,10 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated }) => {
               <h4 className="text-lg font-bold text-gray-900">Preparing Recipe</h4>
               <p className="text-xs text-gray-400 font-sans italic">Synthesizing consensus into service documentation...</p>
             </div>
-            <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-               <div className={`h-full bg-blue-500 transition-all duration-700 ${
-                 status === 'finalizing' ? 'w-1/3' : 
-                 status === 'organizing' ? 'w-2/3' : 'w-full'
-               }`} />
-            </div>
           </Card>
         </div>
       )}
 
-      {/* Main Chat Area */}
       <Card className="flex-1 flex flex-col overflow-hidden border-0 shadow-2xl bg-white relative">
         <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 bg-gray-50/20">
           {messages.map((m, i) => (
@@ -157,29 +145,27 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated }) => {
           <div ref={chatEndRef} />
         </div>
 
-        {/* Floating Save Button */}
         {canFinalise && !isBusy && !isTyping && (
           <div className="absolute right-4 bottom-20 md:right-6 animate-in slide-in-from-bottom-2 fade-in duration-300 pointer-events-none">
-            <Button 
-              variant="primary" 
+            <button 
               onClick={handleFinalise} 
-              className="h-10 px-6 text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/30 pointer-events-auto border-2 border-white"
+              className="w-12 h-12 flex items-center justify-center bg-[#2563eb] text-white rounded-xl shadow-2xl shadow-blue-500/30 pointer-events-auto border-2 border-white active:scale-95 transition-all"
+              title="Save Final Recipe"
             >
-              Save Recipe
-            </Button>
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path d="M5 13l4 4L19 7"/></svg>
+            </button>
           </div>
         )}
 
-        {/* Input Dock */}
         <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-100 flex gap-2 z-10 shrink-0">
           <Input 
             placeholder="Discuss ingredients, methods..."
             value={userInput}
             onChange={e => setUserInput(e.target.value)}
-            className="flex-1 bg-gray-50 border-gray-100 h-10 text-sm shadow-inner"
+            className="flex-1 bg-gray-50 border-gray-100 h-10 text-sm shadow-inner rounded-xl"
             disabled={isTyping || isBusy}
           />
-          <button type="submit" disabled={!userInput || isTyping || isBusy} className="w-10 h-10 p-0 flex items-center justify-center shrink-0 bg-blue-500 text-white rounded-lg shadow-lg shadow-blue-500/20 active:scale-90 disabled:opacity-30">
+          <button type="submit" disabled={!userInput || isTyping || isBusy} className="w-10 h-10 p-0 flex items-center justify-center shrink-0 bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 active:scale-90 disabled:opacity-30">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z"/>
             </svg>

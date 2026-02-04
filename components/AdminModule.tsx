@@ -66,7 +66,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               </div>
             </div>
             
-            <div className="flex flex-col gap-3">
+            <div className="flex gap-4">
               <input 
                 type="file" 
                 id="admin-import" 
@@ -74,20 +74,21 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                 accept=".json" 
                 onChange={onImport} 
               />
-              <Button 
+              <button 
                 onClick={() => document.getElementById('admin-import')?.click()}
                 disabled={isImporting}
-                className="h-12 px-8 uppercase tracking-widest text-[10px] font-black"
+                className="w-12 h-12 flex items-center justify-center rounded-xl bg-[#2563eb] text-white shadow-lg shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-30"
+                title="Import Kitchen State"
               >
-                {isImporting ? 'Restoring...' : 'Import Data'}
-              </Button>
-              <Button 
-                variant="secondary" 
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              </button>
+              <button 
                 onClick={onExport}
-                className="h-12 px-8 uppercase tracking-widest text-[10px] font-black"
+                className="w-12 h-12 flex items-center justify-center rounded-xl bg-gray-100 text-gray-900 hover:bg-gray-200 shadow-sm active:scale-95 transition-all"
+                title="Export Kitchen State"
               >
-                Export Data
-              </Button>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              </button>
             </div>
           </div>
         </Card>
