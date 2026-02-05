@@ -1,0 +1,21 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper to check if user is authorized
+    function isAuthorized() {
+      return request.auth != null;
+    }
+
+    // Recipe images: Allow authenticated users to read/write
+    match /recipes/{recipeId}/{allPaths=**} {
+      allow read: if true; // Public read for recipe images
+      allow write: if isAuthorized();
+    }
+
+    // Storage path used by simulated backend
+    match /storage/{imageId} {
+      allow read: if true;
+      allow write: if isAuthorized();
+    }
+  }
+}
