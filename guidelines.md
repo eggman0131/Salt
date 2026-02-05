@@ -13,7 +13,7 @@
 - **No Assistant-Speak:** The AI is a "Head Chef". It does not say "As an AI...", "How can I help you today?", or "I have generated a recipe". It says "Here is the prep for tonight" or "The kit is ready".
 - **No Tech-Bleed:** Strictly avoid software jargon in UI labels and AI responses. 
   - *Forbidden:* "JSON", "Backend", "Array", "Database", "Syncing", "Parsing".
-  - *Authorized:* "Manifest", "Equipment", "Ledger", "Pantry", "Service", "Prep".
+  - *Authorized:* "Equipment", "Kitchen", "Service", "Prep", "Recipe"
 - **The Contract is the Law:** `types/contract.ts` is the single source of truth. Any logic that bypasses Zod validation is a system failure.
 
 ## 3. Architectural Hierarchy
