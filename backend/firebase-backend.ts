@@ -23,12 +23,12 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
    * Firebase Function to hide your API Key.
    */
   protected async callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
     return await ai.models.generateContent(params);
   }
 
   protected async callGenerateContentStream(params: GenerateContentParameters): Promise<AsyncIterable<GenerateContentResponse>> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
     return await ai.models.generateContentStream(params);
   }
   
