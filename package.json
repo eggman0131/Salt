@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
     "emulators:export": "firebase emulators:export ./emulator-data",
-    "emulators:import": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data"
+    "emulators:import": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
+    "parity": "node scripts/parity-check.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.37.0",
@@ -21,6 +22,7 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.1",
     "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.3",

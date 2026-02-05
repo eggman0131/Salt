@@ -6,6 +6,7 @@ import { DashboardLayout } from './components/Layout';
 import { Card, Button } from './components/UI';
 import { User, Recipe, Equipment, Plan } from './types/contract';
 import { saltBackend } from './backend/api';
+import { runParitySuite } from './scripts/parity-suite';
 
 // Feature Modules
 import { InventoryModule } from './components/InventoryModule';
@@ -71,6 +72,19 @@ const App: React.FC = () => {
       }
     };
     checkAuth();
+  }, []);
+
+  // Dev-only: Run parity suite if ?parity=1 query param is present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('parity') === '1') {
+      (async () => {
+        console.log('🧪 Parity suite requested via query param');
+        const report = await runParitySuite();
+        (window as any).__SALT_PARITY__ = report;
+        console.log('✅ Parity suite complete. Results available at window.__SALT_PARITY__');
+      })();
+    }
   }, []);
 
   // Refresh data whenever we switch tabs or log in
