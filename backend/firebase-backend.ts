@@ -10,11 +10,13 @@
 
 import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
-import { db, auth } from './firebase';
+import { db, auth, googleProvider } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
+import { signInWithPopup, signOut } from 'firebase/auth';
 import { GoogleGenAI, GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 
 export class SaltFirebaseBackend extends BaseSaltBackend {
+  private currentUser: User | null = null;
 
   // -- AI TRANSPORT (READY FOR PROXYING) --
 
@@ -33,23 +35,124 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
   
   // -- AUTHENTICATION --
+  
+  /**
+   * Login using Google provider with authorization gate.
+   * User must exist in the 'users' collection to gain access.
+   */
   async login(email: string): Promise<User> {
-    throw new Error("Method not implemented. Implement using firebase/auth.");
+    try {
+      // Sign in with Google
+      const result = await signInWithPopup(auth, googleProvider);
+      const userEmail = result.user.email;
+      
+      if (!userEmail) {
+        await signOut(auth);
+        throw new Error("Kitchen Access Denied.");
+      }
+      
+      // Check if user exists in the authorized users collection
+      const userDoc = await getDoc(doc(db, 'users', userEmail));
+      
+      if (!userDoc.exists()) {
+        // User not authorized - sign them out
+        await signOut(auth);
+        throw new Error("Kitchen Access Denied.");
+      }
+      
+      // User is authorized
+      const userData = userDoc.data();
+      this.currentUser = {
+        id: userEmail,
+        email: userEmail,
+        displayName: userData.displayName || result.user.displayName || userEmail
+      };
+      
+      return this.currentUser;
+    } catch (error: any) {
+      // Preserve "Kitchen Access Denied" errors
+      if (error.message === "Kitchen Access Denied.") {
+        throw error;
+      }
+      // Handle auth cancellation gracefully
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        throw new Error("Login cancelled.");
+      }
+      throw new Error("Authentication failed.");
+    }
   }
+  
   async logout(): Promise<void> {
-    throw new Error("Method not implemented.");
+    await signOut(auth);
+    this.currentUser = null;
   }
+  
   async getCurrentUser(): Promise<User | null> {
+    // Check if we have cached user
+    if (this.currentUser) {
+      return this.currentUser;
+    }
+    
+    // Check Firebase Auth state
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser || !firebaseUser.email) {
+      return null;
+    }
+    
+    // Fetch user from Firestore
+    try {
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.email));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        this.currentUser = {
+          id: firebaseUser.email,
+          email: firebaseUser.email,
+          displayName: userData.displayName || firebaseUser.displayName || firebaseUser.email
+        };
+        return this.currentUser;
+      }
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+    }
+    
     return null;
   }
+  
   async getUsers(): Promise<User[]> {
-    return [];
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    const users: User[] = [];
+    
+    usersSnapshot.forEach((doc) => {
+      const data = doc.data();
+      users.push({
+        id: doc.id, // email is the document ID
+        email: doc.id,
+        displayName: data.displayName || doc.id
+      });
+    });
+    
+    return users;
   }
+  
   async createUser(userData: Omit<User, 'id'>): Promise<User> {
-    throw new Error("Method not implemented.");
+    const userDoc = {
+      email: userData.email,
+      displayName: userData.displayName
+    };
+    
+    // Use email as document ID
+    await setDoc(doc(db, 'users', userData.email), userDoc);
+    
+    return {
+      id: userData.email,
+      email: userData.email,
+      displayName: userData.displayName
+    };
   }
+  
   async deleteUser(id: string): Promise<void> {
-    throw new Error("Method not implemented.");
+    // id is the email (document ID)
+    await deleteDoc(doc(db, 'users', id));
   }
 
   // -- RECIPES --
