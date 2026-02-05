@@ -22,12 +22,21 @@ const TIMEOUT = parseInt(process.env.PARITY_TIMEOUT || '30000', 10);
  * Formats the report with colors and structure
  */
 function formatReport(report) {
-  const { summary, tests } = report;
+  const { summary, tests, notes } = report;
   const { totalTests, passed, failed, skipped } = summary;
 
   let output = '\n╔═══════════════════════════════════════════════════════════╗\n';
   output += '║         SALT BACKEND PARITY TEST REPORT                  ║\n';
   output += '╚═══════════════════════════════════════════════════════════╝\n\n';
+
+  // Notes section (if any)
+  if (notes && notes.length > 0) {
+    output += '📌 NOTES\n';
+    for (const note of notes) {
+      output += `   ${note}\n`;
+    }
+    output += '\n';
+  }
 
   // Summary
   output += '📊 SUMMARY\n';
@@ -40,7 +49,8 @@ function formatReport(report) {
   output += '📋 DETAILED RESULTS\n\n';
 
   for (const test of tests) {
-    const icon = test.parity ? '✅' : test.details?.includes('SKIPPED') ? '⏭️ ' : '❌';
+    const fbSkipped = test.firebase.data && typeof test.firebase.data === 'string' && test.firebase.data.includes('SKIPPED');
+    const icon = test.parity ? '✅' : fbSkipped ? '⏭️ ' : '❌';
     output += `${icon} ${test.name}\n`;
 
     if (test.simulated.error) {

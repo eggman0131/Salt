@@ -10,7 +10,8 @@
     "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
     "emulators:export": "firebase emulators:export ./emulator-data",
     "emulators:import": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
-    "parity": "node scripts/parity-check.mjs"
+    "parity": "node scripts/parity-check.mjs",
+    "parity:relax": "node scripts/parity-helper.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.37.0",
