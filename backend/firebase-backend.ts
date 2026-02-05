@@ -11,7 +11,7 @@
 import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, googleProvider, storage } from './firebase';
-import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch, Timestamp } from 'firebase/firestore';
 import { signInWithPopup, signOut } from 'firebase/auth';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { GoogleGenAI, GenerateContentParameters, GenerateContentResponse } from "@google/genai";
@@ -51,10 +51,85 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     return converted;
   }
 
+  private encodeNestedArrays(value: any): any {
+    if (Array.isArray(value)) {
+      return value.map((item) => {
+        if (Array.isArray(item)) {
+          return {
+            __nestedArray: true,
+            values: item.map((child) => this.encodeNestedArrays(child))
+          };
+        }
+        return this.encodeNestedArrays(item);
+      });
+    }
+
+    if (value && typeof value === 'object') {
+      const out: any = {};
+      for (const [key, val] of Object.entries(value)) {
+        out[key] = this.encodeNestedArrays(val);
+      }
+      return out;
+    }
+
+    return value;
+  }
+
+  private decodeNestedArrays(value: any): any {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.decodeNestedArrays(item));
+    }
+
+    if (value && typeof value === 'object') {
+      if (value.__nestedArray === true && Array.isArray(value.values)) {
+        return value.values.map((item: any) => this.decodeNestedArrays(item));
+      }
+
+      const out: any = {};
+      for (const [key, val] of Object.entries(value)) {
+        out[key] = this.decodeNestedArrays(val);
+      }
+      return out;
+    }
+
+    return value;
+  }
+
+  private encodeRecipeForFirestore(recipe: any): any {
+    return this.encodeNestedArrays(recipe);
+  }
+
+  private decodeRecipeFromFirestore(recipe: any): any {
+    return this.decodeNestedArrays(recipe);
+  }
+
   private async uploadRecipeImage(path: string, imageData: string): Promise<void> {
     const storageRef = ref(storage, path);
     const format = imageData.startsWith('data:') ? 'data_url' : 'base64';
     await uploadString(storageRef, imageData, format as 'data_url' | 'base64');
+  }
+
+  private async clearCollection(collectionName: string): Promise<void> {
+    const snapshot = await getDocs(collection(db, collectionName));
+    if (snapshot.empty) return;
+
+    let batch = writeBatch(db);
+    let count = 0;
+
+    for (const docSnap of snapshot.docs) {
+      batch.delete(docSnap.ref);
+      count += 1;
+
+      if (count >= 450) {
+        await batch.commit();
+        batch = writeBatch(db);
+        count = 0;
+      }
+    }
+
+    if (count > 0) {
+      await batch.commit();
+    }
   }
 
   // -- AI TRANSPORT (READY FOR PROXYING) --
@@ -200,7 +275,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const recipes: Recipe[] = [];
     
     snapshot.forEach((doc) => {
-      const data = this.convertTimestamps(doc.data());
+      const data = this.decodeRecipeFromFirestore(this.convertTimestamps(doc.data()));
       recipes.push({
         ...data,
         id: doc.id
@@ -218,7 +293,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       return null;
     }
     
-    const data = this.convertTimestamps(docSnap.data());
+    const data = this.decodeRecipeFromFirestore(this.convertTimestamps(docSnap.data()));
     return {
       ...data,
       id: docSnap.id
@@ -254,7 +329,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       createdBy: this.currentUser?.id || 'unknown'
     };
     
-    await setDoc(doc(db, 'recipes', id), newRecipe);
+    await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(newRecipe));
     
     return newRecipe as Recipe;
   }
@@ -272,7 +347,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     }
     
     const updated = { ...existing, ...updates, imagePath };
-    await setDoc(doc(db, 'recipes', id), updated);
+    await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(updated));
     
     return updated as Recipe;
   }
@@ -359,7 +434,77 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     return settings;
   }
   async importSystemState(json: string): Promise<void> {
-    throw new Error("Method not implemented.");
+    const data = JSON.parse(json);
+
+    // Clear existing collections first
+    await this.clearCollection('inventory');
+    await this.clearCollection('recipes');
+    await this.clearCollection('users');
+    await this.clearCollection('plans');
+    await deleteDoc(doc(db, 'settings', 'global'));
+
+    // Batch write imports in chunks
+    let batch = writeBatch(db);
+    let count = 0;
+
+    const commitIfNeeded = async () => {
+      if (count >= 450) {
+        await batch.commit();
+        batch = writeBatch(db);
+        count = 0;
+      }
+    };
+
+    if (data.inventory) {
+      for (const item of data.inventory) {
+        const docRef = doc(db, 'inventory', item.id);
+        batch.set(docRef, item);
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.recipes) {
+      for (const recipe of data.recipes) {
+        const docRef = doc(db, 'recipes', recipe.id);
+        batch.set(docRef, this.encodeRecipeForFirestore(recipe));
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.users) {
+      for (const user of data.users) {
+        const userEmail = user.email || user.id;
+        const docRef = doc(db, 'users', userEmail);
+        batch.set(docRef, {
+          email: userEmail,
+          displayName: user.displayName || userEmail
+        });
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.plans) {
+      for (const plan of data.plans) {
+        const docRef = doc(db, 'plans', plan.id);
+        batch.set(docRef, plan);
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.settings) {
+      const docRef = doc(db, 'settings', 'global');
+      batch.set(docRef, data.settings);
+      count += 1;
+      await commitIfNeeded();
+    }
+
+    if (count > 0) {
+      await batch.commit();
+    }
   }
 
   // -- PLANNER --
