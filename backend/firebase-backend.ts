@@ -10,13 +10,52 @@
 
 import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
-import { db, auth, googleProvider } from './firebase';
-import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db, auth, googleProvider, storage } from './firebase';
+import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, Timestamp } from 'firebase/firestore';
 import { signInWithPopup, signOut } from 'firebase/auth';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { GoogleGenAI, GenerateContentParameters, GenerateContentResponse } from "@google/genai";
+
+const TEMPLATE_ID = 'plan-template';
 
 export class SaltFirebaseBackend extends BaseSaltBackend {
   private currentUser: User | null = null;
+
+  // -- HELPER METHODS --
+  
+  /**
+   * Converts Firestore Timestamps to ISO strings to prevent data leakage.
+   * CRITICAL: The contract mandates ISO 8601 strings for all date fields.
+   */
+  private convertTimestamps(data: any): any {
+    if (!data || typeof data !== 'object') return data;
+    
+    const converted: any = Array.isArray(data) ? [] : {};
+    
+    for (const key in data) {
+      const value = data[key];
+      
+      // Convert Firestore Timestamp to ISO string
+      if (value && typeof value === 'object' && 'toDate' in value) {
+        converted[key] = value.toDate().toISOString();
+      }
+      // Recursively convert nested objects/arrays
+      else if (value && typeof value === 'object') {
+        converted[key] = this.convertTimestamps(value);
+      }
+      else {
+        converted[key] = value;
+      }
+    }
+    
+    return converted;
+  }
+
+  private async uploadRecipeImage(path: string, imageData: string): Promise<void> {
+    const storageRef = ref(storage, path);
+    const format = imageData.startsWith('data:') ? 'data_url' : 'base64';
+    await uploadString(storageRef, imageData, format as 'data_url' | 'base64');
+  }
 
   // -- AI TRANSPORT (READY FOR PROXYING) --
 
@@ -157,39 +196,152 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
 
   // -- RECIPES --
   async getRecipes(): Promise<Recipe[]> {
-    return [];
+    const snapshot = await getDocs(collection(db, 'recipes'));
+    const recipes: Recipe[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      recipes.push({
+        ...data,
+        id: doc.id
+      } as Recipe);
+    });
+    
+    return recipes;
   }
+  
   async getRecipe(id: string): Promise<Recipe | null> {
-    return null;
+    const docRef = doc(db, 'recipes', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      return null;
+    }
+    
+    const data = this.convertTimestamps(docSnap.data());
+    return {
+      ...data,
+      id: docSnap.id
+    } as Recipe;
   }
+  
   async resolveImagePath(path: string): Promise<string> {
-    throw new Error("Method not implemented. Implement using firebase/storage.");
+    if (!path) return '';
+    try {
+      return await getDownloadURL(ref(storage, path));
+    } catch (error) {
+      console.warn('Unable to resolve image path:', error);
+      return '';
+    }
   }
+  
   async createRecipe(recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>, imageData?: string): Promise<Recipe> {
-    throw new Error("Method not implemented.");
+    // Generate ID with rec- prefix
+    const id = `rec-${Math.random().toString(36).substr(2, 9)}`;
+    
+    let imagePath: string | undefined = undefined;
+
+    if (imageData) {
+      imagePath = `recipes/${id}/image.jpg`;
+      await this.uploadRecipeImage(imagePath, imageData);
+    }
+
+    const newRecipe = {
+      ...recipe,
+      id,
+      imagePath,
+      createdAt: new Date().toISOString(),
+      createdBy: this.currentUser?.id || 'unknown'
+    };
+    
+    await setDoc(doc(db, 'recipes', id), newRecipe);
+    
+    return newRecipe as Recipe;
   }
+  
   async updateRecipe(id: string, updates: Partial<Recipe>, imageData?: string): Promise<Recipe> {
-    throw new Error("Method not implemented.");
+    const existing = await this.getRecipe(id);
+    if (!existing) {
+      throw new Error("Recipe not found");
+    }
+    
+    let imagePath = updates.imagePath ?? existing.imagePath;
+    if (imageData) {
+      imagePath = `recipes/${id}/image-${Date.now()}.jpg`;
+      await this.uploadRecipeImage(imagePath, imageData);
+    }
+    
+    const updated = { ...existing, ...updates, imagePath };
+    await setDoc(doc(db, 'recipes', id), updated);
+    
+    return updated as Recipe;
   }
+  
   async deleteRecipe(id: string): Promise<void> {
-    throw new Error("Method not implemented.");
+    await deleteDoc(doc(db, 'recipes', id));
   }
 
   // -- INVENTORY (KITCHEN KIT) --
   async getInventory(): Promise<Equipment[]> {
-    return [];
+    const snapshot = await getDocs(collection(db, 'inventory'));
+    const equipment: Equipment[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      equipment.push({
+        ...data,
+        id: doc.id
+      } as Equipment);
+    });
+    
+    return equipment;
   }
+  
   async getEquipment(id: string): Promise<Equipment | null> {
-    return null;
+    const docRef = doc(db, 'inventory', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      return null;
+    }
+    
+    const data = this.convertTimestamps(docSnap.data());
+    return {
+      ...data,
+      id: docSnap.id
+    } as Equipment;
   }
+  
   async createEquipment(equipment: Omit<Equipment, 'id' | 'createdAt' | 'createdBy'>): Promise<Equipment> {
-    throw new Error("Method not implemented.");
+    // Generate ID with eq- prefix
+    const id = `eq-${Math.random().toString(36).substr(2, 9)}`;
+    
+    const newEquipment = {
+      ...equipment,
+      id,
+      createdAt: new Date().toISOString(),
+      createdBy: this.currentUser?.id || 'unknown'
+    };
+    
+    await setDoc(doc(db, 'inventory', id), newEquipment);
+    
+    return newEquipment as Equipment;
   }
+  
   async updateEquipment(id: string, updates: Partial<Equipment>): Promise<Equipment> {
-    throw new Error("Method not implemented.");
+    const existing = await this.getEquipment(id);
+    if (!existing) {
+      throw new Error("Equipment not found");
+    }
+    
+    const updated = { ...existing, ...updates };
+    await setDoc(doc(db, 'inventory', id), updated);
+    
+    return updated as Equipment;
   }
+  
   async deleteEquipment(id: string): Promise<void> {
-    throw new Error("Method not implemented.");
+    await deleteDoc(doc(db, 'inventory', id));
   }
 
   // -- SYSTEM --
@@ -212,18 +364,90 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
 
   // -- PLANNER --
   async getPlans(): Promise<Plan[]> {
-    return [];
+    const snapshot = await getDocs(
+      query(collection(db, 'plans'), orderBy('startDate', 'desc'))
+    );
+    const plans: Plan[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      plans.push({
+        ...data,
+        id: doc.id
+      } as Plan);
+    });
+    
+    return plans;
   }
+  
   async getPlanByDate(date: string): Promise<Plan | null> {
-    return null;
+    const q = query(collection(db, 'plans'), where('startDate', '==', date));
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      return null;
+    }
+    
+    const docSnap = snapshot.docs[0];
+    const data = this.convertTimestamps(docSnap.data());
+    return {
+      ...data,
+      id: docSnap.id
+    } as Plan;
   }
+  
   async getPlanIncludingDate(date: string): Promise<Plan | null> {
-    return null;
+    const all = await this.getPlans();
+    const today = new Date(date).setHours(0, 0, 0, 0);
+    
+    return all.find(p => {
+      // Exclude template from being returned as a live date-based plan
+      if (p.startDate === 'template' || p.id === TEMPLATE_ID) return false;
+      
+      const start = new Date(p.startDate).setHours(0, 0, 0, 0);
+      // Check if date falls within 7-day range (Friday to Thursday)
+      return today >= start && today < (start + 7 * 24 * 60 * 60 * 1000);
+    }) || null;
   }
+  
   async createOrUpdatePlan(p: Omit<Plan, 'id' | 'createdAt' | 'createdBy'> & { id?: string }): Promise<Plan> {
-    throw new Error("Method not implemented.");
+    const isTemplate = p.startDate === 'template' || p.id === TEMPLATE_ID;
+    
+    let id: string;
+    let existingPlan: Plan | null = null;
+    
+    if (isTemplate) {
+      // For template, always use TEMPLATE_ID
+      id = TEMPLATE_ID;
+      try {
+        const docRef = doc(db, 'plans', TEMPLATE_ID);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = this.convertTimestamps(docSnap.data());
+          existingPlan = { ...data, id: docSnap.id } as Plan;
+        }
+      } catch (e) {
+        existingPlan = null;
+      }
+    } else {
+      // For regular plans, find by startDate
+      existingPlan = await this.getPlanByDate(p.startDate);
+      id = existingPlan?.id || p.id || `plan-${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
+    const newPlan = {
+      ...p,
+      id,
+      createdAt: existingPlan?.createdAt || new Date().toISOString(),
+      createdBy: existingPlan?.createdBy || this.currentUser?.id || 'unknown'
+    };
+    
+    await setDoc(doc(db, 'plans', id), newPlan);
+    
+    return newPlan as Plan;
   }
+  
   async deletePlan(id: string): Promise<void> {
-    throw new Error("Method not implemented.");
+    await deleteDoc(doc(db, 'plans', id));
   }
 }
