@@ -30,11 +30,31 @@ The suite tests:
    - Set `GEMINI_API_KEY` in `functions/.env.local` (for functions emulator)
    - If not set, AI tests are skipped
 
-### Run the Suite
+### Run the Suite (Option 1: Quick Mode with Auth Detection)
+
+If your Firestore rules require authentication, the parity suite will detect this and skip Firebase tests gracefully:
 
 ```bash
 npm run parity
 ```
+
+You'll see Firebase tests marked as `⏭️ SKIPPED` with clear instructions on how to enable them.
+
+### Run the Suite (Option 2: Full Mode with Automatic Rule Relaxation)
+
+To automatically relax Firestore rules, run the full parity check, then restore the original rules:
+
+```bash
+npm run parity:relax
+```
+
+**What this does:**
+1. Temporarily modifies `firestore.rules` to `allow read, write: if true;`
+2. Waits 5 seconds for you to cancel (Ctrl+C) if needed
+3. Runs the full parity suite
+4. Automatically restores the original rules
+
+This allows complete parity testing without needing to manually edit files.
 
 ### Output Example
 
@@ -50,11 +70,17 @@ npm run parity
 ║         SALT BACKEND PARITY TEST REPORT                  ║
 ╚═══════════════════════════════════════════════════════════╝
 
+📌 NOTES
+   ⚠️  Firebase backend requires authentication (Firestore rules enforced).
+   To enable full parity testing, either:
+   1. Edit firestore.rules and set: allow read, write: if true; (dev only)
+   2. Login with a user that exists in the Firestore users collection
+
 📊 SUMMARY
    Total:  5
    ✅ Passed: 5
    ❌ Failed: 0
-   ⏭️  Skipped: 0
+   ⏭️  Skipped: 2
 
 📋 DETAILED RESULTS
 
@@ -62,9 +88,9 @@ npm run parity
    ✓ Simulated: null
    ✓ Firebase: null
 
-✅ Inventory CRUD
+⏭️  Inventory CRUD
    ✓ Simulated: {"created":true,"read":true,"updated":true,"deleted":true}
-   ✓ Firebase: {"created":true,"read":true,"updated":true,"deleted":true}
+   ✓ Firebase: SKIPPED (auth required, no user logged in)
 
 ⏭️  Recipe Generation Flow
    ✓ Simulated: SKIPPED (no API key)
@@ -87,6 +113,38 @@ npm run parity
 - **1** — One or more tests failed, or suite timed out
 
 ## Troubleshooting
+
+### "Firestore rules enforced" (auth required)
+
+If you see notes about Firestore rules requiring authentication:
+
+**Quick fix:**
+```bash
+npm run parity:relax
+```
+
+This automatically relaxes the rules, runs the full parity suite, and restores the original rules.
+
+**Manual fix:**
+Edit [firestore.rules](../firestore.rules) temporarily:
+```
+allow read, write: if true;
+```
+
+Then restart emulators with:
+```bash
+npm run emulators
+```
+
+Then run:
+```bash
+npm run parity
+```
+
+Remember to restore the original rules afterward (production security):
+```
+allow read, write: if isAuthorized();
+```
 
 ### "Could not connect to dev server"
 - Ensure `npm run dev` is running on `http://localhost:3000`
