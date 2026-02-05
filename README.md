@@ -30,5 +30,17 @@ Switch between local simulation and cloud persistence in `.env`:
 ## 💾 Data Portability
 Salt is manifest-based. Use the **Export Backup** feature in the Admin panel to move your entire kitchen state between local and cloud environments.
 
+## 📚 Documentation & Guidelines
+
+**System-wide principles:** See [guidelines.md](./guidelines.md) for language (British English), units (Metric), architectural hierarchy, and non-negotiable rules.
+
+**Comprehensive docs:** All detailed guidelines for architecture, modules, development, and deployment are organized in the [`docs/`](./docs/) folder:
+- **[Architecture & Design](./docs/architecture/)** — Backend/frontend guidelines, contract, Firebase implementation plan
+- **[Module Specifications](./docs/modules/)** — Inventory, Planner, Recipe module rules
+- **[Development & Testing](./docs/development/)** — Change management, prompt guidelines, parity testing, method audit
+- **[Deployment](./docs/deployment/)** — Migration roadmap and post-deployment checklist
+
+**Start here:** [docs/README.md](./docs/README.md) for navigation and quick task reference.
+
 ---
 **v0.1.0-alpha** | Professional Culinary Orchestrator
