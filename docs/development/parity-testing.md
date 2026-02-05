@@ -1,3 +1,4 @@
+
 # SALT Backend Parity Test Suite
 
 The parity test suite ensures that `SaltSimulatedBackend` and `SaltFirebaseBackend` maintain behavioral consistency across all contract-defined operations.
@@ -67,7 +68,7 @@ This allows complete parity testing without needing to manually edit files.
 ⏳ Running parity suite...
 
 ╔═══════════════════════════════════════════════════════════╗
-║         SALT BACKEND PARITY TEST REPORT                  ║
+║         SALT BACKEND PARITY TEST REPORT                   ║
 ╚═══════════════════════════════════════════════════════════╝
 
 📌 NOTES
@@ -249,8 +250,8 @@ Edit the `formatReport()` function in `scripts/parity-check.mjs` to customize th
 
 ## References
 
-- [Parity Suite Module](./parity-suite.ts)
-- [Parity Check CLI](./parity-check.mjs)
-- [Backend API Switcher](../backend/api.ts)
-- [Simulated Backend](../backend/simulated.ts)
-- [Firebase Backend](../backend/firebase-backend.ts)
+- [Parity Suite Module](../../scripts/parity-suite.ts)
+- [Parity Check CLI](../../scripts/parity-check.mjs)
+- [Backend API Switcher](../../backend/api.ts)
+- [Simulated Backend](../../backend/simulated.ts)
+- [Firebase Backend](../../backend/firebase-backend.ts)

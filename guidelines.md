@@ -1,5 +1,6 @@
+# SALT - Global Project Guidelines (Quick Reference)
 
-# SALT - Global Project Guidelines
+**This is a quick reference card for system-wide principles. For detailed guidelines by topic, see [docs/README.md](./docs/README.md).**
 
 ## 1. System Identity & Language
 - **Project Name:** Salt.
@@ -25,3 +26,11 @@
 - Do not rename files or folders.
 - Do not change the project's minimalist grayscale/blue aesthetic.
 - Do not modify the "Brain" during a "Hands" migration.
+
+---
+
+**For detailed documentation:**
+- Architecture & design rules → [docs/architecture/](./docs/architecture/)
+- Module specifications → [docs/modules/](./docs/modules/)
+- Development workflows & change management → [docs/development/](./docs/development/)
+- Deployment & migration → [docs/deployment/](./docs/deployment/)
