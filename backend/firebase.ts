@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator, GoogleAuthProvider } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 /**
  * Replace these with your actual Firebase config from the Firebase Console.
@@ -21,6 +22,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
+const functions = getFunctions(app);
 const googleProvider = new GoogleAuthProvider();
 
 // Auto-connect to emulators in local development
@@ -29,6 +31,7 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
   connectFirestoreEmulator(db, 'localhost', 8080);
   connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
   connectStorageEmulator(storage, 'localhost', 9199);
+  connectFunctionsEmulator(functions, 'localhost', 5001);
 }
 
-export { db, auth, storage, googleProvider };
+export { db, auth, storage, functions, googleProvider };

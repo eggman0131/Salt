@@ -10,11 +10,12 @@
 
 import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
-import { db, auth, googleProvider, storage } from './firebase';
+import { db, auth, googleProvider, storage, functions } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch, Timestamp } from 'firebase/firestore';
 import { signInWithPopup, signOut } from 'firebase/auth';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { GoogleGenAI, GenerateContentParameters, GenerateContentResponse } from "@google/genai";
+import { httpsCallable } from 'firebase/functions';
+import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 
 const TEMPLATE_ID = 'plan-template';
 
@@ -132,20 +133,57 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     }
   }
 
-  // -- AI TRANSPORT (READY FOR PROXYING) --
+  // -- AI TRANSPORT (PROXIED VIA CLOUD FUNCTIONS) --
 
   /**
-   * For production, simply replace this method with a fetch() call to a 
-   * Firebase Function to hide your API Key.
+   * Calls the secure Gemini API proxy Cloud Function.
+   * The API key is stored server-side and never exposed to the browser.
    */
   protected async callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse> {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
-    return await ai.models.generateContent(params);
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('User not authenticated. Cannot call Gemini API.');
+    }
+
+    const idToken = await user.getIdToken();
+    const cloudGenerateContent = httpsCallable(functions, 'cloudGenerateContent');
+    
+    try {
+      const result = await cloudGenerateContent({
+        idToken,
+        params
+      });
+      return result.data as GenerateContentResponse;
+    } catch (error) {
+      console.error('[callGenerateContent] Cloud Function error:', error);
+      throw error;
+    }
   }
 
   protected async callGenerateContentStream(params: GenerateContentParameters): Promise<AsyncIterable<GenerateContentResponse>> {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
-    return await ai.models.generateContentStream(params);
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('User not authenticated. Cannot call Gemini API.');
+    }
+
+    const idToken = await user.getIdToken();
+    const cloudGenerateContentStream = httpsCallable(functions, 'cloudGenerateContentStream');
+    
+    try {
+      const result = await cloudGenerateContentStream({
+        idToken,
+        params
+      });
+      
+      // Return as an async iterable that yields the aggregated response
+      const response = result.data as GenerateContentResponse;
+      return (async function* () {
+        yield response;
+      })();
+    } catch (error) {
+      console.error('[callGenerateContentStream] Cloud Function error:', error);
+      throw error;
+    }
   }
   
   // -- AUTHENTICATION --
