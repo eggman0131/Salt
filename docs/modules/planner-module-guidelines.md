@@ -1,3 +1,4 @@
+
 # SALT - Planner Module Guidelines
 
 This document defines the rules for the weekly kitchen cycle and family meal coordination.
