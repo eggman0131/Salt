@@ -1,13 +1,3 @@
-
-/**
- * !!! PROTECTION LOCK !!!
- * FILE: backend/firebase-backend.ts
- * ROLE: The Hands (Cloud Persistence & Transport)
- * 
- * DESIGN PATTERN: Concrete Implementation.
- * This class houses ONLY Firestore, Firebase Auth, and AI Delivery logic.
- */
-
 import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, googleProvider, storage, functions } from './firebase';
@@ -25,10 +15,6 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
 
   // -- HELPER METHODS --
   
-  /**
-   * Converts Firestore Timestamps to ISO strings to prevent data leakage.
-   * CRITICAL: The contract mandates ISO 8601 strings for all date fields.
-   */
   private convertTimestamps(data: any): any {
     if (!data || typeof data !== 'object') return data;
     
@@ -37,11 +23,9 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     for (const key in data) {
       const value = data[key];
       
-      // Convert Firestore Timestamp to ISO string
       if (value && typeof value === 'object' && 'toDate' in value) {
         converted[key] = value.toDate().toISOString();
       }
-      // Recursively convert nested objects/arrays
       else if (value && typeof value === 'object') {
         converted[key] = this.convertTimestamps(value);
       }
@@ -106,6 +90,49 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
 
   private async uploadRecipeImage(path: string, imageData: string): Promise<void> {
+    
+    // DEFINITIVE FIX: Use built-in Vite env check (same as resolveImagePath)
+    // In Dev (Local/Cloud), use the Proxy to upload securely.
+    if (import.meta.env.DEV) {
+        try {
+            const bucket = storage.app.options.storageBucket || 'gen-lang-client-0015061880.firebasestorage.app';
+            const encodedPath = encodeURIComponent(path);
+            
+            // Construct upload URL via Proxy (/v0)
+            const uploadUrl = `/v0/b/${bucket}/o?uploadType=media&name=${encodedPath}`;
+            
+            // Convert Base64 to Blob
+            const res = await fetch(imageData);
+            const blob = await res.blob();
+            
+            // Get a fresh token to ensure the request is authorized
+            const token = await auth.currentUser?.getIdToken();
+
+            const headers: HeadersInit = {
+                'Content-Type': 'image/jpeg'
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await fetch(uploadUrl, {
+                method: 'POST',
+                body: blob,
+                headers: headers
+            });
+            
+            if (!response.ok) {
+                console.error('Manual upload failed:', response.statusText);
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+            return; // Success! Skip SDK.
+        } catch (e) {
+            console.error("Manual upload failed, falling back to SDK", e);
+            // Fallthrough to SDK
+        }
+    }
+
     const storageRef = ref(storage, path);
     const format = imageData.startsWith('data:') ? 'data_url' : 'base64';
     await uploadString(storageRef, imageData, format as 'data_url' | 'base64');
@@ -136,23 +163,16 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
 
   // -- AI TRANSPORT (PROXIED VIA CLOUD FUNCTIONS) --
 
-  /**
-   * Calls the secure Gemini API proxy Cloud Function.
-   * The API key is stored server-side and never exposed to the browser.
-   */
   protected async callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse> {
-    // Try to get a fresh token from the authenticated user
     const user = auth.currentUser;
     let idToken = this.currentIdToken;
     
     console.log('[callGenerateContent] Starting - auth.currentUser:', user?.email, 'storedToken:', idToken ? 'yes' : 'no');
     
-    // If no stored token or no current user, we can't proceed
     if (!idToken && !user) {
       throw new Error('User not authenticated. Cannot call Gemini API.');
     }
     
-    // Get fresh token if we have a user reference
     if (user) {
       try {
         console.log('[callGenerateContent] Attempting to get fresh token...');
@@ -161,7 +181,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
         this.currentIdToken = idToken;
       } catch (e) {
         console.log('[callGenerateContent] getIdToken failed, using fallback:', e);
-        if (!idToken) throw e; // If we have a stored token, use it as fallback
+        if (!idToken) throw e;
       }
     }
     
@@ -188,18 +208,15 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
 
   protected async callGenerateContentStream(params: GenerateContentParameters): Promise<AsyncIterable<GenerateContentResponse>> {
-    // Try to get a fresh token from the authenticated user
     const user = auth.currentUser;
     let idToken = this.currentIdToken;
     
     console.log('[callGenerateContentStream] Starting - auth.currentUser:', user?.email, 'storedToken:', idToken ? 'yes' : 'no');
     
-    // If no stored token or no current user, we can't proceed
     if (!idToken && !user) {
       throw new Error('User not authenticated. Cannot call Gemini API.');
     }
     
-    // Get fresh token if we have a user reference
     if (user) {
       try {
         console.log('[callGenerateContentStream] Attempting to get fresh token...');
@@ -208,7 +225,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
         this.currentIdToken = idToken;
       } catch (e) {
         console.log('[callGenerateContentStream] getIdToken failed, using fallback:', e);
-        if (!idToken) throw e; // If we have a stored token, use it as fallback
+        if (!idToken) throw e; 
       }
     }
     
@@ -227,7 +244,6 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
         params
       });
       
-      // Return as an async iterable that yields the aggregated response
       const response = result.data as GenerateContentResponse;
       console.log('[callGenerateContentStream] Success');
       return (async function* () {
@@ -241,13 +257,8 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   
   // -- AUTHENTICATION --
   
-  /**
-   * Login using Google provider with authorization gate.
-   * User must exist in the 'users' collection to gain access.
-   */
   async login(email: string): Promise<User> {
     try {
-      // Sign in with Google
       const result = await signInWithPopup(auth, googleProvider);
       const userEmail = result.user.email;
       
@@ -256,16 +267,13 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
         throw new Error("Kitchen Access Denied.");
       }
       
-      // Check if user exists in the authorized users collection
       const userDoc = await getDoc(doc(db, 'users', userEmail));
       
       if (!userDoc.exists()) {
-        // User not authorized - sign them out
         await signOut(auth);
         throw new Error("Kitchen Access Denied.");
       }
       
-      // User is authorized
       const userData = userDoc.data();
       this.currentUser = {
         id: userEmail,
@@ -273,17 +281,14 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
         displayName: userData.displayName || result.user.displayName || userEmail
       };
       
-      // Store the ID token for Cloud Function calls
       this.currentIdToken = await result.user.getIdToken();
       console.log('[login] Token stored:', this.currentIdToken ? `${this.currentIdToken.substring(0, 20)}...` : 'FAILED');
       
       return this.currentUser;
     } catch (error: any) {
-      // Preserve "Kitchen Access Denied" errors
       if (error.message === "Kitchen Access Denied.") {
         throw error;
       }
-      // Handle auth cancellation gracefully
       if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
         throw new Error("Login cancelled.");
       }
@@ -298,18 +303,15 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
   
   async getCurrentUser(): Promise<User | null> {
-    // Check if we have cached user
     if (this.currentUser) {
       return this.currentUser;
     }
     
-    // Check Firebase Auth state
     const firebaseUser = auth.currentUser;
     if (!firebaseUser || !firebaseUser.email) {
       return null;
     }
     
-    // Fetch user from Firestore
     try {
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.email));
       if (userDoc.exists()) {
@@ -335,7 +337,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     usersSnapshot.forEach((doc) => {
       const data = doc.data();
       users.push({
-        id: doc.id, // email is the document ID
+        id: doc.id,
         email: doc.id,
         displayName: data.displayName || doc.id
       });
@@ -350,7 +352,6 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       displayName: userData.displayName
     };
     
-    // Use email as document ID
     await setDoc(doc(db, 'users', userData.email), userDoc);
     
     return {
@@ -361,7 +362,6 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
   
   async deleteUser(id: string): Promise<void> {
-    // id is the email (document ID)
     await deleteDoc(doc(db, 'users', id));
   }
 
@@ -398,6 +398,16 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   
   async resolveImagePath(path: string): Promise<string> {
     if (!path) return '';
+
+    // DEFINITIVE FIX: Explicit Environment Check
+    // We check for the Cloud Workstations domain pattern explicitly.
+    if (import.meta.env.DEV) {
+       const bucket = storage.app.options.storageBucket || 'gen-lang-client-0015061880.firebasestorage.app';
+       const encodedPath = encodeURIComponent(path);
+       // Return relative URL that goes through the Vite Proxy to port 9199
+       return `/v0/b/${bucket}/o/${encodedPath}?alt=media`;
+    }
+
     try {
       return await getDownloadURL(ref(storage, path));
     } catch (error) {
@@ -407,7 +417,6 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
   
   async createRecipe(recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>, imageData?: string): Promise<Recipe> {
-    // Generate ID with rec- prefix
     const id = `rec-${Math.random().toString(36).substr(2, 9)}`;
     
     let imagePath: string | undefined = undefined;
@@ -484,7 +493,6 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
   
   async createEquipment(equipment: Omit<Equipment, 'id' | 'createdAt' | 'createdBy'>): Promise<Equipment> {
-    // Generate ID with eq- prefix
     const id = `eq-${Math.random().toString(36).substr(2, 9)}`;
     
     const newEquipment = {
@@ -642,11 +650,9 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const today = new Date(date).setHours(0, 0, 0, 0);
     
     return all.find(p => {
-      // Exclude template from being returned as a live date-based plan
       if (p.startDate === 'template' || p.id === TEMPLATE_ID) return false;
       
       const start = new Date(p.startDate).setHours(0, 0, 0, 0);
-      // Check if date falls within 7-day range (Friday to Thursday)
       return today >= start && today < (start + 7 * 24 * 60 * 60 * 1000);
     }) || null;
   }
@@ -658,7 +664,6 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     let existingPlan: Plan | null = null;
     
     if (isTemplate) {
-      // For template, always use TEMPLATE_ID
       id = TEMPLATE_ID;
       try {
         const docRef = doc(db, 'plans', TEMPLATE_ID);
@@ -671,7 +676,6 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
         existingPlan = null;
       }
     } else {
-      // For regular plans, find by startDate
       existingPlan = await this.getPlanByDate(p.startDate);
       id = existingPlan?.id || p.id || `plan-${Math.random().toString(36).substr(2, 9)}`;
     }

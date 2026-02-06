@@ -18,40 +18,45 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Define exports
+// Define exports (using let for re-assignment in cloud env)
 let db;
+let functions;
 const auth = getAuth(app);
 const storage = getStorage(app);
-const functionsRegion = 'europe-west2';
-const functions = getFunctions(app, functionsRegion);
 const googleProvider = new GoogleAuthProvider();
 
+// Default functions init
+functions = getFunctions(app, 'europe-west2');
+
 // Detect environment and configure emulators
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-  console.log("📡 Connecting to Firebase Emulators (Localhost)...");
+const currentHost = location.hostname;
+const isLocalhost = currentHost === 'localhost' || currentHost === '127.0.0.1';
+
+// Extract the port prefix (e.g., '3000-')
+const portPrefixMatch = currentHost.match(/^(\d+)-/);
+
+if (isLocalhost) {
+  console.log("📡 Mode: Local Development (HTTP)");
   db = getFirestore(app);
-  connectFirestoreEmulator(db, 'localhost', 8080);
-  connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
-  connectStorageEmulator(storage, 'localhost', 9199);
-  connectFunctionsEmulator(functions, 'localhost', 5001);
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectStorageEmulator(storage, '127.0.0.1', 9199);
+  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
 } else {
   // Cloud Workstations / IDX logic
-  const currentHost = location.hostname;
-  const portPrefixMatch = currentHost.match(/^(\d+)-/);
-  
   if (portPrefixMatch) {
     const domainSuffix = currentHost.substring(portPrefixMatch[0].length);
-    console.log("🛠️ Dev Mode: Detected Cloud Environment. Using Direct Settings Override...");
+    console.log("🛠️ Mode: Cloud Workstation (Unified HTTPS Proxy)");
 
     // 1. AUTH: PROXY
-    // Must use proxy (location.origin) to allow redirects to work correctly without CORS issues.
     connectAuthEmulator(auth, location.origin, { disableWarnings: true });
 
-    // 2. FIRESTORE: DIRECT SETTINGS OVERRIDE
-    // We bypass connectFirestoreEmulator() and set the host/ssl directly in initializeFirestore.
-    // This forces the SDK to use HTTPS for the direct connection, avoiding Mixed Content errors.
-    const firestoreHost = `8080-${domainSuffix}:443`;
-    
+    // 2. FIRESTORE: PROXY STRATEGY
+    // We use the app's own hostname (the Vite Proxy) as the Firestore host.
+    // We force SSL=true so the SDK uses HTTPS.
+    // Vite proxies the request to localhost:8080 internally.
+    // This avoids CORS (Same Origin) and Mixed Content (HTTPS).
+    const firestoreHost = location.host; 
     try {
       db = initializeFirestore(app, {
         host: firestoreHost,
@@ -59,21 +64,21 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
         experimentalForceLongPolling: true 
       });
     } catch (e) {
-      // In case of re-initialization error (Hot Module Reload), fallback to getFirestore
-      console.warn("Firestore re-init warning:", e);
       db = getFirestore(app);
     }
 
-    // 3. STORAGE: DIRECT
-    const storageHost = `9199-${domainSuffix}`;
-    connectStorageEmulator(storage, storageHost, 443);
+    // 3. STORAGE: DIRECT (With Client-Side Fix)
+    // We keep this direct/default because the fix is applied in firebase-backend.ts
+    // via manual URL construction.
+    connectStorageEmulator(storage, `9199-${domainSuffix}`, 443);
 
-    // 4. FUNCTIONS: DIRECT
-    const functionsHost = `5001-${domainSuffix}`;
-    connectFunctionsEmulator(functions, functionsHost, 443);
+    // 4. FUNCTIONS: PROXY VIA CUSTOM DOMAIN + PATH
+    const projectId = 'gen-lang-client-0015061880';
+    const region = 'europe-west2';
+    const functionsUrl = `${location.origin}/${projectId}/${region}`;
+    functions = getFunctions(app, functionsUrl);
 
   } else if (currentHost.includes('cloudworkstations.dev') || currentHost.includes('idx.google.com')) {
-      // Fallback for cloud envs without port prefix
       console.warn("⚠️ Could not auto-detect emulator ports. Emulators not connected.");
       db = getFirestore(app);
   } else {
@@ -82,9 +87,7 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
   }
 }
 
-// Safety check for DB
-if (!db) {
-  db = getFirestore(app);
-}
+// Safety check
+if (!db) db = getFirestore(app);
 
 export { db, auth, storage, functions, googleProvider };
