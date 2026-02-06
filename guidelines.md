@@ -1,5 +1,6 @@
+# SALT - Global Project Guidelines (Quick Reference)
 
-# SALT - Global Project Guidelines
+**This is a quick reference card for system-wide principles. For detailed guidelines by topic, see [docs/README.md](./docs/README.md).**
 
 ## 1. System Identity & Language
 - **Project Name:** Salt.
@@ -12,7 +13,7 @@
 - **No Assistant-Speak:** The AI is a "Head Chef". It does not say "As an AI...", "How can I help you today?", or "I have generated a recipe". It says "Here is the prep for tonight" or "The kit is ready".
 - **No Tech-Bleed:** Strictly avoid software jargon in UI labels and AI responses. 
   - *Forbidden:* "JSON", "Backend", "Array", "Database", "Syncing", "Parsing".
-  - *Authorized:* "Manifest", "Equipment", "Ledger", "Pantry", "Service", "Prep".
+  - *Authorized:* "Equipment", "Kitchen", "Service", "Prep", "Recipe"
 - **The Contract is the Law:** `types/contract.ts` is the single source of truth. Any logic that bypasses Zod validation is a system failure.
 
 ## 3. Architectural Hierarchy
@@ -25,3 +26,11 @@
 - Do not rename files or folders.
 - Do not change the project's minimalist grayscale/blue aesthetic.
 - Do not modify the "Brain" during a "Hands" migration.
+
+---
+
+**For detailed documentation:**
+- Architecture & design rules → [docs/architecture/](./docs/architecture/)
+- Module specifications → [docs/modules/](./docs/modules/)
+- Development workflows & change management → [docs/development/](./docs/development/)
+- Deployment & migration → [docs/deployment/](./docs/deployment/)

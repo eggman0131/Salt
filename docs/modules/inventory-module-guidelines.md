@@ -1,3 +1,4 @@
+
 # SALT - Inventory Module Guidelines
 
 This document defines the technical standards for managing kitchen equipment and verified accessories.
