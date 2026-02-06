@@ -22,7 +22,8 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
-const functions = getFunctions(app);
+const functionsRegion = 'europe-west2';
+const functions = getFunctions(app, functionsRegion);
 const googleProvider = new GoogleAuthProvider();
 
 // Auto-connect to emulators in local development

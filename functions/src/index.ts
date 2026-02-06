@@ -19,6 +19,9 @@ admin.initializeApp();
 const db = admin.firestore();
 const auth = admin.auth();
 
+// Firebase Functions v2 region configuration
+const functionsConfig = { region: 'europe-west2' };
+
 /**
  * Validates that the request is from an authenticated user
  */
@@ -62,6 +65,7 @@ async function checkUserExists(email: string): Promise<boolean> {
  * Response: GenerateContentResponse (Gemini response)
  */
 export const cloudGenerateContent = functions.https.onCall(
+  functionsConfig,
   async (request: any) => {
     const { idToken, params } = request.data;
 
@@ -133,6 +137,7 @@ export const cloudGenerateContent = functions.https.onCall(
  * Response: GenerateContentResponse (aggregated from stream)
  */
 export const cloudGenerateContentStream = functions.https.onCall(
+  functionsConfig,
   async (request: any) => {
     const { idToken, params } = request.data;
 
@@ -225,10 +230,13 @@ export const cloudGenerateContentStream = functions.https.onCall(
 /**
  * Health check function for monitoring
  */
-export const health = functions.https.onRequest((request, response) => {
-  response.status(200).json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'salt-functions',
-  });
-});
+export const health = functions.https.onRequest(
+  functionsConfig,
+  (request: any, response: any) => {
+    response.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'salt-functions',
+    });
+  }
+);
