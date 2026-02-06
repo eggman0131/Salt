@@ -1,21 +1,13 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper to check if user is in the authorized 'users' collection
-    function isAuthorized() {
-      return request.auth != null && 
-             exists(/databases/$(database)/documents/users/$(request.auth.token.email));
-    }
-
+    
+    // For the "Salt" app prototype, we allow any authenticated user to read/write.
+    // This prevents the issue where importing data (which wipes the DB) 
+    // accidentally locks the user out by deleting their authorization record.
     match /{document=**} {
-      // For development/emulators, you might want 'allow read, write: if true;' 
-      // but we'll stick to the production logic for testing.
-      allow read, write: if isAuthorized();
+      allow read, write: if request.auth != null;
     }
     
-    // Allow initial users to be checked during login
-    match /users/{email} {
-      allow read: if true;
-    }
   }
 }
