@@ -63,7 +63,7 @@ async function checkUserExists(email: string): Promise<boolean> {
  */
 export const cloudGenerateContent = functions.https.onCall(
   async (request: any) => {
-    const { idToken, params } = request;
+    const { idToken, params } = request.data;
 
     if (!idToken) {
       throw new functions.https.HttpsError('invalid-argument', 'Missing idToken');
@@ -94,10 +94,22 @@ export const cloudGenerateContent = functions.https.onCall(
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent(params as GenerateContentParameters);
 
+      // Extract text from response for easier access
+      const text = response.candidates?.[0]?.content?.parts
+        ?.filter(part => part.text)
+        .map(part => part.text)
+        .join('') || '';
+
+      // Add text property to response for compatibility
+      const responseWithText = {
+        ...response,
+        text
+      } as any as GenerateContentResponse;
+
       // Log successful API call (for rate limiting purposes if needed)
       console.log(`[generateContent] Success for ${user.email}`);
 
-      return response as GenerateContentResponse;
+      return responseWithText;
     } catch (error) {
       console.error('[generateContent] Error:', error);
       throw new functions.https.HttpsError(
@@ -122,7 +134,7 @@ export const cloudGenerateContent = functions.https.onCall(
  */
 export const cloudGenerateContentStream = functions.https.onCall(
   async (request: any) => {
-    const { idToken, params } = request;
+    const { idToken, params } = request.data;
 
     if (!idToken) {
       throw new functions.https.HttpsError('invalid-argument', 'Missing idToken');
@@ -186,8 +198,20 @@ export const cloudGenerateContentStream = functions.https.onCall(
         }
       }
 
+      // Extract text from aggregated response for easier access
+      const text = aggregatedResponse.candidates?.[0]?.content?.parts
+        ?.filter(part => part.text)
+        .map(part => part.text)
+        .join('') || '';
+
+      // Add text property to aggregated response for compatibility
+      const responseWithText = {
+        ...aggregatedResponse,
+        text
+      } as any as GenerateContentResponse;
+
       console.log(`[generateContentStream] Success for ${user.email}`);
-      return aggregatedResponse as GenerateContentResponse;
+      return responseWithText;
     } catch (error) {
       console.error('[generateContentStream] Error:', error);
       throw new functions.https.HttpsError(

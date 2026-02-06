@@ -21,6 +21,7 @@ const TEMPLATE_ID = 'plan-template';
 
 export class SaltFirebaseBackend extends BaseSaltBackend {
   private currentUser: User | null = null;
+  private currentIdToken: string | null = null;
 
   // -- HELPER METHODS --
   
@@ -140,19 +141,45 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
    * The API key is stored server-side and never exposed to the browser.
    */
   protected async callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse> {
+    // Try to get a fresh token from the authenticated user
     const user = auth.currentUser;
-    if (!user) {
+    let idToken = this.currentIdToken;
+    
+    console.log('[callGenerateContent] Starting - auth.currentUser:', user?.email, 'storedToken:', idToken ? 'yes' : 'no');
+    
+    // If no stored token or no current user, we can't proceed
+    if (!idToken && !user) {
       throw new Error('User not authenticated. Cannot call Gemini API.');
     }
+    
+    // Get fresh token if we have a user reference
+    if (user) {
+      try {
+        console.log('[callGenerateContent] Attempting to get fresh token...');
+        idToken = await user.getIdToken(true);
+        console.log('[callGenerateContent] Got fresh token:', idToken ? 'yes' : 'no');
+        this.currentIdToken = idToken;
+      } catch (e) {
+        console.log('[callGenerateContent] getIdToken failed, using fallback:', e);
+        if (!idToken) throw e; // If we have a stored token, use it as fallback
+      }
+    }
+    
+    console.log('[callGenerateContent] Final idToken:', idToken ? `${idToken.substring(0, 20)}...` : 'MISSING');
+    
+    if (!idToken) {
+      throw new Error('Failed to obtain authentication token.');
+    }
 
-    const idToken = await user.getIdToken();
     const cloudGenerateContent = httpsCallable(functions, 'cloudGenerateContent');
     
+    console.log('[callGenerateContent] Calling Cloud Function with idToken...');
     try {
       const result = await cloudGenerateContent({
         idToken,
         params
       });
+      console.log('[callGenerateContent] Success');
       return result.data as GenerateContentResponse;
     } catch (error) {
       console.error('[callGenerateContent] Cloud Function error:', error);
@@ -161,14 +188,39 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
 
   protected async callGenerateContentStream(params: GenerateContentParameters): Promise<AsyncIterable<GenerateContentResponse>> {
+    // Try to get a fresh token from the authenticated user
     const user = auth.currentUser;
-    if (!user) {
+    let idToken = this.currentIdToken;
+    
+    console.log('[callGenerateContentStream] Starting - auth.currentUser:', user?.email, 'storedToken:', idToken ? 'yes' : 'no');
+    
+    // If no stored token or no current user, we can't proceed
+    if (!idToken && !user) {
       throw new Error('User not authenticated. Cannot call Gemini API.');
     }
+    
+    // Get fresh token if we have a user reference
+    if (user) {
+      try {
+        console.log('[callGenerateContentStream] Attempting to get fresh token...');
+        idToken = await user.getIdToken(true);
+        console.log('[callGenerateContentStream] Got fresh token:', idToken ? 'yes' : 'no');
+        this.currentIdToken = idToken;
+      } catch (e) {
+        console.log('[callGenerateContentStream] getIdToken failed, using fallback:', e);
+        if (!idToken) throw e; // If we have a stored token, use it as fallback
+      }
+    }
+    
+    console.log('[callGenerateContentStream] Final idToken:', idToken ? `${idToken.substring(0, 20)}...` : 'MISSING');
+    
+    if (!idToken) {
+      throw new Error('Failed to obtain authentication token.');
+    }
 
-    const idToken = await user.getIdToken();
     const cloudGenerateContentStream = httpsCallable(functions, 'cloudGenerateContentStream');
     
+    console.log('[callGenerateContentStream] Calling Cloud Function with idToken...');
     try {
       const result = await cloudGenerateContentStream({
         idToken,
@@ -177,6 +229,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       
       // Return as an async iterable that yields the aggregated response
       const response = result.data as GenerateContentResponse;
+      console.log('[callGenerateContentStream] Success');
       return (async function* () {
         yield response;
       })();
@@ -220,6 +273,10 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
         displayName: userData.displayName || result.user.displayName || userEmail
       };
       
+      // Store the ID token for Cloud Function calls
+      this.currentIdToken = await result.user.getIdToken();
+      console.log('[login] Token stored:', this.currentIdToken ? `${this.currentIdToken.substring(0, 20)}...` : 'FAILED');
+      
       return this.currentUser;
     } catch (error: any) {
       // Preserve "Kitchen Access Denied" errors
@@ -237,6 +294,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   async logout(): Promise<void> {
     await signOut(auth);
     this.currentUser = null;
+    this.currentIdToken = null;
   }
   
   async getCurrentUser(): Promise<User | null> {
