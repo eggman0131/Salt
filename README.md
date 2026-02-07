@@ -27,6 +27,23 @@ Switch between local simulation and cloud persistence in `.env`:
 - **Metric Units:** No cups/ounces. 100% grams, ml, and Celsius.
 - **Culinary Filter:** AI ignores non-functional items (manuals, cases, cookbooks).
 
+## 💾 Data Persistence (Firebase Emulators)
+
+By default, the Firebase Emulators are ephemeral. To persist your data (recipes, images, users) across restarts:
+
+1.  **Start with Persistence:**
+    Always run `npm run emulators` (which runs `firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data`).
+
+2.  **Save Data Manually:**
+    To save your current state while the emulators are running (without stopping them), run:
+    ```bash
+    ./scripts/save-db.sh
+    ```
+    This exports the current Firestore and Storage state to `./emulator-data`.
+
+3.  **Graceful Shutdown:**
+    Stop the emulators with `Ctrl+C` to trigger the auto-export. Force-quitting the terminal may result in data loss.
+
 ## 💾 Data Portability
 Salt is manifest-based. Use the **Export Backup** feature in the Admin panel to move your entire kitchen state between local and cloud environments.
 
