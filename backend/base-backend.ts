@@ -9,7 +9,7 @@
  * Subclasses (The Hands) are only responsible for Persistence and Transport.
  */
 
-import { GenerateContentParameters, GenerateContentResponse, Type } from "@google/genai";
+import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import { 
   ISaltBackend, User, Recipe, Equipment, EquipmentCandidate, 
   Accessory, Plan, KitchenSettings 
@@ -71,23 +71,10 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const instruction = await this.getSystemInstruction("You are an expert kitchen consultant.");
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
-      contents: EQUIPMENT_PROMPTS.search(query),
+      contents: [{ role: 'user', parts: [{ text: EQUIPMENT_PROMPTS.search(query) }] }],
       config: { 
         systemInstruction: instruction,
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              brand: { type: Type.STRING },
-              modelName: { type: Type.STRING },
-              description: { type: Type.STRING },
-              category: { type: Type.STRING, enum: ['Complex Appliance', 'Technical Cookware', 'Standard Tool'] }
-            },
-            required: ['brand', 'modelName', 'description', 'category']
-          }
-        }
       }
     });
     const cleaned = this.sanitizeJson(response.text || '[]');
@@ -98,37 +85,10 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const instruction = await this.getSystemInstruction("You are an expert kitchen specialist.");
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
-      contents: EQUIPMENT_PROMPTS.details(candidate.brand, candidate.modelName),
+      contents: [{ role: 'user', parts: [{ text: EQUIPMENT_PROMPTS.details(candidate.brand, candidate.modelName) }] }],
       config: { 
         systemInstruction: instruction,
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            brand: { type: Type.STRING },
-            modelName: { type: Type.STRING },
-            upi: { type: Type.STRING },
-            description: { type: Type.STRING },
-            type: { type: Type.STRING },
-            class: { type: Type.STRING },
-            features: { type: Type.STRING },
-            uses: { type: Type.STRING },
-            accessories: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  type: { type: Type.STRING, enum: ['standard', 'optional'] },
-                  owned: { type: Type.BOOLEAN }
-                },
-                required: ['name', 'description', 'type', 'owned']
-              }
-            }
-          },
-          required: ['brand', 'modelName', 'description', 'type', 'class', 'accessories']
-        }
       }
     });
     const raw = JSON.parse(this.sanitizeJson(response.text || '{}'));
@@ -145,7 +105,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const instruction = await this.getSystemInstruction("You are an expert on professional kitchen equipment.");
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
-      contents: EQUIPMENT_PROMPTS.validateAccessory(equipmentName, accessoryName),
+      contents: [{ role: 'user', parts: [{ text: EQUIPMENT_PROMPTS.validateAccessory(equipmentName, accessoryName) }] }],
       config: { systemInstruction: instruction, responseMimeType: "application/json" }
     });
     return JSON.parse(this.sanitizeJson(response.text || '{}'));
@@ -161,31 +121,10 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const instruction = await this.getSystemInstruction("You are the Head Chef performing synthesis.");
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
-      contents: `${RECIPE_PROMPTS.synthesis(consensusDraft, leanInventory, recipeContext)}\n\n${historySummary}`,
+      contents: [{ role: 'user', parts: [{ text: `${RECIPE_PROMPTS.synthesis(consensusDraft, leanInventory, recipeContext)}\n\n${historySummary}` }] }],
       config: { 
         systemInstruction: instruction,
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            description: { type: Type.STRING },
-            ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
-            instructions: { type: Type.ARRAY, items: { type: Type.STRING } },
-            totalTime: { type: Type.STRING },
-            prepTime: { type: Type.STRING },
-            cookTime: { type: Type.STRING },
-            servings: { type: Type.STRING },
-            complexity: { type: Type.STRING, enum: ['Simple', 'Intermediate', 'Advanced'] },
-            stepIngredients: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.INTEGER } } },
-            stepAlerts: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.INTEGER } } },
-            workflowAdvice: {
-              type: Type.OBJECT,
-              properties: { technicalWarnings: { type: Type.ARRAY, items: { type: Type.STRING } }, optimumToolLogic: { type: Type.STRING } }
-            }
-          },
-          required: ['title', 'description', 'ingredients', 'instructions', 'totalTime', 'servings', 'complexity', 'stepIngredients']
-        }
       }
     });
     return JSON.parse(this.sanitizeJson(response.text || '{}'));
@@ -203,7 +142,10 @@ export abstract class BaseSaltBackend implements ISaltBackend {
       config: { systemInstruction: instruction }
     });
     let fullText = "";
-    for await (const chunk of stream) { if (chunk.text) { fullText += chunk.text; onChunk?.(chunk.text); } }
+    for await (const chunk of stream) { 
+        const chunkText = chunk.text || chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (chunkText) { fullText += chunkText; onChunk?.(chunkText); } 
+    }
     return fullText;
   }
 
@@ -213,18 +155,10 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const instruction = await this.getSystemInstruction("Head Chef Consensus Summary.");
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
-      contents: RECIPE_PROMPTS.consensusSummary(historySummary, JSON.stringify(leanRecipe)),
+      contents: [{ role: 'user', parts: [{ text: RECIPE_PROMPTS.consensusSummary(historySummary, JSON.stringify(leanRecipe)) }] }],
       config: { 
         systemInstruction: instruction,
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            consensusDraft: { type: Type.STRING },
-            proposals: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { id: {type: Type.STRING}, description: {type: Type.STRING}, technicalInstruction: {type: Type.STRING} }, required: ['id', 'description', 'technicalInstruction'] } }
-          },
-          required: ['consensusDraft', 'proposals']
-        }
       }
     });
     return response.text || '';
@@ -245,14 +179,16 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   async generateRecipeImage(title: string): Promise<string> {
     const response = await this.callGenerateContent({
       model: 'gemini-2.5-flash-image',
-      contents: { parts: [{ text: RECIPE_PROMPTS.imagePrompt(title) }] },
+      contents: [{ role: 'user', parts: [{ text: RECIPE_PROMPTS.imagePrompt(title) }] }],
       config: { imageConfig: { aspectRatio: "4:3" } }
     });
+    // Fix: Access inline data correctly based on Gemini Node SDK response shape
     const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-    return part ? `data:image/png;base64,${part.inlineData.data}` : '';
+    return part ? `data:image/png;base64,${part.inlineData?.data}` : '';
   }
 
-  abstract login(email: string): Promise<User>;
+  abstract login(email: string): Promise<void>;
+  abstract handleRedirectResult(): Promise<User | null>;
   abstract logout(): Promise<void>;
   abstract getCurrentUser(): Promise<User | null>;
   abstract getUsers(): Promise<User[]>;

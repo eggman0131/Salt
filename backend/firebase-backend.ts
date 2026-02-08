@@ -2,7 +2,7 @@ import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contrac
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, googleProvider, storage, functions } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch, Timestamp } from 'firebase/firestore';
-import { signInWithPopup, signOut } from 'firebase/auth';
+import { signInWithPopup, signOut, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
@@ -257,9 +257,23 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   
   // -- AUTHENTICATION --
   
-  async login(email: string): Promise<User> {
+  async login(email: string): Promise<void> {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      await signInWithRedirect(auth, googleProvider);
+    } catch (error) {
+      console.error("Login redirect error:", error);
+      throw new Error("Failed to initiate login.");
+    }
+  }
+
+  async handleRedirectResult(): Promise<User | null> {
+    try {
+      const result = await getRedirectResult(auth);
+      
+      if (!result) {
+        return null;
+      }
+      
       const userEmail = result.user.email;
       
       if (!userEmail) {
@@ -282,16 +296,14 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       };
       
       this.currentIdToken = await result.user.getIdToken();
-      console.log('[login] Token stored:', this.currentIdToken ? `${this.currentIdToken.substring(0, 20)}...` : 'FAILED');
+      console.log('[handleRedirectResult] Token stored:', this.currentIdToken ? `${this.currentIdToken.substring(0, 20)}...` : 'FAILED');
       
       return this.currentUser;
     } catch (error: any) {
       if (error.message === "Kitchen Access Denied.") {
         throw error;
       }
-      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        throw new Error("Login cancelled.");
-      }
+      console.error("Auth Redirect Error:", error);
       throw new Error("Authentication failed.");
     }
   }
