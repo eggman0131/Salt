@@ -9,6 +9,7 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
   private docCache: Map<string, any> = new Map();
   private deletedIds: Set<string> = new Set();
   private currentUser: User | null = null;
+  private readonly emailLinkKey = 'salt_email_link';
 
   constructor() {
     super();
@@ -107,23 +108,42 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
   }
 
   async login(email: string): Promise<void> {
+    localStorage.setItem(this.emailLinkKey, email);
+
     const users = await this.getUsers();
     const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (user) {
-      this.currentUser = user;
-      localStorage.setItem('salt_auth_session', JSON.stringify(user));
-      return;
+    if (!user) {
+      throw new Error("Kitchen Access Denied.");
     }
-    throw new Error("Kitchen Access Denied.");
+
+    this.currentUser = user;
+    localStorage.setItem('salt_auth_session', JSON.stringify(user));
+    localStorage.removeItem(this.emailLinkKey);
   }
 
   async handleRedirectResult(): Promise<User | null> {
+    if (this.currentUser) return this.currentUser;
+
+    const pendingEmail = localStorage.getItem(this.emailLinkKey);
+    if (!pendingEmail) return null;
+
+    const users = await this.getUsers();
+    const user = users.find(u => u.email.toLowerCase() === pendingEmail.toLowerCase());
+    localStorage.removeItem(this.emailLinkKey);
+
+    if (!user) {
+      throw new Error("Kitchen Access Denied.");
+    }
+
+    this.currentUser = user;
+    localStorage.setItem('salt_auth_session', JSON.stringify(user));
     return this.currentUser;
   }
 
   async logout(): Promise<void> {
     this.currentUser = null;
     localStorage.removeItem('salt_auth_session');
+    localStorage.removeItem(this.emailLinkKey);
   }
 
   async getCurrentUser(): Promise<User | null> { return this.currentUser; }
