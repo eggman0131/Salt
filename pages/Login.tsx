@@ -20,13 +20,20 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
     try {
       await new Promise(resolve => setTimeout(resolve, 800));
-      const user = await saltBackend.login(email);
-      onLoginSuccess(user);
+      // Triggers redirect (returns void) OR performs instant simulated login
+      await saltBackend.login(email);
+      
+      // If we are still here, we might be in simulation mode.
+      // Check if we have a user now.
+      const user = await saltBackend.getCurrentUser();
+      if (user) {
+        onLoginSuccess(user);
+      }
+      // If no user, we assume a redirect is in progress and the page will unload shortly.
     } catch (err: any) {
       setError(err.message || "Login failed.");
-    } finally {
       setLoading(false);
-    }
+    } 
   };
 
   return (

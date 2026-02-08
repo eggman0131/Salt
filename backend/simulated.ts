@@ -106,15 +106,19 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
     this.persistCache();
   }
 
-  async login(email: string): Promise<User> {
+  async login(email: string): Promise<void> {
     const users = await this.getUsers();
     const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (user) {
       this.currentUser = user;
       localStorage.setItem('salt_auth_session', JSON.stringify(user));
-      return user;
+      return;
     }
     throw new Error("Kitchen Access Denied.");
+  }
+
+  async handleRedirectResult(): Promise<User | null> {
+    return this.currentUser;
   }
 
   async logout(): Promise<void> {

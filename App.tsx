@@ -65,6 +65,20 @@ const App: React.FC = () => {
   // Check auth on mount
   useEffect(() => {
     const checkAuth = async () => {
+      try {
+        // 1. Check for Redirect Result (Firebase Redirect Flow)
+        const redirectUser = await saltBackend.handleRedirectResult();
+        if (redirectUser) {
+          setUser(redirectUser);
+          setView('dashboard');
+          return;
+        }
+      } catch (e) {
+        console.error("Auth redirect check failed:", e);
+        // Continue to check current user...
+      }
+
+      // 2. Check for Existing Session (Firebase Persistence or Simulation)
       const currentUser = await saltBackend.getCurrentUser();
       if (currentUser) {
         setUser(currentUser);

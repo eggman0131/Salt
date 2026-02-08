@@ -114,7 +114,8 @@ export interface EquipmentCandidate {
 }
 
 export interface ISaltBackend {
-  login: (email: string) => Promise<User>;
+  login: (email: string) => Promise<void>;
+  handleRedirectResult: () => Promise<User | null>;
   logout: () => Promise<void>;
   getCurrentUser: () => Promise<User | null>;
   getUsers: () => Promise<User[]>;
