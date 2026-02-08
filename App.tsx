@@ -15,7 +15,7 @@ import { AdminModule } from './components/AdminModule';
 import { AIModule } from './components/AIModule';
 import { PlannerModule } from './components/PlannerModule';
 
-type AppState = 'landing' | 'login' | 'dashboard';
+type AppState = 'landing' | 'login' | 'dashboard' | 'loading';
 
 /**
  * Robust helper to get YYYY-MM-DD in local time
@@ -28,7 +28,7 @@ const getLocalDateString = (date: Date = new Date()) => {
 };
 
 const App: React.FC = () => {
-  const [view, setView] = useState<AppState>('landing');
+  const [view, setView] = useState<AppState>('loading');
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   
@@ -83,6 +83,8 @@ const App: React.FC = () => {
       if (currentUser) {
         setUser(currentUser);
         setView('dashboard');
+      } else {
+        setView('landing');
       }
     };
     checkAuth();
@@ -162,6 +164,7 @@ const App: React.FC = () => {
     setView('landing');
   };
 
+  if (view === 'loading') return null;
   if (view === 'landing') return <LandingPage onStart={() => setView('login')} />;
   if (view === 'login') return <LoginPage onLoginSuccess={handleLoginSuccess} />;
 
