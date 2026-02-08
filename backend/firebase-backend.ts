@@ -1,8 +1,8 @@
 import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
-import { db, auth, googleProvider, storage, functions } from './firebase';
+import { db, auth, storage, functions } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch, Timestamp } from 'firebase/firestore';
-import { signInWithPopup, signOut, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { isSignInWithEmailLink, sendSignInLinkToEmail, signInWithEmailLink, signOut } from 'firebase/auth';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
@@ -259,29 +259,46 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   
   async login(email: string): Promise<void> {
     try {
-      await signInWithRedirect(auth, googleProvider);
+      const actionCodeSettings = {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: true
+      };
+
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      localStorage.setItem('salt_email_link', email);
     } catch (error) {
-      console.error("Login redirect error:", error);
-      throw new Error("Failed to initiate login.");
+      console.error("Email link error:", error);
+      throw new Error("Failed to send sign-in link.");
     }
   }
 
   async handleRedirectResult(): Promise<User | null> {
     try {
-      const result = await getRedirectResult(auth);
-      
-      if (!result) {
+      const href = window.location.href;
+      if (!isSignInWithEmailLink(auth, href)) {
         return null;
       }
-      
-      const userEmail = result.user.email;
-      
+
+      let userEmail = localStorage.getItem('salt_email_link') || '';
       if (!userEmail) {
+        userEmail = window.prompt('Confirm your email to finish signing in') || '';
+      }
+
+      if (!userEmail) {
+        throw new Error('Missing email for sign-in completion.');
+      }
+
+      const result = await signInWithEmailLink(auth, userEmail, href);
+      localStorage.removeItem('salt_email_link');
+
+      const userEmailFromAuth = result.user.email;
+      
+      if (!userEmailFromAuth) {
         await signOut(auth);
         throw new Error("Kitchen Access Denied.");
       }
-      
-      const userDoc = await getDoc(doc(db, 'users', userEmail));
+
+      const userDoc = await getDoc(doc(db, 'users', userEmailFromAuth));
       
       if (!userDoc.exists()) {
         await signOut(auth);
@@ -290,9 +307,9 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       
       const userData = userDoc.data();
       this.currentUser = {
-        id: userEmail,
-        email: userEmail,
-        displayName: userData.displayName || result.user.displayName || userEmail
+        id: userEmailFromAuth,
+        email: userEmailFromAuth,
+        displayName: userData.displayName || result.user.displayName || userEmailFromAuth
       };
       
       this.currentIdToken = await result.user.getIdToken();
