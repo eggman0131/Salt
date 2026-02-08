@@ -129,7 +129,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated }) => {
                 className={`markdown-body max-w-[95%] md:max-w-[80%] p-5 md:p-6 rounded-2xl text-[14px] md:text-[15px] font-sans leading-relaxed ${
                   m.role === 'user' 
                     ? 'user-bubble bg-[#2563eb] text-white rounded-tr-none shadow-md shadow-blue-500/10' 
-                    : 'bg-white text-gray-800 rounded-tl-none border border-gray-100 shadow-sm'
+                    : 'ai-bubble bg-white text-gray-900 rounded-bl-none shadow-md'
                 }`}
                 dangerouslySetInnerHTML={renderMarkdown(m.text)}
               />
