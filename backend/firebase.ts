@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator, initializeFirestore } from 'firebase/firestore';
-import { getAuth, connectAuthEmulator, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
@@ -19,7 +19,6 @@ let db;
 let functions;
 const auth = getAuth(app);
 const storage = getStorage(app);
-const googleProvider = new GoogleAuthProvider();
 
 // ---------------------------------------------------------------------------
 // ENVIRONMENT DETECTION
@@ -122,4 +121,4 @@ console.log('Environment:', env);
 console.log('Using Emulators:', env.includes('emulators'));
 console.log('---------------------------------------------');
 
-export { db, auth, storage, functions, googleProvider };
+export { db, auth, storage, functions };
