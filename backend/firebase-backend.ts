@@ -2,7 +2,7 @@ import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contrac
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, storage, functions } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch, Timestamp } from 'firebase/firestore';
-import { isSignInWithEmailLink, sendSignInLinkToEmail, signInWithEmailLink, signOut } from 'firebase/auth';
+import { isSignInWithEmailLink, sendSignInLinkToEmail, signInWithEmailLink, signOut, onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
@@ -12,6 +12,18 @@ const TEMPLATE_ID = 'plan-template';
 export class SaltFirebaseBackend extends BaseSaltBackend {
   private currentUser: User | null = null;
   private currentIdToken: string | null = null;
+  private authReadyPromise: Promise<void>;
+
+  constructor() {
+    super();
+    // Wait for Firebase auth to restore session from persistence
+    this.authReadyPromise = new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, () => {
+        unsubscribe();
+        resolve();
+      });
+    });
+  }
 
   // -- HELPER METHODS --
   
@@ -332,6 +344,9 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
   
   async getCurrentUser(): Promise<User | null> {
+    // Wait for Firebase auth to be ready before checking
+    await this.authReadyPromise;
+
     if (this.currentUser) {
       return this.currentUser;
     }
