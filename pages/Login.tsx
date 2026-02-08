@@ -12,15 +12,17 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('daniel@salt.uk');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setInfo(null);
 
     try {
       await new Promise(resolve => setTimeout(resolve, 800));
-      // Triggers redirect (returns void) OR performs instant simulated login
+      // Sends a passwordless sign-in link or performs instant simulated login
       await saltBackend.login(email);
       
       // If we are still here, we might be in simulation mode.
@@ -28,8 +30,10 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       const user = await saltBackend.getCurrentUser();
       if (user) {
         onLoginSuccess(user);
+        return;
       }
-      // If no user, we assume a redirect is in progress and the page will unload shortly.
+      setInfo('Check your email for a sign-in link to finish logging in.');
+      setLoading(false);
     } catch (err: any) {
       setError(err.message || "Login failed.");
       setLoading(false);
@@ -54,6 +58,7 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               onChange={(e) => {
                 setEmail(e.target.value);
                 if (error) setError(null);
+                if (info) setInfo(null);
               }}
               required
               className={error ? 'border-red-200 focus:ring-red-50' : ''}
@@ -64,11 +69,16 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 {error}
               </p>
             )}
+            {info && (
+              <p className="text-[11px] font-bold text-blue-600 mt-2 text-center">
+                {info}
+              </p>
+            )}
           </div>
           
           <div className="space-y-4">
             <Button type="submit" fullWidth disabled={loading} className="py-4 shadow-xl shadow-blue-500/20">
-              {loading ? 'Verifying...' : 'Sign In'}
+              {loading ? 'Sending Link...' : 'Send Sign-In Link'}
             </Button>
           </div>
         </form>
