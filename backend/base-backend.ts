@@ -45,6 +45,24 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     }
   }
 
+  protected normalizeRecipeData(raw: any): Partial<Recipe> {
+    const source = Array.isArray(raw) ? (raw[0] || {}) : (raw || {});
+    const normalized: any = { ...source };
+
+    if (!normalized.title) normalized.title = source.recipeName || source.name;
+    if (!normalized.description) normalized.description = source.summary || source.recipeDescription;
+    if (!normalized.ingredients) normalized.ingredients = source.ingredientList || source.items;
+    if (!normalized.instructions) normalized.instructions = source.method || source.steps;
+    if (!normalized.equipmentNeeded) normalized.equipmentNeeded = source.equipment || source.tools;
+    if (!normalized.prepTime) normalized.prepTime = source.prep || source.prep_time;
+    if (!normalized.cookTime) normalized.cookTime = source.cook || source.cook_time;
+    if (!normalized.totalTime) normalized.totalTime = source.total || source.total_time;
+    if (!normalized.servings) normalized.servings = source.serves || source.yield;
+    if (!normalized.complexity) normalized.complexity = source.difficulty;
+
+    return normalized;
+  }
+
   protected pruneHistory(history: {role: string, text: string}[], maxTurns = 15): {role: string, text: string}[] {
     const maxMessages = maxTurns * 2;
     if (history.length <= maxMessages) return history;
@@ -91,7 +109,8 @@ export abstract class BaseSaltBackend implements ISaltBackend {
         responseMimeType: "application/json",
       }
     });
-    const raw = JSON.parse(this.sanitizeJson(response.text || '{}'));
+    const parsed = JSON.parse(this.sanitizeJson(response.text || '{}'));
+    const raw = Array.isArray(parsed) && parsed.length === 1 ? parsed[0] : parsed;
     if (raw.accessories && Array.isArray(raw.accessories)) {
       raw.accessories = raw.accessories.map((acc: any) => ({
         ...acc,
@@ -108,7 +127,8 @@ export abstract class BaseSaltBackend implements ISaltBackend {
       contents: [{ role: 'user', parts: [{ text: EQUIPMENT_PROMPTS.validateAccessory(equipmentName, accessoryName) }] }],
       config: { systemInstruction: instruction, responseMimeType: "application/json" }
     });
-    return JSON.parse(this.sanitizeJson(response.text || '{}'));
+    const parsed = JSON.parse(this.sanitizeJson(response.text || '{}'));
+    return Array.isArray(parsed) && parsed.length === 1 ? parsed[0] : parsed;
   }
 
   async generateRecipeFromPrompt(consensusDraft: string, currentRecipe?: Recipe, history?: {role: string, text: string}[]): Promise<Partial<Recipe>> {
@@ -127,7 +147,8 @@ export abstract class BaseSaltBackend implements ISaltBackend {
         responseMimeType: "application/json",
       }
     });
-    return JSON.parse(this.sanitizeJson(response.text || '{}'));
+    const parsed = JSON.parse(this.sanitizeJson(response.text || '{}'));
+    return this.normalizeRecipeData(parsed);
   }
 
   async chatWithRecipe(recipe: Recipe, message: string, history: {role: string, text: string}[], onChunk?: (chunk: string) => void): Promise<string> {
