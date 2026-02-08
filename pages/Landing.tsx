@@ -23,7 +23,7 @@ export const LandingPage: React.FC<LandingProps> = ({ onStart }) => {
           </p>
         </div>
         
-        <div className="pt-4">
+        <div className="pt-4 flex justify-center">
           <Button 
             onClick={onStart} 
             className="px-12 py-6 text-base uppercase tracking-[0.3em] font-black shadow-2xl shadow-blue-500/20 hover:-translate-y-1 transition-all active:scale-95 h-auto rounded-2xl"
