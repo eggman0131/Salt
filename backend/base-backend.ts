@@ -49,16 +49,66 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const source = Array.isArray(raw) ? (raw[0] || {}) : (raw || {});
     const normalized: any = { ...source };
 
-    if (!normalized.title) normalized.title = source.recipeName || source.name;
-    if (!normalized.description) normalized.description = source.summary || source.recipeDescription;
-    if (!normalized.ingredients) normalized.ingredients = source.ingredientList || source.items;
-    if (!normalized.instructions) normalized.instructions = source.method || source.steps;
-    if (!normalized.equipmentNeeded) normalized.equipmentNeeded = source.equipment || source.tools;
-    if (!normalized.prepTime) normalized.prepTime = source.prep || source.prep_time;
-    if (!normalized.cookTime) normalized.cookTime = source.cook || source.cook_time;
-    if (!normalized.totalTime) normalized.totalTime = source.total || source.total_time;
-    if (!normalized.servings) normalized.servings = source.serves || source.yield;
-    if (!normalized.complexity) normalized.complexity = source.difficulty;
+    // Standard field mapping
+    if (!normalized.title) normalized.title = source.recipeName || source.name || 'Untitled Recipe';
+    if (!normalized.description) normalized.description = source.summary || source.recipeDescription || 'No description provided.';
+    if (!normalized.ingredients) normalized.ingredients = source.ingredientList || source.items || [];
+    if (!normalized.instructions) normalized.instructions = source.method || source.steps || [];
+    if (!normalized.equipmentNeeded) normalized.equipmentNeeded = source.equipment || source.tools || [];
+    if (!normalized.prepTime) normalized.prepTime = source.prep || source.prep_time || '---';
+    if (!normalized.cookTime) normalized.cookTime = source.cook || source.cook_time || '---';
+    if (!normalized.totalTime) normalized.totalTime = source.total || source.total_time || '---';
+    if (!normalized.servings) normalized.servings = source.serves || source.yield || '---';
+    if (!normalized.complexity) normalized.complexity = source.difficulty || 'Intermediate';
+
+    // Ensure instructions is an array
+    if (!Array.isArray(normalized.instructions)) {
+      normalized.instructions = typeof normalized.instructions === 'string' 
+        ? normalized.instructions.split('\n').filter(s => s.trim())
+        : [];
+    }
+    const stepCount = normalized.instructions.length;
+
+    // Bridge Step Ingredients
+    if (!Array.isArray(normalized.stepIngredients)) {
+      normalized.stepIngredients = new Array(stepCount).fill([]);
+    } else if (normalized.stepIngredients.length !== stepCount) {
+      // Pad or trim to match instructions
+      const nextSteps = new Array(stepCount).fill([]);
+      normalized.stepIngredients.forEach((val: any, idx: number) => {
+        if (idx < stepCount) nextSteps[idx] = val;
+      });
+      normalized.stepIngredients = nextSteps;
+    }
+
+    // Bridge Step Alerts and Workflow Advice (Prompt vs Contract mismatch)
+    // Prompt asks for: "stepAlerts": {"0": "Alert text", "1": "Another alert"}
+    // Contract expects: stepAlerts: number[][] and workflowAdvice: { technicalWarnings: string[] }
+    const rawAlerts = source.stepAlerts;
+    if (rawAlerts && typeof rawAlerts === 'object' && !Array.isArray(rawAlerts)) {
+      const warnings: string[] = [];
+      const alertsIdx: number[][] = new Array(stepCount).fill(null).map(() => []);
+
+      Object.entries(rawAlerts).forEach(([key, value]) => {
+        const stepIdx = parseInt(key, 10);
+        if (stepIdx >= 0 && stepIdx < stepCount && typeof value === 'string') {
+          let warningIdx = warnings.indexOf(value);
+          if (warningIdx === -1) {
+            warningIdx = warnings.length;
+            warnings.push(value);
+          }
+          alertsIdx[stepIdx].push(warningIdx);
+        }
+      });
+
+      normalized.stepAlerts = alertsIdx;
+      normalized.workflowAdvice = {
+        ...(normalized.workflowAdvice || {}),
+        technicalWarnings: warnings
+      };
+    } else if (!Array.isArray(normalized.stepAlerts)) {
+      normalized.stepAlerts = new Array(stepCount).fill([]);
+    }
 
     return normalized;
   }

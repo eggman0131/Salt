@@ -415,11 +415,9 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const recipes: Recipe[] = [];
     
     snapshot.forEach((doc) => {
-      const data = this.decodeRecipeFromFirestore(this.convertTimestamps(doc.data()));
-      recipes.push({
-        ...data,
-        id: doc.id
-      } as Recipe);
+      const rawData = this.decodeRecipeFromFirestore(this.convertTimestamps(doc.data()));
+      const data = this.normalizeRecipeData({ ...rawData, id: doc.id }) as Recipe;
+      recipes.push(data);
     });
     
     return recipes;
@@ -433,11 +431,8 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       return null;
     }
     
-    const data = this.decodeRecipeFromFirestore(this.convertTimestamps(docSnap.data()));
-    return {
-      ...data,
-      id: docSnap.id
-    } as Recipe;
+    const rawData = this.decodeRecipeFromFirestore(this.convertTimestamps(docSnap.data()));
+    return this.normalizeRecipeData({ ...rawData, id: docSnap.id }) as Recipe;
   }
   
   async resolveImagePath(path: string): Promise<string> {
@@ -470,8 +465,11 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       await this.uploadRecipeImage(imagePath, imageData);
     }
 
+    // Sanitize and validate before storage
+    const normalized = this.normalizeRecipeData(recipe);
+
     const newRecipe = {
-      ...recipe,
+      ...normalized,
       id,
       imagePath,
       createdAt: new Date().toISOString(),
@@ -495,7 +493,10 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       await this.uploadRecipeImage(imagePath, imageData);
     }
     
-    const updated = { ...existing, ...updates, imagePath };
+    // Sanitize and validate before storage
+    const normalizedUpdates = this.normalizeRecipeData({ ...existing, ...updates });
+    
+    const updated = { ...existing, ...normalizedUpdates, imagePath };
     await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(updated));
     
     return updated as Recipe;
