@@ -15,7 +15,7 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const base = "px-5 py-2 min-h-[44px] rounded-xl font-bold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center gap-2";
   const variants = {
-    primary: "bg-[#2563eb] text-white hover:bg-[#1d4ed8] focus:ring-blue-500 shadow-sm",
+    primary: "bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500 shadow-md shadow-orange-500/10",
     secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-300",
     ghost: "bg-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-900 focus:ring-gray-200",
   };
@@ -44,7 +44,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input 
       {...props}
       ref={ref}
-      className={`w-full px-4 py-2 min-h-[44px] border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-[#2563eb] outline-none transition-all bg-white text-gray-900 text-base md:text-sm placeholder:text-gray-400 font-normal ${props.className || ''}`}
+      className={`w-full px-4 py-2 min-h-[44px] border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-white text-gray-900 text-base md:text-sm placeholder:text-gray-400 font-normal ${props.className || ''}`}
     />
   )
 );
