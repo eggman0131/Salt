@@ -351,7 +351,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
 
   return (
     <div 
-      className="fixed inset-0 md:inset-x-0 md:top-16 md:bottom-0 bg-black/40 z-50 flex md:items-center md:justify-center md:px-4 md:py-6" 
+      className="fixed inset-0 md:inset-x-0 md:top-16 md:bottom-0 bg-black/40 z-[300] flex md:items-center md:justify-center md:px-4 md:py-6" 
       onClick={onClose}
       onWheel={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
       onTouchMove={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
@@ -506,14 +506,15 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
           overscrollBehavior: 'contain'
         }}
       >
-        {/* Mobile Header - Close Button Only */}
-        <div className="md:hidden border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
-          <div className="flex-1" />
+        {/* Mobile Header */}
+        <div className="md:hidden border-b border-gray-200 bg-white px-4 h-16 flex items-center justify-between shrink-0" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <h2 className="text-lg font-bold text-gray-900 truncate pr-4">{recipe.title}</h2>
           <button
             onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-900 transition-colors shrink-0"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 transition-colors shrink-0"
+            aria-label="Close recipe"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
         
@@ -559,16 +560,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
           {activeTab === 'detail' && (
             <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-[68px] md:pb-10 min-h-0">
               <div className="w-full mx-auto space-y-6">
-                <div className="md:hidden flex justify-end">
-                  <button
-                    onClick={onClose}
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-100"
-                  >
-                    <span className="text-lg leading-none">←</span>
-                    Close
-                  </button>
-                </div>
-
                 {/* Heading + CTA */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="space-y-2">
@@ -914,7 +905,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div
-                        className="bg-green-500 h-full transition-all duration-300"
+                        className="bg-emerald-500 h-full transition-all duration-300"
                         style={{ width: `${(preppedIngredients.size / ingredients.length) * 100}%` }}
                       />
                     </div>
@@ -929,7 +920,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                     </button>
                     <button
                       onClick={() => setPreppedIngredients(new Set(ingredients.map((_, i) => i)))}
-                      className="flex-1 h-9 text-xs bg-green-100 text-green-700 rounded-lg font-bold hover:bg-green-200"
+                      className="flex-1 h-9 text-xs bg-emerald-100 text-emerald-700 rounded-lg font-bold hover:bg-emerald-200"
                     >
                       Mark All Done
                     </button>
@@ -945,8 +936,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                       return (
                         <label
                           key={i}
-                          className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                            isPrepared ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200'
+                          className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                            isPrepared ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-gray-200'
                           }`}
                         >
                           <input
@@ -958,9 +949,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                               else next.add(i);
                               setPreppedIngredients(next);
                             }}
-                            className="w-5 h-5 text-green-600 rounded"
+                            className="w-5 h-5 text-emerald-600 rounded"
                           />
-                          <span className={`text-sm font-medium ${isPrepared ? 'text-green-700' : 'text-gray-900'}`}>
+                          <span className={`text-sm font-medium ${isPrepared ? 'text-emerald-700' : 'text-gray-900'}`}>
                             {ing}
                           </span>
                         </label>
@@ -1007,16 +998,16 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                   {currentStepAlerts.length > 0 && (
                     <div className="space-y-2">
                       {currentStepAlerts.map((w, i) => (
-                        <div key={i} className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex gap-2">
+                        <div key={i} className="bg-red-50 border border-red-200 rounded-xl p-3 flex gap-2">
                           <span className="text-lg flex-shrink-0">⚠️</span>
-                          <p className="text-sm text-orange-800 font-medium leading-relaxed">{w}</p>
+                          <p className="text-sm text-red-800 font-medium leading-relaxed">{w}</p>
                         </div>
                       ))}
                     </div>
                   )}
 
                   {currentStep < instructions.length && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
                       <p className="text-xs text-orange-700 font-bold mb-1">Next</p>
                       <p className="text-sm text-orange-900">{instructions[currentStep]}</p>
                     </div>

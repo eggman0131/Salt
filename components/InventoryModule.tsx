@@ -314,7 +314,12 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
                     )}
                     <div className="grid grid-cols-1 gap-4">
                       {editingItem.accessories?.map(acc => (
-                        <div key={acc.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-white rounded-lg border border-gray-100 gap-4">
+                        <label 
+                          key={acc.id} 
+                          className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 rounded-xl border transition-all cursor-pointer gap-4 ${
+                            acc.owned ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-gray-100'
+                          }`}
+                        >
                           <div className="flex-1">
                             <p className="font-semibold text-gray-900 text-base flex items-center gap-3">
                               {acc.name} 
@@ -323,7 +328,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
                             <p className="text-sm text-gray-600 mt-1">{acc.description}</p>
                           </div>
                           <div className="flex items-center gap-4 w-full sm:w-auto pt-4 sm:pt-0 sm:pl-6 border-t sm:border-t-0 sm:border-l border-gray-50 justify-between sm:justify-end">
-                            <span className={`text-[9px] font-black uppercase tracking-widest ${acc.owned ? 'text-orange-600' : 'text-gray-300'}`}>{acc.owned ? 'Owned' : 'Missing'}</span>
+                            <span className={`text-[9px] font-black uppercase tracking-widest ${acc.owned ? 'text-emerald-600' : 'text-red-400'}`}>{acc.owned ? 'Owned' : 'Missing'}</span>
                             <input 
                               type="checkbox" 
                               checked={acc.owned} 
@@ -331,10 +336,10 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
                                 const updated = editingItem.accessories?.map(a => a.id === acc.id ? {...a, owned: !a.owned} : a);
                                 setEditingItem({...editingItem, accessories: updated});
                               }} 
-                              className="w-10 h-10 sm:w-6 sm:h-6 rounded-lg border-gray-300 text-orange-600 cursor-pointer focus:ring-orange-500" 
+                              className="w-5 h-5 rounded border-gray-300 text-emerald-600 cursor-pointer focus:ring-emerald-500" 
                             />
                           </div>
-                        </div>
+                        </label>
                       ))}
                     </div>
                   </div>
