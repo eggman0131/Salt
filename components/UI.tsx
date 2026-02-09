@@ -57,3 +57,29 @@ export const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement>> = ({ c
     {children}
   </label>
 );
+
+export class ErrorBoundary extends React.Component<{ children: React.ReactNode, fallback?: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="p-8 text-center space-y-4">
+          <div className="text-4xl">⚠️</div>
+          <h2 className="text-xl font-bold text-gray-900">Something went wrong</h2>
+          <p className="text-sm text-gray-500">The Kitchen Encountered a technical error. Please try again.</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg font-bold"
+          >
+            Refresh Kitchen
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}

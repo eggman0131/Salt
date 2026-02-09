@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Card, Button, Input, Label } from './UI';
+import { Card, Button, Input, Label, ErrorBoundary } from './UI';
 import { ImageEditor } from './ImageEditor';
 import { Recipe, Equipment, RecipeHistoryEntry, User } from '../types/contract';
 import { saltBackend, sanitizeJson } from '../backend/api';
@@ -331,12 +331,22 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
 
   const contextualIngredients = useMemo(() => {
     if (currentStep === 0) return [];
-    return (recipe.stepIngredients?.[currentStep - 1] || []).map(idx => ({ name: ingredients[idx], index: idx }));
+    const stepData = recipe.stepIngredients?.[currentStep - 1];
+    if (!Array.isArray(stepData)) return [];
+    
+    return stepData
+      .map(idx => ({ name: ingredients[idx], index: idx }))
+      .filter(item => !!item.name);
   }, [currentStep, recipe.stepIngredients, ingredients]);
 
   const currentStepAlerts = useMemo(() => {
     if (currentStep === 0) return [];
-    return (recipe.stepAlerts?.[currentStep - 1] || []).map(idx => recipe.workflowAdvice?.technicalWarnings?.[idx]).filter(Boolean);
+    const stepData = recipe.stepAlerts?.[currentStep - 1];
+    if (!Array.isArray(stepData)) return [];
+
+    return stepData
+      .map(idx => recipe.workflowAdvice?.technicalWarnings?.[idx])
+      .filter((w): w is string => typeof w === 'string' && w.length > 0);
   }, [currentStep, recipe.stepAlerts, recipe.workflowAdvice]);
 
   return (
@@ -1248,13 +1258,26 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
         </div>
 
         {selectedRecipe && (
-          <RecipeDetail 
-            recipe={selectedRecipe} 
-            inventory={inventory} 
-            onClose={() => setSelectedRecipe(null)} 
-            onRefresh={onRefresh} 
-            currentUser={currentUser}
-          />
+          <ErrorBoundary 
+            fallback={
+              <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4">
+                <Card className="max-w-md w-full p-8 text-center space-y-4">
+                  <div className="text-4xl">🍳</div>
+                  <h2 className="text-xl font-bold text-gray-900">Recipe Malfunction</h2>
+                  <p className="text-sm text-gray-600">This recipe data is causing a critical error. The Head Chef has been notified (metaphorically).</p>
+                  <Button variant="primary" fullWidth onClick={() => setSelectedRecipe(null)}>Close Recipe</Button>
+                </Card>
+              </div>
+            }
+          >
+            <RecipeDetail 
+              recipe={selectedRecipe} 
+              inventory={inventory} 
+              onClose={() => setSelectedRecipe(null)} 
+              onRefresh={onRefresh} 
+              currentUser={currentUser}
+            />
+          </ErrorBoundary>
         )}
       </div>
     </div>

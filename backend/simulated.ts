@@ -193,7 +193,11 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
 
   async getRecipes(): Promise<Recipe[]> {
     const items: Recipe[] = [];
-    this.docCache.forEach((v, k) => { if (k.startsWith('custom_rec_') && !this.deletedIds.has(v.id)) items.push(v); });
+    this.docCache.forEach((v, k) => { 
+      if (k.startsWith('custom_rec_') && !this.deletedIds.has(v.id)) {
+        items.push(this.normalizeRecipeData(v) as Recipe);
+      } 
+    });
     return items;
   }
 
@@ -219,8 +223,11 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
       localStorage.setItem('salt_storage', JSON.stringify(storage));
     }
     
+    // Validate and sanitize recipe data
+    const normalized = this.normalizeRecipeData(recipe);
+    
     const newRecipe = { 
-      ...recipe, 
+      ...normalized, 
       id, 
       imagePath, 
       createdAt: new Date().toISOString(), 
@@ -244,7 +251,10 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
       localStorage.setItem('salt_storage', JSON.stringify(storage));
     }
     
-    const updated = { ...existing, ...updates, imagePath };
+    // Validate and sanitize updates
+    const normalizedUpdates = this.normalizeRecipeData({ ...existing, ...updates });
+    
+    const updated = { ...existing, ...normalizedUpdates, imagePath };
     this.docCache.set(`custom_rec_${id}`, updated);
     this.persistCache();
     return updated as Recipe;
