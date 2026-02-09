@@ -32,7 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
       icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> 
     },
     { 
-      label: 'Sous-Chef', 
+      label: 'Chef', 
       id: 'ai', 
       icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> 
     },
@@ -56,25 +56,25 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
   return (
     <>
       <div 
-        className={`fixed inset-0 bg-gray-900/20 backdrop-blur-sm z-[100] transition-opacity duration-300 lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/30 backdrop-blur-sm z-[100] transition-opacity duration-300 lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
       
-      <div className={`fixed inset-y-0 left-0 z-[110] w-[280px] bg-white border-r border-gray-100 transform transition-transform duration-300 ease-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col shadow-2xl lg:shadow-none`}>
-        <div className="p-6 pb-10 flex justify-between items-center">
+      <div className={`fixed inset-y-0 left-0 z-[110] w-[280px] bg-white border-r border-gray-200 transform transition-transform duration-300 ease-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col shadow-xl lg:shadow-none`}>
+        <div className="p-4 pb-8 flex justify-between items-center border-b border-gray-100">
           <div>
-            <h1 className="text-2xl font-black tracking-tighter text-gray-900">SALT</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-gray-900">SALT</h1>
           </div>
           <button 
             onClick={onClose} 
-            className="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-gray-50 text-gray-400 hover:text-gray-900"
+            className="lg:hidden w-10 h-10 flex items-center justify-center rounded-md bg-gray-100 text-gray-500 hover:text-gray-900"
             aria-label="Close menu"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
           {items.map((item) => (
             <button
               key={item.id}
@@ -82,32 +82,32 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
                 onTabChange(item.id);
                 onClose();
               }}
-              className={`w-full flex items-center gap-4 px-4 h-12 rounded-xl text-sm font-bold transition-all ${
+              className={`w-full flex items-center gap-3 px-4 h-11 rounded-md text-sm font-semibold transition-all border ${
                 activeTab === item.id 
-                  ? 'bg-blue-50 text-[#2563eb]' 
-                  : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-orange-50 text-orange-700 border-orange-100 shadow-sm' 
+                  : 'text-gray-600 border-transparent hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
-              <span className={activeTab === item.id ? 'text-[#2563eb]' : 'text-gray-300'}>{item.icon}</span>
+              <span className={activeTab === item.id ? 'text-orange-600' : 'text-gray-400'}>{item.icon}</span>
               {item.label}
             </button>
           ))}
         </nav>
         
-        <div className="p-4 space-y-4 border-t border-gray-50">
-          <div className="px-4 py-4 rounded-2xl bg-gray-50 border border-gray-100 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center text-white text-xs font-black shadow-sm shrink-0">
+        <div className="p-4 space-y-4 border-t border-gray-100">
+          <div className="px-4 py-3 rounded-md bg-gray-50 border border-gray-200 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gray-900 flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
               {user.displayName ? user.displayName[0] : '?'}
             </div>
             <div className="min-w-0">
-              <span className="text-xs font-black text-gray-900 block truncate leading-tight">{user.displayName}</span>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{mode}</span>
+              <span className="text-sm font-semibold text-gray-900 block truncate leading-tight">{user.displayName}</span>
+              <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">{mode}</span>
             </div>
           </div>
           
           <button 
             onClick={onLogout}
-            className="w-full h-11 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-red-500 transition-colors"
+            className="w-full h-11 flex items-center justify-center gap-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
             Sign Out
@@ -124,18 +124,18 @@ interface TopNavProps {
 }
 
 const TopNav: React.FC<TopNavProps> = ({ title, onMenuClick }) => (
-  <header className="sticky top-0 h-16 md:h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-4 md:px-10 z-[80]">
+  <header className="fixed top-0 left-0 lg:left-[280px] right-0 h-16 md:h-20 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-4 md:px-8 z-[200]">
     <div className="flex items-center gap-4">
       <button 
         onClick={onMenuClick}
-        className="lg:hidden w-10 h-10 flex items-center justify-center -ml-2 text-gray-400 hover:text-gray-900 transition-colors"
+        className="lg:hidden w-10 h-10 flex items-center justify-center -ml-2 text-gray-500 hover:text-gray-900 transition-colors"
         aria-label="Open menu"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 7h16M4 12h16m-16 5h16"/></svg>
       </button>
       
       <div>
-        <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">{title}</h2>
+        <h2 className="text-xl md:text-2xl font-semibold text-gray-900 tracking-tight">{title}</h2>
       </div>
     </div>
   </header>
@@ -156,7 +156,7 @@ export const DashboardLayout: React.FC<LayoutProps> = ({ children, activeTab, on
     switch(activeTab) {
       case 'dashboard': return 'Home Kitchen';
       case 'planner': return 'Planner';
-      case 'ai': return 'Sous-Chef';
+      case 'ai': return 'Chef';
       case 'recipes': return 'Recipes';
       case 'inventory': return 'Equipment';
       case 'admin': return 'Admin';
@@ -165,7 +165,7 @@ export const DashboardLayout: React.FC<LayoutProps> = ({ children, activeTab, on
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] flex">
+    <div className="min-h-screen bg-gray-50 flex">
       <Sidebar 
         activeTab={activeTab} 
         onTabChange={onTabChange} 
@@ -179,8 +179,8 @@ export const DashboardLayout: React.FC<LayoutProps> = ({ children, activeTab, on
           title={getActiveTitle()} 
           onMenuClick={() => setIsSidebarOpen(true)}
         />
-        <main className="px-2 py-4 md:p-10">
-          <div className="max-w-5xl mx-auto min-w-0">
+        <main className="px-3 pt-16 md:pt-24 pb-6 md:pb-12 md:px-8">
+          <div className="max-w-6xl mx-auto min-w-0">
             {children}
           </div>
         </main>
