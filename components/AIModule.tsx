@@ -11,17 +11,44 @@ interface Message {
 
 interface AIModuleProps {
   onRecipeGenerated: () => void;
+  initialUserMessage?: string;
 }
 
-export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated }) => {
+export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUserMessage }) => {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'ai', text: 'Welcome to Salt. What are we planning for the kitchen today?' }
   ]);
   const [userInput, setUserInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [status, setStatus] = useState<'idle' | 'finalizing' | 'organizing' | 'imaging'>('idle');
+
+  const hasSentInitial = useRef(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialUserMessage && !hasSentInitial.current) {
+      hasSentInitial.current = true;
+      handleSendSilent(initialUserMessage);
+    }
+  }, [initialUserMessage]);
+
+  const handleSendSilent = async (text: string) => {
+    const userMsg = text;
+    const newHistory = [...messages, { role: 'user', text: userMsg } as Message];
+    setMessages(newHistory);
+    
+    setIsTyping(true);
+    try {
+      const response = await saltBackend.chatForDraft(newHistory);
+      setMessages(prev => [...prev, { role: 'ai', text: response }]);
+    } catch (err) {
+      console.error("Salt AI Module Error:", err);
+      setMessages(prev => [...prev, { role: 'ai', text: 'I encountered an issue. Please try again.' }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });

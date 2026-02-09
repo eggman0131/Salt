@@ -259,7 +259,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
               <span className={`text-[7px] font-black uppercase tracking-tighter ${saveStatus === 'saving' ? 'text-orange-500 animate-pulse' : 'text-gray-300'}`}>
                 {saveStatus === 'saving' ? 'Syncing' : 'Synced'}
               </span>
-              <div className={`w-1.5 h-1.5 rounded-full ${saveStatus === 'saving' ? 'bg-orange-500 animate-pulse' : 'bg-green-400'}`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${saveStatus === 'saving' ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`} />
             </div>
           </div>
         </div>
@@ -493,7 +493,7 @@ const DayCard: React.FC<{ day: DayPlan; users: User[]; isTemplate: boolean; onCh
                       }} 
                       className="flex items-center gap-2 flex-1 min-w-0 text-left"
                     >
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ${isPresent ? 'bg-orange-600 border-orange-600' : 'border-gray-200'}`}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ${isPresent ? 'bg-emerald-600 border-emerald-600' : 'border-gray-200'}`}>
                         {isPresent && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg>}
                       </div>
                       <span className={`text-xs font-bold truncate flex-1 ${isPresent ? 'text-gray-900' : 'text-gray-300'}`}>
