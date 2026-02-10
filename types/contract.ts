@@ -22,6 +22,7 @@ export type User = z.infer<typeof UserSchema>;
 // Global Kitchen Settings
 export const KitchenSettingsSchema = z.object({
   directives: z.string(),
+  userOrder: z.array(z.string()).optional(),
 });
 export type KitchenSettings = z.infer<typeof KitchenSettingsSchema>;
 

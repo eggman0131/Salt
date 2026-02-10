@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Button, Input, Label } from './UI';
 import { User } from '../types/contract';
 import { saltBackend } from '../backend/api';
@@ -13,6 +13,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [activeConfirmId, setActiveConfirmId] = useState<string | null>(null);
+  const [userOrder, setUserOrder] = useState<string[] | null>(null);
 
   // Auto-reset confirmation state after 3 seconds
   useEffect(() => {
@@ -21,6 +22,131 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
       return () => clearTimeout(timer);
     }
   }, [activeConfirmId]);
+
+  // Load manual user order from localStorage (per-admin browser preference)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const settings = await saltBackend.getKitchenSettings();
+        if (mounted && settings?.userOrder && Array.isArray(settings.userOrder)) {
+          setUserOrder(settings.userOrder as string[]);
+          return;
+        }
+      } catch (e) {
+        // ignore backend errors and fall back to localStorage
+      }
+
+      try {
+        const raw = localStorage.getItem('salt_user_order');
+        if (raw) {
+          const parsed = JSON.parse(raw) as string[];
+          if (Array.isArray(parsed) && mounted) setUserOrder(parsed);
+        }
+      } catch (e) {
+        console.error('Failed to load user order', e);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  // Persist order helper
+  const persistOrder = (order: string[]) => {
+    try {
+      localStorage.setItem('salt_user_order', JSON.stringify(order));
+      // Persist backend-wide as kitchen setting (merge with existing directives)
+      (async () => {
+        try {
+          const current = await saltBackend.getKitchenSettings();
+          const merged = { ...current, userOrder: order } as any;
+          await saltBackend.updateKitchenSettings(merged);
+        } catch (e) {
+          console.error('Failed to persist user order to backend', e);
+        }
+      })();
+    } catch (e) {
+      console.error('Failed to save user order', e);
+    }
+  };
+
+  // Compute ordered users: follow userOrder then append any new users
+  const orderedUsers = useMemo(() => {
+    if (!userOrder || userOrder.length === 0) return users;
+    const byId = new Map(users.map(u => [u.id, u] as [string, User]));
+    const ordered: User[] = [];
+    for (const id of userOrder) {
+      const u = byId.get(id);
+      if (u) {
+        ordered.push(u);
+        byId.delete(id);
+      }
+    }
+    // Append any users not in stored order (newly added)
+    for (const u of users) {
+      if (byId.has(u.id)) ordered.push(u);
+    }
+    return ordered;
+  }, [users, userOrder]);
+
+  const move = (id: string, direction: 'up' | 'down') => {
+    const base = userOrder && userOrder.length ? [...userOrder] : users.map(u => u.id);
+    const idx = base.indexOf(id);
+    if (idx === -1) return;
+    const swapWith = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapWith < 0 || swapWith >= base.length) return;
+    const tmp = base[swapWith];
+    base[swapWith] = base[idx];
+    base[idx] = tmp;
+    setUserOrder(base);
+    persistOrder(base);
+  };
+
+  const resetOrder = () => {
+    setUserOrder(null);
+    try { localStorage.removeItem('salt_user_order'); } catch(e){}
+  };
+
+  // Drag & drop state and helpers
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const onHandleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingId(id);
+  };
+
+  const onHandleDragEnd = () => {
+    setDraggingId(null);
+    setDragOverId(null);
+  };
+
+  const onItemDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (dragOverId !== id) setDragOverId(id);
+  };
+
+  const onItemDrop = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    const draggedId = e.dataTransfer.getData('text/plain');
+    if (!draggedId || draggedId === id) {
+      setDraggingId(null);
+      setDragOverId(null);
+      return;
+    }
+    const base = userOrder && userOrder.length ? [...userOrder] : users.map(u => u.id);
+    // ensure draggedId exists
+    if (!base.includes(draggedId)) base.push(draggedId);
+    const from = base.indexOf(draggedId);
+    const to = base.indexOf(id);
+    if (from === -1 || to === -1) return;
+    base.splice(from, 1);
+    base.splice(to, 0, draggedId);
+    setUserOrder(base);
+    persistOrder(base);
+    setDraggingId(null);
+    setDragOverId(null);
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +172,21 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
       <div className="p-6 md:p-8 space-y-8 flex flex-col h-full min-h-0">
         {/* Header Section */}
         <div className="space-y-1 shrink-0">
-          <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Access Control</p>
-          <h3 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight">Authorised Users</h3>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Access Control</p>
+              <h3 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight">Authorised Users</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={resetOrder}
+                className="text-xs px-3 py-1 rounded-md bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                title="Reset manual order"
+              >
+                Reset Order
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* List Section - Now Scrollable */}
@@ -55,10 +194,12 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
           <Label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Current Access List ({users.length})</Label>
           <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
             <div className="space-y-3 pb-4">
-              {users.map((u) => (
+              {orderedUsers.map((u, idx) => (
                 <div 
                   key={u.id} 
-                  className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-xl group hover:border-orange-200 hover:bg-white transition-all shadow-sm"
+                  onDragOver={(e) => onItemDragOver(e, u.id)}
+                  onDrop={(e) => onItemDrop(e, u.id)}
+                  className={`flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-xl group hover:border-orange-200 hover:bg-white transition-all shadow-sm ${dragOverId === u.id ? 'ring-2 ring-orange-200' : ''}`}
                 >
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
@@ -70,7 +211,20 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
                     </div>
                   </div>
                   
-                  <div className="flex items-center shrink-0 ml-4">
+                  <div className="flex items-center shrink-0 ml-4 gap-2">
+                    <div className="mr-2">
+                      <button
+                        draggable
+                        onDragStart={(e) => onHandleDragStart(e, u.id)}
+                        onDragEnd={onHandleDragEnd}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-all cursor-grab"
+                        title="Drag to reorder"
+                        aria-label="Drag to reorder"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7h18M3 12h18M3 17h18" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </button>
+                    </div>
+
                     {activeConfirmId === u.id ? (
                       <button 
                         onClick={() => handleDelete(u.id)}

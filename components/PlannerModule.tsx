@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Card, Button, Input, Label } from './UI';
 import { User, Plan, DayPlan } from '../types/contract';
 import { saltBackend } from '../backend/api';
@@ -20,6 +20,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('saved');
   const [activeDayIdx, setActiveDayIdx] = useState(0); 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [kitchenUserOrder, setKitchenUserOrder] = useState<string[] | null>(null);
   
   const debounceTimerRef = useRef<number | null>(null);
   const lastSavedJsonRef = useRef<string>('');
@@ -37,6 +38,39 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     const plans = await saltBackend.getPlans();
     setAllPlans(plans);
   }, []);
+
+  // Load persisted global user order (if set) to order planner view
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const settings = await saltBackend.getKitchenSettings();
+        if (mounted && settings?.userOrder && Array.isArray(settings.userOrder)) {
+          setKitchenUserOrder(settings.userOrder as string[]);
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const orderedUsers = useMemo(() => {
+    if (!kitchenUserOrder || kitchenUserOrder.length === 0) return users;
+    const byId = new Map(users.map(u => [u.id, u] as [string, User]));
+    const ordered: User[] = [];
+    for (const id of kitchenUserOrder) {
+      const u = byId.get(id);
+      if (u) {
+        ordered.push(u);
+        byId.delete(id);
+      }
+    }
+    for (const u of users) {
+      if (byId.has(u.id)) ordered.push(u);
+    }
+    return ordered;
+  }, [users, kitchenUserOrder]);
 
   const loadPlan = useCallback(async () => {
     const isInitialLoadForDate = lastLoadedStartDateRef.current !== startDate;
@@ -60,7 +94,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
           return {
             date: d.toISOString().split('T')[0],
             cookId: tDay?.cookId || null,
-            presentIds: tDay?.presentIds || users.map(u => u.id),
+            presentIds: tDay?.presentIds || orderedUsers.map(u => u.id),
             userNotes: tDay?.userNotes || {},
             mealNotes: tDay?.mealNotes || '',
           };
@@ -92,7 +126,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     } finally {
       setIsLoading(false);
     }
-  }, [startDate, users, loadAllPlans]);
+  }, [startDate, users, loadAllPlans, orderedUsers]);
 
   const loadTemplate = useCallback(async () => {
     const isInitialLoadForDate = lastLoadedStartDateRef.current !== 'template';
@@ -109,7 +143,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
           days: Array.from({ length: 7 }).map((_, i) => ({
             date: `day-${i}`,
             cookId: null,
-            presentIds: users.map(u => u.id),
+            presentIds: orderedUsers.map(u => u.id),
             userNotes: {},
             mealNotes: '',
           })),
@@ -131,7 +165,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     } finally {
       setIsLoading(false);
     }
-  }, [users]);
+  }, [users, orderedUsers]);
 
   useEffect(() => {
     if (startDate === 'template') {
@@ -388,7 +422,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
               <DayCard 
                 key={isTemplateMode ? `template-${idx}` : day.date} 
                 day={day} 
-                users={users} 
+                users={orderedUsers} 
                 isTemplate={isTemplateMode}
                 onChange={(updates) => handleUpdateDay(idx, updates)} 
               />
@@ -398,7 +432,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
           <div className="lg:hidden w-full min-w-0 pb-12 box-border px-0.5">
             <DayCard 
               day={plan.days[activeDayIdx]} 
-              users={users} 
+              users={orderedUsers} 
               isTemplate={isTemplateMode}
               onChange={(updates) => handleUpdateDay(activeDayIdx, updates)} 
             />
@@ -459,30 +493,14 @@ const DayCard: React.FC<{ day: DayPlan; users: User[]; isTemplate: boolean; onCh
           />
         </div>
 
-        <div className="space-y-2 min-w-0 box-border">
-          <Label className="text-[9px]">Head Chef</Label>
-          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-1.5 min-w-0 box-border">
-            {users.map(u => (
-              <button 
-                key={u.id} 
-                onClick={() => onChange({ cookId: day.cookId === u.id ? null : u.id })} 
-                className={`px-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all border truncate flex items-center justify-center box-border ${
-                  day.cookId === u.id 
-                    ? 'bg-orange-600 border-orange-600 text-white shadow-sm' 
-                    : 'bg-white border-gray-100 text-gray-400 hover:border-orange-200 hover:text-orange-600'
-                }`}
-              >
-                {u.displayName.split(' ')[0]}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Head Chef grid removed. Cook selection moved inline with attendees below. */}
 
         <div className="space-y-4 pt-4 border-t border-gray-50 min-w-0 box-border">
           <Label className="text-[9px]">Attendees & Notes</Label>
           <div className="space-y-4 min-w-0 box-border">
             {users.map(u => {
               const isPresent = day.presentIds.includes(u.id);
+              const isCook = day.cookId === u.id;
               return (
                 <div key={u.id} className="min-w-0 space-y-1.5 box-border">
                   <div className="flex items-center gap-2 group w-full min-w-0 box-border">
@@ -499,6 +517,24 @@ const DayCard: React.FC<{ day: DayPlan; users: User[]; isTemplate: boolean; onCh
                       <span className={`text-xs font-bold truncate flex-1 ${isPresent ? 'text-gray-900' : 'text-gray-300'}`}>
                         {u.displayName}
                       </span>
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newCookId = isCook ? null : u.id;
+                        const nextPresent = day.presentIds.includes(u.id) ? day.presentIds : [...day.presentIds, u.id];
+                        onChange({ cookId: newCookId, presentIds: newCookId ? nextPresent : day.presentIds });
+                      }}
+                      className={`w-6 h-6 rounded border flex items-center justify-center transition-all shrink-0 ${isCook ? 'bg-orange-600 border-orange-600 text-white' : 'bg-white border-gray-100 text-gray-300'}`}
+                      aria-label={`Toggle cook for ${u.displayName}`}
+                      title={isCook ? 'Unset as cook' : 'Set as cook'}
+                    >
+                      {isCook ? (
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
+                      ) : (
+                        <svg className="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
+                      )}
                     </button>
                   </div>
                   {isPresent && (
