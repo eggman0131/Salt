@@ -279,37 +279,38 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
     return plans.sort((a, b) => b.startDate.localeCompare(a.startDate));
   }
   async getPlanByDate(date: string): Promise<Plan | null> {
-    const plans = await this.getPlans();
-    return plans.find(p => p.startDate === date) || null;
+    const id = date === 'template' ? TEMPLATE_ID : `plan-${date}`;
+    // Check for deterministic ID in cache
+    const cached = this.docCache.get(`custom_plan_${id}`);
+    if (cached) return cached;
+    return null;
   }
   async getPlanIncludingDate(date: string): Promise<Plan | null> {
     const all = await this.getPlans();
-    const today = new Date(date).setHours(0,0,0,0);
+    // Normalize to UTC midnight for consistent relative comparison
+    const targetTime = new Date(`${date}T00:00:00Z`).getTime();
     return all.find(p => {
       // Exclude template from being returned as a live date-based plan
       if (p.startDate === 'template' || p.id === TEMPLATE_ID) return false;
-      const start = new Date(p.startDate).setHours(0,0,0,0);
-      return today >= start && today < (start + 7 * 24 * 60 * 60 * 1000);
+      const startTime = new Date(`${p.startDate}T00:00:00Z`).getTime();
+      return targetTime >= startTime && targetTime < (startTime + 7 * 24 * 60 * 60 * 1000);
     }) || null;
   }
   async createOrUpdatePlan(p: any): Promise<Plan> {
     const isTemplate = p.startDate === 'template' || p.id === TEMPLATE_ID;
+    const id = isTemplate ? TEMPLATE_ID : `plan-${p.startDate}`;
+    const cacheKey = `custom_plan_${id}`;
     
-    // For template, we explicitly use the TEMPLATE_ID for search and creation
-    const existing = isTemplate 
-      ? (await this.getPlans()).find(pl => pl.id === TEMPLATE_ID || pl.startDate === 'template')
-      : await this.getPlanByDate(p.startDate);
-    
-    const id = isTemplate ? TEMPLATE_ID : (existing ? existing.id : (p.id || `plan-${Math.random().toString(36).substr(2, 9)}`));
+    const existing = this.docCache.get(cacheKey);
     
     const newPlan = { 
       ...p, 
       id, 
       createdAt: existing?.createdAt || new Date().toISOString(), 
-      createdBy: this.currentUser?.id || 'unknown' 
+      createdBy: existing?.createdBy || this.currentUser?.id || 'unknown' 
     };
     
-    this.docCache.set(`custom_plan_${id}`, newPlan);
+    this.docCache.set(cacheKey, newPlan);
     this.persistCache();
     return newPlan as Plan;
   }
