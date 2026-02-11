@@ -1,7 +1,7 @@
 import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, storage, functions } from './firebase';
-import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch, Timestamp, runTransaction } from 'firebase/firestore';
 import { isSignInWithEmailLink, sendSignInLinkToEmail, signInWithEmailLink, signOut, onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
@@ -757,6 +757,16 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
   
   async getPlanByDate(date: string): Promise<Plan | null> {
+    // Try deterministic ID first for efficiency
+    const deterministicId = date === 'template' ? TEMPLATE_ID : `plan-${date}`;
+    const docSnap = await getDoc(doc(db, 'plans', deterministicId));
+    
+    if (docSnap.exists()) {
+      const data = this.convertTimestamps(docSnap.data());
+      return { ...data, id: docSnap.id } as Plan;
+    }
+
+    // Fallback to query for legacy documents (non-deterministic IDs)
     const q = query(collection(db, 'plans'), where('startDate', '==', date));
     const snapshot = await getDocs(q);
     
@@ -764,59 +774,54 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       return null;
     }
     
-    const docSnap = snapshot.docs[0];
-    const data = this.convertTimestamps(docSnap.data());
+    const docSnapLegacy = snapshot.docs[0];
+    const data = this.convertTimestamps(docSnapLegacy.data());
     return {
       ...data,
-      id: docSnap.id
+      id: docSnapLegacy.id
     } as Plan;
   }
   
   async getPlanIncludingDate(date: string): Promise<Plan | null> {
     const all = await this.getPlans();
-    const today = new Date(date).setHours(0, 0, 0, 0);
+    // Normalize to UTC midnight for consistent relative comparison
+    const targetTime = new Date(`${date}T00:00:00Z`).getTime();
     
     return all.find(p => {
       if (p.startDate === 'template' || p.id === TEMPLATE_ID) return false;
       
-      const start = new Date(p.startDate).setHours(0, 0, 0, 0);
-      return today >= start && today < (start + 7 * 24 * 60 * 60 * 1000);
+      const startTime = new Date(`${p.startDate}T00:00:00Z`).getTime();
+      return targetTime >= startTime && targetTime < (startTime + 7 * 24 * 60 * 60 * 1000);
     }) || null;
   }
   
   async createOrUpdatePlan(p: Omit<Plan, 'id' | 'createdAt' | 'createdBy'> & { id?: string }): Promise<Plan> {
     const isTemplate = p.startDate === 'template' || p.id === TEMPLATE_ID;
     
-    let id: string;
-    let existingPlan: Plan | null = null;
-    
-    if (isTemplate) {
-      id = TEMPLATE_ID;
-      try {
-        const docRef = doc(db, 'plans', TEMPLATE_ID);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = this.convertTimestamps(docSnap.data());
-          existingPlan = { ...data, id: docSnap.id } as Plan;
-        }
-      } catch (e) {
-        existingPlan = null;
-      }
-    } else {
-      existingPlan = await this.getPlanByDate(p.startDate);
-      id = existingPlan?.id || p.id || `plan-${Math.random().toString(36).substr(2, 9)}`;
-    }
-    
-    const newPlan = {
-      ...p,
-      id,
-      createdAt: existingPlan?.createdAt || new Date().toISOString(),
-      createdBy: existingPlan?.createdBy || this.currentUser?.id || 'unknown'
-    };
-    
-    await setDoc(doc(db, 'plans', id), newPlan);
-    
-    return newPlan as Plan;
+    // 1. Resolve the target ID.
+    // We prioritize the deterministic ID format 'plan-YYYY-MM-DD' or 'plan-template'.
+    // If a legacy plan for this date already exists with a random ID, we'll continue using that.
+    const existingPlan = await this.getPlanByDate(p.startDate);
+    const id = existingPlan?.id || (isTemplate ? TEMPLATE_ID : `plan-${p.startDate}`);
+    const docRef = doc(db, 'plans', id);
+
+    return await runTransaction(db, async (transaction) => {
+      const sfDoc = await transaction.get(docRef);
+      
+      // Use existing metadata if document exists, otherwise initialize it.
+      const createdAt = sfDoc.exists() ? sfDoc.data().createdAt : new Date().toISOString();
+      const createdBy = sfDoc.exists() ? sfDoc.data().createdBy : (this.currentUser?.id || 'unknown');
+
+      const newPlan = {
+        ...p,
+        id,
+        createdAt,
+        createdBy
+      };
+
+      transaction.set(docRef, newPlan);
+      return newPlan as Plan;
+    });
   }
   
   async deletePlan(id: string): Promise<void> {
