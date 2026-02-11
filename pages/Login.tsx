@@ -9,7 +9,7 @@ interface LoginProps {
 }
 
 export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('daniel@salt.uk');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <Input 
               id="email"
               type="email" 
-              placeholder="chef@salt.kitchen" 
+              placeholder="chef@salt.eggyman.net" 
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
