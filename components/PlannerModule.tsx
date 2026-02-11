@@ -27,11 +27,15 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   const lastLoadedStartDateRef = useRef<string | null>(null);
 
   function getFriday(dStr: string) {
-    const d = new Date(dStr);
-    const day = d.getDay();
+    // Parse precisely to UTC midnight to avoid timezone-related day shifts
+    const normalized = dStr.includes('T') ? dStr : `${dStr}T00:00:00Z`;
+    const d = new Date(normalized);
+    
+    // Use UTC day and date methods for deterministic British/UTC normalization
+    const day = d.getUTCDay();
     const daysToSubtract = (day + 2) % 7; 
-    const friday = new Date(d.setDate(d.getDate() - daysToSubtract));
-    return friday.toISOString().split('T')[0];
+    d.setUTCDate(d.getUTCDate() - daysToSubtract);
+    return d.toISOString().split('T')[0];
   }
 
   const loadAllPlans = useCallback(async () => {
@@ -87,8 +91,9 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
         const template = all.find(p => p.id === TEMPLATE_ID || p.startDate === 'template');
 
         const days: DayPlan[] = Array.from({ length: 7 }).map((_, i) => {
-          const d = new Date(startDate);
-          d.setDate(d.getDate() + i);
+          // Construct next days precisely in UTC
+          const d = new Date(`${startDate}T00:00:00Z`);
+          d.setUTCDate(d.getUTCDate() + i);
           const tDay = template?.days[i];
           
           return {
@@ -222,14 +227,17 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   const handlePlanNextCycle = () => {
     const historical = allPlans.filter(p => p.id !== TEMPLATE_ID && p.startDate !== 'template');
     if (historical.length === 0) {
-      const nextFri = new Date();
-      nextFri.setDate(nextFri.getDate() + (5 + 7 - nextFri.getDay()) % 7);
+      const now = new Date();
+      // Calculate days to next Friday (Friday is day 5)
+      const daysUntilNextOrCurrentFriday = (5 + 7 - now.getDay()) % 7;
+      const nextFri = new Date(now);
+      nextFri.setDate(now.getDate() + (daysUntilNextOrCurrentFriday === 0 ? 7 : daysUntilNextOrCurrentFriday));
       const nextFriStr = getFriday(nextFri.toISOString().split('T')[0]);
       setStartDate(nextFriStr);
     } else {
       const latest = historical.sort((a,b) => b.startDate.localeCompare(a.startDate))[0]; 
-      const latestDate = new Date(latest.startDate);
-      latestDate.setDate(latestDate.getDate() + 7);
+      const latestDate = new Date(`${latest.startDate}T00:00:00Z`);
+      latestDate.setUTCDate(latestDate.getUTCDate() + 7);
       setStartDate(latestDate.toISOString().split('T')[0]);
     }
     setShowHistory(false);
