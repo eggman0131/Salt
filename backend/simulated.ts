@@ -279,8 +279,11 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
     return plans.sort((a, b) => b.startDate.localeCompare(a.startDate));
   }
   async getPlanByDate(date: string): Promise<Plan | null> {
-    const plans = await this.getPlans();
-    return plans.find(p => p.startDate === date) || null;
+    const id = date === 'template' ? TEMPLATE_ID : `plan-${date}`;
+    // Check for deterministic ID in cache
+    const cached = this.docCache.get(`custom_plan_${id}`);
+    if (cached) return cached;
+    return null;
   }
   async getPlanIncludingDate(date: string): Promise<Plan | null> {
     const all = await this.getPlans();
@@ -295,11 +298,10 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
   }
   async createOrUpdatePlan(p: any): Promise<Plan> {
     const isTemplate = p.startDate === 'template' || p.id === TEMPLATE_ID;
+    const id = isTemplate ? TEMPLATE_ID : `plan-${p.startDate}`;
+    const cacheKey = `custom_plan_${id}`;
     
-    // Resolve target ID. We prioritize finding by startDate for consistency.
-    // If not found, we use a deterministic ID format plan-YYYY-MM-DD.
-    const existing = await this.getPlanByDate(p.startDate);
-    const id = existing?.id || (isTemplate ? TEMPLATE_ID : `plan-${p.startDate}`);
+    const existing = this.docCache.get(cacheKey);
     
     const newPlan = { 
       ...p, 
@@ -308,7 +310,7 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
       createdBy: existing?.createdBy || this.currentUser?.id || 'unknown' 
     };
     
-    this.docCache.set(`custom_plan_${id}`, newPlan);
+    this.docCache.set(cacheKey, newPlan);
     this.persistCache();
     return newPlan as Plan;
   }

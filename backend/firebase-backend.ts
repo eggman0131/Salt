@@ -757,7 +757,6 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
   
   async getPlanByDate(date: string): Promise<Plan | null> {
-    // Try deterministic ID first for efficiency
     const deterministicId = date === 'template' ? TEMPLATE_ID : `plan-${date}`;
     const docSnap = await getDoc(doc(db, 'plans', deterministicId));
     
@@ -766,20 +765,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       return { ...data, id: docSnap.id } as Plan;
     }
 
-    // Fallback to query for legacy documents (non-deterministic IDs)
-    const q = query(collection(db, 'plans'), where('startDate', '==', date));
-    const snapshot = await getDocs(q);
-    
-    if (snapshot.empty) {
-      return null;
-    }
-    
-    const docSnapLegacy = snapshot.docs[0];
-    const data = this.convertTimestamps(docSnapLegacy.data());
-    return {
-      ...data,
-      id: docSnapLegacy.id
-    } as Plan;
+    return null;
   }
   
   async getPlanIncludingDate(date: string): Promise<Plan | null> {
@@ -795,14 +781,9 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     }) || null;
   }
   
-  async createOrUpdatePlan(p: Omit<Plan, 'id' | 'createdAt' | 'createdBy'> & { id?: string }): Promise<Plan> {
+  async createOrUpdatePlan(p: Omit<Plan, 'id' | 'createdAt' | 'createdBy' | 'imagePath'> & { id?: string }): Promise<Plan> {
     const isTemplate = p.startDate === 'template' || p.id === TEMPLATE_ID;
-    
-    // 1. Resolve the target ID.
-    // We prioritize the deterministic ID format 'plan-YYYY-MM-DD' or 'plan-template'.
-    // If a legacy plan for this date already exists with a random ID, we'll continue using that.
-    const existingPlan = await this.getPlanByDate(p.startDate);
-    const id = existingPlan?.id || (isTemplate ? TEMPLATE_ID : `plan-${p.startDate}`);
+    const id = isTemplate ? TEMPLATE_ID : `plan-${p.startDate}`;
     const docRef = doc(db, 'plans', id);
 
     return await runTransaction(db, async (transaction) => {
