@@ -1,0 +1,8 @@
+/* Tailwind entry - processed by PostCSS/Tailwind in build */
+@import "tailwindcss";
+@source "../components/**/*.tsx";
+@source "../pages/**/*.tsx";
+@source "../App.tsx";
+@source "../index.html";
+
+/* Add any project-level overrides below if required. The app still contains some inline styles in index.html. */
