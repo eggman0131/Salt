@@ -14,9 +14,11 @@ import * as admin from 'firebase-admin';
 import { GoogleGenAI, GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 
 // Initialize Firebase Admin SDK
-admin.initializeApp();
+const app = admin.initializeApp();
 
-const db = admin.firestore();
+// Connect to the 'saltstore' database instead of default
+const db = admin.firestore(app);
+db.settings({ databaseId: 'saltstore' });
 const auth = admin.auth();
 
 // Firebase Functions v2 region configuration

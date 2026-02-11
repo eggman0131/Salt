@@ -25,6 +25,39 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     });
   }
 
+  // Helper to retry Firestore operations with timeout
+  private async retryFirestoreOperation<T>(
+    operation: () => Promise<T>,
+    maxRetries = 2,
+    delayMs = 500
+  ): Promise<T> {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        // Add a timeout to each attempt
+        const timeoutPromise = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Firestore operation timeout')), 5000)
+        );
+        
+        return await Promise.race([operation(), timeoutPromise]);
+      } catch (error: any) {
+        const isOfflineError = error?.code === 'unavailable' || 
+                               error?.message?.includes('offline') ||
+                               error?.message?.includes('timeout') ||
+                               error?.message?.includes('Failed to get document');
+        
+        console.error(`[Firestore] Attempt ${i + 1}/${maxRetries} failed:`, error?.code, error?.message);
+        
+        if (isOfflineError && i < maxRetries - 1) {
+          console.log(`[Firestore] Retrying after ${delayMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error('Firestore operation failed after retries');
+  }
+
   // -- HELPER METHODS --
   
   private convertTimestamps(data: any): any {
@@ -287,20 +320,35 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   async handleRedirectResult(): Promise<User | null> {
     try {
       const href = window.location.href;
+      console.log('[handleRedirectResult] Checking URL:', href);
+      console.log('[handleRedirectResult] URL length:', href.length);
+      console.log('[handleRedirectResult] Has apiKey param:', href.includes('apiKey='));
+      console.log('[handleRedirectResult] Has oobCode param:', href.includes('oobCode='));
+      
       if (!isSignInWithEmailLink(auth, href)) {
+        console.log('[handleRedirectResult] Not a sign-in link');
         return null;
       }
 
+      console.log('[handleRedirectResult] Valid sign-in link detected');
       let userEmail = localStorage.getItem('salt_email_link') || '';
+      console.log('[handleRedirectResult] Stored email from localStorage:', userEmail);
+      
       if (!userEmail) {
         userEmail = window.prompt('Confirm your email to finish signing in') || '';
+        console.log('[handleRedirectResult] Email from prompt:', userEmail);
       }
 
       if (!userEmail) {
         throw new Error('Missing email for sign-in completion.');
       }
 
+      console.log('[handleRedirectResult] Attempting sign-in for:', userEmail);
+      console.log('[handleRedirectResult] About to call signInWithEmailLink...');
+      
       const result = await signInWithEmailLink(auth, userEmail, href);
+      
+      console.log('[handleRedirectResult] Sign-in successful');
       localStorage.removeItem('salt_email_link');
 
       const userEmailFromAuth = result.user.email;
@@ -310,13 +358,44 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
         throw new Error("Kitchen Access Denied.");
       }
 
-      const userDoc = await getDoc(doc(db, 'users', userEmailFromAuth));
+      // Wait briefly for auth state to propagate to Firestore
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      console.log('[handleRedirectResult] Checking Firestore for user:', userEmailFromAuth);
+      console.log('[handleRedirectResult] Auth UID:', result.user.uid);
+      console.log('[handleRedirectResult] Auth token exists:', !!(await result.user.getIdToken()));
+      
+      const userDocRef = doc(db, 'users', userEmailFromAuth);
+      console.log('[handleRedirectResult] Document path:', `users/${userEmailFromAuth}`);
+      
+      const userDoc = await this.retryFirestoreOperation(
+        () => getDoc(userDocRef)
+      );
+      
+      console.log('[handleRedirectResult] Document exists:', userDoc.exists());
+      if (userDoc.exists()) {
+        console.log('[handleRedirectResult] Document data:', userDoc.data());
+      } else {
+        // Debug: List all documents in users collection
+        console.log('[handleRedirectResult] Document not found. Listing all users...');
+        try {
+          const usersSnapshot = await getDocs(collection(db, 'users'));
+          console.log('[handleRedirectResult] Total users in collection:', usersSnapshot.size);
+          usersSnapshot.forEach((doc) => {
+            console.log('[handleRedirectResult] Found user ID:', doc.id);
+          });
+        } catch (listError) {
+          console.error('[handleRedirectResult] Failed to list users:', listError);
+        }
+      }
       
       if (!userDoc.exists()) {
+        console.error('[handleRedirectResult] User document not found in Firestore');
         await signOut(auth);
         throw new Error("Kitchen Access Denied.");
       }
       
+      console.log('[handleRedirectResult] User document found:', userDoc.data());
       const userData = userDoc.data();
       this.currentUser = {
         id: userEmailFromAuth,
@@ -357,7 +436,10 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     }
     
     try {
-      const userDoc = await getDoc(doc(db, 'users', firebaseUser.email));
+      const userDoc = await this.retryFirestoreOperation(
+        () => getDoc(doc(db, 'users', firebaseUser.email!))
+      );
+      
       if (userDoc.exists()) {
         const userData = userDoc.data();
         this.currentUser = {

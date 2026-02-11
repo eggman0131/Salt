@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, connectFirestoreEmulator, initializeFirestore } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, initializeFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
@@ -71,9 +71,9 @@ else if (isCloudIDE) {
       host: location.host,
       ssl: true,
       experimentalForceLongPolling: true
-    });
+    }, 'saltstore'); // Use the named database
   } catch (e) {
-    db = getFirestore(app);
+    db = getFirestore(app, 'saltstore'); // Fallback with named database
   }
 
   const domainSuffix = host.split('.').slice(1).join('.');
@@ -92,7 +92,25 @@ else if (isCloudIDE) {
 else if (isProductionHosting) {
   env = 'production-hosting';
 
-  db = getFirestore(app);
+  try {
+    db = initializeFirestore(app, {
+      ignoreUndefinedProperties: true,
+    }, 'saltstore'); // Use the named database
+    console.log('Firestore initialized for production (saltstore database)');
+    
+    // Enable offline persistence
+    enableIndexedDbPersistence(db).catch((err) => {
+      if (err.code === 'failed-precondition') {
+        console.warn('Offline persistence failed: Multiple tabs open');
+      } else if (err.code === 'unimplemented') {
+        console.warn('Offline persistence not available in this browser');
+      }
+    });
+    console.log('Offline persistence enabled');
+  } catch (e) {
+    console.error('Firestore initialization failed:', e);
+    db = getFirestore(app, 'saltstore'); // Fallback with named database
+  }
   functions = getFunctions(app, 'europe-west2');
 }
 
@@ -103,12 +121,22 @@ else if (isProductionHosting) {
 else {
   env = 'fallback-production';
 
-  db = getFirestore(app);
+  db = getFirestore(app, 'saltstore'); // Use the named database
+  
+  // Enable offline persistence
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Offline persistence failed: Multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Offline persistence not available in this browser');
+    }
+  });
+  
   functions = getFunctions(app, 'europe-west2');
 }
 
 // Safety fallback
-if (!db) db = getFirestore(app);
+if (!db) db = getFirestore(app, 'saltstore');
 
 // ---------------------------------------------------------------------------
 // ENVIRONMENT LOGGING
