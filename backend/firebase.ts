@@ -3,6 +3,7 @@ import { getFirestore, connectFirestoreEmulator, initializeFirestore, enableInde
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { debugLogger } from './debug-logger';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC23dfR9R-uij0V8OeMT6ICFVCnrqj4pT8",
@@ -96,19 +97,19 @@ else if (isProductionHosting) {
     db = initializeFirestore(app, {
       ignoreUndefinedProperties: true,
     }, 'saltstore'); // Use the named database
-    console.log('Firestore initialized for production (saltstore database)');
+    debugLogger.log('Firebase Init', 'Firestore initialized for production (saltstore database)');
     
     // Enable offline persistence
     enableIndexedDbPersistence(db).catch((err) => {
       if (err.code === 'failed-precondition') {
-        console.warn('Offline persistence failed: Multiple tabs open');
+        debugLogger.warn('Firebase Init', 'Offline persistence failed: Multiple tabs open');
       } else if (err.code === 'unimplemented') {
-        console.warn('Offline persistence not available in this browser');
+        debugLogger.warn('Firebase Init', 'Offline persistence not available in this browser');
       }
     });
-    console.log('Offline persistence enabled');
+    debugLogger.log('Firebase Init', 'Offline persistence enabled');
   } catch (e) {
-    console.error('Firestore initialization failed:', e);
+    debugLogger.error('Firebase Init', 'Firestore initialization failed:', e);
     db = getFirestore(app, 'saltstore'); // Fallback with named database
   }
   functions = getFunctions(app, 'europe-west2');
@@ -126,9 +127,9 @@ else {
   // Enable offline persistence
   enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
-      console.warn('Offline persistence failed: Multiple tabs open');
+      debugLogger.warn('Firebase Init', 'Offline persistence failed: Multiple tabs open');
     } else if (err.code === 'unimplemented') {
-      console.warn('Offline persistence not available in this browser');
+      debugLogger.warn('Firebase Init', 'Offline persistence not available in this browser');
     }
   });
   
@@ -142,11 +143,11 @@ if (!db) db = getFirestore(app, 'saltstore');
 // ENVIRONMENT LOGGING
 // ---------------------------------------------------------------------------
 
-console.log('%c🔥 Firebase Environment Detected', 'font-weight: bold; color: #ff5722;');
-console.log('Hostname:', host);
-console.log('Origin:', location.origin);
-console.log('Environment:', env);
-console.log('Using Emulators:', env.includes('emulators'));
-console.log('---------------------------------------------');
+debugLogger.log('Firebase Init', '%c🔥 Firebase Environment Detected', 'font-weight: bold; color: #ff5722;');
+debugLogger.log('Firebase Init', 'Hostname:', host);
+debugLogger.log('Firebase Init', 'Origin:', location.origin);
+debugLogger.log('Firebase Init', 'Environment:', env);
+debugLogger.log('Firebase Init', 'Using Emulators:', env.includes('emulators'));
+debugLogger.log('Firebase Init', '---------------------------------------------');
 
 export { db, auth, storage, functions };

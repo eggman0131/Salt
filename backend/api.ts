@@ -10,6 +10,7 @@
 import { ISaltBackend } from '../types/contract';
 import { SaltSimulatedBackend } from './simulated';
 import { SaltFirebaseBackend } from './firebase-backend';
+import { debugLogger } from './debug-logger';
 
 /**
  * SALT BACKEND CONFIGURATION
@@ -28,6 +29,16 @@ export function getActiveBackendMode(): string {
 }
 
 console.log(`SALT: Initialised with ${BACKEND_MODE.toUpperCase()} backend.`);
+
+// Initialize debug logger state from settings
+(async () => {
+  try {
+    const settings = await saltBackend.getKitchenSettings();
+    debugLogger.setEnabled(settings.debugEnabled || false);
+  } catch (e) {
+    // Settings not available yet, keep debug disabled
+  }
+})();
 
 export function sanitizeJson(text: string): string {
   const start = text.indexOf('{');

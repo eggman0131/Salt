@@ -4,6 +4,7 @@ import { UsersModule } from './UsersModule';
 import { Card, Button, Label } from './UI';
 import { User, KitchenSettings } from '../types/contract';
 import { getActiveBackendMode, saltBackend } from '../backend/api';
+import { debugLogger } from '../backend/debug-logger';
 
 interface AdminModuleProps {
   users: User[];
@@ -24,12 +25,17 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 }) => {
   const mode = getActiveBackendMode();
   const [directives, setDirectives] = useState('');
+  const [debugEnabled, setDebugEnabled] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const debounceTimerRef = useRef<number | null>(null);
 
   // Re-fetch whenever lastSync changes (e.g. after import)
   useEffect(() => {
-    saltBackend.getKitchenSettings().then(s => setDirectives(s.directives));
+    saltBackend.getKitchenSettings().then(s => {
+      setDirectives(s.directives);
+      setDebugEnabled(s.debugEnabled || false);
+      debugLogger.setEnabled(s.debugEnabled || false);
+    });
   }, [lastSync]);
 
   const handleUpdateDirectives = (val: string) => {
@@ -39,13 +45,27 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     if (debounceTimerRef.current) window.clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = window.setTimeout(async () => {
       try {
-        await saltBackend.updateKitchenSettings({ directives: val });
+        await saltBackend.updateKitchenSettings({ directives: val, debugEnabled });
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch (err) {
         console.error(err);
       }
     }, 1200);
+  };
+
+  const handleToggleDebug = async (enabled: boolean) => {
+    setDebugEnabled(enabled);
+    debugLogger.setEnabled(enabled);
+    setSaveStatus('saving');
+    
+    try {
+      await saltBackend.updateKitchenSettings({ directives, debugEnabled: enabled });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -101,6 +121,41 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                   Backup
+                </button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Debug Logger Controls */}
+          <Card className="p-6 md:p-8 border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 flex flex-col shrink-0">
+            <div className="space-y-4 flex-1 flex flex-col">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Developer Tools</p>
+                <h4 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight">Debug Logging</h4>
+                <p className="text-xs text-gray-500 italic pt-2">
+                  Control backend console logging for development and troubleshooting.
+                </p>
+              </div>
+              
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-gray-700">Debug Mode</span>
+                  <span className="text-xs text-gray-500">
+                    {debugEnabled ? 'Logs are visible in console' : 'Logs are suppressed'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleToggleDebug(!debugEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    debugEnabled ? 'bg-orange-600' : 'bg-gray-200'
+                  }`}
+                  aria-pressed={debugEnabled}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      debugEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
                 </button>
               </div>
             </div>
