@@ -23,6 +23,7 @@ export type User = z.infer<typeof UserSchema>;
 export const KitchenSettingsSchema = z.object({
   directives: z.string(),
   userOrder: z.array(z.string()).optional(),
+  debugEnabled: z.boolean().optional(),
 });
 export type KitchenSettings = z.infer<typeof KitchenSettingsSchema>;
 
