@@ -346,7 +346,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
       {/* Delete Modal (same style as recipes) */}
       {showDeleteConfirmModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4"
           onClick={() => setShowDeleteConfirmModal(false)}
           onWheel={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
           onTouchMove={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
