@@ -20,7 +20,7 @@
 1. **The Law:** `types/contract.ts` (Data shape).
 2. **The Soul:** `backend/prompts.ts` (Persona).
 3. **The Brain:** `backend/base-backend.ts` (AI logic).
-4. **The Hands:** `backend/simulated.ts` or `backend/firebase-backend.ts` (Persistence).
+4. **The Hands:** `backend/firebase-backend.ts` (Firebase persistence with offline support).
 
 ## 4. DO NOT MODIFY
 - Do not rename files or folders.
