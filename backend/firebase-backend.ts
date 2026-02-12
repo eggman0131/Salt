@@ -1,6 +1,7 @@
 import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, storage, functions } from './firebase';
+import { debugLogger } from './debug-logger';
 import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch, Timestamp, runTransaction } from 'firebase/firestore';
 import { isSignInWithEmailLink, sendSignInLinkToEmail, signInWithEmailLink, signOut, onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -45,10 +46,10 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
                                error?.message?.includes('timeout') ||
                                error?.message?.includes('Failed to get document');
         
-        console.error(`[Firestore] Attempt ${i + 1}/${maxRetries} failed:`, error?.code, error?.message);
+        debugLogger.error('Firestore', `Attempt ${i + 1}/${maxRetries} failed:`, error?.code, error?.message);
         
         if (isOfflineError && i < maxRetries - 1) {
-          console.log(`[Firestore] Retrying after ${delayMs}ms...`);
+          debugLogger.log('Firestore', `Retrying after ${delayMs}ms...`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
           continue;
         }
@@ -168,12 +169,12 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
             });
             
             if (!response.ok) {
-                console.error('Manual upload failed:', response.statusText);
+                debugLogger.error('Firebase Storage', 'Manual upload failed:', response.statusText);
                 throw new Error(`Upload failed: ${response.statusText}`);
             }
             return; // Success! Skip SDK.
         } catch (e) {
-            console.error("Manual upload failed, falling back to SDK", e);
+            debugLogger.error('Firebase Storage', "Manual upload failed, falling back to SDK", e);
             // Fallthrough to SDK
         }
     }
@@ -212,7 +213,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const user = auth.currentUser;
     let idToken = this.currentIdToken;
     
-    console.log('[callGenerateContent] Starting - auth.currentUser:', user?.email, 'storedToken:', idToken ? 'yes' : 'no');
+    debugLogger.log('callGenerateContent', 'Starting - auth.currentUser:', user?.email, 'storedToken:', idToken ? 'yes' : 'no');
     
     if (!idToken && !user) {
       throw new Error('User not authenticated. Cannot call Gemini API.');
@@ -220,17 +221,17 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     
     if (user) {
       try {
-        console.log('[callGenerateContent] Attempting to get fresh token...');
+        debugLogger.log('callGenerateContent', 'Attempting to get fresh token...');
         idToken = await user.getIdToken(true);
-        console.log('[callGenerateContent] Got fresh token:', idToken ? 'yes' : 'no');
+        debugLogger.log('callGenerateContent', 'Got fresh token:', idToken ? 'yes' : 'no');
         this.currentIdToken = idToken;
       } catch (e) {
-        console.log('[callGenerateContent] getIdToken failed, using fallback:', e);
+        debugLogger.log('callGenerateContent', 'getIdToken failed, using fallback:', e);
         if (!idToken) throw e;
       }
     }
     
-    console.log('[callGenerateContent] Final idToken:', idToken ? `${idToken.substring(0, 20)}...` : 'MISSING');
+    debugLogger.log('callGenerateContent', 'Final idToken:', idToken ? `${idToken.substring(0, 20)}...` : 'MISSING');
     
     if (!idToken) {
       throw new Error('Failed to obtain authentication token.');
@@ -238,16 +239,16 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
 
     const cloudGenerateContent = httpsCallable(functions, 'cloudGenerateContent');
     
-    console.log('[callGenerateContent] Calling Cloud Function with idToken...');
+    debugLogger.log('callGenerateContent', 'Calling Cloud Function with idToken...');
     try {
       const result = await cloudGenerateContent({
         idToken,
         params
       });
-      console.log('[callGenerateContent] Success');
+      debugLogger.log('callGenerateContent', 'Success');
       return result.data as GenerateContentResponse;
     } catch (error) {
-      console.error('[callGenerateContent] Cloud Function error:', error);
+      debugLogger.error('callGenerateContent', 'Cloud Function error:', error);
       throw error;
     }
   }
@@ -256,7 +257,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const user = auth.currentUser;
     let idToken = this.currentIdToken;
     
-    console.log('[callGenerateContentStream] Starting - auth.currentUser:', user?.email, 'storedToken:', idToken ? 'yes' : 'no');
+    debugLogger.log('callGenerateContentStream', 'Starting - auth.currentUser:', user?.email, 'storedToken:', idToken ? 'yes' : 'no');
     
     if (!idToken && !user) {
       throw new Error('User not authenticated. Cannot call Gemini API.');
@@ -264,17 +265,17 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     
     if (user) {
       try {
-        console.log('[callGenerateContentStream] Attempting to get fresh token...');
+        debugLogger.log('callGenerateContentStream', 'Attempting to get fresh token...');
         idToken = await user.getIdToken(true);
-        console.log('[callGenerateContentStream] Got fresh token:', idToken ? 'yes' : 'no');
+        debugLogger.log('callGenerateContentStream', 'Got fresh token:', idToken ? 'yes' : 'no');
         this.currentIdToken = idToken;
       } catch (e) {
-        console.log('[callGenerateContentStream] getIdToken failed, using fallback:', e);
+        debugLogger.log('callGenerateContentStream', 'getIdToken failed, using fallback:', e);
         if (!idToken) throw e; 
       }
     }
     
-    console.log('[callGenerateContentStream] Final idToken:', idToken ? `${idToken.substring(0, 20)}...` : 'MISSING');
+    debugLogger.log('callGenerateContentStream', 'Final idToken:', idToken ? `${idToken.substring(0, 20)}...` : 'MISSING');
     
     if (!idToken) {
       throw new Error('Failed to obtain authentication token.');
@@ -282,7 +283,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
 
     const cloudGenerateContentStream = httpsCallable(functions, 'cloudGenerateContentStream');
     
-    console.log('[callGenerateContentStream] Calling Cloud Function with idToken...');
+    debugLogger.log('callGenerateContentStream', 'Calling Cloud Function with idToken...');
     try {
       const result = await cloudGenerateContentStream({
         idToken,
@@ -290,12 +291,12 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       });
       
       const response = result.data as GenerateContentResponse;
-      console.log('[callGenerateContentStream] Success');
+      debugLogger.log('callGenerateContentStream', 'Success');
       return (async function* () {
         yield response;
       })();
     } catch (error) {
-      console.error('[callGenerateContentStream] Cloud Function error:', error);
+      debugLogger.error('callGenerateContentStream', 'Cloud Function error:', error);
       throw error;
     }
   }
@@ -312,7 +313,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       await sendSignInLinkToEmail(auth, email, actionCodeSettings);
       localStorage.setItem('salt_email_link', email);
     } catch (error) {
-      console.error("Email link error:", error);
+      debugLogger.error('Firebase Auth', "Email link error:", error);
       throw new Error("Failed to send sign-in link.");
     }
   }
@@ -320,35 +321,35 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   async handleRedirectResult(): Promise<User | null> {
     try {
       const href = window.location.href;
-      console.log('[handleRedirectResult] Checking URL:', href);
-      console.log('[handleRedirectResult] URL length:', href.length);
-      console.log('[handleRedirectResult] Has apiKey param:', href.includes('apiKey='));
-      console.log('[handleRedirectResult] Has oobCode param:', href.includes('oobCode='));
+      debugLogger.log('handleRedirectResult', 'Checking URL:', href);
+      debugLogger.log('handleRedirectResult', 'URL length:', href.length);
+      debugLogger.log('handleRedirectResult', 'Has apiKey param:', href.includes('apiKey='));
+      debugLogger.log('handleRedirectResult', 'Has oobCode param:', href.includes('oobCode='));
       
       if (!isSignInWithEmailLink(auth, href)) {
-        console.log('[handleRedirectResult] Not a sign-in link');
+        debugLogger.log('handleRedirectResult', 'Not a sign-in link');
         return null;
       }
 
-      console.log('[handleRedirectResult] Valid sign-in link detected');
+      debugLogger.log('handleRedirectResult', 'Valid sign-in link detected');
       let userEmail = localStorage.getItem('salt_email_link') || '';
-      console.log('[handleRedirectResult] Stored email from localStorage:', userEmail);
+      debugLogger.log('handleRedirectResult', 'Stored email from localStorage:', userEmail);
       
       if (!userEmail) {
         userEmail = window.prompt('Confirm your email to finish signing in') || '';
-        console.log('[handleRedirectResult] Email from prompt:', userEmail);
+        debugLogger.log('handleRedirectResult', 'Email from prompt:', userEmail);
       }
 
       if (!userEmail) {
         throw new Error('Missing email for sign-in completion.');
       }
 
-      console.log('[handleRedirectResult] Attempting sign-in for:', userEmail);
-      console.log('[handleRedirectResult] About to call signInWithEmailLink...');
+      debugLogger.log('handleRedirectResult', 'Attempting sign-in for:', userEmail);
+      debugLogger.log('handleRedirectResult', 'About to call signInWithEmailLink...');
       
       const result = await signInWithEmailLink(auth, userEmail, href);
       
-      console.log('[handleRedirectResult] Sign-in successful');
+      debugLogger.log('handleRedirectResult', 'Sign-in successful');
       localStorage.removeItem('salt_email_link');
 
       const userEmailFromAuth = result.user.email;
@@ -361,41 +362,41 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       // Wait briefly for auth state to propagate to Firestore
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      console.log('[handleRedirectResult] Checking Firestore for user:', userEmailFromAuth);
-      console.log('[handleRedirectResult] Auth UID:', result.user.uid);
-      console.log('[handleRedirectResult] Auth token exists:', !!(await result.user.getIdToken()));
+      debugLogger.log('handleRedirectResult', 'Checking Firestore for user:', userEmailFromAuth);
+      debugLogger.log('handleRedirectResult', 'Auth UID:', result.user.uid);
+      debugLogger.log('handleRedirectResult', 'Auth token exists:', !!(await result.user.getIdToken()));
       
       const userDocRef = doc(db, 'users', userEmailFromAuth);
-      console.log('[handleRedirectResult] Document path:', `users/${userEmailFromAuth}`);
+      debugLogger.log('handleRedirectResult', 'Document path:', `users/${userEmailFromAuth}`);
       
       const userDoc = await this.retryFirestoreOperation(
         () => getDoc(userDocRef)
       );
       
-      console.log('[handleRedirectResult] Document exists:', userDoc.exists());
+      debugLogger.log('handleRedirectResult', 'Document exists:', userDoc.exists());
       if (userDoc.exists()) {
-        console.log('[handleRedirectResult] Document data:', userDoc.data());
+        debugLogger.log('handleRedirectResult', 'Document data:', userDoc.data());
       } else {
         // Debug: List all documents in users collection
-        console.log('[handleRedirectResult] Document not found. Listing all users...');
+        debugLogger.log('handleRedirectResult', 'Document not found. Listing all users...');
         try {
           const usersSnapshot = await getDocs(collection(db, 'users'));
-          console.log('[handleRedirectResult] Total users in collection:', usersSnapshot.size);
+          debugLogger.log('handleRedirectResult', 'Total users in collection:', usersSnapshot.size);
           usersSnapshot.forEach((doc) => {
-            console.log('[handleRedirectResult] Found user ID:', doc.id);
+            debugLogger.log('handleRedirectResult', 'Found user ID:', doc.id);
           });
         } catch (listError) {
-          console.error('[handleRedirectResult] Failed to list users:', listError);
+          debugLogger.error('handleRedirectResult', 'Failed to list users:', listError);
         }
       }
       
       if (!userDoc.exists()) {
-        console.error('[handleRedirectResult] User document not found in Firestore');
+        debugLogger.error('handleRedirectResult', 'User document not found in Firestore');
         await signOut(auth);
         throw new Error("Kitchen Access Denied.");
       }
       
-      console.log('[handleRedirectResult] User document found:', userDoc.data());
+      debugLogger.log('handleRedirectResult', 'User document found:', userDoc.data());
       const userData = userDoc.data();
       this.currentUser = {
         id: userEmailFromAuth,
@@ -404,14 +405,14 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       };
       
       this.currentIdToken = await result.user.getIdToken();
-      console.log('[handleRedirectResult] Token stored:', this.currentIdToken ? `${this.currentIdToken.substring(0, 20)}...` : 'FAILED');
+      debugLogger.log('handleRedirectResult', 'Token stored:', this.currentIdToken ? `${this.currentIdToken.substring(0, 20)}...` : 'FAILED');
       
       return this.currentUser;
     } catch (error: any) {
       if (error.message === "Kitchen Access Denied.") {
         throw error;
       }
-      console.error("Auth Redirect Error:", error);
+      debugLogger.error('handleRedirectResult', "Auth Redirect Error:", error);
       throw new Error("Authentication failed.");
     }
   }
@@ -450,7 +451,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
         return this.currentUser;
       }
     } catch (error) {
-      console.error("Error fetching current user:", error);
+      debugLogger.error('getCurrentUser', "Error fetching current user:", error);
     }
     
     return null;
@@ -532,7 +533,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     try {
       return await getDownloadURL(ref(storage, path));
     } catch (error) {
-      console.warn('Unable to resolve image path:', error);
+      debugLogger.warn('Firebase Storage', 'Unable to resolve image path:', error);
       return '';
     }
   }
@@ -655,9 +656,13 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const docRef = doc(db, 'settings', 'global');
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      return docSnap.data() as KitchenSettings;
+      const data = docSnap.data() as KitchenSettings;
+      return {
+        directives: data.directives || '',
+        debugEnabled: data.debugEnabled || false
+      };
     }
-    return { directives: '' };
+    return { directives: '', debugEnabled: false };
   }
   async updateKitchenSettings(settings: KitchenSettings): Promise<KitchenSettings> {
     const docRef = doc(db, 'settings', 'global');
