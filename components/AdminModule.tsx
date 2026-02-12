@@ -69,12 +69,12 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   };
 
   return (
-    <div className="h-[calc(100vh-120px)] md:h-[calc(100vh-160px)] flex flex-col gap-6 animate-in fade-in duration-500 overflow-hidden">
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-hidden min-h-0">
+    <div className="min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-160px)] flex flex-col gap-6 animate-in fade-in duration-500 overflow-auto">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-auto min-h-0">
         {/* Left Column: Infrastructure & Directives */}
         <div className="flex flex-col gap-6 overflow-hidden min-h-0">
           {/* System Controls */}
-          <Card className="p-6 md:p-8 border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 flex flex-col shrink-0">
+          <Card className="p-6 md:p-8 border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 flex flex-col">
             <div className="space-y-6 flex-1 flex flex-col">
               <div className="space-y-1">
                 <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Infrastructure</p>
@@ -127,7 +127,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           </Card>
 
           {/* Debug Logger Controls */}
-          <Card className="p-6 md:p-8 border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 flex flex-col shrink-0">
+          <Card className="p-6 md:p-8 border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 flex flex-col">
             <div className="space-y-4 flex-1 flex flex-col">
               <div className="space-y-1">
                 <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Developer Tools</p>
@@ -189,7 +189,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         </div>
 
         {/* Right Column: User Management */}
-        <Card className="flex flex-col border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 min-h-0 overflow-hidden">
+        <Card className="flex flex-col border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 min-h-0 overflow-auto">
           <UsersModule users={users} onRefresh={onRefresh} />
         </Card>
       </div>
