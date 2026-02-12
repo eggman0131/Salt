@@ -2,6 +2,7 @@
 import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
 import { GoogleGenAI, GenerateContentParameters, GenerateContentResponse } from "@google/genai";
+import { debugLogger } from './debug-logger';
 
 const TEMPLATE_ID = 'plan-template';
 
@@ -74,7 +75,9 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
       try {
         const parsed = JSON.parse(customCache);
         Object.entries(parsed).forEach(([k, v]) => this.docCache.set(k, v));
-      } catch (e) { console.warn("Cache corrupted."); }
+      } catch (e) { 
+        debugLogger.warn('Simulated Backend', "Cache corrupted."); 
+      }
     }
     if (!Array.from(this.docCache.keys()).some(k => k.startsWith('custom_'))) {
       this.seedDefaultData();
@@ -83,7 +86,7 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
 
   private seedDefaultData() {
     this.docCache.set('custom_user_user-daniel', { id: 'user-daniel', email: 'daniel@salt.uk', displayName: 'Daniel' });
-    this.docCache.set('custom_settings_global', { directives: '' });
+    this.docCache.set('custom_settings_global', { directives: '', debugEnabled: false });
     this.persistCache();
   }
 
@@ -264,7 +267,7 @@ export class SaltSimulatedBackend extends BaseSaltBackend {
 
   async getKitchenSettings(): Promise<KitchenSettings> {
     const s = this.docCache.get('custom_settings_global');
-    return s || { directives: '' };
+    return s || { directives: '', debugEnabled: false };
   }
 
   async updateKitchenSettings(settings: KitchenSettings): Promise<KitchenSettings> {
