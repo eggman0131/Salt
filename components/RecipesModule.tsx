@@ -509,13 +509,23 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         {/* Mobile Header */}
         <div className="md:hidden border-b border-gray-200 bg-white px-4 h-16 flex items-center justify-between shrink-0" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <h2 className="text-lg font-bold text-gray-900 truncate pr-4">{recipe.title}</h2>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 transition-colors shrink-0"
-            aria-label="Close recipe"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowDeleteConfirmModal(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-red-600 hover:text-red-800 transition-colors shrink-0"
+              aria-label="Delete recipe"
+              title="Delete recipe"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+            </button>
+            <button
+              onClick={onClose}
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 transition-colors shrink-0"
+              aria-label="Close recipe"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
         </div>
         
         {/* Desktop Header */}
@@ -536,6 +546,13 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
             ))}
           </div>
           <div className="flex gap-2 items-center">
+            <button
+              onClick={() => setShowDeleteConfirmModal(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-red-600 hover:text-red-800 transition-colors shrink-0"
+              title="Delete recipe"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+            </button>
             <button
               onClick={onClose}
               className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-900 transition-colors shrink-0"
