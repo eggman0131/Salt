@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/index.css';
 import App from './App';
+import { registerServiceWorker } from './pwa-registration';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -15,3 +16,6 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Register service worker for PWA functionality
+registerServiceWorker();
