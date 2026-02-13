@@ -144,6 +144,7 @@ export interface ISaltBackend {
   summarizeAgreedRecipe: (history: {role: string, text: string}[], currentRecipe?: Recipe) => Promise<string>;
   chatForDraft: (history: {role: string, text: string}[]) => Promise<string>;
   generateRecipeImage: (recipeTitle: string) => Promise<string>;
+  importRecipeFromUrl: (url: string) => Promise<Partial<Recipe>>;
   importSystemState: (json: string) => Promise<void>;
   getPlans(): Promise<Plan[]>;
   getPlanByDate(date: string): Promise<Plan | null>;
