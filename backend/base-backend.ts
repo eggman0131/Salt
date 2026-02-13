@@ -12,7 +12,7 @@
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import { 
   ISaltBackend, User, Recipe, Equipment, EquipmentCandidate, 
-  Accessory, Plan, KitchenSettings 
+  Accessory, Plan, KitchenSettings, RecipeCategory, RecipeTagSuggestion
 } from '../types/contract';
 import { SYSTEM_CORE, EQUIPMENT_PROMPTS, RECIPE_PROMPTS } from './prompts';
 
@@ -274,7 +274,56 @@ export abstract class BaseSaltBackend implements ISaltBackend {
       }
     });
     const parsed = JSON.parse(this.sanitizeJson(response.text || '{}'));
-    return this.normalizeRecipeData(parsed);
+    const normalized = this.normalizeRecipeData(parsed);
+    // Store the source URL for recipes imported from external sources
+    return { ...normalized, source: url };
+  }
+
+  async categorizeRecipe(recipe: Recipe): Promise<string[]> {
+    // Post-processing: Auto-categorise recipe after creation/update
+    const instruction = await this.getSystemInstruction("You are the Head Chef categorising recipes for the kitchen system.");
+    
+    // Fetch existing categories to prefer matches
+    const existingCategories = await this.getCategories();
+    const categoryNames = existingCategories.map(cat => `${cat.id}:${cat.name}`).join(', ');
+    
+    // Call AI with categorization prompt
+    const response = await this.callGenerateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: RECIPE_PROMPTS.categorization(
+            recipe.title,
+            recipe.ingredients,
+            recipe.instructions,
+            categoryNames ? categoryNames.split(', ') : []
+          )
+        }]
+      }],
+      config: {
+        systemInstruction: instruction,
+        responseMimeType: "application/json",
+      }
+    });
+
+    const parsed = JSON.parse(this.sanitizeJson(response.text || '{}'));
+    const matchedCategories: string[] = parsed.matchedCategories || [];
+    const suggestedNewCategories = parsed.suggestedNewCategories || [];
+
+    // Filter suggestions by confidence threshold (0.75+) and create tag suggestion records
+    for (const suggestion of suggestedNewCategories) {
+      if (suggestion.confidence >= 0.75) {
+        await this.createTagSuggestion({
+          name: suggestion.name,
+          recipeId: recipe.id,
+          confidence: suggestion.confidence,
+          status: 'pending'
+        });
+      }
+    }
+
+    return matchedCategories;
   }
 
   // -- ABSTRACT METHODS (Implemented by Subclasses) --
@@ -306,5 +355,14 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   abstract getPlanIncludingDate(date: string): Promise<Plan | null>;
   abstract createOrUpdatePlan(p: Omit<Plan, 'id' | 'createdAt' | 'createdBy'> & { id?: string }): Promise<Plan>;
   abstract deletePlan(id: string): Promise<void>;
+  abstract getCategories(): Promise<RecipeCategory[]>;
+  abstract getCategory(id: string): Promise<RecipeCategory | null>;
+  abstract createCategory(category: Omit<RecipeCategory, 'id' | 'createdAt'>): Promise<RecipeCategory>;
+  abstract updateCategory(id: string, updates: Partial<RecipeCategory>): Promise<RecipeCategory>;
+  abstract deleteCategory(id: string): Promise<void>;
+  abstract createTagSuggestion(suggestion: Omit<RecipeTagSuggestion, 'id' | 'createdAt'>): Promise<RecipeTagSuggestion>;
+  abstract getTagSuggestions(): Promise<RecipeTagSuggestion[]>;
+  abstract approveTagSuggestion(id: string): Promise<RecipeTagSuggestion>;
+  abstract rejectTagSuggestion(id: string): Promise<RecipeTagSuggestion>;
   abstract importSystemState(json: string): Promise<void>;
 }
