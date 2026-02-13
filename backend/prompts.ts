@@ -143,5 +143,35 @@ CRITICAL: Lead with the equipment the user actually has. If they have a Rangemas
 Ask about portions, ingredients, and which parts of their equipment they want to use. 
 Sound like a professional chef, not a chatbot.`,
 
-  imagePrompt: (title: string) => `A professional, close-up macro food photograph of ${title}. The dish is the absolute star of the show, beautifully plated and appetising. Focus on rich textures, steam, and vibrant natural colours. Shallow depth of field with a soft, blurred minimalist kitchen background. Natural light, 4:3 aspect ratio.`
+  imagePrompt: (title: string) => `A professional, close-up macro food photograph of ${title}. The dish is the absolute star of the show, beautifully plated and appetising. Focus on rich textures, steam, and vibrant natural colours. Shallow depth of field with a soft, blurred minimalist kitchen background. Natural light, 4:3 aspect ratio.`,
+
+  externalRecipe: (recipeData: string, inventory: string) => `Convert this external recipe to Salt format. You must maintain the EXACT ingredients and instructions from the source.
+
+EXTERNAL RECIPE:
+${recipeData}
+
+USER'S KITCHEN EQUIPMENT: ${inventory || 'Standard domestic tools'}
+
+CRITICAL CONVERSION RULES:
+1. INGREDIENTS: Keep all ingredients EXACTLY as listed. If measurements are in US units (cups, ounces, Fahrenheit), convert to UK metric (grams, ml, Celsius). If already metric, keep unchanged.
+2. INSTRUCTIONS: Keep the method steps EXACTLY as written. Only adapt equipment references to use what the user has available (e.g., if recipe calls for "Dutch oven" but user has "Le Creuset Casserole", mention the casserole).
+3. British terminology: Replace any US terms (zucchini→courgette, eggplant→aubergine, cilantro→coriander, scallions→spring onions).
+4. DO NOT add, remove, or "improve" ingredients or steps. This is a STRICT CONVERSION, not a rewrite.
+5. Maintain professional chef tone.
+
+RETURN JSON (MANDATORY SCHEMA):
+{
+  "title": "Recipe Title",
+  "description": "A brief description",
+  "ingredients": ["ingredient 1 with UK metric measurements", "ingredient 2"],
+  "instructions": ["step 1", "step 2"],
+  "equipmentNeeded": ["equipment 1"],
+  "prepTime": "15 minutes",
+  "cookTime": "30 minutes",
+  "totalTime": "45 minutes",
+  "servings": "4",
+  "complexity": "Intermediate",
+  "stepIngredients": [[0, 1], [1, 2]],
+  "stepAlerts": {"0": "Alert text if needed"}
+}`
 };
