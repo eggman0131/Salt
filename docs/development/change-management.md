@@ -12,10 +12,11 @@ Follow this workflow to implement new features or perform migrations (e.g., Fire
 - When asking Copilot to update a file, reference the relevant guideline file (e.g., "Follow @frontend-guidelines.md to update the Recipe view").
 - If Copilot suggests a change that violates the "British Terminology" or "Metric" rules, reject it immediately.
 
-## 3. Migration (Local to Firebase)
-- Maintain the `ISaltBackend` interface.
-- Implement the `SaltFirebaseBackend` class in a separate file or as a replacement in `api.ts`.
-- Ensure the `App.tsx` orchestrator remains agnostic of the persistence layer.
+## 3. Backend Implementation
+- Implement new features in `backend/firebase-backend.ts` for concrete Firebase operations.
+- Add abstract methods to `backend/base-backend.ts` only if they represent cross-cutting AI orchestration logic.
+- Use `backend/debug-logger.ts` for runtime-toggleable logging instead of console statements.
+- Test with Firebase emulators before deploying to production.
 
 ## 4. Data Safety
 - Always perform an **"Export Backup"** before making structural changes to the code.

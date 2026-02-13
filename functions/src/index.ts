@@ -242,3 +242,115 @@ export const health = functions.https.onRequest(
     });
   }
 );
+
+/**
+ * cloudFetchRecipeUrl: Fetches content from a recipe URL
+ * Extracts recipe data from HTML (looks for JSON-LD schema or raw HTML)
+ * 
+ * Request body:
+ * {
+ *   idToken: string (Firebase auth token)
+ *   url: string (Recipe URL to fetch)
+ * }
+ * 
+ * Response: string (Raw recipe data as formatted text)
+ */
+export const cloudFetchRecipeUrl = functions.https.onCall(
+  functionsConfig,
+  async (request: any) => {
+    const { idToken, url } = request.data;
+
+    if (!idToken) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing idToken');
+    }
+    if (!url || typeof url !== 'string') {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing or invalid url');
+    }
+
+    // Validate user is authenticated
+    const user = await validateRequest(idToken);
+    console.log(`[fetchRecipeUrl] User authenticated: ${user.email}, URL: ${url}`);
+
+    // Check if user exists in Firestore
+    const userExists = await checkUserExists(user.email);
+    if (!userExists) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'User not found in system. Kitchen Access Denied.'
+      );
+    }
+
+    try {
+      // Fetch the URL
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Salt Kitchen System/1.0)',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const html = await response.text();
+      
+      // Try to extract JSON-LD recipe schema
+      const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+      
+      if (jsonLdMatches) {
+        for (const match of jsonLdMatches) {
+          const jsonContent = match.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '');
+          try {
+            const data = JSON.parse(jsonContent);
+            const recipes = Array.isArray(data) ? data : [data];
+            
+            for (const item of recipes) {
+              if (item['@type'] === 'Recipe' || item.recipeIngredient || item.recipeInstructions) {
+                const title = item.name || item.headline || '';
+                const ingredients = item.recipeIngredient || [];
+                let instructions: string[] = [];
+                
+                if (Array.isArray(item.recipeInstructions)) {
+                  instructions = item.recipeInstructions.map((step: any) => {
+                    if (typeof step === 'string') return step;
+                    if (step.text) return step.text;
+                    if (step.name) return step.name;
+                    return '';
+                  }).filter(Boolean);
+                } else if (typeof item.recipeInstructions === 'string') {
+                  instructions = [item.recipeInstructions];
+                }
+                
+                const formatted = `TITLE: ${title}\n\nINGREDIENTS:\n${ingredients.join('\n')}\n\nINSTRUCTIONS:\n${instructions.join('\n')}`;
+                console.log(`[fetchRecipeUrl] Successfully extracted recipe via JSON-LD`);
+                return formatted;
+              }
+            }
+          } catch (e) {
+            // Skip malformed JSON-LD
+            console.log(`[fetchRecipeUrl] Failed to parse JSON-LD block:`, e);
+          }
+        }
+      }
+
+      // Fallback: return raw HTML for AI to parse
+      console.log(`[fetchRecipeUrl] No JSON-LD found, returning raw HTML`);
+      // Strip scripts and styles to reduce noise
+      const cleaned = html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 50000); // Limit to 50k chars
+      
+      return `RAW CONTENT:\n${cleaned}`;
+    } catch (error) {
+      console.error('[fetchRecipeUrl] Error:', error);
+      throw new functions.https.HttpsError(
+        'internal',
+        `Failed to retrieve content from URL: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+);
