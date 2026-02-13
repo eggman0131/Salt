@@ -300,6 +300,45 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       throw error;
     }
   }
+
+  protected async fetchUrlContent(url: string): Promise<string> {
+    // Ensure auth is ready before proceeding
+    await this.authReadyPromise;
+    
+    const user = auth.currentUser;
+    let idToken = this.currentIdToken;
+    
+    debugLogger.log('fetchUrlContent', 'Starting - URL:', url, 'user:', user?.email);
+    
+    if (!user) {
+      throw new Error('User not authenticated. Cannot access recipe URLs.');
+    }
+    
+    try {
+      idToken = await user.getIdToken(true);
+      this.currentIdToken = idToken;
+      debugLogger.log('fetchUrlContent', 'Got token:', idToken ? 'yes' : 'no');
+    } catch (e) {
+      debugLogger.error('fetchUrlContent', 'getIdToken failed:', e);
+      throw new Error('Failed to obtain authentication token.');
+    }
+    
+    if (!idToken) {
+      throw new Error('Failed to obtain authentication token.');
+    }
+
+    const cloudFetchRecipeUrl = httpsCallable(functions, 'cloudFetchRecipeUrl');
+    
+    debugLogger.log('fetchUrlContent', 'Calling Cloud Function with token...');
+    try {
+      const result = await cloudFetchRecipeUrl({ idToken, url });
+      debugLogger.log('fetchUrlContent', 'Success');
+      return result.data as string;
+    } catch (error) {
+      debugLogger.error('fetchUrlContent', 'Cloud Function error:', error);
+      throw error;
+    }
+  }
   
   // -- AUTHENTICATION --
   
