@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, Button, Input, Label, ErrorBoundary } from './UI';
 import { ImageEditor } from './ImageEditor';
-import { Recipe, Equipment, RecipeHistoryEntry, User } from '../types/contract';
+import { Recipe, Equipment, RecipeHistoryEntry, User, RecipeCategory } from '../types/contract';
 import { saltBackend, sanitizeJson } from '../backend/api';
 import { marked } from 'marked';
 
@@ -75,11 +75,21 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const [swipeStartX, setSwipeStartX] = useState(0);
   const [jumpToStepInput, setJumpToStepInput] = useState('');
   const [imageActionsVisible, setImageActionsVisible] = useState(false);
+  const [categories, setCategories] = useState<RecipeCategory[]>([]);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const wakeLockRef = useRef<any>(null);
 
+  const getCategoryName = (categoryId: string): string => {
+    return categories.find(c => c.id === categoryId)?.name || categoryId;
+  };
+
   useEffect(() => { setRecipe(initialRecipe); }, [initialRecipe]);
+
+  useEffect(() => {
+    // Load categories for display
+    saltBackend.getCategories().then(cats => setCategories(cats)).catch(err => console.error('Failed to load categories:', err));
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -579,9 +589,33 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
               <div className="w-full mx-auto space-y-6">
                 {/* Heading + CTA */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                       <h1 className="text-2xl font-semibold text-gray-900">{recipe.title}</h1>
                       <p className="text-base text-gray-700 leading-relaxed">{recipe.description}</p>
+                      <div className="space-y-2">
+                        {recipe.categoryIds && recipe.categoryIds.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {recipe.categoryIds.map(catId => (
+                              <span key={catId} className="inline-block px-2.5 py-1 rounded text-xs bg-blue-50 text-blue-700 font-medium border border-blue-100">
+                                {getCategoryName(catId)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {recipe.source && (
+                          <div className="text-sm">
+                            <span className="text-gray-600">Imported from: </span>
+                            <a 
+                              href={recipe.source} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-orange-600 hover:text-orange-700 underline font-medium break-all"
+                            >
+                              {recipe.source}
+                            </a>
+                          </div>
+                        )}
+                      </div>
                   </div>
                   <div className="flex gap-2 flex-wrap" />
                 </div>
@@ -651,6 +685,11 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                               {recipe.collection}
                             </span>
                           )}
+                          {recipe.categoryIds && recipe.categoryIds.map(catId => (
+                            <span key={catId} className="inline-block px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 font-medium border border-blue-100">
+                              {getCategoryName(catId)}
+                            </span>
+                          ))}
                         </div>
                         <div className="flex flex-wrap gap-2 justify-end">
                           <span className="inline-flex items-center gap-2 bg-white text-gray-900 text-xs font-semibold px-3 py-1 rounded-md shadow-sm border border-gray-200">
@@ -1102,6 +1141,29 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [complexityFilter, setComplexityFilter] = useState<ComplexityFilter>('all');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [categories, setCategories] = useState<RecipeCategory[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // Load categories on mount
+    saltBackend.getCategories().then(cats => setCategories(cats)).catch(err => console.error('Failed to load categories:', err));
+  }, []);
+
+  const toggleCategoryFilter = (categoryId: string) => {
+    setSelectedCategories(prev => {
+      const updated = new Set(prev);
+      if (updated.has(categoryId)) {
+        updated.delete(categoryId);
+      } else {
+        updated.add(categoryId);
+      }
+      return updated;
+    });
+  };
+
+  const getCategoryName = (categoryId: string): string => {
+    return categories.find(c => c.id === categoryId)?.name || categoryId;
+  };
 
   const parseTimeToMinutes = (timeStr: string): number => {
     let minutes = 0;
@@ -1124,7 +1186,10 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
       const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) || 
                            r.description.toLowerCase().includes(search.toLowerCase());
       const matchesComplexity = complexityFilter === 'all' || r.complexity === complexityFilter;
-      return matchesSearch && matchesComplexity;
+      // If categories are selected, recipe must match at least one
+      const matchesCategory = selectedCategories.size === 0 || 
+                             (r.categoryIds && r.categoryIds.some(catId => selectedCategories.has(catId)));
+      return matchesSearch && matchesComplexity && matchesCategory;
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -1196,7 +1261,7 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
 
               {/* Collapsible filter area: hidden on mobile by default, visible when toggled; always visible on sm+ */}
               <div className={`${filtersOpen ? 'block' : 'hidden'} sm:flex items-center gap-2 flex-wrap bg-gray-50 rounded-md shadow-sm p-4 sm:p-0`}> 
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2 flex-wrap w-full">
                   {(['all', 'Simple', 'Intermediate', 'Advanced'] as const).map(level => (
                     <button
                       key={level}
@@ -1212,7 +1277,26 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
                   ))}
                 </div>
 
-                <div className="mt-3 sm:mt-0 sm:ml-2">
+                {/* Category filters */}
+                {categories.length > 0 && (
+                  <div className="flex gap-2 flex-wrap w-full border-t border-gray-300 pt-3 mt-2">
+                    {categories.map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => toggleCategoryFilter(cat.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                          selectedCategories.has(cat.id)
+                            ? 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm'
+                            : 'bg-gray-100 text-gray-700 border-transparent hover:bg-gray-200'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-3 sm:mt-0 sm:ml-2 w-full sm:w-auto">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as SortOption)}
@@ -1250,7 +1334,7 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
                   </span>
                 </div>
               </div>
-              <div className="p-4 md:p-6 space-y-2 flex-1">
+              <div className="p-4 md:p-6 space-y-3 flex-1 flex flex-col">
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>{getRelativeTime(recipe.createdAt)}</span>
                   <span className="inline-flex items-center gap-1 text-orange-700 font-semibold">
@@ -1258,8 +1342,32 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
                     {formatServings(recipe.servings)}
                   </span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 leading-tight group-hover:text-orange-700 transition-colors">{recipe.title}</h3>
-                <p className="text-sm text-gray-600 line-clamp-2">{recipe.description}</p>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 leading-tight group-hover:text-orange-700 transition-colors">{recipe.title}</h3>
+                  <p className="text-sm text-gray-600 line-clamp-2">{recipe.description}</p>
+                </div>
+                {recipe.categoryIds && recipe.categoryIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1 mt-auto">
+                    {recipe.categoryIds.slice(0, 3).map(catId => (
+                      <button
+                        key={catId}
+                        onClick={() => toggleCategoryFilter(catId)}
+                        className={`px-2 py-0.5 rounded text-xs font-medium border transition cursor-pointer ${
+                          selectedCategories.has(catId)
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100'
+                        }`}
+                      >
+                        {getCategoryName(catId)}
+                      </button>
+                    ))}
+                    {recipe.categoryIds.length > 3 && (
+                      <span className="inline-block px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600 font-medium">
+                        +{recipe.categoryIds.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </Card>
           ))}

@@ -1,4 +1,4 @@
-import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
+import { User, Recipe, Equipment, Plan, KitchenSettings, RecipeCategory, RecipeTagSuggestion } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, storage, functions } from './firebase';
 import { debugLogger } from './debug-logger';
@@ -600,6 +600,13 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     
     await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(newRecipe));
     
+    // Auto-categorise the recipe as a post-processing step
+    const categoryIds = await this.categorizeRecipe(newRecipe as Recipe);
+    if (categoryIds.length > 0) {
+      await updateDoc(doc(db, 'recipes', id), { categoryIds });
+      return { ...newRecipe, categoryIds } as Recipe;
+    }
+    
     return newRecipe as Recipe;
   }
   
@@ -621,11 +628,149 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const updated = { ...existing, ...normalizedUpdates, imagePath };
     await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(updated));
     
+    // Auto-categorise the recipe as a post-processing step
+    const categoryIds = await this.categorizeRecipe(updated as Recipe);
+    if (categoryIds.length > 0) {
+      await updateDoc(doc(db, 'recipes', id), { categoryIds });
+      return { ...updated, categoryIds } as Recipe;
+    }
+    
     return updated as Recipe;
   }
   
   async deleteRecipe(id: string): Promise<void> {
     await deleteDoc(doc(db, 'recipes', id));
+  }
+
+  // -- RECIPE CATEGORIZATION --
+  async getCategories(): Promise<RecipeCategory[]> {
+    const snapshot = await getDocs(collection(db, 'categories'));
+    const categories: RecipeCategory[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      categories.push({
+        ...data,
+        id: doc.id
+      } as RecipeCategory);
+    });
+    
+    return categories;
+  }
+
+  async getCategory(id: string): Promise<RecipeCategory | null> {
+    const docRef = doc(db, 'categories', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      return null;
+    }
+    
+    const data = this.convertTimestamps(docSnap.data());
+    return {
+      ...data,
+      id: docSnap.id
+    } as RecipeCategory;
+  }
+
+  async createCategory(category: Omit<RecipeCategory, 'id' | 'createdAt'>): Promise<RecipeCategory> {
+    const now = new Date().toISOString();
+    const newCat = {
+      ...category,
+      createdAt: now
+    };
+
+    const docRef = doc(collection(db, 'categories'));
+    await setDoc(docRef, newCat);
+
+    return {
+      ...newCat,
+      id: docRef.id
+    } as RecipeCategory;
+  }
+
+  async updateCategory(id: string, updates: Partial<RecipeCategory>): Promise<RecipeCategory> {
+    const docRef = doc(db, 'categories', id);
+    await updateDoc(docRef, updates);
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Category ${id} not found after update`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as RecipeCategory;
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'categories', id));
+  }
+
+  // -- TAG SUGGESTIONS (Category Admin Review Queue) --
+  async createTagSuggestion(suggestion: Omit<RecipeTagSuggestion, 'id' | 'createdAt'>): Promise<RecipeTagSuggestion> {
+    const now = new Date().toISOString();
+    const newSuggestion = {
+      ...suggestion,
+      createdAt: now
+    };
+
+    const docRef = doc(collection(db, 'category_suggestions'));
+    await setDoc(docRef, newSuggestion);
+
+    return {
+      ...newSuggestion,
+      id: docRef.id
+    } as RecipeTagSuggestion;
+  }
+
+  async getTagSuggestions(): Promise<RecipeTagSuggestion[]> {
+    const snapshot = await getDocs(collection(db, 'category_suggestions'));
+    const suggestions: RecipeTagSuggestion[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      suggestions.push({
+        ...data,
+        id: doc.id
+      } as RecipeTagSuggestion);
+    });
+    
+    return suggestions;
+  }
+
+  async approveTagSuggestion(id: string): Promise<RecipeTagSuggestion> {
+    const docRef = doc(db, 'category_suggestions', id);
+    await updateDoc(docRef, { status: 'approved' });
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Suggestion ${id} not found after approval`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as RecipeTagSuggestion;
+  }
+
+  async rejectTagSuggestion(id: string): Promise<RecipeTagSuggestion> {
+    const docRef = doc(db, 'category_suggestions', id);
+    await updateDoc(docRef, { status: 'rejected' });
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Suggestion ${id} not found after rejection`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as RecipeTagSuggestion;
   }
 
   // -- INVENTORY (KITCHEN KIT) --

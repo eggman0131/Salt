@@ -145,6 +145,33 @@ Sound like a professional chef, not a chatbot.`,
 
   imagePrompt: (title: string) => `A professional, close-up macro food photograph of ${title}. The dish is the absolute star of the show, beautifully plated and appetising. Focus on rich textures, steam, and vibrant natural colours. Shallow depth of field with a soft, blurred minimalist kitchen background. Natural light, 4:3 aspect ratio.`,
 
+  categorization: (recipeTitle: string, ingredients: string[], instructions: string[], existingCategories: string[]) => `Categorise this recipe by matching it to existing categories when appropriate. Create new categories ONLY if no suitable match exists and confidence is high.
+
+RECIPE: ${recipeTitle}
+INGREDIENTS: ${ingredients.join(', ')}
+METHOD: ${instructions.slice(0, 3).join(' ')}
+
+EXISTING CATEGORIES (prefer these):
+${existingCategories.join(', ')}
+
+TASK: Return a JSON object with:
+{
+  "matchedCategories": ["category-id-1", "category-id-2"],
+  "suggestedNewCategories": [
+    {
+      "name": "Category Name",
+      "confidence": 0.85,
+      "description": "Brief description of why this category fits"
+    }
+  ]
+}
+
+RULES:
+1. Only suggest new categories if confidence is 0.75+.
+2. Prefer matching to existing categories.
+3. Return 1-4 total categories maximum.
+4. Use British culinary terminology.`,
+
   externalRecipe: (recipeData: string, inventory: string) => `Convert this external recipe to Salt format. You must maintain the EXACT ingredients and instructions from the source.
 
 EXTERNAL RECIPE:
