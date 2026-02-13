@@ -545,17 +545,15 @@ const DayCard: React.FC<{ day: DayPlan; users: User[]; isTemplate: boolean; onCh
                       )}
                     </button>
                   </div>
-                  {isPresent && (
-                    <div className="pl-6 w-full min-w-0 box-border">
-                      <input 
-                        type="text"
-                        placeholder="Timing/Special reqs..."
-                        className="w-full py-1 text-[11px] font-medium font-sans text-gray-500 border-b border-gray-100 focus:border-orange-300 bg-transparent outline-none placeholder:text-gray-200 transition-colors truncate box-border"
-                        value={day.userNotes[u.id] || ''}
-                        onChange={e => handleUserNoteChange(u.id, e.target.value)}
-                      />
-                    </div>
-                  )}
+                  <div className="pl-6 w-full min-w-0 box-border">
+                    <input 
+                      type="text"
+                      placeholder="Timing/Special reqs..."
+                      className="w-full py-1 text-[11px] font-medium font-sans text-gray-500 border-b border-gray-100 focus:border-orange-300 bg-transparent outline-none placeholder:text-gray-200 transition-colors truncate box-border"
+                      value={day.userNotes[u.id] || ''}
+                      onChange={e => handleUserNoteChange(u.id, e.target.value)}
+                    />
+                  </div>
                 </div>
               );
             })}
