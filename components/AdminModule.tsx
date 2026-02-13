@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { UsersModule } from './UsersModule';
-import { CategoryManagement } from './CategoryManagement';
 import { Card, Button, Label } from './UI';
 import { User, KitchenSettings } from '../types/contract';
 import { getActiveBackendMode, saltBackend } from '../backend/api';
@@ -195,15 +194,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         </Card>
       </div>
 
-      {/* Recipe Categories Management */}
-      <Card className="p-6 md:p-8 border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10">
-        <div className="mb-6">
-          <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Content Library</p>
-          <h4 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight">Recipe Categories</h4>
-          <p className="text-sm text-gray-600 mt-1">Manage recipe categories and review AI-suggested tags for approval.</p>
-        </div>
-        <CategoryManagement onRefresh={onRefresh} />
-      </Card>
+
     </div>
   );
 };
