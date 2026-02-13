@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
+    "dev:all": "bash -c \"npm run emulators & npm run dev\"",
     "emulators:export": "firebase emulators:export ./emulator-data",
     "emulators:import": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
     "parity": "node scripts/parity-check.mjs",

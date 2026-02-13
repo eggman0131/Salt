@@ -19,6 +19,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     { role: 'ai', text: 'Welcome to Salt. What are we planning for the kitchen today?' }
   ]);
   const [userInput, setUserInput] = useState('');
+  const [recipeUrl, setRecipeUrl] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [status, setStatus] = useState<'idle' | 'finalizing' | 'organizing' | 'imaging'>('idle');
 
@@ -121,6 +122,58 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     }
   };
 
+  const handleImportUrl = async () => {
+    if (!recipeUrl.trim() || isTyping || status !== 'idle') return;
+    
+    setIsTyping(true);
+    setStatus('organizing');
+    
+    try {
+      // Import recipe from URL
+      const importedRecipe = await saltBackend.importRecipeFromUrl(recipeUrl);
+      
+      // Add to conversation as context
+      const importSummary = `Imported recipe: ${importedRecipe.title}\n\nIngredients:\n${(importedRecipe.ingredients || []).join('\n')}\n\nMethod:\n${(importedRecipe.instructions || []).join('\n')}`;
+      setMessages(prev => [
+        ...prev,
+        { role: 'user', text: `Import recipe from: ${recipeUrl}` },
+        { role: 'ai', text: importSummary }
+      ]);
+      
+      // Generate image
+      setStatus('imaging');
+      const imageData = await saltBackend.generateRecipeImage(importedRecipe.title || 'Dish');
+      
+      // Save to recipes
+      await saltBackend.createRecipe({
+        ...importedRecipe,
+        ingredients: importedRecipe.ingredients || [],
+        instructions: importedRecipe.instructions || [],
+        equipmentNeeded: importedRecipe.equipmentNeeded || [],
+        title: importedRecipe.title || 'Imported Recipe',
+        description: importedRecipe.description || 'Imported from external source.',
+        prepTime: importedRecipe.prepTime || '---',
+        cookTime: importedRecipe.cookTime || '---',
+        totalTime: importedRecipe.totalTime || '---',
+        servings: importedRecipe.servings || '---',
+        complexity: (importedRecipe.complexity as any) || 'Intermediate',
+      } as any, imageData);
+      
+      setRecipeUrl('');
+      onRecipeGenerated();
+    } catch (err) {
+      console.error("URL Import Error:", err);
+      setMessages(prev => [
+        ...prev,
+        { role: 'user', text: `Import recipe from: ${recipeUrl}` },
+        { role: 'ai', text: 'Unable to retrieve that recipe. Please check the link and try again.' }
+      ]);
+    } finally {
+      setIsTyping(false);
+      setStatus('idle');
+    }
+  };
+
   const isBusy = status !== 'idle';
   const canFinalise = messages.length > 1;
 
@@ -184,17 +237,36 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
           </div>
         )}
 
-        <form onSubmit={handleSend} className="p-3 md:p-4 bg-white border-t border-gray-200 flex gap-2 z-10 shrink-0">
-          <Input 
-            placeholder="Discuss ingredients, methods..."
-            value={userInput}
-            onChange={e => setUserInput(e.target.value)}
-            className="flex-1 h-11 px-3 rounded-lg bg-white border border-gray-300 text-sm focus:border-orange-500 focus:outline-none disabled:bg-gray-100"
-            disabled={isTyping || isBusy}
-          />
-          <button type="submit" disabled={!userInput || isTyping || isBusy} className="w-11 h-11 p-0 flex items-center justify-center shrink-0 bg-orange-600 hover:bg-orange-700 text-white rounded-lg shadow-md shadow-orange-500/20 active:scale-95 disabled:opacity-40 transition">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16151496 C3.34915502,0.9 2.40734225,1.00636533 1.77946707,1.4776575 C0.994623095,2.10604706 0.837654326,3.0486314 1.15159189,3.98721575 L3.03521743,10.4282088 C3.03521743,10.5853061 3.34915502,10.7424035 3.50612381,10.7424035 L16.6915026,11.5278905 C16.6915026,11.5278905 17.1624089,11.5278905 17.1624089,12.0031827 C17.1624089,12.4744748 16.6915026,12.4744748 16.6915026,12.4744748 Z"/></svg>
-          </button>
+        <form onSubmit={handleSend} className="p-3 md:p-4 bg-white border-t border-gray-200 space-y-2 z-10 shrink-0">
+          <div className="flex gap-2">
+            <Input 
+              placeholder="Recipe web address"
+              value={recipeUrl}
+              onChange={e => setRecipeUrl(e.target.value)}
+              className="flex-1 h-10 px-3 rounded-lg bg-white border border-gray-300 text-sm focus:border-orange-500 focus:outline-none disabled:bg-gray-100"
+              disabled={isTyping || isBusy}
+            />
+            <button 
+              type="button"
+              onClick={handleImportUrl}
+              disabled={!recipeUrl.trim() || isTyping || isBusy} 
+              className="px-4 h-10 flex items-center justify-center shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm active:scale-95 disabled:opacity-40 transition"
+            >
+              Import
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <Input 
+              placeholder="Discuss ingredients, methods..."
+              value={userInput}
+              onChange={e => setUserInput(e.target.value)}
+              className="flex-1 h-11 px-3 rounded-lg bg-white border border-gray-300 text-sm focus:border-orange-500 focus:outline-none disabled:bg-gray-100"
+              disabled={isTyping || isBusy}
+            />
+            <button type="submit" disabled={!userInput || isTyping || isBusy} className="w-11 h-11 p-0 flex items-center justify-center shrink-0 bg-orange-600 hover:bg-orange-700 text-white rounded-lg shadow-md shadow-orange-500/20 active:scale-95 disabled:opacity-40 transition">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16151496 C3.34915502,0.9 2.40734225,1.00636533 1.77946707,1.4776575 C0.994623095,2.10604706 0.837654326,3.0486314 1.15159189,3.98721575 L3.03521743,10.4282088 C3.03521743,10.5853061 3.34915502,10.7424035 3.50612381,10.7424035 L16.6915026,11.5278905 C16.6915026,11.5278905 17.1624089,11.5278905 17.1624089,12.0031827 C17.1624089,12.4744748 16.6915026,12.4744748 16.6915026,12.4744748 Z"/></svg>
+            </button>
+          </div>
         </form>
       </Card>
     </div>
