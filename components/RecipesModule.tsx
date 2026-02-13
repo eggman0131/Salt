@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, Button, Input, Label, ErrorBoundary } from './UI';
 import { ImageEditor } from './ImageEditor';
+import { CookMode } from './CookMode';
 import { Recipe, Equipment, RecipeHistoryEntry, User, RecipeCategory } from '../types/contract';
 import { saltBackend, sanitizeJson } from '../backend/api';
 import { marked } from 'marked';
@@ -65,20 +66,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'analyzing' | 'saving'>('idle');
   const [pendingProposals, setPendingProposals] = useState<Proposal[] | null>(null);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [preppedIngredients, setPreppedIngredients] = useState<Set<number>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
-  const [hidePreppedIngredients, setHidePreppedIngredients] = useState(false);
-  const [swipeStartX, setSwipeStartX] = useState(0);
-  const [jumpToStepInput, setJumpToStepInput] = useState('');
   const [imageActionsVisible, setImageActionsVisible] = useState(false);
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
-  const wakeLockRef = useRef<any>(null);
 
   const getCategoryName = (categoryId: string): string => {
     return categories.find(c => c.id === categoryId)?.name || categoryId;
@@ -95,35 +90,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     document.body.style.overflow = 'hidden';
     return () => { 
       document.body.style.overflow = 'unset';
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release();
-      }
     };
   }, []);
-
-  // Wake lock for cook mode
-  useEffect(() => {
-    const requestWakeLock = async () => {
-      if ('wakeLock' in navigator && activeTab === 'cook') {
-        try {
-          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
-        } catch (err: any) {
-          console.error(`${err.name}, ${err.message}`);
-        }
-      } else if (wakeLockRef.current) {
-        wakeLockRef.current.release();
-        wakeLockRef.current = null;
-      }
-    };
-    requestWakeLock();
-    const handleVisibilityChange = () => {
-      if (wakeLockRef.current && document.visibilityState === 'visible') {
-        requestWakeLock();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [activeTab]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -132,43 +100,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     }
   }, [messages, isTyping]);
 
-  // Keyboard navigation in cook mode
-  useEffect(() => {
-    if (activeTab !== 'cook') return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const instructions = recipe.instructions || [];
-      if (e.key === 'ArrowLeft' && currentStep > 0) {
-        e.preventDefault();
-        setCurrentStep(currentStep - 1);
-      } else if (e.key === 'ArrowRight' && currentStep < instructions.length) {
-        e.preventDefault();
-        setCurrentStep(currentStep + 1);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, currentStep, recipe.instructions]);
 
-  // Swipe navigation in cook mode
-  useEffect(() => {
-    if (activeTab !== 'cook') return;
-    const handleTouchStart = (e: TouchEvent) => setSwipeStartX(e.touches[0]?.clientX || 0);
-    const handleTouchEnd = (e: TouchEvent) => {
-      const endX = e.changedTouches[0]?.clientX || 0;
-      const diff = swipeStartX - endX;
-      const instructions = recipe.instructions || [];
-      if (Math.abs(diff) > 50) {
-        if (diff > 0 && currentStep < instructions.length) setCurrentStep(currentStep + 1);
-        else if (diff < 0 && currentStep > 0) setCurrentStep(currentStep - 1);
-      }
-    };
-    window.addEventListener('touchstart', handleTouchStart);
-    window.addEventListener('touchend', handleTouchEnd);
-    return () => {
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [activeTab, currentStep, swipeStartX, recipe.instructions]);
 
   // Message handlers
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -320,44 +252,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     }
   };
 
-  const handleJumpToStep = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const step = parseInt(jumpToStepInput, 10);
-      const instructions = recipe.instructions || [];
-      if (step >= 1 && step <= instructions.length) {
-        setCurrentStep(step);
-        setJumpToStepInput('');
-      }
-    }
-  };
 
   const renderMarkdown = (text: string) => {
     try { return { __html: marked.parse(text) }; } catch (e) { return { __html: text }; }
   };
-
-  const ingredients = recipe.ingredients || [];
-  const instructions = recipe.instructions || [];
-  const progress = currentStep === 0 ? 0 : Math.round(((currentStep) / instructions.length) * 100);
-
-  const contextualIngredients = useMemo(() => {
-    if (currentStep === 0) return [];
-    const stepData = recipe.stepIngredients?.[currentStep - 1];
-    if (!Array.isArray(stepData)) return [];
-    
-    return stepData
-      .map(idx => ({ name: ingredients[idx], index: idx }))
-      .filter(item => !!item.name);
-  }, [currentStep, recipe.stepIngredients, ingredients]);
-
-  const currentStepAlerts = useMemo(() => {
-    if (currentStep === 0) return [];
-    const stepData = recipe.stepAlerts?.[currentStep - 1];
-    if (!Array.isArray(stepData)) return [];
-
-    return stepData
-      .map(idx => recipe.workflowAdvice?.technicalWarnings?.[idx])
-      .filter((w): w is string => typeof w === 'string' && w.length > 0);
-  }, [currentStep, recipe.stepAlerts, recipe.workflowAdvice]);
 
   return (
     <div 
@@ -518,7 +416,12 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
       >
         {/* Mobile Header */}
         <div className="md:hidden border-b border-gray-200 bg-white px-4 h-16 flex items-center justify-between shrink-0" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-          <h2 className="text-lg font-bold text-gray-900 truncate pr-4">{recipe.title}</h2>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-gray-900 truncate pr-4">{recipe.title}</h2>
+            {activeTab === 'cook' && (recipe.instructions?.length || 0) > 0 && (
+              <p className="text-[11px] font-semibold text-orange-600 truncate">Cooking...</p>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowDeleteConfirmModal(true)}
@@ -540,7 +443,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         
         {/* Desktop Header */}
         <div className="hidden md:flex border-b border-gray-200 bg-white px-6 py-4 items-center justify-between">
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
             {[{ id: 'detail', label: 'Recipe' }, { id: 'cook', label: 'Cook' }].map(tab => (
               <button
                 key={tab.id}
@@ -554,6 +457,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                 {tab.label}
               </button>
             ))}
+            {activeTab === 'cook' && (recipe.instructions?.length || 0) > 0 && (
+              <span className="text-xs font-semibold text-orange-600">Cooking...</span>
+            )}
           </div>
           <div className="flex gap-2 items-center">
             <button
@@ -578,7 +484,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         {/* Progress Bar */}
         {activeTab === 'cook' && (
           <div className="h-1 bg-gray-100 w-full relative overflow-hidden sticky top-0 z-20">
-            <div className="h-full bg-orange-600 transition-all duration-500" style={{ width: `${progress}%` }} />
+            <div className="h-full bg-orange-600 transition-all duration-500" style={{ width: `${(recipe.instructions?.length || 0) > 0 ? 100 : 0}%` }} />
           </div>
         )}
 
@@ -590,7 +496,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                 {/* Heading + CTA */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="space-y-3">
-                      <h1 className="text-2xl font-semibold text-gray-900">{recipe.title}</h1>
+                      <h1 className="hidden md:block text-2xl font-semibold text-gray-900">{recipe.title}</h1>
                       <p className="text-base text-gray-700 leading-relaxed">{recipe.description}</p>
                       <div className="space-y-2">
                         {recipe.categoryIds && recipe.categoryIds.length > 0 && (
@@ -804,7 +710,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-4">
                       <h3 className="text-xl font-semibold text-gray-900">Ingredients</h3>
                       <ul className="space-y-2">
-                        {ingredients.map((ing, i) => (
+                        {(recipe.ingredients || []).map((ing, i) => (
                           <li key={i} className="flex items-start gap-3 text-base text-gray-700">
                             <span className="mt-2 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
                             {ing}
@@ -835,7 +741,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-4">
                       <h3 className="text-xl font-semibold text-gray-900">Instructions</h3>
                       <div className="space-y-4">
-                        {instructions.map((inst, i) => (
+                        {(recipe.instructions || []).map((inst, i) => (
                           <div key={i} className="flex gap-4">
                             <span className="flex-shrink-0 w-9 h-9 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-semibold text-sm">
                               {i + 1}
@@ -1030,153 +936,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
             </div>
           )}
 
-          {activeTab === 'cook' && (
-            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-              {currentStep === 0 ? (
-                <div className="flex-1 flex flex-col p-4 md:p-6 gap-4 pb-4 md:pb-6 min-h-0 overflow-hidden">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-900">Prep Progress</span>
-                      <span className="text-sm font-semibold text-gray-600">
-                        {preppedIngredients.size}/{ingredients.length}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-emerald-500 h-full transition-all duration-300"
-                        style={{ width: `${(preppedIngredients.size / ingredients.length) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setHidePreppedIngredients(!hidePreppedIngredients)}
-                      className="flex-1 h-9 text-xs bg-gray-100 text-gray-700 rounded-lg font-bold hover:bg-gray-200"
-                    >
-                      {hidePreppedIngredients ? 'Show All' : 'Hide Prepped'}
-                    </button>
-                    <button
-                      onClick={() => setPreppedIngredients(new Set(ingredients.map((_, i) => i)))}
-                      className="flex-1 h-9 text-xs bg-emerald-100 text-emerald-700 rounded-lg font-bold hover:bg-emerald-200"
-                    >
-                      Mark All Done
-                    </button>
-                  </div>
-
-                  <div
-                    className="flex-1 overflow-y-auto space-y-2 min-h-0 overscroll-contain"
-                    style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
-                  >
-                    {ingredients.map((ing, i) => {
-                      const isPrepared = preppedIngredients.has(i);
-                      if (hidePreppedIngredients && isPrepared) return null;
-                      return (
-                        <label
-                          key={i}
-                          className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                            isPrepared ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-gray-200'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isPrepared}
-                            onChange={() => {
-                              const next = new Set(preppedIngredients);
-                              if (next.has(i)) next.delete(i);
-                              else next.add(i);
-                              setPreppedIngredients(next);
-                            }}
-                            className="w-5 h-5 text-emerald-600 rounded"
-                          />
-                          <span className={`text-sm font-medium ${isPrepared ? 'text-emerald-700' : 'text-gray-900'}`}>
-                            {ing}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 flex flex-col pb-[110px] md:pb-6 min-h-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-orange-600 uppercase">
-                      Step {currentStep} of {instructions.length}
-                    </span>
-                    <input
-                      type="number"
-                      min="1"
-                      max={instructions.length}
-                      value={jumpToStepInput}
-                      onChange={(e) => setJumpToStepInput(e.target.value)}
-                      onKeyDown={handleJumpToStep}
-                      className="w-16 h-8 text-xs px-2 rounded border border-gray-300 text-center font-bold focus:border-orange-500 focus:outline-none cursor-text"
-                      placeholder="Go..."
-                    />
-                  </div>
-
-                  {contextualIngredients.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {contextualIngredients.map(item => (
-                        <span key={item.index} className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-bold">
-                          {item.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="flex-1 bg-white rounded-lg p-6 flex items-start justify-center border border-gray-200 min-h-[220px] shadow-sm overflow-hidden">
-                    <div className="w-full max-h-full overflow-y-auto">
-                      <p className="text-lg md:text-xl font-semibold text-gray-900 leading-relaxed text-center">
-                        {instructions[currentStep - 1]}
-                      </p>
-                    </div>
-                  </div>
-
-                  {currentStepAlerts.length > 0 && (
-                    <div className="space-y-2">
-                      {currentStepAlerts.map((w, i) => (
-                        <div key={i} className="bg-red-50 border border-red-200 rounded-xl p-3 flex gap-2">
-                          <span className="text-lg flex-shrink-0">⚠️</span>
-                          <p className="text-sm text-red-800 font-medium leading-relaxed">{w}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {currentStep < instructions.length && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
-                      <p className="text-xs text-orange-700 font-bold mb-1">Next</p>
-                      <p className="text-sm text-orange-900">{instructions[currentStep]}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Cook Mode Controls */}
-              <div
-                className="border-t border-gray-200 bg-white p-4 gap-2 flex"
-                style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', marginBottom: 'calc(2.5rem + env(safe-area-inset-bottom))' }}
-              >
-                <button
-                  onClick={() => currentStep === 0 ? setActiveTab('detail') : setCurrentStep(currentStep - 1)}
-                  className="h-12 px-4 bg-gray-100 text-gray-700 rounded-lg font-bold hover:bg-gray-200 transition-colors"
-                >
-                  ← Back
-                </button>
-                <button
-                  onClick={() => {
-                    if (currentStep === 0) setCurrentStep(1);
-                    else if (currentStep < instructions.length) setCurrentStep(currentStep + 1);
-                    else setActiveTab('detail');
-                  }}
-                  className="flex-1 h-12 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 transition-colors"
-                >
-                  {currentStep === 0 ? 'Start' : currentStep < instructions.length ? 'Next →' : 'Finish'}
-                </button>
-              </div>
-            </div>
-          )}
+          {activeTab === 'cook' && <CookMode recipe={recipe} inventory={inventory} onClose={() => setActiveTab('detail')} />}
         </div>
 
         {/* Mobile Tab Navigation */}
@@ -1222,7 +982,10 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [complexityFilter, setComplexityFilter] = useState<ComplexityFilter>('all');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth >= 768;
+  });
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
 
@@ -1268,9 +1031,9 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
       const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) || 
                            r.description.toLowerCase().includes(search.toLowerCase());
       const matchesComplexity = complexityFilter === 'all' || r.complexity === complexityFilter;
-      // If categories are selected, recipe must match at least one
+      // If categories are selected, recipe must match all selected categories
       const matchesCategory = selectedCategories.size === 0 || 
-                             (r.categoryIds && r.categoryIds.some(catId => selectedCategories.has(catId)));
+                 (r.categoryIds && Array.from(selectedCategories).every(catId => r.categoryIds?.includes(catId)));
       return matchesSearch && matchesComplexity && matchesCategory;
     })
     .sort((a, b) => {
@@ -1284,6 +1047,12 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
           return b.createdAt.localeCompare(a.createdAt);
       }
     });
+
+  const availableCategoryIds = useMemo(() => {
+    const ids = new Set<string>();
+    filtered.forEach(r => r.categoryIds?.forEach(catId => ids.add(catId)));
+    return ids;
+  }, [filtered]);
 
   const getRelativeTime = (isoString: string): string => {
     const date = new Date(isoString);
@@ -1304,45 +1073,61 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="w-full space-y-6">
-        <div className="bg-white/95 backdrop-blur border border-gray-200 rounded-lg shadow-sm p-6 space-y-4 sticky top-16 md:top-20 z-20">
-          <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-          <div className="flex flex-row md:items-center gap-2 w-full">
-            <div className="relative flex-1">
-              <Input 
-                placeholder="Search recipes..." 
-                value={search} 
-                onChange={e => setSearch(e.target.value)}
-                className="pl-12 font-sans h-12 text-base shadow-sm border border-gray-200 bg-gray-50 focus:border-orange-500 focus:ring-orange-50 rounded-md cursor-text"
-              />
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              </span>
+        <div className="bg-white/95 backdrop-blur border border-gray-200 rounded-lg shadow-sm p-6 sticky top-16 md:top-20 z-20">
+          <div className="space-y-3 md:space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex flex-row md:items-center gap-2 w-full">
+                <div className="relative flex-1">
+                  <Input 
+                    placeholder="Search recipes..." 
+                    value={search} 
+                    onChange={e => setSearch(e.target.value)}
+                    className="pl-12 font-sans h-12 text-base shadow-sm border border-gray-200 bg-gray-50 focus:border-orange-500 focus:ring-orange-50 rounded-md cursor-text"
+                  />
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  </span>
+                </div>
+                <button 
+                  onClick={onNewRecipe} 
+                  className="bg-orange-600 text-white rounded-md h-12 px-4 font-medium hover:bg-orange-700 transition shadow-sm flex items-center justify-center gap-2 shrink-0"
+                  title="New Recipe"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  <span className="hidden md:inline">New Recipe</span>
+                </button>
+              </div>
+              <div className="flex gap-2 w-full md:w-auto md:h-12">
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen(open => !open)}
+                  className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-gray-50 rounded-md shadow-sm text-sm text-gray-700 flex-1 md:flex-none md:min-w-[150px] md:h-full"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18M7 12h10M10 19h4"/></svg>
+                  Filters
+                </button>
+                <div className="relative flex-1 md:flex-none md:min-w-[150px]">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="w-full h-full px-3 py-2 pr-8 rounded-md text-sm font-semibold bg-gray-50 text-gray-700 border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-100 appearance-none"
+                  >
+                    <option value="newest">Newest</option>
+                    <option value="name">A–Z</option>
+                    <option value="quick">Quick</option>
+                  </select>
+                  <svg
+                    className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M5.25 7.25L10 12l4.75-4.75" />
+                  </svg>
+                </div>
+              </div>
             </div>
-            <button 
-              onClick={onNewRecipe} 
-              className="bg-orange-600 text-white rounded-md h-12 px-4 font-medium hover:bg-orange-700 transition shadow-sm flex items-center justify-center gap-2 shrink-0"
-              title="New Recipe"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
-              <span className="hidden md:inline">New Recipe</span>
-            </button>
-          </div>
-        </div>
 
-        <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-              {/* Mobile-only toggle */}
-              <button
-                type="button"
-                onClick={() => setFiltersOpen(open => !open)}
-                className="sm:hidden inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-md shadow-sm text-sm text-gray-700"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18M7 12h10M10 19h4"/></svg>
-                Filters
-              </button>
-
-              {/* Collapsible filter area: hidden on mobile by default, visible when toggled; always visible on sm+ */}
-              <div className={`${filtersOpen ? 'block' : 'hidden'} sm:flex items-center gap-2 flex-wrap bg-gray-50 rounded-md shadow-sm p-4 sm:p-0`}> 
+            <div className={`${filtersOpen ? 'flex' : 'hidden'} items-center gap-2 flex-wrap bg-gray-50 rounded-md shadow-sm p-4 w-full`}> 
                 <div className="flex gap-2 flex-wrap w-full">
                   {(['all', 'Simple', 'Intermediate', 'Advanced'] as const).map(level => (
                     <button
@@ -1362,7 +1147,7 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
                 {/* Category filters */}
                 {categories.length > 0 && (
                   <div className="flex gap-2 flex-wrap w-full border-t border-gray-300 pt-3 mt-2">
-                    {categories.map(cat => (
+                    {categories.filter(cat => availableCategoryIds.has(cat.id)).map(cat => (
                       <button
                         key={cat.id}
                         onClick={() => toggleCategoryFilter(cat.id)}
@@ -1378,23 +1163,11 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
                   </div>
                 )}
 
-                <div className="mt-3 sm:mt-0 sm:ml-2 w-full sm:w-auto">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortOption)}
-                    className="px-3 py-2 rounded-md text-xs font-semibold bg-gray-100 text-gray-900 border border-gray-200 cursor-pointer hover:bg-gray-200"
-                  >
-                    <option value="newest">Newest</option>
-                    <option value="name">A–Z</option>
-                    <option value="quick">Quick</option>
-                  </select>
-                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 md:mt-0">
           {filtered.map(recipe => (
             <Card 
               key={recipe.id} 
