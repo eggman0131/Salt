@@ -675,10 +675,17 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
 
   async createCategory(category: Omit<RecipeCategory, 'id' | 'createdAt'>): Promise<RecipeCategory> {
     const now = new Date().toISOString();
-    const newCat = {
+    const newCat: any = {
       ...category,
       createdAt: now
     };
+
+    // Remove undefined values - Firebase doesn't allow them
+    Object.keys(newCat).forEach(key => {
+      if (newCat[key] === undefined) {
+        delete newCat[key];
+      }
+    });
 
     const docRef = doc(collection(db, 'categories'));
     await setDoc(docRef, newCat);
@@ -691,7 +698,16 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
 
   async updateCategory(id: string, updates: Partial<RecipeCategory>): Promise<RecipeCategory> {
     const docRef = doc(db, 'categories', id);
-    await updateDoc(docRef, updates);
+    
+    // Remove undefined values - Firebase doesn't allow them
+    const cleanUpdates: any = { ...updates };
+    Object.keys(cleanUpdates).forEach(key => {
+      if (cleanUpdates[key] === undefined) {
+        delete cleanUpdates[key];
+      }
+    });
+    
+    await updateDoc(docRef, cleanUpdates);
     
     const updated = await getDoc(docRef);
     if (!updated.exists()) {
@@ -706,7 +722,23 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
 
   async deleteCategory(id: string): Promise<void> {
-    await deleteDoc(doc(db, 'categories', id));
+    // Get all recipes that use this category
+    const recipesSnapshot = await getDocs(collection(db, 'recipes'));
+    const batch = writeBatch(db);
+    
+    // Delete the category
+    batch.delete(doc(db, 'categories', id));
+    
+    // Remove category from all recipes that use it
+    recipesSnapshot.forEach((recipeDoc) => {
+      const data = recipeDoc.data();
+      if (data.categoryIds && Array.isArray(data.categoryIds) && data.categoryIds.includes(id)) {
+        const updatedCategoryIds = data.categoryIds.filter((catId: string) => catId !== id);
+        batch.update(doc(db, 'recipes', recipeDoc.id), { categoryIds: updatedCategoryIds });
+      }
+    });
+    
+    await batch.commit();
   }
 
   // -- TAG SUGGESTIONS (Category Admin Review Queue) --
@@ -843,7 +875,8 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       const data = docSnap.data() as KitchenSettings;
       return {
         directives: data.directives || '',
-        debugEnabled: data.debugEnabled || false
+        debugEnabled: data.debugEnabled || false,
+        userOrder: data.userOrder
       };
     }
     return { directives: '', debugEnabled: false };

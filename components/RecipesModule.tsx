@@ -1206,7 +1206,10 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
                     {recipe.categoryIds.slice(0, 3).map(catId => (
                       <button
                         key={catId}
-                        onClick={() => toggleCategoryFilter(catId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleCategoryFilter(catId);
+                        }}
                         className={`px-2 py-0.5 rounded text-xs font-medium border transition cursor-pointer ${
                           selectedCategories.has(catId)
                             ? 'bg-blue-600 text-white border-blue-600'

@@ -13,6 +13,7 @@ import { RecipesModule } from './components/RecipesModule';
 import { AdminModule } from './components/AdminModule';
 import { AIModule } from './components/AIModule';
 import { PlannerModule } from './components/PlannerModule';
+import { KitchenDataModule } from './components/KitchenDataModule';
 
 type AppState = 'landing' | 'login' | 'dashboard' | 'loading';
 
@@ -40,6 +41,15 @@ const App: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('salt_last_sync'));
   const [aiInitialMessage, setAiInitialMessage] = useState<string | undefined>(undefined);
+
+  // Ref for sidebar suggestions counter update
+  const suggestionsCountRef = React.useRef<(() => void) | null>(null);
+  
+  const refreshSuggestionsCount = useCallback(() => {
+    if (suggestionsCountRef.current) {
+      suggestionsCountRef.current();
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     const today = getLocalDateString();
@@ -169,6 +179,7 @@ const App: React.FC = () => {
         }} 
         user={user} 
         onLogout={handleLogout}
+        suggestionsCountRef={suggestionsCountRef}
       >
         {activeTab === 'dashboard' && (
           <div className="space-y-6 md:space-y-10 animate-in fade-in duration-500">
@@ -363,6 +374,10 @@ const App: React.FC = () => {
             isImporting={isImporting}
             lastSync={lastSync}
           />
+        )}
+
+        {activeTab === 'kitchendata' && (
+          <KitchenDataModule onRefresh={loadData} onSuggestionsChanged={refreshSuggestionsCount} />
         )}
 
         {activeTab === 'ai' && (

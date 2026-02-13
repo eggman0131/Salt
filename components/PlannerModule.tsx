@@ -60,20 +60,30 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   }, []);
 
   const orderedUsers = useMemo(() => {
-    if (!kitchenUserOrder || kitchenUserOrder.length === 0) return users;
-    const byId = new Map(users.map(u => [u.id, u] as [string, User]));
-    const ordered: User[] = [];
-    for (const id of kitchenUserOrder) {
-      const u = byId.get(id);
-      if (u) {
-        ordered.push(u);
-        byId.delete(id);
+    // If no stored order, return users as-is
+    if (!kitchenUserOrder || kitchenUserOrder.length === 0) {
+      return users;
+    }
+    
+    // Create a map for quick lookup
+    const userMap = new Map(users.map(u => [u.id, u]));
+    const reordered: User[] = [];
+    
+    // First add users that are in the stored order
+    for (const userId of kitchenUserOrder) {
+      const user = userMap.get(userId);
+      if (user) {
+        reordered.push(user);
+        userMap.delete(userId); // Mark as added
       }
     }
-    for (const u of users) {
-      if (byId.has(u.id)) ordered.push(u);
+    
+    // Then add any remaining users not in the stored order
+    for (const user of userMap.values()) {
+      reordered.push(user);
     }
-    return ordered;
+    
+    return reordered;
   }, [users, kitchenUserOrder]);
 
   const loadPlan = useCallback(async () => {
@@ -131,7 +141,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     } finally {
       setIsLoading(false);
     }
-  }, [startDate, users, loadAllPlans, orderedUsers]);
+  }, [startDate, users, loadAllPlans]);
 
   const loadTemplate = useCallback(async () => {
     const isInitialLoadForDate = lastLoadedStartDateRef.current !== 'template';
@@ -451,7 +461,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   );
 };
 
-const DayCard: React.FC<{ day: DayPlan; users: User[]; isTemplate: boolean; onChange: (updates: Partial<DayPlan>) => void }> = ({ day, users, isTemplate, onChange }) => {
+  const DayCard: React.FC<{ day: DayPlan; users: User[]; isTemplate: boolean; onChange: (updates: Partial<DayPlan>) => void }> = ({ day, users, isTemplate, onChange }) => {
   const isToday = !isTemplate && day.date === new Date().toISOString().split('T')[0];
   
   let dayName = '';
@@ -549,7 +559,7 @@ const DayCard: React.FC<{ day: DayPlan; users: User[]; isTemplate: boolean; onCh
                     <input 
                       type="text"
                       placeholder="Timing/Special reqs..."
-                      className="w-full py-1 text-[11px] font-medium font-sans text-gray-500 border-b border-gray-100 focus:border-orange-300 bg-transparent outline-none placeholder:text-gray-200 transition-colors truncate box-border"
+                      className={`w-full py-1 text-[11px] font-medium font-sans border-b bg-transparent outline-none transition-colors truncate box-border ${isPresent ? 'text-gray-600 border-gray-100 focus:border-orange-300 placeholder:text-gray-200' : 'text-gray-400 border-gray-100 focus:border-orange-300 placeholder:text-gray-300 opacity-60'}`}
                       value={day.userNotes[u.id] || ''}
                       onChange={e => handleUserNoteChange(u.id, e.target.value)}
                     />
