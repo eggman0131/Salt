@@ -68,6 +68,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const [pendingProposals, setPendingProposals] = useState<Proposal[] | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showRollbackConfirmModal, setShowRollbackConfirmModal] = useState(false);
+  const [pendingRollbackEntry, setPendingRollbackEntry] = useState<RecipeHistoryEntry | null>(null);
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
   const [imageActionsVisible, setImageActionsVisible] = useState(false);
@@ -187,7 +189,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   };
 
   const handleRestoreVersion = async (entry: RecipeHistoryEntry) => {
-    if (!window.confirm('Restore this version?')) return;
     setIsUpdating(true);
     try {
       const leanSnapshot = { ...recipe };
@@ -312,6 +313,45 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         </div>
       )}
 
+      {/* Rollback Confirmation Modal */}
+      {showRollbackConfirmModal && pendingRollbackEntry && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setShowRollbackConfirmModal(false)}
+          onWheel={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
+          onTouchMove={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
+          style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
+        >
+          <Card className="w-full max-w-sm bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()} style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
+            <div className="p-6 space-y-4">
+              <h3 className="text-lg font-bold text-orange-600">Rollback to this version?</h3>
+              <p className="text-sm text-gray-600">Your current version will be saved as a checkpoint before restoring.</p>
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={async () => {
+                    await handleRestoreVersion(pendingRollbackEntry);
+                    setShowRollbackConfirmModal(false);
+                    setPendingRollbackEntry(null);
+                  }}
+                  className="flex-1 h-10 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700"
+                >
+                  Rollback
+                </button>
+                <button
+                  onClick={() => {
+                    setShowRollbackConfirmModal(false);
+                    setPendingRollbackEntry(null);
+                  }}
+                  className="flex-1 h-10 bg-gray-200 text-gray-900 rounded-lg font-bold hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Delete Modal */}
       {showDeleteConfirmModal && (
         <div
@@ -359,16 +399,23 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
               <div className="space-y-2 max-h-[350px] overflow-y-auto">
                 {recipe.history && recipe.history.length > 0 ? (
                   recipe.history.map((entry, idx) => (
-                    <div key={idx} className="p-3 border border-gray-200 rounded-lg space-y-2">
+                    <div key={idx} className="p-3 border border-gray-200 rounded-lg space-y-2 hover:bg-gray-50 transition-colors">
                       <p className="font-medium text-gray-900">{entry.changeDescription}</p>
                       <p className="text-xs text-gray-500">
                         {entry.userName} • {new Date(entry.timestamp).toLocaleDateString()}
                       </p>
                       <button
-                        onClick={() => handleRestoreVersion(entry)}
-                        className="w-full h-8 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
+                        onClick={() => {
+                          setPendingRollbackEntry(entry);
+                          setShowRollbackConfirmModal(true);
+                        }}
+                        className="w-full h-9 text-sm font-semibold bg-orange-600 text-white rounded-lg hover:bg-orange-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                        title="Rollback to this version (current version will be saved as a checkpoint)"
                       >
-                        Restore
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"></path>
+                        </svg>
+                        Rollback to this version
                       </button>
                     </div>
                   ))
@@ -424,6 +471,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowHistory(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-blue-600 hover:text-blue-800 transition-colors shrink-0"
+              aria-label="View recipe history"
+              title="Rollback to earlier version"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
+            <button
               onClick={() => setShowDeleteConfirmModal(true)}
               className="w-10 h-10 flex items-center justify-center rounded-lg text-red-600 hover:text-red-800 transition-colors shrink-0"
               aria-label="Delete recipe"
@@ -462,6 +517,13 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
             )}
           </div>
           <div className="flex gap-2 items-center">
+            <button
+              onClick={() => setShowHistory(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-blue-600 hover:text-blue-800 transition-colors shrink-0"
+              title="Rollback to earlier version"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
             <button
               onClick={() => setShowDeleteConfirmModal(true)}
               className="w-10 h-10 flex items-center justify-center rounded-lg text-red-600 hover:text-red-800 transition-colors shrink-0"
@@ -740,38 +802,48 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                   <div className="lg:col-span-7 space-y-6">
                     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-4">
                       <h3 className="text-xl font-semibold text-gray-900">Instructions</h3>
-                      <div className="space-y-4">
-                        {(recipe.instructions || []).map((inst, i) => (
-                          <div key={i} className="flex gap-4">
-                            <span className="flex-shrink-0 w-9 h-9 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-semibold text-sm">
-                              {i + 1}
-                            </span>
-                            <p className="text-base text-gray-700 leading-relaxed">{inst}</p>
-                          </div>
-                        ))}
+                      <div className="space-y-6">
+                        {(recipe.instructions || []).map((inst, i) => {
+                          // Get alerts for this step (stepAlerts indexes into technicalWarnings)
+                          const stepAlertIndices = recipe.stepAlerts?.[i] || [];
+                          const stepWarnings = stepAlertIndices
+                            .map(idx => recipe.workflowAdvice?.technicalWarnings?.[idx])
+                            .filter((w): w is string => typeof w === 'string' && w.length > 0);
+
+                          return (
+                            <div key={i} className="space-y-3">
+                              <div className="flex gap-4">
+                                <span className="flex-shrink-0 w-9 h-9 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-semibold text-sm">
+                                  {i + 1}
+                                </span>
+                                <p className="text-base text-gray-700 leading-relaxed">{inst}</p>
+                              </div>
+                              {stepWarnings.length > 0 && (
+                                <div className="ml-13 space-y-2">
+                                  {stepWarnings.map((warning, wIdx) => (
+                                    <div key={wIdx} className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2">
+                                      <span className="text-lg flex-shrink-0">⚠️</span>
+                                      <p className="text-sm text-red-800 font-medium leading-relaxed">{warning}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 
-                    {/* Workflow Advice */}
-                    {(recipe.workflowAdvice?.parallelTracks || recipe.workflowAdvice?.technicalWarnings || recipe.workflowAdvice?.optimumToolLogic) && (
+                    {/* Workflow Advice Overview */}
+                    {(recipe.workflowAdvice?.parallelTracks || recipe.workflowAdvice?.optimumToolLogic) && (
                       <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-4">
-                        <h3 className="text-xl font-semibold text-gray-900">Workflow Advice</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">Workflow Overview</h3>
                         {recipe.workflowAdvice?.parallelTracks && (
                           <div className="space-y-2">
                             <p className="text-sm text-gray-600 font-semibold">Parallel Tracks</p>
                             <ul className="space-y-1">
                               {recipe.workflowAdvice.parallelTracks.map((track, idx) => (
                                 <li key={idx} className="text-base text-gray-700">• {track}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {recipe.workflowAdvice?.technicalWarnings && (
-                          <div className="space-y-2">
-                            <p className="text-sm text-gray-600 font-semibold">Technical Warnings</p>
-                            <ul className="space-y-1">
-                              {recipe.workflowAdvice.technicalWarnings.map((warn, idx) => (
-                                <li key={idx} className="text-base text-gray-700">• {warn}</li>
                               ))}
                             </ul>
                           </div>
