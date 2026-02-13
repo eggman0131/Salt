@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Input, Label } from './UI';
-import { RecipeCategory, RecipeTagSuggestion } from '../types/contract';
+import { RecipeCategory } from '../types/contract';
 import { saltBackend } from '../backend/api';
 
 interface CategoryManagementProps {
@@ -10,7 +10,7 @@ interface CategoryManagementProps {
 
 export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefresh, onSuggestionsChanged }) => {
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
-  const [suggestions, setSuggestions] = useState<RecipeTagSuggestion[]>([]);
+  const [pendingCategories, setPendingCategories] = useState<RecipeCategory[]>([]);
   const [recipeTitles, setRecipeTitles] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAction, setSelectedAction] = useState<'review' | 'manage'>('review');
@@ -32,13 +32,15 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [cats, suggs, recipes] = await Promise.all([
+      const [cats, pending, recipes] = await Promise.all([
         saltBackend.getCategories(),
-        saltBackend.getTagSuggestions(),
+        saltBackend.getPendingCategories(),
         saltBackend.getRecipes()
       ]);
-      setCategories(cats);
-      setSuggestions(suggs.filter(s => s.status === 'pending'));
+      
+      // Filter to only approved categories for the list
+      setCategories(cats.filter(c => c.isApproved !== false));
+      setPendingCategories(pending);
       
       const titleMap: Record<string, string> = {};
       recipes.forEach(recipe => {
@@ -64,7 +66,8 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
 
       const categoryData: any = {
         name: formName,
-        createdBy: 'admin'
+        createdBy: 'admin',
+        isApproved: true  // Manually created categories are approved
       };
       
       if (formDesc.trim()) {
@@ -91,31 +94,27 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
     }
   };
 
-  const handleApproveSuggestion = async (id: string, name: string) => {
+  const handleApprovePendingCategory = async (id: string) => {
     try {
-      await saltBackend.approveTagSuggestion(id);
-      const existing = categories.find(c => c.name.toLowerCase() === name.toLowerCase());
-      if (!existing) {
-        await saltBackend.createCategory({ name, createdBy: 'admin' });
-      }
+      await saltBackend.approveCategory(id);
       await loadData();
       onRefresh();
       if (onSuggestionsChanged) onSuggestionsChanged();
     } catch (err) {
       console.error('Failed to approve:', err);
-      alert('Failed to approve suggestion');
+      alert('Failed to approve category');
     }
   };
 
-  const handleRejectSuggestion = async (id: string) => {
+  const handleRejectPendingCategory = async (id: string) => {
     try {
-      await saltBackend.rejectTagSuggestion(id);
+      await saltBackend.deleteCategory(id);
       await loadData();
       onRefresh();
       if (onSuggestionsChanged) onSuggestionsChanged();
     } catch (err) {
       console.error('Failed to reject:', err);
-      alert('Failed to reject suggestion');
+      alert('Failed to reject category');
     }
   };
 
@@ -199,7 +198,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
     );
   }
 
-  const pendingCount = suggestions.length;
+  const pendingCount = pendingCategories.length;
 
   return (
     <div className="space-y-6">
@@ -250,7 +249,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
             <div className="space-y-1 mb-6">
               <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">AI Suggestions</p>
               <h2 className="text-2xl font-bold text-gray-900">Review Pending Approvals</h2>
-              <p className="text-sm text-gray-600 pt-2">AI detected these categories from your recipes. Approve to create them or reject to discard.</p>
+              <p className="text-sm text-gray-600 pt-2">AI detected these categories from your recipes. Approve to activate them or reject to remove.</p>
             </div>
 
             {pendingCount === 0 ? (
@@ -265,35 +264,42 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
               </div>
             ) : (
               <div className="space-y-3">
-                {suggestions.map(suggestion => (
+                {pendingCategories.map(category => (
                   <div 
-                    key={suggestion.id}
+                    key={category.id}
                     className="p-4 border border-gray-200 rounded-lg hover:border-orange-300 hover:shadow-sm transition-all"
                   >
                     <div className="flex items-start justify-between gap-4 mb-3">
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900">{suggestion.name}</h4>
-                        <p className="text-sm text-gray-600 mt-1">From: <span className="text-gray-900 font-medium truncate">{recipeTitles[suggestion.recipeId] || 'Unknown Recipe'}</span></p>
+                        <h4 className="font-semibold text-gray-900">{category.name}</h4>
+                        {category.recipeId && (
+                          <p className="text-sm text-gray-600 mt-1">From: <span className="text-gray-900 font-medium truncate">{recipeTitles[category.recipeId] || 'Unknown Recipe'}</span></p>
+                        )}
+                        {category.description && (
+                          <p className="text-sm text-gray-600 mt-1">{category.description}</p>
+                        )}
                       </div>
-                      <div className="shrink-0">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-full">
-                          <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 111.414 1.414L7.414 9l3.293 3.293a1 1 0 01-1.414 1.414l-4-4z" clipRule="evenodd"/>
-                          </svg>
-                          <span className="text-xs font-semibold text-orange-700">{(suggestion.confidence * 100).toFixed(0)}% match</span>
+                      {category.confidence !== undefined && (
+                        <div className="shrink-0">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-full">
+                            <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 111.414 1.414L7.414 9l3.293 3.293a1 1 0 01-1.414 1.414l-4-4z" clipRule="evenodd"/>
+                            </svg>
+                            <span className="text-xs font-semibold text-orange-700">{(category.confidence * 100).toFixed(0)}% match</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleApproveSuggestion(suggestion.id, suggestion.name)}
+                        onClick={() => handleApprovePendingCategory(category.id)}
                         className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold rounded-lg transition-colors active:scale-95"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>
-                        Approve & Create
+                        Approve
                       </button>
                       <button
-                        onClick={() => handleRejectSuggestion(suggestion.id)}
+                        onClick={() => handleRejectPendingCategory(category.id)}
                         className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-lg transition-colors active:scale-95"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -342,7 +348,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
                   <textarea
                     value={formDesc}
                     onChange={e => setFormDesc(e.target.value)}
-                    placeholder="Describe this category for better organization..."
+                    placeholder="Describe this category for better organisation..."
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all text-sm resize-none h-24"
                   />
                 </div>
@@ -355,7 +361,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
                     placeholder="Alias names separated by commas (e.g., Fast, Easy, Simple)"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all text-sm"
                   />
-                  <p className="text-xs text-gray-500">These help the AI recognize similar categories</p>
+                  <p className="text-xs text-gray-500">These help the AI recognise similar categories</p>
                 </div>
 
                 <div className="flex gap-3 pt-4">
