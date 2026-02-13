@@ -47,7 +47,21 @@ let env = 'unknown';
 if (isLocalhost) {
   env = 'localhost-emulators';
 
-  db = getFirestore(app);
+  // Use the named Firestore database locally so it matches the Functions emulator
+  // which is configured to use the 'saltstore' database. Initialize with explicit
+  // host/ssl settings so the SDK connects to the local emulator and uses the
+  // named database, ensuring frontend and functions read/write the same data.
+  try {
+    db = initializeFirestore(app, {
+      host: '127.0.0.1:8080',
+      ssl: false,
+      experimentalForceLongPolling: true
+    }, 'saltstore');
+    debugLogger.log('Firebase Init', 'Initialized Firestore (saltstore) for local emulators');
+  } catch (e) {
+    // Fallback to getFirestore if initializeFirestore is not available
+    db = getFirestore(app, 'saltstore');
+  }
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
 
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });

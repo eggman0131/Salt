@@ -258,6 +258,29 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     return part ? `data:image/png;base64,${part.inlineData?.data}` : '';
   }
 
+  async importRecipeFromUrl(url: string): Promise<Partial<Recipe>> {
+    // Fetch raw recipe content (Transport - delegated to subclass)
+    const rawRecipeData = await this.fetchUrlContent(url);
+    
+    // Convert to Salt format (Intelligence - stays in base class)
+    const leanInventory = await this.getLeanInventoryString();
+    const instruction = await this.getSystemInstruction("You are the Head Chef converting an external recipe to Salt format.");
+    const response = await this.callGenerateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{ role: 'user', parts: [{ text: RECIPE_PROMPTS.externalRecipe(rawRecipeData, leanInventory) }] }],
+      config: { 
+        systemInstruction: instruction,
+        responseMimeType: "application/json",
+      }
+    });
+    const parsed = JSON.parse(this.sanitizeJson(response.text || '{}'));
+    return this.normalizeRecipeData(parsed);
+  }
+
+  // -- ABSTRACT METHODS (Implemented by Subclasses) --
+
+  protected abstract fetchUrlContent(url: string): Promise<string>;
+
   abstract login(email: string): Promise<void>;
   abstract handleRedirectResult(): Promise<User | null>;
   abstract logout(): Promise<void>;
