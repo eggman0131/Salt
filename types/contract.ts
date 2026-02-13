@@ -52,6 +52,28 @@ export const EquipmentSchema = z.object({
 });
 export type Equipment = z.infer<typeof EquipmentSchema>;
 
+// Recipe Category Schema
+export const RecipeCategorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  synonyms: z.array(z.string()).optional(),
+  createdBy: z.string().optional(),
+  createdAt: z.string(),
+});
+export type RecipeCategory = z.infer<typeof RecipeCategorySchema>;
+
+// Recipe Tag Suggestion Schema (AI-suggested but unapproved categories)
+export const RecipeTagSuggestionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  recipeId: z.string().optional(),
+  confidence: z.number().min(0).max(1),
+  status: z.enum(['pending', 'approved', 'rejected']),
+  createdAt: z.string(),
+});
+export type RecipeTagSuggestion = z.infer<typeof RecipeTagSuggestionSchema>;
+
 // Recipe History Entry
 export const RecipeHistoryEntrySchema = z.object({
   timestamp: z.string(),
@@ -81,9 +103,11 @@ export const RecipeSchema = z.object({
     technicalWarnings: z.array(z.string()).optional(),
     optimumToolLogic: z.string().optional(),
   }).optional(),
+  categoryIds: z.array(z.string()).optional(),
   history: z.array(RecipeHistoryEntrySchema).optional(),
   imagePath: z.string().optional(),
   collection: z.string().optional(),
+  source: z.string().optional(),
   createdAt: z.string(),
   createdBy: z.string(),
 });
@@ -144,10 +168,20 @@ export interface ISaltBackend {
   summarizeAgreedRecipe: (history: {role: string, text: string}[], currentRecipe?: Recipe) => Promise<string>;
   chatForDraft: (history: {role: string, text: string}[]) => Promise<string>;
   generateRecipeImage: (recipeTitle: string) => Promise<string>;
+  importRecipeFromUrl: (url: string) => Promise<Partial<Recipe>>;
   importSystemState: (json: string) => Promise<void>;
   getPlans(): Promise<Plan[]>;
   getPlanByDate(date: string): Promise<Plan | null>;
   getPlanIncludingDate(date: string): Promise<Plan | null>;
   createOrUpdatePlan: (plan: Omit<Plan, 'id' | 'createdAt' | 'createdBy'> & { id?: string }) => Promise<Plan>;
   deletePlan: (id: string) => Promise<void>;
+  getCategories: () => Promise<RecipeCategory[]>;
+  getCategory: (id: string) => Promise<RecipeCategory | null>;
+  createCategory: (category: Omit<RecipeCategory, 'id' | 'createdAt'>) => Promise<RecipeCategory>;
+  updateCategory: (id: string, updates: Partial<RecipeCategory>) => Promise<RecipeCategory>;
+  deleteCategory: (id: string) => Promise<void>;
+  categorizeRecipe: (recipe: Recipe) => Promise<string[]>;
+  getTagSuggestions: () => Promise<RecipeTagSuggestion[]>;
+  approveTagSuggestion: (suggestionId: string, categoryId?: string) => Promise<void>;
+  rejectTagSuggestion: (suggestionId: string) => Promise<void>;
 }
