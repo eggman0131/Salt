@@ -18,6 +18,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
   const [candidates, setCandidates] = useState<EquipmentCandidate[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeletingConfirm, setIsDeletingConfirm] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   
   const [isAddingManualAcc, setIsAddingManualAcc] = useState(false);
   const [manualAccName, setManualAccName] = useState('');
@@ -107,11 +108,12 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
     } catch (err) { alert("Save failed."); }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       await saltBackend.deleteEquipment(id);
       setIsDeletingConfirm(false);
+      setShowDeleteConfirmModal(false);
       setEditingItem(null);
       setIsAdding(false);
       onRefresh();
@@ -234,22 +236,13 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
 
                     {editingItem.id && (
                       <div className="relative flex items-center">
-                        {isDeletingConfirm ? (
-                          <button 
-                            className="bg-red-600 hover:bg-red-700 text-white px-3 h-8 rounded-lg text-[10px] font-black uppercase tracking-widest animate-in slide-in-from-right-1 ml-1" 
-                            onClick={(e) => handleDelete(editingItem.id!, e)}
-                          >
-                            Confirm
-                          </button>
-                        ) : (
-                          <button 
-                            className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-red-500 transition-all" 
-                            onClick={() => setIsDeletingConfirm(true)}
-                            title="Delete Item"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                          </button>
-                        )}
+                        <button 
+                          className="w-10 h-10 flex items-center justify-center rounded-lg text-red-600 hover:text-red-800 transition-all" 
+                          onClick={() => setShowDeleteConfirmModal(true)}
+                          title="Delete Item"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
                       </div>
                     )}
 
@@ -346,6 +339,38 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
                 </div>
               </div>
             )}
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Modal (same style as recipes) */}
+      {showDeleteConfirmModal && (
+        <div
+          className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setShowDeleteConfirmModal(false)}
+          onWheel={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
+          onTouchMove={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
+          style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
+        >
+          <Card className="w-full max-w-sm bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()} style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
+            <div className="p-6 space-y-4">
+              <h3 className="text-lg font-bold text-red-600">Delete Equipment?</h3>
+              <p className="text-sm text-gray-600">This action cannot be undone.</p>
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => { if (editingItem?.id) handleDelete(editingItem.id); }}
+                  className="flex-1 h-10 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirmModal(false)}
+                  className="flex-1 h-10 bg-gray-200 text-gray-900 rounded-lg font-bold hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </Card>
         </div>
       )}

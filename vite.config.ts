@@ -7,6 +7,15 @@ import react from '@vitejs/plugin-react';
 // Access via import.meta.env.VITE_GEMINI_API_KEY in browser code.
 export default defineConfig({
   plugins: [react()],
+  publicDir: 'public',
+  build: {
+    // Ensure service worker and manifest are included
+    rollupOptions: {
+      input: {
+        main: './index.html'
+      }
+    }
+  },
   server: {
     port: 3000,
     open: true,

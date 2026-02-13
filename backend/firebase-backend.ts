@@ -1,4 +1,4 @@
-import { User, Recipe, Equipment, Plan, KitchenSettings } from '../types/contract';
+import { User, Recipe, Equipment, Plan, KitchenSettings, RecipeCategory, RecipeTagSuggestion } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, storage, functions } from './firebase';
 import { debugLogger } from './debug-logger';
@@ -300,6 +300,45 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       throw error;
     }
   }
+
+  protected async fetchUrlContent(url: string): Promise<string> {
+    // Ensure auth is ready before proceeding
+    await this.authReadyPromise;
+    
+    const user = auth.currentUser;
+    let idToken = this.currentIdToken;
+    
+    debugLogger.log('fetchUrlContent', 'Starting - URL:', url, 'user:', user?.email);
+    
+    if (!user) {
+      throw new Error('User not authenticated. Cannot access recipe URLs.');
+    }
+    
+    try {
+      idToken = await user.getIdToken(true);
+      this.currentIdToken = idToken;
+      debugLogger.log('fetchUrlContent', 'Got token:', idToken ? 'yes' : 'no');
+    } catch (e) {
+      debugLogger.error('fetchUrlContent', 'getIdToken failed:', e);
+      throw new Error('Failed to obtain authentication token.');
+    }
+    
+    if (!idToken) {
+      throw new Error('Failed to obtain authentication token.');
+    }
+
+    const cloudFetchRecipeUrl = httpsCallable(functions, 'cloudFetchRecipeUrl');
+    
+    debugLogger.log('fetchUrlContent', 'Calling Cloud Function with token...');
+    try {
+      const result = await cloudFetchRecipeUrl({ idToken, url });
+      debugLogger.log('fetchUrlContent', 'Success');
+      return result.data as string;
+    } catch (error) {
+      debugLogger.error('fetchUrlContent', 'Cloud Function error:', error);
+      throw error;
+    }
+  }
   
   // -- AUTHENTICATION --
   
@@ -561,6 +600,13 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     
     await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(newRecipe));
     
+    // Auto-categorise the recipe as a post-processing step
+    const categoryIds = await this.categorizeRecipe(newRecipe as Recipe);
+    if (categoryIds.length > 0) {
+      await updateDoc(doc(db, 'recipes', id), { categoryIds });
+      return { ...newRecipe, categoryIds } as Recipe;
+    }
+    
     return newRecipe as Recipe;
   }
   
@@ -582,11 +628,181 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const updated = { ...existing, ...normalizedUpdates, imagePath };
     await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(updated));
     
+    // Auto-categorise the recipe as a post-processing step
+    const categoryIds = await this.categorizeRecipe(updated as Recipe);
+    if (categoryIds.length > 0) {
+      await updateDoc(doc(db, 'recipes', id), { categoryIds });
+      return { ...updated, categoryIds } as Recipe;
+    }
+    
     return updated as Recipe;
   }
   
   async deleteRecipe(id: string): Promise<void> {
     await deleteDoc(doc(db, 'recipes', id));
+  }
+
+  // -- RECIPE CATEGORIZATION --
+  async getCategories(): Promise<RecipeCategory[]> {
+    const snapshot = await getDocs(collection(db, 'categories'));
+    const categories: RecipeCategory[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      categories.push({
+        ...data,
+        id: doc.id
+      } as RecipeCategory);
+    });
+    
+    return categories;
+  }
+
+  async getCategory(id: string): Promise<RecipeCategory | null> {
+    const docRef = doc(db, 'categories', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      return null;
+    }
+    
+    const data = this.convertTimestamps(docSnap.data());
+    return {
+      ...data,
+      id: docSnap.id
+    } as RecipeCategory;
+  }
+
+  async createCategory(category: Omit<RecipeCategory, 'id' | 'createdAt'>): Promise<RecipeCategory> {
+    const now = new Date().toISOString();
+    const newCat: any = {
+      ...category,
+      createdAt: now
+    };
+
+    // Remove undefined values - Firebase doesn't allow them
+    Object.keys(newCat).forEach(key => {
+      if (newCat[key] === undefined) {
+        delete newCat[key];
+      }
+    });
+
+    const docRef = doc(collection(db, 'categories'));
+    await setDoc(docRef, newCat);
+
+    return {
+      ...newCat,
+      id: docRef.id
+    } as RecipeCategory;
+  }
+
+  async updateCategory(id: string, updates: Partial<RecipeCategory>): Promise<RecipeCategory> {
+    const docRef = doc(db, 'categories', id);
+    
+    // Remove undefined values - Firebase doesn't allow them
+    const cleanUpdates: any = { ...updates };
+    Object.keys(cleanUpdates).forEach(key => {
+      if (cleanUpdates[key] === undefined) {
+        delete cleanUpdates[key];
+      }
+    });
+    
+    await updateDoc(docRef, cleanUpdates);
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Category ${id} not found after update`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as RecipeCategory;
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    // Get all recipes that use this category
+    const recipesSnapshot = await getDocs(collection(db, 'recipes'));
+    const batch = writeBatch(db);
+    
+    // Delete the category
+    batch.delete(doc(db, 'categories', id));
+    
+    // Remove category from all recipes that use it
+    recipesSnapshot.forEach((recipeDoc) => {
+      const data = recipeDoc.data();
+      if (data.categoryIds && Array.isArray(data.categoryIds) && data.categoryIds.includes(id)) {
+        const updatedCategoryIds = data.categoryIds.filter((catId: string) => catId !== id);
+        batch.update(doc(db, 'recipes', recipeDoc.id), { categoryIds: updatedCategoryIds });
+      }
+    });
+    
+    await batch.commit();
+  }
+
+  // -- TAG SUGGESTIONS (Category Admin Review Queue) --
+  async createTagSuggestion(suggestion: Omit<RecipeTagSuggestion, 'id' | 'createdAt'>): Promise<RecipeTagSuggestion> {
+    const now = new Date().toISOString();
+    const newSuggestion = {
+      ...suggestion,
+      createdAt: now
+    };
+
+    const docRef = doc(collection(db, 'category_suggestions'));
+    await setDoc(docRef, newSuggestion);
+
+    return {
+      ...newSuggestion,
+      id: docRef.id
+    } as RecipeTagSuggestion;
+  }
+
+  async getTagSuggestions(): Promise<RecipeTagSuggestion[]> {
+    const snapshot = await getDocs(collection(db, 'category_suggestions'));
+    const suggestions: RecipeTagSuggestion[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      suggestions.push({
+        ...data,
+        id: doc.id
+      } as RecipeTagSuggestion);
+    });
+    
+    return suggestions;
+  }
+
+  async approveTagSuggestion(id: string): Promise<RecipeTagSuggestion> {
+    const docRef = doc(db, 'category_suggestions', id);
+    await updateDoc(docRef, { status: 'approved' });
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Suggestion ${id} not found after approval`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as RecipeTagSuggestion;
+  }
+
+  async rejectTagSuggestion(id: string): Promise<RecipeTagSuggestion> {
+    const docRef = doc(db, 'category_suggestions', id);
+    await updateDoc(docRef, { status: 'rejected' });
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Suggestion ${id} not found after rejection`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as RecipeTagSuggestion;
   }
 
   // -- INVENTORY (KITCHEN KIT) --
@@ -659,7 +875,8 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       const data = docSnap.data() as KitchenSettings;
       return {
         directives: data.directives || '',
-        debugEnabled: data.debugEnabled || false
+        debugEnabled: data.debugEnabled || false,
+        userOrder: data.userOrder
       };
     }
     return { directives: '', debugEnabled: false };

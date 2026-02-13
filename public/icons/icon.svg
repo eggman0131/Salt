@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Orange background -->
+  <rect width="512" height="512" fill="#ea580c" rx="80"/>
+  
+  <!-- White text "SALT" -->
+  <text x="256" y="320" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="140" font-weight="900" fill="white" text-anchor="middle" letter-spacing="-5">SALT</text>
+  
+  <!-- Decorative chef hat -->
+  <g transform="translate(256, 140)">
+    <ellipse cx="0" cy="0" rx="80" ry="30" fill="white" opacity="0.2"/>
+    <rect x="-60" y="-10" width="120" height="40" fill="white" opacity="0.3" rx="5"/>
+    <path d="M -70,-10 Q -70,-60 -40,-70 Q -20,-80 0,-75 Q 20,-80 40,-70 Q 70,-60 70,-10 Z" fill="white" opacity="0.3"/>
+  </g>
+</svg>

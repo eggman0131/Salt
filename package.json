@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
+    "dev:all": "bash -c \"npm run emulators & npm run dev\"",
     "emulators:export": "firebase emulators:export ./emulator-data",
     "emulators:import": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
     "parity": "node scripts/parity-check.mjs",
@@ -31,6 +32,7 @@
     "autoprefixer": "^10.4.24",
     "firebase-admin": "^13.6.1",
     "postcss": "^8.5.6",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
     "vite": "^6.0.0"
