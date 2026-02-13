@@ -21,7 +21,8 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
   const [userInput, setUserInput] = useState('');
   const [recipeUrl, setRecipeUrl] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'finalizing' | 'organizing' | 'imaging'>('idle');
+  const [status, setStatus] = useState<'idle' | 'finalising' | 'organising' | 'imaging' | 'categorising'>('idle');
+  const [progressMessage, setProgressMessage] = useState('');
 
   const hasSentInitial = useRef(false);
   
@@ -80,14 +81,16 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     if (status !== 'idle' || messages.length < 2) return;
     
     try {
-      setStatus('finalizing');
+      setStatus('finalising');
+      setProgressMessage('Summarising your discussion...');
       const consensusResponse = await saltBackend.summarizeAgreedRecipe(messages);
       const cleanedConsensus = sanitizeJson(consensusResponse);
       const { consensusDraft } = JSON.parse(cleanedConsensus);
       
       await new Promise(r => setTimeout(r, 500));
 
-      setStatus('organizing');
+      setStatus('organising');
+      setProgressMessage('Building your recipe...');
       const recipeData = await saltBackend.generateRecipeFromPrompt(
         consensusDraft || "A professional recipe based on the agreed plan.",
         undefined,
@@ -97,8 +100,11 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       await new Promise(r => setTimeout(r, 500));
 
       setStatus('imaging');
+      setProgressMessage('Generating photograph...');
       const imageData = await saltBackend.generateRecipeImage(recipeData.title || 'Dish');
       
+      setStatus('categorising');
+      setProgressMessage('Categorising recipe...');
       await saltBackend.createRecipe({
         ...recipeData,
         ingredients: recipeData.ingredients || [],
@@ -115,10 +121,11 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
 
       onRecipeGenerated();
     } catch (err) {
-      console.error("Salt Finalization Error:", err);
-      alert("Encountered an issue finalizing the recipe. Please try again in a moment.");
+      console.error("Salt Finalisation Error:", err);
+      alert("Encountered an issue finalising the recipe. Please try again in a moment.");
     } finally {
       setStatus('idle');
+      setProgressMessage('');
     }
   };
 
@@ -126,7 +133,8 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     if (!recipeUrl.trim() || isTyping || status !== 'idle') return;
     
     setIsTyping(true);
-    setStatus('organizing');
+    setStatus('organising');
+    setProgressMessage('Importing recipe...');
     
     try {
       // Import recipe from URL
@@ -142,9 +150,12 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       
       // Generate image
       setStatus('imaging');
+      setProgressMessage('Generating photograph...');
       const imageData = await saltBackend.generateRecipeImage(importedRecipe.title || 'Dish');
       
       // Save to recipes
+      setStatus('categorising');
+      setProgressMessage('Categorising recipe...');
       await saltBackend.createRecipe({
         ...importedRecipe,
         ingredients: importedRecipe.ingredients || [],
@@ -171,6 +182,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     } finally {
       setIsTyping(false);
       setStatus('idle');
+      setProgressMessage('');
     }
   };
 
@@ -194,8 +206,30 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
               <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
             </div>
             <div className="space-y-2">
-              <h4 className="text-lg font-semibold text-gray-900">Preparing Recipe</h4>
-              <p className="text-sm text-gray-500">Finalizing your recipe. Please wait.</p>
+              <h4 className="text-lg font-semibold text-gray-900">Finalising Recipe</h4>
+              <div className="flex items-center justify-center h-6">
+                <p className="text-sm text-gray-600 font-medium transition">
+                  {progressMessage || 'Preparing...'}
+                </p>
+              </div>
+              <div className="pt-2 space-y-1">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className={`w-2 h-2 rounded-full ${status === 'finalising' ? 'bg-orange-500' : 'bg-gray-300'}`} />
+                  Summarising discussion
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className={`w-2 h-2 rounded-full ${status === 'organising' ? 'bg-orange-500' : 'bg-gray-300'}`} />
+                  Building recipe
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className={`w-2 h-2 rounded-full ${status === 'imaging' ? 'bg-orange-500' : 'bg-gray-300'}`} />
+                  Generating photograph
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className={`w-2 h-2 rounded-full ${status === 'categorising' ? 'bg-orange-500' : 'bg-gray-300'}`} />
+                  Categorising recipe
+                </div>
+              </div>
             </div>
           </Card>
         </div>
