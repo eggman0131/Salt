@@ -354,3 +354,126 @@ export const cloudFetchRecipeUrl = functions.https.onCall(
     }
   }
 );
+
+/**
+ * Fallback HTTP endpoint for fetching recipe URLs (for custom domains with CORS issues)
+ * Accessible via: POST /cloudFetchRecipeUrlHttp with body: { idToken, url }
+ */
+export const cloudFetchRecipeUrlHttp = functions.https.onRequest(
+  functionsConfig,
+  async (req, res) => {
+    // Set CORS headers explicitly
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(400).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    try {
+      const { idToken, url } = req.body;
+
+      if (!idToken) {
+        res.status(400).json({ error: 'Missing idToken' });
+        return;
+      }
+      if (!url || typeof url !== 'string') {
+        res.status(400).json({ error: 'Missing or invalid url' });
+        return;
+      }
+
+      // Validate user is authenticated
+      const user = await validateRequest(idToken);
+      console.log(`[fetchRecipeUrlHttp] User authenticated: ${user.email}, URL: ${url}`);
+
+      // Check if user exists in Firestore
+      const userExists = await checkUserExists(user.email);
+      if (!userExists) {
+        res.status(403).json({
+          error: 'User not found in system. Kitchen Access Denied.'
+        });
+        return;
+      }
+
+      // Fetch the URL
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Salt Kitchen System/1.0)',
+        },
+      });
+
+      if (!response.ok) {
+        res.status(response.status).json({
+          error: `HTTP ${response.status}: ${response.statusText}`
+        });
+        return;
+      }
+
+      const html = await response.text();
+      
+      // Try to extract JSON-LD recipe schema
+      const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+      
+      if (jsonLdMatches) {
+        for (const match of jsonLdMatches) {
+          const jsonContent = match.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '');
+          try {
+            const data = JSON.parse(jsonContent);
+            const recipes = Array.isArray(data) ? data : [data];
+            
+            for (const item of recipes) {
+              if (item['@type'] === 'Recipe' || item.recipeIngredient || item.recipeInstructions) {
+                const title = item.name || item.headline || '';
+                const ingredients = item.recipeIngredient || [];
+                let instructions: string[] = [];
+                
+                if (Array.isArray(item.recipeInstructions)) {
+                  instructions = item.recipeInstructions.map((step: any) => {
+                    if (typeof step === 'string') return step;
+                    if (step.text) return step.text;
+                    if (step.name) return step.name;
+                    return '';
+                  }).filter(Boolean);
+                } else if (typeof item.recipeInstructions === 'string') {
+                  instructions = [item.recipeInstructions];
+                }
+                
+                const formatted = `TITLE: ${title}\n\nINGREDIENTS:\n${ingredients.join('\n')}\n\nINSTRUCTIONS:\n${instructions.join('\n')}`;
+                console.log(`[fetchRecipeUrlHttp] Successfully extracted recipe via JSON-LD`);
+                res.set('Content-Type', 'application/json');
+                res.json({ success: true, data: formatted });
+                return;
+              }
+            }
+          } catch (e) {
+            // Skip malformed JSON-LD
+            console.log(`[fetchRecipeUrlHttp] Failed to parse JSON-LD block:`, e);
+          }
+        }
+      }
+
+      // Fallback: return raw HTML for AI to parse
+      console.log(`[fetchRecipeUrlHttp] No JSON-LD found, returning raw HTML`);
+      // Strip scripts and styles to reduce noise
+      const cleaned = html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+
+      res.set('Content-Type', 'application/json');
+      res.json({ success: true, data: cleaned });
+    } catch (error) {
+      console.error('[fetchRecipeUrlHttp] Error:', error);
+      res.status(500).json({
+        error: `Failed to retrieve content from URL: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
+  }
+);
