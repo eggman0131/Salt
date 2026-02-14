@@ -234,6 +234,8 @@ export interface ISaltBackend {
   updateShoppingListName(listId: string, newName: string): Promise<ShoppingList>;
   deleteShoppingList(listId: string): Promise<void>;
   setDefaultShoppingList(listId: string): Promise<void>;
+  // Admin: retrieve all shopping lists across users (used for full backups)
+  getAllShoppingLists(): Promise<ShoppingList[]>;
   addShoppingListItem(listId: string, item: Omit<ShoppingListItem, 'id' | 'addedAt'>): Promise<ShoppingListItem>;
   toggleShoppingListItem(listId: string, itemId: string, checked: boolean): Promise<void>;
   removeShoppingListItem(listId: string, itemId: string): Promise<void>;

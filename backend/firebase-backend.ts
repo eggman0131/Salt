@@ -2,7 +2,7 @@ import { User, Recipe, Equipment, Plan, KitchenSettings, RecipeCategory, Ingredi
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, storage, functions } from './firebase';
 import { debugLogger } from './debug-logger';
-import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch, Timestamp, runTransaction } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch, Timestamp, runTransaction, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { isSignInWithEmailLink, sendSignInLinkToEmail, signInWithEmailLink, signOut, onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
@@ -910,6 +910,9 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     await this.clearCollection('recipes');
     await this.clearCollection('users');
     await this.clearCollection('plans');
+    await this.clearCollection('categories');
+    await this.clearCollection('ingredientKnowledgebase');
+    await this.clearCollection('shoppingLists');
     await deleteDoc(doc(db, 'settings', 'global'));
 
     // Batch write imports in chunks
@@ -959,6 +962,33 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       for (const plan of data.plans) {
         const docRef = doc(db, 'plans', plan.id);
         batch.set(docRef, plan);
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.categories) {
+      for (const cat of data.categories) {
+        const docRef = doc(db, 'categories', cat.id);
+        batch.set(docRef, cat);
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.ingredientKnowledgebase) {
+      for (const kb of data.ingredientKnowledgebase) {
+        const docRef = doc(db, 'ingredientKnowledgebase', kb.id);
+        batch.set(docRef, kb);
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.shoppingLists) {
+      for (const list of data.shoppingLists) {
+        const docRef = doc(db, 'shoppingLists', list.id);
+        batch.set(docRef, list);
         count += 1;
         await commitIfNeeded();
       }
@@ -1075,6 +1105,35 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     return { ...result, id: docRef.id };
   }
 
+  // Batch save multiple classified ingredients to knowledgebase (called after batch AI classification)
+  async saveBatchClassifiedIngredients(classifiedIngredients: any[]): Promise<void> {
+    if (!classifiedIngredients || classifiedIngredients.length === 0) return;
+
+    let batch = writeBatch(db);
+    let count = 0;
+
+    for (const classified of classifiedIngredients) {
+      const docRef = doc(collection(db, 'ingredientKnowledgebase'));
+      batch.set(docRef, classified);
+      count += 1;
+
+      if (count >= 450) {
+        await batch.commit();
+        batch = writeBatch(db);
+        count = 0;
+      }
+    }
+
+    if (count > 0) {
+      await batch.commit();
+    }
+  }
+
+  // Async wrapper for base class (fire and forget)
+  protected saveBatchClassifiedIngredientsAsync(classifiedIngredients: any[]): Promise<void> {
+    return this.saveBatchClassifiedIngredients(classifiedIngredients);
+  }
+
   async updateIngredientMapping(id: string, updates: Partial<any>): Promise<any> {
     const docRef = doc(db, 'ingredientKnowledgebase', id);
     const updatedData = {
@@ -1107,6 +1166,15 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       where('userId', '==', this.currentUser.id)
     );
     const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => {
+      const data = this.convertTimestamps(doc.data());
+      return { ...data, id: doc.id };
+    });
+  }
+
+  // Admin helper: return all shopping lists (no user filter)
+  async getAllShoppingLists(): Promise<any[]> {
+    const snapshot = await getDocs(collection(db, 'shoppingLists'));
     return snapshot.docs.map(doc => {
       const data = this.convertTimestamps(doc.data());
       return { ...data, id: doc.id };
@@ -1251,14 +1319,54 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     }
 
     const kb = await this.getIngredientKnowledgebase();
+
+    // Keep a snapshot of original items so we can detect modified items
+    const origItems = (list.items || []).map((it: any) => ({ ...it }));
+
     const newItems = await this.addRecipeToListLogic(recipe, kb, list);
 
-    const updatedItems = [...list.items, ...newItems];
+    const docRef = doc(db, 'shoppingLists', list.id);
+    const now = new Date().toISOString();
 
-    await updateDoc(doc(db, 'shoppingLists', list.id), {
-      items: updatedItems,
-      updatedAt: new Date().toISOString(),
-    });
+    // Detect existing items that were modified by addRecipeToListLogic (quantity or recipeIds changed)
+    const modifiedPairs: Array<{ oldObj: any; newObj: any }> = [];
+    for (const newItem of list.items || []) {
+      const orig = origItems.find((o: any) => o.id === newItem.id);
+      if (orig) {
+        const qtyChanged = orig.quantity !== newItem.quantity;
+        const recipeIdsChanged = JSON.stringify(orig.recipeIds || []) !== JSON.stringify(newItem.recipeIds || []);
+        if (qtyChanged || recipeIdsChanged) {
+          modifiedPairs.push({ oldObj: orig, newObj: newItem });
+        }
+      }
+    }
+
+    // Apply updates using arrayUnion/arrayRemove to avoid sending entire array payload
+    try {
+      const ops: Promise<any>[] = [];
+
+      if (newItems && newItems.length > 0) {
+        ops.push(updateDoc(docRef, { items: arrayUnion(...newItems), updatedAt: now }));
+      }
+
+      for (const pair of modifiedPairs) {
+        // Remove old object then add updated object
+        ops.push(updateDoc(docRef, { items: arrayRemove(pair.oldObj) }));
+        ops.push(updateDoc(docRef, { items: arrayUnion(pair.newObj) }));
+      }
+
+      if (ops.length > 0) await Promise.all(ops);
+    } catch (err) {
+      // Fallback: some emulators / SDK versions may reject array transforms for complex objects.
+      // In that case, replace the full items array (original behaviour).
+      try {
+        const updatedItems = [...(list.items || []), ...(newItems || [])];
+        await updateDoc(docRef, { items: updatedItems, updatedAt: now });
+      } catch (err2) {
+        debugLogger.error('addRecipeToShoppingList', 'Failed to update shopping list (both optimized and fallback):', err2);
+        throw err2;
+      }
+    }
   }
 
   async clearCheckedItems(listId: string): Promise<void> {
