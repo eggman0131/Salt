@@ -38,6 +38,12 @@ const isProductionHosting =
   host.endsWith('.web.app') ||
   host.endsWith('.firebaseapp.com');
 
+const isCustomDomain =
+  !isLocalhost &&
+  !isCloudIDE &&
+  !host.startsWith('localhost') &&
+  location.protocol === 'https:';
+
 let env = 'unknown';
 
 // ---------------------------------------------------------------------------
@@ -104,8 +110,8 @@ else if (isCloudIDE) {
 // PRODUCTION HOSTING → NEVER EMULATORS
 // ---------------------------------------------------------------------------
 
-else if (isProductionHosting) {
-  env = 'production-hosting';
+else if (isProductionHosting || isCustomDomain) {
+  env = isCustomDomain ? 'custom-domain-production' : 'production-hosting';
 
   try {
     db = initializeFirestore(app, {
