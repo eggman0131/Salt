@@ -147,180 +147,167 @@ export const RecipesList: React.FC<RecipesListProps> = ({ recipes, onSelectRecip
           <div className="space-y-3 md:space-y-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div className="flex flex-row md:items-center gap-2 w-full">
-                <Input
-                  placeholder="Search recipes..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="flex-1"
-                />
-                <Button variant="neutral" onClick={onNewRecipe} className="shrink-0 hidden md:inline-flex">
-                  New Recipe
-                </Button>
+                <div className="relative flex-1">
+                  <Input 
+                    placeholder="Search recipes..." 
+                    value={search} 
+                    onChange={e => setSearch(e.target.value)}
+                    className="pl-12 font-sans h-12 text-base shadow-sm border border-gray-200 bg-gray-50 focus:border-orange-500 focus:ring-orange-50 rounded-md cursor-text"
+                  />
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  </span>
+                </div>
+                <button 
+                  onClick={onNewRecipe} 
+                  className="bg-orange-600 text-white rounded-md h-12 px-4 font-medium hover:bg-orange-700 transition shadow-sm flex items-center justify-center gap-2 shrink-0"
+                  title="New Recipe"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  <span className="hidden md:inline">New Recipe</span>
+                </button>
               </div>
-              <Button 
-                variant="neutral" 
-                onClick={() => setFiltersOpen(!filtersOpen)} 
-                className="md:hidden w-full"
-              >
-                {filtersOpen ? 'Hide' : 'Show'} Filters
-              </Button>
+              <div className="flex gap-2 w-full md:w-auto md:h-12">
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen(open => !open)}
+                  className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-gray-50 rounded-md shadow-sm text-sm text-gray-700 flex-1 md:flex-none md:min-w-[150px] md:h-full"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18M7 12h10M10 19h4"/></svg>
+                  Filters
+                </button>
+                <div className="relative flex-1 md:flex-none md:min-w-[150px]">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="w-full h-full px-3 py-2 pr-8 rounded-md text-sm font-semibold bg-gray-50 text-gray-700 border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-100 appearance-none"
+                  >
+                    <option value="newest">Newest</option>
+                    <option value="name">A–Z</option>
+                    <option value="quick">Quick</option>
+                  </select>
+                  <svg
+                    className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M5.25 7.25L10 12l4.75-4.75" />
+                  </svg>
+                </div>
+              </div>
             </div>
 
-            {filtersOpen && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <Label>Sort By</Label>
-                  <div className="flex gap-2 mt-1 flex-wrap">
-                    {(['newest', 'name', 'quick'] as const).map(opt => (
-                      <button
-                        key={opt}
-                        onClick={() => setSortBy(opt)}
-                        className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                          sortBy === opt 
-                            ? 'bg-gray-900 text-white' 
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {opt === 'newest' ? 'Newest' : opt === 'name' ? 'Name' : 'Quickest'}
-                      </button>
-                    ))}
-                  </div>
+            <div className={`${filtersOpen ? 'flex' : 'hidden'} items-center gap-2 flex-wrap bg-gray-50 rounded-md shadow-sm p-4 w-full`}> 
+                <div className="flex gap-2 flex-wrap w-full">
+                  {(['all', 'Simple', 'Intermediate', 'Advanced'] as const).map(level => (
+                    <button
+                      key={level}
+                      onClick={() => setComplexityFilter(level as ComplexityFilter)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide transition-all border ${
+                        complexityFilter === level
+                          ? 'bg-orange-100 text-orange-700 border-orange-200 shadow-sm'
+                          : 'bg-gray-100 text-gray-700 border-transparent hover:bg-gray-200'
+                      }`}
+                    >
+                      {level === 'all' ? 'All' : level}
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <Label>Complexity</Label>
-                  <div className="flex gap-2 mt-1 flex-wrap">
-                    {(['all', 'Simple', 'Intermediate', 'Advanced'] as const).map(opt => (
-                      <button
-                        key={opt}
-                        onClick={() => setComplexityFilter(opt)}
-                        className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                          complexityFilter === opt 
-                            ? 'bg-gray-900 text-white' 
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {opt === 'all' ? 'All' : opt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {availableCategoryIds.size > 0 && (
-              <div>
-                <Label>Filter by Category</Label>
-                <div className="flex gap-2 mt-1 flex-wrap">
-                  {Array.from(availableCategoryIds).map(catId => {
-                    const isSelected = selectedCategories.has(catId);
-                    return (
+                {/* Category filters */}
+                {categories.length > 0 && (
+                  <div className="flex gap-2 flex-wrap w-full border-t border-gray-300 pt-3 mt-2">
+                    {categories.filter(cat => availableCategoryIds.has(cat.id)).map(cat => (
                       <button
-                        key={catId}
-                        onClick={() => toggleCategoryFilter(catId)}
-                        className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                          isSelected 
-                            ? 'bg-blue-600 text-white' 
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        key={cat.id}
+                        onClick={() => toggleCategoryFilter(cat.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                          selectedCategories.has(cat.id)
+                            ? 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm'
+                            : 'bg-gray-100 text-gray-700 border-transparent hover:bg-gray-200'
                         }`}
                       >
-                        {getCategoryName(catId)}
+                        {cat.name}
                       </button>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
+
               </div>
-            )}
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((recipe) => (
-            <Card
-              key={recipe.id}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 md:mt-0">
+          {filtered.map(recipe => (
+            <Card 
+              key={recipe.id} 
+              className="cursor-pointer bg-white border-l-4 border-l-orange-600 border-y border-r border-gray-200 shadow-sm hover:bg-orange-50 transition flex flex-col overflow-hidden hover:shadow-md group"
               onClick={() => onSelectRecipe(recipe)}
-              className="group cursor-pointer transition-transform active:scale-[0.98] flex flex-col"
             >
-              <div className="mb-3 relative">
-                <div className="aspect-video bg-gray-100 rounded-md overflow-hidden">
-                  {recipe.imagePath ? (
-                    <RemoteImage 
-                      path={recipe.imagePath}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      alt={recipe.title}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs font-bold uppercase tracking-widest">
-                      No Image
-                    </div>
-                  )}
+              <div className="aspect-video bg-gray-100 relative overflow-hidden">
+                {recipe.imagePath ? (
+                  <RemoteImage path={recipe.imagePath} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={recipe.title} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs uppercase tracking-wide">No Image</div>
+                )}
+                <div className="absolute top-3 left-3 flex flex-wrap gap-2">
+                  <span className="inline-block rounded-full bg-orange-100 text-orange-700 text-xs px-3 py-1 font-semibold shadow-sm">
+                    {recipe.complexity}
+                  </span>
+                  <span className="inline-block rounded-full bg-white/90 text-gray-800 text-xs px-3 py-1 font-semibold shadow-sm">
+                    {recipe.totalTime}
+                  </span>
+                </div>
+              </div>
+              <div className="p-4 md:p-6 space-y-3 flex-1 flex flex-col">
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>{getRelativeTime(recipe.createdAt)}</span>
+                  <span className="inline-flex items-center gap-1 text-orange-700 font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-orange-500" />
+                    {formatServings(recipe.servings)}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 leading-tight group-hover:text-orange-700 transition-colors">{recipe.title}</h3>
+                  <p className="text-sm text-gray-600 line-clamp-2">{recipe.description}</p>
                 </div>
                 {recipe.categoryIds && recipe.categoryIds.length > 0 && (
-                  <div className="absolute top-2 left-2 flex flex-wrap gap-1">
-                    {recipe.categoryIds.slice(0, 2).map(catId => (
-                      <span 
+                  <div className="flex flex-wrap gap-1.5 pt-1 mt-auto">
+                    {recipe.categoryIds.slice(0, 3).map(catId => (
+                      <button
                         key={catId}
-                        className="bg-blue-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleCategoryFilter(catId);
+                        }}
+                        className={`px-2 py-0.5 rounded text-xs font-medium border transition cursor-pointer ${
+                          selectedCategories.has(catId)
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100'
+                        }`}
                       >
                         {getCategoryName(catId)}
-                      </span>
+                      </button>
                     ))}
-                    {recipe.categoryIds.length > 2 && (
-                      <span className="bg-blue-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                        +{recipe.categoryIds.length - 2}
+                    {recipe.categoryIds.length > 3 && (
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                        +{recipe.categoryIds.length - 3}
                       </span>
                     )}
                   </div>
                 )}
-              </div>
-              
-              <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-gray-700 transition-colors">
-                {recipe.title}
-              </h3>
-              
-              <p className="text-xs text-gray-600 mb-3 line-clamp-2 flex-1">
-                {recipe.description}
-              </p>
-              
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 pt-3 border-t border-gray-100">
-                <div className="flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>{recipe.totalTime}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  <span>{formatServings(recipe.servings)}</span>
-                </div>
-                <div className="flex items-center gap-1 col-span-2">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span className="capitalize">{recipe.complexity}</span>
-                  <span className="mx-1">•</span>
-                  <span className="text-gray-400">{getRelativeTime(recipe.createdAt)}</span>
-                </div>
               </div>
             </Card>
           ))}
         </div>
 
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-gray-400">
-            <p className="text-lg mb-2">No recipes found</p>
-            <p className="text-sm">Try adjusting your search or filters</p>
+          <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+            <svg className="w-24 h-24 mb-6 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            <p className="text-2xl font-medium mb-2">No Recipes Found</p>
+            <p className="text-base">Adjust your search or create a new recipe.</p>
           </div>
         )}
-
-        <Button 
-          variant="neutral" 
-          onClick={onNewRecipe} 
-          className="md:hidden w-full sticky bottom-4"
-        >
-          New Recipe
-        </Button>
       </div>
     </div>
   );
