@@ -14,6 +14,7 @@ import { AdminModule } from './components/AdminModule';
 import { AIModule } from './components/AIModule';
 import { PlannerModule } from './components/PlannerModule';
 import { KitchenDataModule } from './components/KitchenDataModule';
+import { ImportMFPRecipeModal } from './components/RecipeModals/ImportMFPRecipeModal';
 
 type AppState = 'landing' | 'login' | 'dashboard' | 'loading';
 
@@ -41,6 +42,7 @@ const App: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('salt_last_sync'));
   const [aiInitialMessage, setAiInitialMessage] = useState<string | undefined>(undefined);
+  const [showImportRecipeModal, setShowImportRecipeModal] = useState(false);
 
   // Ref for sidebar suggestions counter update
   const suggestionsCountRef = React.useRef<(() => void) | null>(null);
@@ -161,6 +163,15 @@ const App: React.FC = () => {
     setView('landing');
   };
 
+  const handleImportRecipeSubmit = (title: string, servings: string, ingredients: string) => {
+    // Create the prompt for AI module with enforced title
+    const prompt = `You MUST create a recipe called "${title}". The dish name must remain exactly "${title}". Create a recipe for ${title}, ${servings} servings, use the following ingredients exactly:\n${ingredients}`;
+    
+    setAiInitialMessage(prompt);
+    setShowImportRecipeModal(false);
+    setActiveTab('ai');
+  };
+
   if (view === 'loading') return null;
   if (view === 'landing') return <LandingPage onStart={() => setView('login')} />;
   if (view === 'login') return <LoginPage onLoginSuccess={handleLoginSuccess} />;
@@ -277,7 +288,18 @@ const App: React.FC = () => {
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Chef Executive</p>
                 <div className="h-px flex-1 bg-gray-100 ml-4" />
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <button 
+                  onClick={() => setShowImportRecipeModal(true)}
+                  className="p-4 bg-white border border-gray-200 rounded-xl hover:border-orange-300 hover:bg-orange-50 transition-all text-left group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M12 4v16m8-8H4"/></svg>
+                  </div>
+                  <p className="text-xs font-bold text-gray-900 mb-1">Import MFP Recipe</p>
+                  <p className="text-[10px] text-gray-500 font-medium">Quick import</p>
+                </button>
+
                 <button 
                   onClick={() => {
                     setAiInitialMessage("Suggest a dinner recipe based on my current equipment and typical style.");
@@ -388,6 +410,13 @@ const App: React.FC = () => {
               loadData(); 
               setActiveTab('recipes'); 
             }} 
+          />
+        )}
+
+        {showImportRecipeModal && (
+          <ImportMFPRecipeModal
+            onSubmit={handleImportRecipeSubmit}
+            onCancel={() => setShowImportRecipeModal(false)}
           />
         )}
       </DashboardLayout>
