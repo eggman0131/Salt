@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, Button, Input, Label, ErrorBoundary } from './UI';
 import { ImageEditor } from './ImageEditor';
 import { CookMode } from './CookMode';
-import { Recipe, Equipment, RecipeHistoryEntry, User, RecipeCategory } from '../types/contract';
+import { Recipe, Equipment, RecipeHistoryEntry, User, RecipeCategory, RecipeSchema } from '../types/contract';
 import { saltBackend, sanitizeJson } from '../backend/api';
 import { marked } from 'marked';
 import { buildManualEditSummary, createHistoryEntry, applyCategoryChange } from '../backend/recipe-updates';
@@ -26,6 +26,7 @@ import { RecipeEditModeBar } from './RecipeSections/RecipeEditModeBar';
 import { RecipeTabNavigation } from './RecipeSections/RecipeTabNavigation';
 import { WorkflowAdviceSection } from './RecipeSections/WorkflowAdviceSection';
 import { RecipeHistorySection } from './RecipeSections/RecipeHistorySection';
+import { EditableMetadataSection } from './RecipeSections/EditableMetadataSection';
 
 export interface RecipeDetailProps {
   recipe: Recipe;
@@ -278,11 +279,25 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     }
   };
 
+  const handleMetadataChange = (field: 'prepTime' | 'cookTime' | 'totalTime' | 'servings' | 'complexity', value: string) => {
+    if (!editedRecipe) return;
+    setEditedRecipe({ ...editedRecipe, [field]: value });
+  };
+
   const handleSaveEdits = async () => {
     if (!editedRecipe) return;
     
     setIsUpdating(true);
     try {
+      // Validate against contract schema
+      const validationResult = RecipeSchema.safeParse(editedRecipe);
+      if (!validationResult.success) {
+        const errors = validationResult.error.issues.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
+        alert(`Validation failed: ${errors}`);
+        setIsUpdating(false);
+        return;
+      }
+
       // Generate detailed change description
       const editSummary = buildManualEditSummary(recipe, editedRecipe);
       
@@ -609,7 +624,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
 
                 {/* At a Glance - Desktop */}
                 <div className="hidden lg:block mt-3">
-                  <AtAGlanceSection recipe={recipe} />
+                  {isEditing && editedRecipe ? (
+                    <EditableMetadataSection
+                      editedRecipe={editedRecipe}
+                      onMetadataChange={handleMetadataChange}
+                    />
+                  ) : (
+                    <AtAGlanceSection recipe={recipe} />
+                  )}
                 </div>
 
                 {/* Two Column Layout */}
@@ -628,7 +650,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
 
                     {/* At a Glance - Mobile */}
                     <div className="lg:hidden mb-2">
-                      <AtAGlanceSection recipe={recipe} />
+                      {isEditing && editedRecipe ? (
+                        <EditableMetadataSection
+                          editedRecipe={editedRecipe}
+                          onMetadataChange={handleMetadataChange}
+                        />
+                      ) : (
+                        <AtAGlanceSection recipe={recipe} />
+                      )}
                     </div>
 
                     <RecipeIngredientsSection
