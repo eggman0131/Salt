@@ -373,7 +373,12 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   };
 
   const renderMarkdown = (text: string) => {
-    try { return { __html: marked.parse(text) }; } catch (e) { return { __html: text }; }
+    try { 
+      const result = marked.parse(text);
+      return { __html: typeof result === 'string' ? result : text }; 
+    } catch (e) { 
+      return { __html: text }; 
+    }
   };
 
   return (
