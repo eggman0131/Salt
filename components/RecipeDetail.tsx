@@ -325,7 +325,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     
     if (isEditing && editedRecipe) {
       const updatedCategoryIds = applyCategoryChange(editedRecipe, categoryId, 'add');
-      if (updatedCategoryIds !== editedRecipe.categoryIds) {
+      // Always update if the helper returned a different array
+      if (JSON.stringify(updatedCategoryIds) !== JSON.stringify(editedRecipe.categoryIds)) {
         setEditedRecipe({
           ...editedRecipe,
           categoryIds: updatedCategoryIds
@@ -333,7 +334,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
       }
     } else {
       const updatedCategoryIds = applyCategoryChange(recipe, categoryId, 'add');
-      if (updatedCategoryIds !== recipe.categoryIds) {
+      // Always update if the helper returned a different array
+      if (JSON.stringify(updatedCategoryIds) !== JSON.stringify(recipe.categoryIds)) {
         // Update local state immediately for instant UI feedback
         setRecipe({ ...recipe, categoryIds: updatedCategoryIds });
         // Persist in background
