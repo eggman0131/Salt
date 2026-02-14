@@ -5,7 +5,7 @@ import { CookMode } from './CookMode';
 import { Recipe, Equipment, RecipeHistoryEntry, User, RecipeCategory, RecipeSchema } from '../types/contract';
 import { saltBackend, sanitizeJson } from '../backend/api';
 import { marked } from 'marked';
-import { buildManualEditSummary, createHistoryEntry, applyCategoryChange } from '../backend/recipe-updates';
+import { buildManualEditSummary, createHistoryEntry, applyCategoryChange, scaleIngredients } from '../backend/recipe-updates';
 
 // Modal components
 import { ProposalModal } from './RecipeModals/ProposalModal';
@@ -99,6 +99,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const [editedRecipe, setEditedRecipe] = useState<Recipe | null>(null);
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
   const [showCategorySelector, setShowCategorySelector] = useState(false);
+  const [isServingsChanging, setIsServingsChanging] = useState(false);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -282,6 +283,26 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const handleMetadataChange = (field: 'prepTime' | 'cookTime' | 'totalTime' | 'servings' | 'complexity', value: string) => {
     if (!editedRecipe) return;
     setEditedRecipe({ ...editedRecipe, [field]: value });
+  };
+
+  const handleServingsAdjust = async (newServings: string) => {
+    // Scale ingredients and update recipe without creating history entry
+    const scaledIngredients = scaleIngredients(recipe.ingredients, recipe.servings, newServings);
+    
+    setIsServingsChanging(true);
+    try {
+      const updated = await saltBackend.updateRecipe(recipe.id, {
+        servings: newServings,
+        ingredients: scaledIngredients
+      });
+      setRecipe(updated);
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to adjust servings:', err);
+      alert('Failed to adjust servings.');
+    } finally {
+      setIsServingsChanging(false);
+    }
   };
 
   const handleSaveEdits = async () => {
@@ -630,7 +651,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                       onMetadataChange={handleMetadataChange}
                     />
                   ) : (
-                    <AtAGlanceSection recipe={recipe} />
+                    <AtAGlanceSection recipe={recipe} onServingsChange={handleServingsAdjust} isServingsChanging={isServingsChanging} />
                   )}
                 </div>
 
@@ -656,7 +677,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                           onMetadataChange={handleMetadataChange}
                         />
                       ) : (
-                        <AtAGlanceSection recipe={recipe} />
+                        <AtAGlanceSection recipe={recipe} onServingsChange={handleServingsAdjust} isServingsChanging={isServingsChanging} />
                       )}
                     </div>
 

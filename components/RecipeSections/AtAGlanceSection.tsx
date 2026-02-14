@@ -1,11 +1,43 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Recipe } from '../../types/contract';
 
 interface AtAGlanceSectionProps {
   recipe: Recipe;
+  onServingsChange?: (newServings: string) => void;
+  isServingsChanging?: boolean;
 }
 
-export const AtAGlanceSection: React.FC<AtAGlanceSectionProps> = ({ recipe }) => {
+export const AtAGlanceSection: React.FC<AtAGlanceSectionProps> = ({ recipe, onServingsChange, isServingsChanging = false }) => {
+  const [isAdjustingServings, setIsAdjustingServings] = useState(false);
+  const [servingsInput, setServingsInput] = useState(recipe.servings);
+
+  const handleServingsSubmit = () => {
+    if (servingsInput && servingsInput !== recipe.servings && onServingsChange) {
+      onServingsChange(servingsInput);
+      // Don't reset until the save completes (isServingsChanging becomes false)
+      return;
+    }
+    setIsAdjustingServings(false);
+    setServingsInput(recipe.servings);
+  };
+
+  const handleServingsCancel = () => {
+    setIsAdjustingServings(false);
+    setServingsInput(recipe.servings);
+  };
+
+  // Sync servings input when recipe updates (e.g., from server)
+  React.useEffect(() => {
+    setServingsInput(recipe.servings);
+  }, [recipe.servings]);
+
+  // Exit edit mode when save completes
+  React.useEffect(() => {
+    if (isAdjustingServings && !isServingsChanging) {
+      setIsAdjustingServings(false);
+    }
+  }, [isServingsChanging]);
+
   const getSiteFromUrl = (url: string): string => {
     try {
       return new URL(url).hostname.replace(/^www\./, '');
@@ -55,12 +87,33 @@ export const AtAGlanceSection: React.FC<AtAGlanceSectionProps> = ({ recipe }) =>
           </p>
           <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.totalTime}</p>
         </div>
-        <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
+        <div className={`p-2 rounded-md bg-orange-50/60 border transition-colors ${isAdjustingServings || isServingsChanging ? 'border-orange-300' : 'border-orange-100 group cursor-pointer hover:border-orange-200'}`} onClick={() => !isServingsChanging && onServingsChange && setIsAdjustingServings(true)}>
           <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="3" strokeWidth="2"/><circle cx="17" cy="9" r="2" strokeWidth="2"/></svg>
             Servings
           </p>
-          <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.servings}</p>
+          {isAdjustingServings ? (
+            <div className="mt-0.5 flex gap-0.5 items-center" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="text"
+                value={servingsInput}
+                onChange={(e) => setServingsInput(e.target.value)}
+                onBlur={handleServingsSubmit}
+                disabled={isServingsChanging}
+                className="w-12 h-5 text-xs px-1 border border-orange-300 rounded bg-white text-gray-900 text-center focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleServingsSubmit();
+                  if (e.key === 'Escape' && !isServingsChanging) handleServingsCancel();
+                }}
+              />
+              {isServingsChanging && (
+                <div className="w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+              )}
+            </div>
+          ) : (
+            <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.servings}</p>
+          )}
         </div>
         <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
           <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
