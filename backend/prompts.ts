@@ -235,3 +235,44 @@ Respond ONLY with valid JSON:
   "confidence": "number 0-1 (0.9+ = very confident, <0.6 = uncertain or new category)"
 }`;
 };
+
+export const ingredientBatchClassificationPrompt = (
+  ingredientNames: string[],
+  existingAisles: string[],
+  existingUnits: string[]
+): string => {
+  const aisleList = existingAisles.length > 0 ? existingAisles.join(', ') : 'Produce, Dairy & Eggs, Bakery, Frozen, Meat & Fish, Pantry & Dry Goods, Condiments & Oils, Beverages, Herbs & Spices, Other';
+  const unitList = existingUnits.length > 0 ? existingUnits.join(', ') : 'grams, kg, ml, litres, units, tins, loaves, bunches';
+
+  return `You are a UK supermarket expert. Classify the following ${ingredientNames.length} ingredients for a shopping list. Batch process efficiently.
+
+EXISTING AISLES (prefer these but can introduce new ones if truly necessary):
+${aisleList}
+
+EXISTING UNITS (prefer these but can introduce new ones if truly necessary):
+${unitList}
+
+INGREDIENTS TO CLASSIFY:
+${ingredientNames.map((name, idx) => `${idx + 1}. "${name}"`).join('\n')}
+
+INSTRUCTIONS:
+- Classify EACH ingredient individually
+- Prefer EXISTING aisles and units wherever possible (conservative approach)
+- Only introduce new aisles/units if truly necessary
+- Favour common standard values (e.g., "grams" over "g")
+- Use British English terminology and metric units only
+- Be fast and efficient
+
+Respond ONLY with valid JSON array (one object per ingredient, in same order as input):
+[
+  {
+    "ingredientName": "string (canonical singular lowercase form)",
+    "aliases": ["string", ...] (at least include the input name),
+    "aisleName": "string (existing aisle or new if necessary)",
+    "unitType": "string (existing unit or new if necessary)",
+    "isStoreCupboard": boolean,
+    "confidenceScore": number between 0 and 1
+  }
+  ... one object per ingredient, MUST match input order ...
+]`;
+};

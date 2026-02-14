@@ -118,13 +118,24 @@ const App: React.FC = () => {
       saltBackend.getPlans(),
       saltBackend.getKitchenSettings()
     ]);
-    const exportObj = { 
-      inventory: i, 
-      recipes: r, 
-      users: u, 
-      plans: p, 
+    const [cats, kb, shoppingLists] = await Promise.all([
+      saltBackend.getCategories(),
+      saltBackend.getIngredientKnowledgebase(),
+      // admin all lists
+      // @ts-ignore - may be admin-only
+      (saltBackend as any).getAllShoppingLists ? (saltBackend as any).getAllShoppingLists() : Promise.resolve([])
+    ]);
+
+    const exportObj = {
+      inventory: i,
+      recipes: r,
+      users: u,
+      plans: p,
       settings: s,
-      exportedAt: new Date().toISOString() 
+      categories: cats,
+      ingredientKnowledgebase: kb,
+      shoppingLists: shoppingLists,
+      exportedAt: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

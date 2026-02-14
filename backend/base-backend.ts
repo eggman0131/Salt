@@ -18,7 +18,9 @@ import {
 import { SYSTEM_CORE, EQUIPMENT_PROMPTS, RECIPE_PROMPTS } from './prompts';
 
 export abstract class BaseSaltBackend implements ISaltBackend {
-  
+  // In-memory cache for ingredient classifications (ingredient name -> classification)
+  private ingredientClassificationCache = new Map<string, any>();
+
   // -- ABSTRACT AI TRANSPORT (The Security Bridge) --
 
   /**
@@ -31,6 +33,11 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   protected abstract callGenerateContentStream(params: GenerateContentParameters): Promise<AsyncIterable<GenerateContentResponse>>;
 
   // -- SHARED LOGIC (DO NOT RE-IMPLEMENT IN SUBCLASSES) --
+
+  // Helper: Clear classification cache (useful for testing or manual refresh)
+  protected clearIngredientCache(): void {
+    this.ingredientClassificationCache.clear();
+  }
 
   protected sanitizeJson(text: string): string {
     const firstBrace = text.indexOf('{');
@@ -340,43 +347,100 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     ingredientName: string,
     knowledgebase: { aisleName: string; unitType: string; ingredientName: string; aliases: string[]; confidenceScore: number; isStoreCupboard: boolean }[]
   ): Promise<Omit<any, 'id'>> {
-    // 1. Check knowledgebase first (aliases + exact match)
-    const existing = knowledgebase.find(kb =>
-      kb.ingredientName.toLowerCase() === ingredientName.toLowerCase() ||
-      kb.aliases.some(a => a.toLowerCase() === ingredientName.toLowerCase())
-    );
-
-    if (existing && existing.confidenceScore > 0.8) {
-      return existing; // Use cached classification
+    const lowerName = ingredientName.toLowerCase();
+    
+    // 1. Check in-memory cache first (fastest)
+    if (this.ingredientClassificationCache.has(lowerName)) {
+      return this.ingredientClassificationCache.get(lowerName);
     }
 
-    // 2. Call AI if not found or low confidence
-    const { ingredientClassificationPrompt } = await import('./prompts');
-    const prompt = ingredientClassificationPrompt(ingredientName, knowledgebase);
-    const instruction = await this.getSystemInstruction("You are the Head Chef classifying ingredients for the shopping list.");
-    const response = await this.callGenerateContent({
-      model: 'gemini-3-flash-preview',
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: { 
-        systemInstruction: instruction,
-        responseMimeType: "application/json",
-      }
-    });
-    const parsed = JSON.parse(this.sanitizeJson(response.text || '{}'));
+    // 2. Check knowledgebase (second fastest)
+    const existing = knowledgebase.find(kb =>
+      kb.ingredientName.toLowerCase() === lowerName ||
+      kb.aliases.some(a => a.toLowerCase() === lowerName)
+    );
 
-    const user = await this.getCurrentUser();
-    return {
-      ingredientName: parsed.canonicalName,
+    if (existing) {
+      // Cache it for this session
+      this.ingredientClassificationCache.set(lowerName, existing);
+      return existing;
+    }
+
+    // 3. If not in cache or KB, return a sensible default
+    // (Batch classification should have pre-classified most ingredients)
+    const fallback = {
+      ingredientName: ingredientName,
       aliases: [ingredientName],
-      aisleName: parsed.aisleName,
-      unitType: parsed.unitType,
-      isStoreCupboard: parsed.isStoreCupboard,
-      confidenceScore: parsed.confidence,
-      aiSuggested: true,
-      createdBy: user?.id || 'system',
+      aisleName: 'Miscellaneous',
+      unitType: 'units',
+      isStoreCupboard: false,
+      confidenceScore: 0.3,
+      createdBy: 'system',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+    
+    this.ingredientClassificationCache.set(lowerName, fallback);
+    return fallback;
+  }
+
+  // Batch classify multiple ingredients in a single AI call
+  protected async batchClassifyIngredients(ingredientNames: string[], knowledgebase: any[]): Promise<any[]> {
+    if (ingredientNames.length === 0) return [];
+    
+    // Build unique aisle names and unit types from knowledgebase for context
+    const aisleNames = [...new Set(knowledgebase.map((kb: any) => kb.aisleName).filter(Boolean))];
+    const unitTypes = [...new Set(knowledgebase.map((kb: any) => kb.unitType).filter(Boolean))];
+    
+    const { ingredientBatchClassificationPrompt } = await import('./prompts');
+    const prompt = ingredientBatchClassificationPrompt(ingredientNames, aisleNames, unitTypes);
+    
+    const instruction = await this.getSystemInstruction("You are the Head Chef batch-classifying shopping ingredients.");
+    const now = new Date().toISOString();
+    const user = await this.getCurrentUser();
+    const createdBy = user?.id || 'system';
+    
+    try {
+      const response = await this.callGenerateContent({
+        model: 'gemini-3-flash-preview',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          systemInstruction: instruction,
+          responseMimeType: "application/json",
+        }
+      });
+      
+      const parsed = JSON.parse(this.sanitizeJson(response.text || '[]'));
+      const classified = (Array.isArray(parsed) ? parsed : [parsed]).map((item: any) => ({
+        ...item,
+        aliases: item.aliases || [item.ingredientName],
+        createdBy: item.createdBy || createdBy,
+        createdAt: item.createdAt || now,
+        updatedAt: item.updatedAt || now,
+      }));
+      
+      // Persist classifications to Firestore (fire and forget, don't await)
+      // This allows the shopping list add to complete quickly while KB is updated in background
+      this.saveBatchClassifiedIngredientsAsync(classified).catch(err => {
+        // Log but don't throw - we don't want to fail the shopping list add if KB save fails
+        console.error('Failed to save batch classified ingredients:', err);
+      });
+      
+      return classified;
+    } catch (err) {
+      // Fallback on error: return simple classification for each ingredient
+      return ingredientNames.map(name => ({
+        ingredientName: name,
+        aliases: [name],
+        aisleName: 'Miscellaneous',
+        unitType: 'units',
+        isStoreCupboard: false,
+        confidenceScore: 0.3,
+        createdBy,
+        createdAt: now,
+        updatedAt: now,
+      }));
+    }
   }
 
   protected async addRecipeToListLogic(
@@ -387,32 +451,46 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const items: any[] = [];
     const list = currentList || { items: [] };
 
+    // 1. Parse all ingredients first (extract name, qty, unit)
+    const parsed: Array<{ rawIngredient: string; qty: number; unit: string; name: string }> = [];
     for (const ingredientRaw of recipe.ingredients) {
-      // Parse ingredient line: "quantity unit name" or just "name"
-      // Examples: "200g flour", "2 tsp salt", "salt to taste", "1 onion"
       const match = ingredientRaw.match(/^([\d./]+)\s*([a-zA-Z]+)?\s+(.+)$/i);
       let qty: number;
       let unit: string;
       let name: string;
 
       if (match) {
-        // Has quantity
         qty = parseFloat(match[1]);
         unit = match[2] || '';
         name = match[3];
       } else {
-        // No quantity (e.g., "salt to taste")
         qty = 1;
         unit = 'units';
         name = ingredientRaw;
       }
+      parsed.push({ rawIngredient: ingredientRaw, qty, unit, name });
+    }
 
-      const classified = await this.classifyIngredientLogic(name, knowledgebase);
+    // 2. Batch classify all unclassified ingredients in one AI call
+    const unclassified = parsed.filter(p => !this.ingredientClassificationCache.has(p.name.toLowerCase()));
+    const unclassifiedNames = unclassified.map(u => u.name);
+    
+    if (unclassifiedNames.length > 0) {
+      const batchClassified = await this.batchClassifyIngredients(unclassifiedNames, knowledgebase);
+      // Cache the batch results
+      for (const classified of batchClassified) {
+        this.ingredientClassificationCache.set(classified.ingredientName.toLowerCase(), classified);
+      }
+    }
+
+    // 3. Now classify each parsed ingredient (using cache + knowledgebase)
+    for (const p of parsed) {
+      const classified = await this.classifyIngredientLogic(p.name, knowledgebase);
 
       // Check if ingredient already exists in the list
       const existing = list.items?.find(i => i.ingredientName === classified.ingredientName);
       if (existing) {
-        existing.quantity += qty;
+        existing.quantity += p.qty;
         if (!existing.recipeIds?.includes(recipe.id)) {
           existing.recipeIds?.push(recipe.id);
         }
@@ -420,8 +498,8 @@ export abstract class BaseSaltBackend implements ISaltBackend {
         items.push({
           id: `item-${Date.now()}-${Math.random().toString(36).substring(7)}`,
           ingredientName: classified.ingredientName,
-          quantity: qty,
-          unit: unit || classified.unitType,
+          quantity: p.qty,
+          unit: p.unit || classified.unitType,
           aisleName: classified.aisleName,
           isCheckedOff: false,
           recipeIds: [recipe.id],
@@ -437,6 +515,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   // -- ABSTRACT METHODS (Implemented by Subclasses) --
 
   protected abstract fetchUrlContent(url: string): Promise<string>;
+  protected abstract saveBatchClassifiedIngredientsAsync(classifiedIngredients: any[]): Promise<void>;
 
   abstract login(email: string): Promise<void>;
   abstract handleRedirectResult(): Promise<User | null>;
