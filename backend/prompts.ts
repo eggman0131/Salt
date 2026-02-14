@@ -202,3 +202,36 @@ RETURN JSON (MANDATORY SCHEMA):
   "stepAlerts": {"0": "Alert text if needed"}
 }`
 };
+
+export const ingredientClassificationPrompt = (
+  ingredientName: string,
+  existingMappings: { aileName: string; unitType: string }[]
+): string => {
+  const existingAisles = [...new Set(existingMappings.map(m => m.aileName))];
+  const existingUnits = [...new Set(existingMappings.map(m => m.unitType))];
+
+  return `You are a UK supermarket expert. Classify the following ingredient.
+
+EXISTING AISLES (prefer these but can introduce new ones):
+${existingAisles.join(', ') || 'Produce, Dairy & Eggs, Bakery, Frozen, Meat & Fish, Pantry & Dry Goods, Condiments & Oils, Beverages, Herbs & Spices, Other'}
+
+EXISTING UNITS (prefer these but can introduce new ones):
+${existingUnits.join(', ') || 'grams, kg, ml, litres, units, tins, loaves, bunches'}
+
+INGREDIENT: "${ingredientName}"
+
+INSTRUCTIONS:
+- If this ingredient exists in your knowledge, use the EXISTING values
+- If new classification needed, introduce new aisle/unit only if no suitable existing value
+- Favour common standard values (e.g., "grams" over "g" or "grammes")
+- Use British English terminology and metric units only
+
+Respond ONLY with valid JSON:
+{
+  "canonicalName": "string (singular, lowercase e.g. 'tomato')",
+  "aileName": "string (prefer existing aisle name or introduce new if necessary)",
+  "unitType": "string (prefer existing unit or introduce new if necessary)",
+  "isStoreCupboard": "boolean (salt, sugar, flour, oil = true; fresh veg = false)",
+  "confidence": "number 0-1 (0.9+ = very confident, <0.6 = uncertain or new category)"
+}`;
+};

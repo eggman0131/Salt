@@ -124,6 +124,50 @@ export const PlanSchema = z.object({
 });
 export type Plan = z.infer<typeof PlanSchema>;
 
+// Ingredient Knowledgebase Schema
+export const IngredientKnowledgebaseSchema = z.object({
+  id: z.string(),
+  ingredientName: z.string(), // Canonical name
+  aliases: z.array(z.string()), // Variations
+  aileName: z.string(), // FREE TEXT — prefers existing values, allows new ones
+  unitType: z.string(), // FREE TEXT — prefers existing values, allows new ones
+  isStoreCupboard: z.boolean().default(false),
+  confidenceScore: z.number().min(0).max(1),
+  aiSuggested: z.boolean().optional(),
+  createdBy: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type IngredientKnowledgebase = z.infer<typeof IngredientKnowledgebaseSchema>;
+
+// Shopping List Item Schema
+export const ShoppingListItemSchema = z.object({
+  id: z.string(),
+  ingredientName: z.string(),
+  quantity: z.number(),
+  unit: z.string(), // FREE TEXT
+  aileName: z.string(), // FREE TEXT
+  isCheckedOff: z.boolean().default(false),
+  recipeIds: z.array(z.string()).optional(),
+  isStoreCupboard: z.boolean().default(false),
+  notes: z.string().optional(),
+  addedAt: z.string(),
+});
+export type ShoppingListItem = z.infer<typeof ShoppingListItemSchema>;
+
+// Shopping List Schema (supports multiple lists)
+export const ShoppingListSchema = z.object({
+  id: z.string(), // Unique per list
+  userId: z.string(),
+  name: z.string(), // e.g., "Tesco", "Farmers Market", "Default"
+  items: z.array(ShoppingListItemSchema),
+  isDefault: z.boolean().default(false), // One list per user is default
+  createdAt: z.string(),
+  createdBy: z.string(),
+  updatedAt: z.string(),
+});
+export type ShoppingList = z.infer<typeof ShoppingListSchema>;
+
 export interface EquipmentCandidate {
   brand: string;
   modelName: string;
@@ -175,4 +219,24 @@ export interface ISaltBackend {
   approveCategory: (id: string) => Promise<void>;
   getPendingCategories: () => Promise<RecipeCategory[]>;
   categorizeRecipe: (recipe: Recipe) => Promise<string[]>;
+  // Ingredient Knowledgebase
+  getIngredientKnowledgebase(): Promise<IngredientKnowledgebase[]>;
+  getIngredientByName(name: string): Promise<IngredientKnowledgebase | null>;
+  classifyIngredient(ingredientName: string): Promise<IngredientKnowledgebase>;
+  updateIngredientMapping(id: string, updates: Partial<IngredientKnowledgebase>): Promise<IngredientKnowledgebase>;
+  getUniqueAisleNames(): Promise<string[]>;
+  getUniqueUnitTypes(): Promise<string[]>;
+  // Shopping Lists (multiple lists support)
+  getShoppingLists(): Promise<ShoppingList[]>;
+  getShoppingList(listId: string): Promise<ShoppingList | null>;
+  getDefaultShoppingList(): Promise<ShoppingList | null>;
+  createShoppingList(name: string): Promise<ShoppingList>;
+  updateShoppingListName(listId: string, newName: string): Promise<ShoppingList>;
+  deleteShoppingList(listId: string): Promise<void>;
+  setDefaultShoppingList(listId: string): Promise<void>;
+  addShoppingListItem(listId: string, item: Omit<ShoppingListItem, 'id' | 'addedAt'>): Promise<ShoppingListItem>;
+  toggleShoppingListItem(listId: string, itemId: string, checked: boolean): Promise<void>;
+  removeShoppingListItem(listId: string, itemId: string): Promise<void>;
+  addRecipeToShoppingList(recipeId: string, listId?: string): Promise<void>;
+  clearCheckedItems(listId: string): Promise<void>;
 }
