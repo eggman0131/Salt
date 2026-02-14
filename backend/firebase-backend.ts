@@ -330,12 +330,64 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const cloudFetchRecipeUrl = httpsCallable(functions, 'cloudFetchRecipeUrl');
     
     debugLogger.log('fetchUrlContent', 'Calling Cloud Function with token...');
+    debugLogger.log('fetchUrlContent', 'Current hostname:', location.hostname);
+    debugLogger.log('fetchUrlContent', 'Current origin:', location.origin);
+    
     try {
       const result = await cloudFetchRecipeUrl({ idToken, url });
       debugLogger.log('fetchUrlContent', 'Success');
       return result.data as string;
-    } catch (error) {
+    } catch (error: any) {
       debugLogger.error('fetchUrlContent', 'Cloud Function error:', error);
+      debugLogger.error('fetchUrlContent', 'Error code:', error.code);
+      debugLogger.error('fetchUrlContent', 'Error message:', error.message);
+      
+      // Check if this is a CORS or network error, and try HTTP endpoint instead
+      if (error.code === 'internal' || error.message?.includes('CORS') || error.message?.includes('preflight') || error.message?.includes('Failed to construct')) {
+        debugLogger.log('fetchUrlContent', 'Callable function failed, trying HTTP fallback endpoint...');
+        try {
+          return await this.fetchUrlContentViaHttp(url, idToken);
+        } catch (fallbackError) {
+          debugLogger.error('fetchUrlContent', 'HTTP fallback also failed:', fallbackError);
+          throw error; // Throw original error
+        }
+      }
+      
+      throw error;
+    }
+  }
+
+  private async fetchUrlContentViaHttp(url: string, idToken: string): Promise<string> {
+    const projectId = 'gen-lang-client-0015061880';
+    const region = 'europe-west2';
+    const httpEndpointUrl = `https://${region}-${projectId}.cloudfunctions.net/cloudFetchRecipeUrlHttp`;
+    
+    debugLogger.log('fetchUrlContentViaHttp', 'Calling HTTP endpoint:', httpEndpointUrl);
+    
+    try {
+      const response = await fetch(httpEndpointUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idToken, url })
+      });
+
+      if (!response.ok) {
+        debugLogger.error('fetchUrlContentViaHttp', 'HTTP response failed:', response.status, response.statusText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        debugLogger.log('fetchUrlContentViaHttp', 'Success');
+        return result.data as string;
+      } else {
+        debugLogger.error('fetchUrlContentViaHttp', 'API error:', result.error);
+        throw new Error(result.error || 'Unknown error from HTTP endpoint');
+      }
+    } catch (error) {
+      debugLogger.error('fetchUrlContentViaHttp', 'Request failed:', error);
       throw error;
     }
   }
