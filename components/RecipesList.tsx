@@ -3,6 +3,42 @@ import { Card, Button, Input, Label } from './UI';
 import { Recipe, RecipeCategory } from '../types/contract';
 import { saltBackend } from '../backend/api';
 
+const RemoteImage: React.FC<{ path?: string; className?: string; alt?: string }> = ({ path, className, alt }) => {
+  const [src, setSrc] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (path) {
+      setIsLoading(true);
+      saltBackend.resolveImagePath(path)
+        .then(setSrc)
+        .catch(() => setSrc(''))
+        .finally(() => setIsLoading(false));
+    } else {
+      setSrc('');
+      setIsLoading(false);
+    }
+  }, [path]);
+
+  if (isLoading) {
+    return (
+      <div className={`${className} bg-gray-50 flex items-center justify-center`}>
+        <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!src) {
+    return (
+      <div className={`${className} bg-gray-50 flex items-center justify-center text-gray-200 uppercase font-black text-[10px] tracking-widest`}>
+        No Image
+      </div>
+    );
+  }
+
+  return <img src={src} className={className} alt={alt} />;
+};
+
 export interface RecipesListProps {
   recipes: Recipe[];
   onSelectRecipe: (recipe: Recipe) => void;
@@ -207,10 +243,10 @@ export const RecipesList: React.FC<RecipesListProps> = ({ recipes, onSelectRecip
               <div className="mb-3 relative">
                 <div className="aspect-video bg-gray-100 rounded-md overflow-hidden">
                   {recipe.imagePath ? (
-                    <img 
-                      src={recipe.imagePath} 
+                    <RemoteImage 
+                      path={recipe.imagePath}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       alt={recipe.title}
-                      className="w-full h-full object-cover"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs font-bold uppercase tracking-widest">

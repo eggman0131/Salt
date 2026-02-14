@@ -27,6 +27,7 @@ export function buildManualEditSummary(before: Recipe, after: Recipe): string {
   }
   
   // Check ingredients
+  // Note: Using JSON.stringify for ordered array comparison as ingredient order matters
   if (JSON.stringify(after.ingredients) !== JSON.stringify(before.ingredients)) {
     const beforeCount = before.ingredients.length;
     const afterCount = after.ingredients.length;
@@ -41,6 +42,7 @@ export function buildManualEditSummary(before: Recipe, after: Recipe): string {
   }
   
   // Check instructions
+  // Note: Using JSON.stringify for ordered array comparison as instruction order matters
   if (JSON.stringify(after.instructions) !== JSON.stringify(before.instructions)) {
     const beforeCount = before.instructions.length;
     const afterCount = after.instructions.length;
@@ -55,6 +57,7 @@ export function buildManualEditSummary(before: Recipe, after: Recipe): string {
   }
   
   // Check categories
+  // Note: Using JSON.stringify for ordered array comparison
   if (JSON.stringify(after.categoryIds) !== JSON.stringify(before.categoryIds)) {
     changes.push('categories');
   }
