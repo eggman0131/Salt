@@ -338,7 +338,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
 
   protected async classifyIngredientLogic(
     ingredientName: string,
-    knowledgebase: { aileName: string; unitType: string; ingredientName: string; aliases: string[]; confidenceScore: number; isStoreCupboard: boolean }[]
+    knowledgebase: { aisleName: string; unitType: string; ingredientName: string; aliases: string[]; confidenceScore: number; isStoreCupboard: boolean }[]
   ): Promise<Omit<any, 'id'>> {
     // 1. Check knowledgebase first (aliases + exact match)
     const existing = knowledgebase.find(kb =>
@@ -368,7 +368,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     return {
       ingredientName: parsed.canonicalName,
       aliases: [ingredientName],
-      aileName: parsed.aileName,
+      aisleName: parsed.aisleName,
       unitType: parsed.unitType,
       isStoreCupboard: parsed.isStoreCupboard,
       confidenceScore: parsed.confidence,
@@ -388,11 +388,24 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const list = currentList || { items: [] };
 
     for (const ingredientRaw of recipe.ingredients) {
-      // Parse ingredient line: "quantity unit name"
-      const match = ingredientRaw.match(/^([\d.]+)\s*([a-z]+)?\s+(.+)$/i);
-      const qty = match ? parseFloat(match[1]) : 1;
-      const unit = match ? match[2] || '' : '';
-      const name = match ? match[3] : ingredientRaw;
+      // Parse ingredient line: "quantity unit name" or just "name"
+      // Examples: "200g flour", "2 tsp salt", "salt to taste", "1 onion"
+      const match = ingredientRaw.match(/^([\d./]+)\s*([a-zA-Z]+)?\s+(.+)$/i);
+      let qty: number;
+      let unit: string;
+      let name: string;
+
+      if (match) {
+        // Has quantity
+        qty = parseFloat(match[1]);
+        unit = match[2] || '';
+        name = match[3];
+      } else {
+        // No quantity (e.g., "salt to taste")
+        qty = 1;
+        unit = 'units';
+        name = ingredientRaw;
+      }
 
       const classified = await this.classifyIngredientLogic(name, knowledgebase);
 
@@ -409,7 +422,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
           ingredientName: classified.ingredientName,
           quantity: qty,
           unit: unit || classified.unitType,
-          aileName: classified.aileName,
+          aisleName: classified.aisleName,
           isCheckedOff: false,
           recipeIds: [recipe.id],
           isStoreCupboard: classified.isStoreCupboard,

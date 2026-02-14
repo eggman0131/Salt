@@ -1089,7 +1089,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
 
   async getUniqueAisleNames(): Promise<string[]> {
     const kb = await this.getIngredientKnowledgebase();
-    return [...new Set(kb.map(k => k.aileName))];
+    return [...new Set(kb.map(k => k.aisleName))];
   }
 
   async getUniqueUnitTypes(): Promise<string[]> {
