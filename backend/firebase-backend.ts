@@ -628,11 +628,13 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const updated = { ...existing, ...normalizedUpdates, imagePath };
     await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(updated));
     
-    // Auto-categorise the recipe as a post-processing step
-    const categoryIds = await this.categorizeRecipe(updated as Recipe);
-    if (categoryIds.length > 0) {
-      await updateDoc(doc(db, 'recipes', id), { categoryIds });
-      return { ...updated, categoryIds } as Recipe;
+    // Auto-categorise the recipe as a post-processing step, but only if categoryIds weren't explicitly provided
+    if (!updates.hasOwnProperty('categoryIds')) {
+      const categoryIds = await this.categorizeRecipe(updated as Recipe);
+      if (categoryIds.length > 0) {
+        await updateDoc(doc(db, 'recipes', id), { categoryIds });
+        return { ...updated, categoryIds } as Recipe;
+      }
     }
     
     return updated as Recipe;
