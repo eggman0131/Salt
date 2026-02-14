@@ -58,21 +58,13 @@ export const RecipeCategorySchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   synonyms: z.array(z.string()).optional(),
+  isApproved: z.boolean().default(true),
+  confidence: z.number().min(0).max(1).optional(), // For AI-suggested categories
+  recipeId: z.string().optional(), // Recipe that generated this suggestion (if AI-suggested)
   createdBy: z.string().optional(),
   createdAt: z.string(),
 });
 export type RecipeCategory = z.infer<typeof RecipeCategorySchema>;
-
-// Recipe Tag Suggestion Schema (AI-suggested but unapproved categories)
-export const RecipeTagSuggestionSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  recipeId: z.string().optional(),
-  confidence: z.number().min(0).max(1),
-  status: z.enum(['pending', 'approved', 'rejected']),
-  createdAt: z.string(),
-});
-export type RecipeTagSuggestion = z.infer<typeof RecipeTagSuggestionSchema>;
 
 // Recipe History Entry
 export const RecipeHistoryEntrySchema = z.object({
@@ -180,8 +172,7 @@ export interface ISaltBackend {
   createCategory: (category: Omit<RecipeCategory, 'id' | 'createdAt'>) => Promise<RecipeCategory>;
   updateCategory: (id: string, updates: Partial<RecipeCategory>) => Promise<RecipeCategory>;
   deleteCategory: (id: string) => Promise<void>;
+  approveCategory: (id: string) => Promise<void>;
+  getPendingCategories: () => Promise<RecipeCategory[]>;
   categorizeRecipe: (recipe: Recipe) => Promise<string[]>;
-  getTagSuggestions: () => Promise<RecipeTagSuggestion[]>;
-  approveTagSuggestion: (suggestionId: string, categoryId?: string) => Promise<void>;
-  rejectTagSuggestion: (suggestionId: string) => Promise<void>;
 }

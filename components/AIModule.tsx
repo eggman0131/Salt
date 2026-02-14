@@ -260,7 +260,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
         </div>
 
         {canFinalise && !isBusy && !isTyping && (
-          <div className="absolute right-4 bottom-20 md:right-6 animate-in slide-in-from-bottom-2 fade-in duration-300 pointer-events-none">
+          <div className="absolute right-4 bottom-48 md:right-6 md:bottom-40 animate-in slide-in-from-bottom-2 fade-in duration-300 pointer-events-none">
             <button 
               onClick={handleFinalise} 
               className="w-12 h-12 flex items-center justify-center bg-orange-600 text-white rounded-xl shadow-md shadow-orange-500/30 pointer-events-auto border-2 border-white active:scale-95 transition-all hover:bg-orange-700"

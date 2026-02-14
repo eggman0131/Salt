@@ -49,9 +49,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
 
   const loadSuggestionsCount = async () => {
     try {
-      const suggestions = await saltBackend.getTagSuggestions();
-      const pendingCount = suggestions.filter(s => s.status === 'pending').length;
-      setSuggestionsCount(pendingCount);
+      const pending = await saltBackend.getPendingCategories();
+      setSuggestionsCount(pending.length);
     } catch (err) {
       console.error('Failed to load suggestions count:', err);
     }

@@ -12,7 +12,7 @@
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import { 
   ISaltBackend, User, Recipe, Equipment, EquipmentCandidate, 
-  Accessory, Plan, KitchenSettings, RecipeCategory, RecipeTagSuggestion
+  Accessory, Plan, KitchenSettings, RecipeCategory
 } from '../types/contract';
 import { SYSTEM_CORE, EQUIPMENT_PROMPTS, RECIPE_PROMPTS } from './prompts';
 
@@ -311,19 +311,26 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const matchedCategories: string[] = parsed.matchedCategories || [];
     const suggestedNewCategories = parsed.suggestedNewCategories || [];
 
-    // Filter suggestions by confidence threshold (0.75+) and create tag suggestion records
+    // Collect all categoryIds to attach to recipe (matched + approved suggestions)
+    const allCategoryIds = [...matchedCategories];
+
+    // Filter suggestions by confidence threshold (0.75+) and create unapproved categories
     for (const suggestion of suggestedNewCategories) {
       if (suggestion.confidence >= 0.75) {
-        await this.createTagSuggestion({
+        // Create unapproved category directly in categories table
+        const newCategory = await this.createCategory({
           name: suggestion.name,
-          recipeId: recipe.id,
+          description: `AI-suggested from ${recipe.title}`,
+          isApproved: false,
           confidence: suggestion.confidence,
-          status: 'pending'
+          recipeId: recipe.id,
+          createdBy: 'system'
         });
+        allCategoryIds.push(newCategory.id);
       }
     }
 
-    return matchedCategories;
+    return allCategoryIds;
   }
 
   // -- ABSTRACT METHODS (Implemented by Subclasses) --
@@ -360,9 +367,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   abstract createCategory(category: Omit<RecipeCategory, 'id' | 'createdAt'>): Promise<RecipeCategory>;
   abstract updateCategory(id: string, updates: Partial<RecipeCategory>): Promise<RecipeCategory>;
   abstract deleteCategory(id: string): Promise<void>;
-  abstract createTagSuggestion(suggestion: Omit<RecipeTagSuggestion, 'id' | 'createdAt'>): Promise<RecipeTagSuggestion>;
-  abstract getTagSuggestions(): Promise<RecipeTagSuggestion[]>;
-  abstract approveTagSuggestion(id: string): Promise<RecipeTagSuggestion>;
-  abstract rejectTagSuggestion(id: string): Promise<RecipeTagSuggestion>;
+  abstract approveCategory(id: string): Promise<void>;
+  abstract getPendingCategories(): Promise<RecipeCategory[]>;
   abstract importSystemState(json: string): Promise<void>;
 }

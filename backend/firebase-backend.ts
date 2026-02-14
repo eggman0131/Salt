@@ -1,4 +1,4 @@
-import { User, Recipe, Equipment, Plan, KitchenSettings, RecipeCategory, RecipeTagSuggestion } from '../types/contract';
+import { User, Recipe, Equipment, Plan, KitchenSettings, RecipeCategory } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, storage, functions } from './firebase';
 import { debugLogger } from './debug-logger';
@@ -628,11 +628,13 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const updated = { ...existing, ...normalizedUpdates, imagePath };
     await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(updated));
     
-    // Auto-categorise the recipe as a post-processing step
-    const categoryIds = await this.categorizeRecipe(updated as Recipe);
-    if (categoryIds.length > 0) {
-      await updateDoc(doc(db, 'recipes', id), { categoryIds });
-      return { ...updated, categoryIds } as Recipe;
+    // Auto-categorise the recipe as a post-processing step, but only if categoryIds weren't explicitly provided
+    if (!updates.hasOwnProperty('categoryIds')) {
+      const categoryIds = await this.categorizeRecipe(updated as Recipe);
+      if (categoryIds.length > 0) {
+        await updateDoc(doc(db, 'recipes', id), { categoryIds });
+        return { ...updated, categoryIds } as Recipe;
+      }
     }
     
     return updated as Recipe;
@@ -722,87 +724,49 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
 
   async deleteCategory(id: string): Promise<void> {
-    // Get all recipes that use this category
-    const recipesSnapshot = await getDocs(collection(db, 'recipes'));
     const batch = writeBatch(db);
     
     // Delete the category
     batch.delete(doc(db, 'categories', id));
     
-    // Remove category from all recipes that use it
-    recipesSnapshot.forEach((recipeDoc) => {
-      const data = recipeDoc.data();
-      if (data.categoryIds && Array.isArray(data.categoryIds) && data.categoryIds.includes(id)) {
-        const updatedCategoryIds = data.categoryIds.filter((catId: string) => catId !== id);
-        batch.update(doc(db, 'recipes', recipeDoc.id), { categoryIds: updatedCategoryIds });
-      }
+    // Remove this categoryId from all recipes using it
+    const recipesSnap = await getDocs(query(
+      collection(db, 'recipes'),
+      where('categoryIds', 'array-contains', id)
+    ));
+    
+    recipesSnap.forEach(recipeDoc => {
+      const categoryIds = recipeDoc.data().categoryIds || [];
+      batch.update(recipeDoc.ref, {
+        categoryIds: categoryIds.filter((catId: string) => catId !== id)
+      });
     });
     
     await batch.commit();
   }
 
-  // -- TAG SUGGESTIONS (Category Admin Review Queue) --
-  async createTagSuggestion(suggestion: Omit<RecipeTagSuggestion, 'id' | 'createdAt'>): Promise<RecipeTagSuggestion> {
-    const now = new Date().toISOString();
-    const newSuggestion = {
-      ...suggestion,
-      createdAt: now
-    };
+  // -- CATEGORY APPROVAL (Recipe Admin Review) --
 
-    const docRef = doc(collection(db, 'category_suggestions'));
-    await setDoc(docRef, newSuggestion);
-
-    return {
-      ...newSuggestion,
-      id: docRef.id
-    } as RecipeTagSuggestion;
+  async approveCategory(id: string): Promise<void> {
+    await updateDoc(doc(db, 'categories', id), { isApproved: true });
   }
 
-  async getTagSuggestions(): Promise<RecipeTagSuggestion[]> {
-    const snapshot = await getDocs(collection(db, 'category_suggestions'));
-    const suggestions: RecipeTagSuggestion[] = [];
+  async getPendingCategories(): Promise<RecipeCategory[]> {
+    const snapshot = await getDocs(query(
+      collection(db, 'categories'),
+      where('isApproved', '==', false)
+    ));
     
+    const categories: RecipeCategory[] = [];
     snapshot.forEach((doc) => {
       const data = this.convertTimestamps(doc.data());
-      suggestions.push({
+      categories.push({
         ...data,
         id: doc.id
-      } as RecipeTagSuggestion);
+      } as RecipeCategory);
     });
     
-    return suggestions;
-  }
-
-  async approveTagSuggestion(id: string): Promise<RecipeTagSuggestion> {
-    const docRef = doc(db, 'category_suggestions', id);
-    await updateDoc(docRef, { status: 'approved' });
-    
-    const updated = await getDoc(docRef);
-    if (!updated.exists()) {
-      throw new Error(`Suggestion ${id} not found after approval`);
-    }
-
-    const data = this.convertTimestamps(updated.data());
-    return {
-      ...data,
-      id: updated.id
-    } as RecipeTagSuggestion;
-  }
-
-  async rejectTagSuggestion(id: string): Promise<RecipeTagSuggestion> {
-    const docRef = doc(db, 'category_suggestions', id);
-    await updateDoc(docRef, { status: 'rejected' });
-    
-    const updated = await getDoc(docRef);
-    if (!updated.exists()) {
-      throw new Error(`Suggestion ${id} not found after rejection`);
-    }
-
-    const data = this.convertTimestamps(updated.data());
-    return {
-      ...data,
-      id: updated.id
-    } as RecipeTagSuggestion;
+    return categories;
   }
 
   // -- INVENTORY (KITCHEN KIT) --
