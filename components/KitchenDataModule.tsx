@@ -195,7 +195,7 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({ onRefresh,
                           <Button
                             onClick={() => handleEditIngredient(ingredient)}
                             variant="secondary"
-                            size="sm"
+                            
                           >
                             Edit
                           </Button>

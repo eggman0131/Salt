@@ -182,7 +182,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ recipes,
                 <Button
                   onClick={() => handleSetDefault(list.id)}
                   variant="secondary"
-                  size="sm"
+                  
                   disabled={list.isDefault}
                 >
                   Set Default
@@ -190,7 +190,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ recipes,
                 <Button
                   onClick={() => handleDeleteList(list.id)}
                   variant="secondary"
-                  size="sm"
+                  
                 >
                   Delete
                 </Button>
@@ -295,7 +295,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ recipes,
                             <Button
                               onClick={() => handleRemoveItem(item.id)}
                               variant="secondary"
-                              size="sm"
+                              
                             >
                               Remove
                             </Button>
