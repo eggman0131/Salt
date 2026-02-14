@@ -14,6 +14,7 @@ import { AdminModule } from './components/AdminModule';
 import { AIModule } from './components/AIModule';
 import { PlannerModule } from './components/PlannerModule';
 import { KitchenDataModule } from './components/KitchenDataModule';
+import { ShoppingListModule } from './components/ShoppingListModule';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
 
 type AppState = 'landing' | 'login' | 'dashboard' | 'loading';
@@ -344,6 +345,10 @@ const App: React.FC = () => {
 
         {activeTab === 'kitchendata' && (
           <KitchenDataModule onRefresh={loadData} onSuggestionsChanged={refreshSuggestionsCount} />
+        )}
+
+        {activeTab === 'shoppinglist' && (
+          <ShoppingListModule recipes={recipes} onRefresh={loadData} />
         )}
 
         {activeTab === 'ai' && (
