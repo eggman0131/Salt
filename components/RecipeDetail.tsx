@@ -264,10 +264,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     setIsUpdating(true);
     try {
       // Generate detailed change description
-      const changeDescription = buildManualEditSummary(recipe, editedRecipe);
+      const editSummary = buildManualEditSummary(recipe, editedRecipe);
       
       // Create history entry
-      const historyEntry = createHistoryEntry(recipe, changeDescription, currentUser.displayName);
+      const historyEntry = createHistoryEntry(recipe, editSummary, currentUser.displayName);
 
       const updated = await saltBackend.updateRecipe(recipe.id, {
         ...editedRecipe,
