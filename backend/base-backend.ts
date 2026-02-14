@@ -405,6 +405,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
         }
       } else {
         items.push({
+          id: `item-${Date.now()}-${Math.random().toString(36).substring(7)}`,
           ingredientName: classified.ingredientName,
           quantity: qty,
           unit: unit || classified.unitType,
