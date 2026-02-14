@@ -84,7 +84,7 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({ onRefresh,
     try {
       await saltBackend.updateIngredientMapping(editingIngredient.id, {
         ingredientName: editingIngredient.ingredientName,
-        aileName: editingIngredient.aileName,
+        aisleName: editingIngredient.aisleName,
         unitType: editingIngredient.unitType,
         isStoreCupboard: editingIngredient.isStoreCupboard,
         aliases: editingIngredient.aliases,
@@ -180,7 +180,7 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({ onRefresh,
                               )}
                             </div>
                             <div className="text-sm text-gray-600 mt-1">
-                              <span className="font-medium">Aisle:</span> {ingredient.aileName}
+                              <span className="font-medium">Aisle:</span> {ingredient.aisleName}
                               {' • '}
                               <span className="font-medium">Unit:</span> {ingredient.unitType}
                               {' • '}
@@ -229,8 +229,8 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({ onRefresh,
                   <Label>Aisle</Label>
                   <Input
                     list="aisle-suggestions"
-                    value={editingIngredient.aileName}
-                    onChange={(e) => setEditingIngredient({ ...editingIngredient, aileName: e.target.value })}
+                    value={editingIngredient.aisleName}
+                    onChange={(e) => setEditingIngredient({ ...editingIngredient, aisleName: e.target.value })}
                   />
                   <datalist id="aisle-suggestions">
                     {aisleSuggestions.map(aisle => (

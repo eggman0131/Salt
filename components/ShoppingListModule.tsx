@@ -17,12 +17,9 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ recipes,
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [filterStoreCupboard, setFilterStoreCupboard] = useState(false);
-  const [aisleSuggestions, setAisleSuggestions] = useState<string[]>([]);
-  const [unitSuggestions, setUnitSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     loadLists();
-    loadSuggestions();
   }, []);
 
   const loadLists = async () => {
@@ -38,19 +35,6 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ recipes,
       console.error('Failed to load shopping lists:', err);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const loadSuggestions = async () => {
-    try {
-      const [aisles, units] = await Promise.all([
-        saltBackend.getUniqueAisleNames(),
-        saltBackend.getUniqueUnitTypes(),
-      ]);
-      setAisleSuggestions(aisles);
-      setUnitSuggestions(units);
-    } catch (err) {
-      console.error('Failed to load suggestions:', err);
     }
   };
 
@@ -142,7 +126,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ recipes,
     if (filterStoreCupboard && item.isStoreCupboard) {
       return acc;
     }
-    const aisle = item.aileName || 'Other';
+    const aisle = item.aisleName || 'Other';
     if (!acc[aisle]) {
       acc[aisle] = [];
     }

@@ -129,7 +129,7 @@ export const IngredientKnowledgebaseSchema = z.object({
   id: z.string(),
   ingredientName: z.string(), // Canonical name
   aliases: z.array(z.string()), // Variations
-  aileName: z.string(), // FREE TEXT — prefers existing values, allows new ones
+  aisleName: z.string(), // FREE TEXT — prefers existing values, allows new ones
   unitType: z.string(), // FREE TEXT — prefers existing values, allows new ones
   isStoreCupboard: z.boolean().default(false),
   confidenceScore: z.number().min(0).max(1),
@@ -146,7 +146,7 @@ export const ShoppingListItemSchema = z.object({
   ingredientName: z.string(),
   quantity: z.number(),
   unit: z.string(), // FREE TEXT
-  aileName: z.string(), // FREE TEXT
+  aisleName: z.string(), // FREE TEXT
   isCheckedOff: z.boolean().default(false),
   recipeIds: z.array(z.string()).optional(),
   isStoreCupboard: z.boolean().default(false),

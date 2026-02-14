@@ -205,9 +205,9 @@ RETURN JSON (MANDATORY SCHEMA):
 
 export const ingredientClassificationPrompt = (
   ingredientName: string,
-  existingMappings: { aileName: string; unitType: string }[]
+  existingMappings: { aisleName: string; unitType: string }[]
 ): string => {
-  const existingAisles = [...new Set(existingMappings.map(m => m.aileName))];
+  const existingAisles = [...new Set(existingMappings.map(m => m.aisleName))];
   const existingUnits = [...new Set(existingMappings.map(m => m.unitType))];
 
   return `You are a UK supermarket expert. Classify the following ingredient.
@@ -229,7 +229,7 @@ INSTRUCTIONS:
 Respond ONLY with valid JSON:
 {
   "canonicalName": "string (singular, lowercase e.g. 'tomato')",
-  "aileName": "string (prefer existing aisle name or introduce new if necessary)",
+  "aisleName": "string (prefer existing aisle name or introduce new if necessary)",
   "unitType": "string (prefer existing unit or introduce new if necessary)",
   "isStoreCupboard": "boolean (salt, sugar, flour, oil = true; fresh veg = false)",
   "confidence": "number 0-1 (0.9+ = very confident, <0.6 = uncertain or new category)"
