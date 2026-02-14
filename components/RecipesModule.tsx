@@ -73,7 +73,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
   const [imageActionsVisible, setImageActionsVisible] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedRecipe, setEditedRecipe] = useState<Recipe | null>(null);
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
+  const [showCategorySelector, setShowCategorySelector] = useState(false);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -242,6 +245,61 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     }
   };
 
+  const handleEditToggle = () => {
+    if (isEditing) {
+      // Cancel - discard changes
+      setEditedRecipe(null);
+      setIsEditing(false);
+    } else {
+      // Start editing - make a copy
+      setEditedRecipe({ ...recipe });
+      setIsEditing(true);
+    }
+  };
+
+  const handleSaveEdits = async () => {
+    if (!editedRecipe) return;
+    
+    setIsUpdating(true);
+    try {
+      // Detect what changed
+      const changes: string[] = [];
+      if (editedRecipe.title !== recipe.title) changes.push('title');
+      if (editedRecipe.description !== recipe.description) changes.push('description');
+      if (JSON.stringify(editedRecipe.ingredients) !== JSON.stringify(recipe.ingredients)) changes.push('ingredients');
+      if (JSON.stringify(editedRecipe.instructions) !== JSON.stringify(recipe.instructions)) changes.push('instructions');
+      if (JSON.stringify(editedRecipe.categoryIds) !== JSON.stringify(recipe.categoryIds)) changes.push('categories');
+      
+      const changeDescription = changes.length > 0 
+        ? `Edited: ${changes.join(', ')}`
+        : 'Manually edited recipe';
+      
+      // Create history entry
+      const leanSnapshot = { ...recipe };
+      delete (leanSnapshot as any).history;
+      const historyEntry: RecipeHistoryEntry = {
+        timestamp: new Date().toISOString(),
+        userName: currentUser.displayName,
+        changeDescription,
+        snapshot: leanSnapshot
+      };
+
+      const updated = await saltBackend.updateRecipe(recipe.id, {
+        ...editedRecipe,
+        history: [...(recipe.history || []), historyEntry]
+      });
+      setRecipe(updated);
+      setEditedRecipe(null);
+      setIsEditing(false);
+      onRefresh();
+    } catch (err) {
+      console.error(err);
+      alert("Save failed.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const handleDeleteRecipe = async () => {
     try {
       await saltBackend.deleteRecipe(recipe.id);
@@ -253,6 +311,57 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     }
   };
 
+  const handleRemoveCategory = async (categoryId: string) => {
+    if (isEditing && editedRecipe) {
+      setEditedRecipe({
+        ...editedRecipe,
+        categoryIds: (editedRecipe.categoryIds || []).filter(id => id !== categoryId)
+      });
+    } else {
+      const updatedCategoryIds = (recipe.categoryIds || []).filter(id => id !== categoryId);
+      // Update local state immediately for instant UI feedback
+      setRecipe({ ...recipe, categoryIds: updatedCategoryIds });
+      // Persist in background
+      try {
+        const updated = await saltBackend.updateRecipe(recipe.id, { categoryIds: updatedCategoryIds });
+        setRecipe(updated);
+        onRefresh();
+      } catch (err) {
+        console.error('Failed to update categories:', err);
+        // Revert on error
+        setRecipe(recipe);
+      }
+    }
+  };
+
+  const handleAddCategory = async (categoryId: string) => {
+    setShowCategorySelector(false);
+    
+    if (isEditing && editedRecipe) {
+      if (!editedRecipe.categoryIds?.includes(categoryId)) {
+        setEditedRecipe({
+          ...editedRecipe,
+          categoryIds: [...(editedRecipe.categoryIds || []), categoryId]
+        });
+      }
+    } else {
+      if (!recipe.categoryIds?.includes(categoryId)) {
+        const updatedCategoryIds = [...(recipe.categoryIds || []), categoryId];
+        // Update local state immediately for instant UI feedback
+        setRecipe({ ...recipe, categoryIds: updatedCategoryIds });
+        // Persist in background
+        try {
+          const updated = await saltBackend.updateRecipe(recipe.id, { categoryIds: updatedCategoryIds });
+          setRecipe(updated);
+          onRefresh();
+        } catch (err) {
+          console.error('Failed to update categories:', err);
+          // Revert on error
+          setRecipe(recipe);
+        }
+      }
+    }
+  };
 
   const renderMarkdown = (text: string) => {
     try { return { __html: marked.parse(text) }; } catch (e) { return { __html: text }; }
@@ -384,6 +493,48 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         </div>
       )}
 
+      {/* Category Picker Modal */}
+      {showCategorySelector && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setShowCategorySelector(false)}
+          onWheel={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
+          onTouchMove={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
+          style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
+        >
+          <Card className="w-full max-w-lg bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()} style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-900">Add Categories</h3>
+                <button
+                  onClick={() => setShowCategorySelector(false)}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                  aria-label="Close category picker"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-[320px] overflow-y-auto">
+                {categories
+                  .filter(cat => !((isEditing && editedRecipe) ? editedRecipe.categoryIds : recipe.categoryIds)?.includes(cat.id))
+                  .map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => handleAddCategory(cat.id)}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm bg-blue-50 text-blue-700 font-semibold border border-blue-100 hover:bg-blue-100 transition-colors"
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                {categories.filter(cat => !((isEditing && editedRecipe) ? editedRecipe.categoryIds : recipe.categoryIds)?.includes(cat.id)).length === 0 && (
+                  <p className="text-sm text-gray-500">All categories already added.</p>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* History Modal */}
       {showHistory && (
         <div
@@ -470,6 +621,20 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
             )}
           </div>
           <div className="flex items-center gap-2">
+            {activeTab === 'detail' && (
+              <button
+                onClick={handleEditToggle}
+                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors shrink-0 ${
+                  isEditing ? 'text-gray-600 hover:text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-900'
+                }`}
+                aria-label={isEditing ? "Cancel edit" : "Edit recipe"}
+                title={isEditing ? "Cancel edit" : "Edit recipe"}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            )}
             <button
               onClick={() => setShowHistory(true)}
               className="w-10 h-10 flex items-center justify-center rounded-lg text-blue-600 hover:text-blue-800 transition-colors shrink-0"
@@ -517,6 +682,19 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
             )}
           </div>
           <div className="flex gap-2 items-center">
+            {activeTab === 'detail' && (
+              <button
+                onClick={handleEditToggle}
+                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors shrink-0 ${
+                  isEditing ? 'text-gray-600 hover:text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-900'
+                }`}
+                title={isEditing ? "Cancel edit" : "Edit recipe"}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            )}
             <button
               onClick={() => setShowHistory(true)}
               className="w-10 h-10 flex items-center justify-center rounded-lg text-blue-600 hover:text-blue-800 transition-colors shrink-0"
@@ -557,101 +735,120 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
               <div className="w-full mx-auto space-y-6">
                 {/* Heading + CTA */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                  <div className="space-y-3">
-                      <h1 className="hidden md:block text-2xl font-semibold text-gray-900">{recipe.title}</h1>
-                      <p className="text-base text-gray-700 leading-relaxed">{recipe.description}</p>
-                      <div className="space-y-2">
-                        {recipe.categoryIds && recipe.categoryIds.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {recipe.categoryIds.map(catId => (
-                              <span key={catId} className="inline-block px-2.5 py-1 rounded text-xs bg-blue-50 text-blue-700 font-medium border border-blue-100">
-                                {getCategoryName(catId)}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {/* Source URL display moved to At a Glance */}
+                  <h1 className="text-2xl font-bold text-gray-900">{isEditing && editedRecipe ? editedRecipe.title : recipe.title}</h1>
+                  {isEditing && editedRecipe ? (
+                    <input
+                      type="text"
+                      value={editedRecipe.title}
+                      onChange={(e) => setEditedRecipe({ ...editedRecipe, title: e.target.value })}
+                      className="flex-1 text-2xl font-bold border border-gray-300 rounded-lg px-3 py-2"
+                      placeholder="Recipe title"
+                    />
+                  ) : null}
+                </div>
+
+                {/* Categories Display and Selector */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  {((isEditing && editedRecipe) ? editedRecipe.categoryIds : recipe.categoryIds || []).map(catId => (
+                    <div key={catId} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-100">
+                      <span>{getCategoryName(catId)}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveCategory(catId);
+                        }}
+                        className="ml-1 hover:text-blue-900 transition-colors"
+                        title="Remove category"
+                      >
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setShowCategorySelector(true)}
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    + Add Category
+                  </button>
+                </div>
+
+                <div className="hidden lg:block">
+                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-3 mt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-[11px] font-bold uppercase tracking-[0.25em] text-gray-500">At a Glance</h3>
+                      {recipe.collection && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-orange-50 text-orange-700 border border-orange-100">
+                          {recipe.collection}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-[11px] text-gray-700">
+                      <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
+                        <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" strokeWidth="2"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h8M12 8v8"/></svg>
+                          Complexity
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.complexity}</p>
                       </div>
-                      <div className="hidden lg:block">
-                        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-3 mt-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-[11px] font-bold uppercase tracking-[0.25em] text-gray-500">At a Glance</h3>
-                            {recipe.collection && (
-                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-orange-50 text-orange-700 border border-orange-100">
-                                {recipe.collection}
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-[11px] text-gray-700">
-                            <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
-                              <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" strokeWidth="2"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h8M12 8v8"/></svg>
-                                Complexity
-                              </p>
-                              <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.complexity}</p>
-                            </div>
-                            <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
-                              <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10m-9 4h10m-7 4h4"/></svg>
-                                Prep
-                              </p>
-                              <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.prepTime}</p>
-                            </div>
-                            <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
-                              <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2s-2 2-2 5 2 5 2 5 2-2 2-5-2-5-2-5zm5 7c0 4-3 7-5 7s-5-3-5-7"/></svg>
-                                Cook
-                              </p>
-                              <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.cookTime}</p>
-                            </div>
-                            <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
-                              <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" strokeWidth="2"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6l4 2"/></svg>
-                                Total
-                              </p>
-                              <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.totalTime}</p>
-                            </div>
-                            <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
-                              <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="3" strokeWidth="2"/><circle cx="17" cy="9" r="2" strokeWidth="2"/></svg>
-                                Servings
-                              </p>
-                              <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.servings}</p>
-                            </div>
-                            <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
-                              <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10m-9 4h10m-7 4h4"/></svg>
-                                Created
-                              </p>
-                              <p className="mt-0.5 text-xs font-semibold text-gray-900">{new Date(recipe.createdAt).toLocaleDateString()}</p>
-                            </div>
-                            {recipe.source && (() => {
-                              let site = '';
-                              try {
-                                site = new URL(recipe.source).hostname.replace(/^www\./, '');
-                              } catch {}
-                              return site ? (
-                                <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100 sm:col-span-2 lg:col-span-2">
-                                  <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8h6m-6 4h6m-6 4h6M6 8h.01M6 12h.01M6 16h.01"/></svg>
-                                    Source
-                                  </p>
-                                  <a
-                                    href={recipe.source}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="mt-0.5 inline-block text-xs font-semibold text-orange-600 hover:text-orange-700 underline"
-                                  >
-                                    {site}
-                                  </a>
-                                </div>
-                              ) : null;
-                            })()}
-                          </div>
-                        </div>
+                      <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
+                        <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10m-9 4h10m-7 4h4"/></svg>
+                          Prep
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.prepTime}</p>
                       </div>
+                      <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
+                        <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2s-2 2-2 5 2 5 2 5 2-2 2-5-2-5-2-5zm5 7c0 4-3 7-5 7s-5-3-5-7"/></svg>
+                          Cook
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.cookTime}</p>
+                      </div>
+                      <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
+                        <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" strokeWidth="2"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6l4 2"/></svg>
+                          Total
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.totalTime}</p>
+                      </div>
+                      <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
+                        <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="3" strokeWidth="2"/><circle cx="17" cy="9" r="2" strokeWidth="2"/></svg>
+                          Servings
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-gray-900">{recipe.servings}</p>
+                      </div>
+                      <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100">
+                        <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10m-9 4h10m-7 4h4"/></svg>
+                          Created
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-gray-900">{new Date(recipe.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      {recipe.source && (() => {
+                        let site = '';
+                        try {
+                          site = new URL(recipe.source).hostname.replace(/^www\./, '');
+                        } catch {}
+                        return site ? (
+                          <div className="p-2 rounded-md bg-orange-50/60 border border-orange-100 sm:col-span-2 lg:col-span-2">
+                            <p className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-orange-600 font-semibold">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8h6m-6 4h6m-6 4h6M6 8h.01M6 12h.01M6 16h.01"/></svg>
+                              Source
+                            </p>
+                            <a
+                              href={recipe.source}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-0.5 inline-block text-xs font-semibold text-orange-600 hover:text-orange-700 underline"
+                            >
+                              {site}
+                            </a>
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
                   </div>
-                  <div className="flex gap-2 flex-wrap" />
                 </div>
 
                 {/* Two Column Layout */}
@@ -771,14 +968,52 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
 
                     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-4">
                       <h3 className="text-xl font-semibold text-gray-900">Ingredients</h3>
-                      <ul className="space-y-2">
-                        {(recipe.ingredients || []).map((ing, i) => (
-                          <li key={i} className="flex items-start gap-3 text-base text-gray-700">
-                            <span className="mt-2 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
-                            {ing}
-                          </li>
-                        ))}
-                      </ul>
+                      {isEditing && editedRecipe ? (
+                        <div className="space-y-2">
+                          {(editedRecipe.ingredients || []).map((ing, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={ing}
+                                onChange={(e) => {
+                                  const updated = [...(editedRecipe.ingredients || [])];
+                                  updated[i] = e.target.value;
+                                  setEditedRecipe({ ...editedRecipe, ingredients: updated });
+                                }}
+                                className="flex-1 text-base border border-gray-300 rounded-lg px-3 py-2"
+                                placeholder="Ingredient"
+                              />
+                              <button
+                                onClick={() => {
+                                  const updated = ((editedRecipe.ingredients || []).filter((_, idx) => idx !== i));
+                                  setEditedRecipe({ ...editedRecipe, ingredients: updated });
+                                }}
+                                className="w-9 h-9 flex items-center justify-center rounded-lg text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors flex-shrink-0 -mr-1"
+                                title="Delete ingredient"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              setEditedRecipe({ ...editedRecipe, ingredients: [...(editedRecipe.ingredients || []), ''] });
+                            }}
+                            className="w-full h-9 text-sm font-semibold bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            + Add Ingredient
+                          </button>
+                        </div>
+                      ) : (
+                        <ul className="space-y-2">
+                          {(recipe.ingredients || []).map((ing, i) => (
+                            <li key={i} className="flex items-start gap-3 text-base text-gray-700">
+                              <span className="mt-2 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
+                              {ing}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
 
                     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-4">
@@ -802,36 +1037,79 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                   <div className="lg:col-span-7 space-y-6">
                     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-4">
                       <h3 className="text-xl font-semibold text-gray-900">Instructions</h3>
-                      <div className="space-y-6">
-                        {(recipe.instructions || []).map((inst, i) => {
-                          // Get alerts for this step (stepAlerts indexes into technicalWarnings)
-                          const stepAlertIndices = recipe.stepAlerts?.[i] || [];
-                          const stepWarnings = stepAlertIndices
-                            .map(idx => recipe.workflowAdvice?.technicalWarnings?.[idx])
-                            .filter((w): w is string => typeof w === 'string' && w.length > 0);
-
-                          return (
-                            <div key={i} className="space-y-3">
-                              <div className="flex gap-4">
-                                <span className="flex-shrink-0 w-9 h-9 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-semibold text-sm">
-                                  {i + 1}
-                                </span>
-                                <p className="text-base text-gray-700 leading-relaxed">{inst}</p>
+                      {isEditing && editedRecipe ? (
+                        <div className="space-y-3">
+                          {(editedRecipe.instructions || []).map((inst, i) => (
+                            <div key={i} className="flex gap-3">
+                              <span className="flex-shrink-0 w-9 h-9 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-semibold text-sm">
+                                {i + 1}
+                              </span>
+                              <div className="flex-1 flex gap-2">
+                                <textarea
+                                  value={inst}
+                                  onChange={(e) => {
+                                    const updated = [...(editedRecipe.instructions || [])];
+                                    updated[i] = e.target.value;
+                                    setEditedRecipe({ ...editedRecipe, instructions: updated });
+                                  }}
+                                  className="flex-1 text-base border border-gray-300 rounded-lg px-3 py-2 resize-none"
+                                  rows={2}
+                                  placeholder="Step instruction"
+                                />
+                                <button
+                                  onClick={() => {
+                                    const updated = ((editedRecipe.instructions || []).filter((_, idx) => idx !== i));
+                                    setEditedRecipe({ ...editedRecipe, instructions: updated });
+                                  }}
+                                  className="w-9 h-9 flex items-center justify-center rounded-lg text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors flex-shrink-0"
+                                  title="Delete step"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
                               </div>
-                              {stepWarnings.length > 0 && (
-                                <div className="ml-13 space-y-2">
-                                  {stepWarnings.map((warning, wIdx) => (
-                                    <div key={wIdx} className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2">
-                                      <span className="text-lg flex-shrink-0">⚠️</span>
-                                      <p className="text-sm text-red-800 font-medium leading-relaxed">{warning}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
                             </div>
-                          );
-                        })}
-                      </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              setEditedRecipe({ ...editedRecipe, instructions: [...(editedRecipe.instructions || []), ''] });
+                            }}
+                            className="w-full h-9 text-sm font-semibold bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            + Add Step
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {(recipe.instructions || []).map((inst, i) => {
+                            // Get alerts for this step (stepAlerts indexes into technicalWarnings)
+                            const stepAlertIndices = recipe.stepAlerts?.[i] || [];
+                            const stepWarnings = stepAlertIndices
+                              .map(idx => recipe.workflowAdvice?.technicalWarnings?.[idx])
+                              .filter((w): w is string => typeof w === 'string' && w.length > 0);
+
+                            return (
+                              <div key={i} className="space-y-3">
+                                <div className="flex gap-4">
+                                  <span className="flex-shrink-0 w-9 h-9 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-semibold text-sm">
+                                    {i + 1}
+                                  </span>
+                                  <p className="text-base text-gray-700 leading-relaxed">{inst}</p>
+                                </div>
+                                {stepWarnings.length > 0 && (
+                                  <div className="ml-13 space-y-2">
+                                    {stepWarnings.map((warning, wIdx) => (
+                                      <div key={wIdx} className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2">
+                                        <span className="text-lg flex-shrink-0">⚠️</span>
+                                        <p className="text-sm text-red-800 font-medium leading-relaxed">{warning}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* Workflow Advice Overview */}
@@ -877,8 +1155,29 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
             </div>
           )}
 
+          {/* Edit Mode Save/Cancel Bar - positioned inside detail div */}
+          {activeTab === 'detail' && isEditing && (
+            <div className="fixed bottom-0 left-0 right-0 md:left-auto md:right-auto md:w-full md:max-w-6xl bg-white border-t border-gray-200 shadow-lg p-4 flex gap-2 z-40 md:rounded-b-none"
+              style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+              <button
+                onClick={handleSaveEdits}
+                disabled={isUpdating}
+                className="flex-1 h-11 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 disabled:opacity-50 transition-colors"
+              >
+                {isUpdating ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                onClick={handleEditToggle}
+                disabled={isUpdating}
+                className="flex-1 h-11 bg-gray-200 text-gray-900 rounded-lg font-bold hover:bg-gray-300 disabled:opacity-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
           {/* Desktop Chat Sidebar - always visible on desktop when in detail view */}
-          {activeTab === 'detail' && (
+          {activeTab === 'detail' && !isEditing && (
             <div className="hidden md:flex w-full md:w-1/3 flex-col overflow-hidden border-l border-gray-200 bg-gray-50 min-h-0">
               <div className="px-4 md:px-6 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
                 <h3 className="font-bold text-gray-900 text-sm">Chef's Advice</h3>
@@ -1328,4 +1627,4 @@ export const RecipesModule: React.FC<RecipesModuleProps> = ({ recipes, inventory
       </div>
     </div>
   );
-};
+}
