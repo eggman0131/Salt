@@ -12,7 +12,8 @@
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import { 
   ISaltBackend, User, Recipe, Equipment, EquipmentCandidate, 
-  Accessory, Plan, KitchenSettings, RecipeCategory
+  Accessory, Plan, KitchenSettings, RecipeCategory,
+  IngredientKnowledgebase, ShoppingList, ShoppingListItem
 } from '../types/contract';
 import { SYSTEM_CORE, EQUIPMENT_PROMPTS, RECIPE_PROMPTS } from './prompts';
 
@@ -333,6 +334,92 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     return allCategoryIds;
   }
 
+  // -- SHOPPING LIST & INGREDIENT CLASSIFICATION LOGIC --
+
+  protected async classifyIngredientLogic(
+    ingredientName: string,
+    knowledgebase: { aileName: string; unitType: string; ingredientName: string; aliases: string[]; confidenceScore: number; isStoreCupboard: boolean }[]
+  ): Promise<Omit<any, 'id'>> {
+    // 1. Check knowledgebase first (aliases + exact match)
+    const existing = knowledgebase.find(kb =>
+      kb.ingredientName.toLowerCase() === ingredientName.toLowerCase() ||
+      kb.aliases.some(a => a.toLowerCase() === ingredientName.toLowerCase())
+    );
+
+    if (existing && existing.confidenceScore > 0.8) {
+      return existing; // Use cached classification
+    }
+
+    // 2. Call AI if not found or low confidence
+    const { ingredientClassificationPrompt } = await import('./prompts');
+    const prompt = ingredientClassificationPrompt(ingredientName, knowledgebase);
+    const instruction = await this.getSystemInstruction("You are the Head Chef classifying ingredients for the shopping list.");
+    const response = await this.callGenerateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { 
+        systemInstruction: instruction,
+        responseMimeType: "application/json",
+      }
+    });
+    const parsed = JSON.parse(this.sanitizeJson(response.text || '{}'));
+
+    const user = await this.getCurrentUser();
+    return {
+      ingredientName: parsed.canonicalName,
+      aliases: [ingredientName],
+      aileName: parsed.aileName,
+      unitType: parsed.unitType,
+      isStoreCupboard: parsed.isStoreCupboard,
+      confidenceScore: parsed.confidence,
+      aiSuggested: true,
+      createdBy: user?.id || 'system',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  protected async addRecipeToListLogic(
+    recipe: Recipe,
+    knowledgebase: any[],
+    currentList?: { items: any[] }
+  ): Promise<any[]> {
+    const items: any[] = [];
+    const list = currentList || { items: [] };
+
+    for (const ingredientRaw of recipe.ingredients) {
+      // Parse ingredient line: "quantity unit name"
+      const match = ingredientRaw.match(/^([\d.]+)\s*([a-z]+)?\s+(.+)$/i);
+      const qty = match ? parseFloat(match[1]) : 1;
+      const unit = match ? match[2] || '' : '';
+      const name = match ? match[3] : ingredientRaw;
+
+      const classified = await this.classifyIngredientLogic(name, knowledgebase);
+
+      // Check if ingredient already exists in the list
+      const existing = list.items?.find(i => i.ingredientName === classified.ingredientName);
+      if (existing) {
+        existing.quantity += qty;
+        if (!existing.recipeIds?.includes(recipe.id)) {
+          existing.recipeIds?.push(recipe.id);
+        }
+      } else {
+        items.push({
+          ingredientName: classified.ingredientName,
+          quantity: qty,
+          unit: unit || classified.unitType,
+          aileName: classified.aileName,
+          isCheckedOff: false,
+          recipeIds: [recipe.id],
+          isStoreCupboard: classified.isStoreCupboard,
+          addedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    return items;
+  }
+
   // -- ABSTRACT METHODS (Implemented by Subclasses) --
 
   protected abstract fetchUrlContent(url: string): Promise<string>;
@@ -370,4 +457,24 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   abstract approveCategory(id: string): Promise<void>;
   abstract getPendingCategories(): Promise<RecipeCategory[]>;
   abstract importSystemState(json: string): Promise<void>;
+  // Ingredient Knowledgebase
+  abstract getIngredientKnowledgebase(): Promise<any[]>;
+  abstract getIngredientByName(name: string): Promise<any | null>;
+  abstract classifyIngredient(ingredientName: string): Promise<any>;
+  abstract updateIngredientMapping(id: string, updates: Partial<any>): Promise<any>;
+  abstract getUniqueAisleNames(): Promise<string[]>;
+  abstract getUniqueUnitTypes(): Promise<string[]>;
+  // Shopping Lists
+  abstract getShoppingLists(): Promise<any[]>;
+  abstract getShoppingList(listId: string): Promise<any | null>;
+  abstract getDefaultShoppingList(): Promise<any | null>;
+  abstract createShoppingList(name: string): Promise<any>;
+  abstract updateShoppingListName(listId: string, newName: string): Promise<any>;
+  abstract deleteShoppingList(listId: string): Promise<void>;
+  abstract setDefaultShoppingList(listId: string): Promise<void>;
+  abstract addShoppingListItem(listId: string, item: Omit<any, 'id' | 'addedAt'>): Promise<any>;
+  abstract toggleShoppingListItem(listId: string, itemId: string, checked: boolean): Promise<void>;
+  abstract removeShoppingListItem(listId: string, itemId: string): Promise<void>;
+  abstract addRecipeToShoppingList(recipeId: string, listId?: string): Promise<void>;
+  abstract clearCheckedItems(listId: string): Promise<void>;
 }

@@ -1,4 +1,4 @@
-import { User, Recipe, Equipment, Plan, KitchenSettings, RecipeCategory } from '../types/contract';
+import { User, Recipe, Equipment, Plan, KitchenSettings, RecipeCategory, IngredientKnowledgebase, ShoppingList, ShoppingListItem } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, storage, functions } from './firebase';
 import { debugLogger } from './debug-logger';
@@ -1045,5 +1045,231 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   
   async deletePlan(id: string): Promise<void> {
     await deleteDoc(doc(db, 'plans', id));
+  }
+
+  // -- INGREDIENT KNOWLEDGEBASE METHODS --
+
+  async getIngredientKnowledgebase(): Promise<any[]> {
+    const snapshot = await getDocs(collection(db, 'ingredientKnowledgebase'));
+    return snapshot.docs.map(doc => {
+      const data = this.convertTimestamps(doc.data());
+      return { ...data, id: doc.id };
+    });
+  }
+
+  async getIngredientByName(name: string): Promise<any | null> {
+    const kb = await this.getIngredientKnowledgebase();
+    return kb.find(k => 
+      k.ingredientName.toLowerCase() === name.toLowerCase() ||
+      k.aliases?.some((a: string) => a.toLowerCase() === name.toLowerCase())
+    ) || null;
+  }
+
+  async classifyIngredient(ingredientName: string): Promise<any> {
+    const kb = await this.getIngredientKnowledgebase();
+    const result = await this.classifyIngredientLogic(ingredientName, kb);
+
+    const docRef = doc(collection(db, 'ingredientKnowledgebase'));
+    await setDoc(docRef, result);
+
+    return { ...result, id: docRef.id };
+  }
+
+  async updateIngredientMapping(id: string, updates: Partial<any>): Promise<any> {
+    const docRef = doc(db, 'ingredientKnowledgebase', id);
+    const updatedData = {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    await updateDoc(docRef, updatedData);
+
+    const updated = await getDoc(docRef);
+    return { ...this.convertTimestamps(updated.data()), id: updated.id };
+  }
+
+  async getUniqueAisleNames(): Promise<string[]> {
+    const kb = await this.getIngredientKnowledgebase();
+    return [...new Set(kb.map(k => k.aileName))];
+  }
+
+  async getUniqueUnitTypes(): Promise<string[]> {
+    const kb = await this.getIngredientKnowledgebase();
+    return [...new Set(kb.map(k => k.unitType))];
+  }
+
+  // -- SHOPPING LIST METHODS --
+
+  async getShoppingLists(): Promise<any[]> {
+    if (!this.currentUser) return [];
+
+    const q = query(
+      collection(db, 'shoppingLists'),
+      where('userId', '==', this.currentUser.id)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => {
+      const data = this.convertTimestamps(doc.data());
+      return { ...data, id: doc.id };
+    });
+  }
+
+  async getShoppingList(listId: string): Promise<any | null> {
+    const docRef = doc(db, 'shoppingLists', listId);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) return null;
+
+    const data = this.convertTimestamps(docSnap.data());
+    return { ...data, id: docSnap.id };
+  }
+
+  async getDefaultShoppingList(): Promise<any | null> {
+    if (!this.currentUser) return null;
+
+    const q = query(
+      collection(db, 'shoppingLists'),
+      where('userId', '==', this.currentUser.id),
+      where('isDefault', '==', true)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) return null;
+
+    const data = this.convertTimestamps(snapshot.docs[0].data());
+    return { ...data, id: snapshot.docs[0].id };
+  }
+
+  async createShoppingList(name: string): Promise<any> {
+    if (!this.currentUser) throw new Error('Not authenticated');
+
+    const lists = await this.getShoppingLists();
+    const isDefault = lists.length === 0;
+
+    const docRef = doc(collection(db, 'shoppingLists'));
+    const now = new Date().toISOString();
+
+    const newList = {
+      userId: this.currentUser.id,
+      name,
+      items: [],
+      isDefault,
+      createdBy: this.currentUser.id,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await setDoc(docRef, newList);
+
+    return { ...newList, id: docRef.id };
+  }
+
+  async updateShoppingListName(listId: string, newName: string): Promise<any> {
+    const docRef = doc(db, 'shoppingLists', listId);
+    await updateDoc(docRef, {
+      name: newName,
+      updatedAt: new Date().toISOString(),
+    });
+
+    const updated = await getDoc(docRef);
+    return { ...this.convertTimestamps(updated.data()), id: updated.id };
+  }
+
+  async deleteShoppingList(listId: string): Promise<void> {
+    await deleteDoc(doc(db, 'shoppingLists', listId));
+  }
+
+  async setDefaultShoppingList(listId: string): Promise<void> {
+    if (!this.currentUser) throw new Error('Not authenticated');
+
+    const lists = await this.getShoppingLists();
+    
+    // Use batch to update all lists atomically
+    const batch = writeBatch(db);
+    
+    for (const list of lists) {
+      const docRef = doc(db, 'shoppingLists', list.id);
+      batch.update(docRef, { isDefault: list.id === listId });
+    }
+
+    await batch.commit();
+  }
+
+  async addShoppingListItem(listId: string, item: Omit<any, 'id' | 'addedAt'>): Promise<any> {
+    const list = await this.getShoppingList(listId);
+    if (!list) throw new Error('Shopping list not found');
+
+    const newItem = {
+      ...item,
+      id: `item-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      addedAt: new Date().toISOString(),
+    };
+
+    const updatedItems = [...list.items, newItem];
+    
+    await updateDoc(doc(db, 'shoppingLists', listId), {
+      items: updatedItems,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return newItem;
+  }
+
+  async toggleShoppingListItem(listId: string, itemId: string, checked: boolean): Promise<void> {
+    const list = await this.getShoppingList(listId);
+    if (!list) throw new Error('Shopping list not found');
+
+    const updatedItems = list.items.map((item: any) =>
+      item.id === itemId ? { ...item, isCheckedOff: checked } : item
+    );
+
+    await updateDoc(doc(db, 'shoppingLists', listId), {
+      items: updatedItems,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  async removeShoppingListItem(listId: string, itemId: string): Promise<void> {
+    const list = await this.getShoppingList(listId);
+    if (!list) throw new Error('Shopping list not found');
+
+    const updatedItems = list.items.filter((item: any) => item.id !== itemId);
+
+    await updateDoc(doc(db, 'shoppingLists', listId), {
+      items: updatedItems,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  async addRecipeToShoppingList(recipeId: string, listId?: string): Promise<void> {
+    const recipe = await this.getRecipe(recipeId);
+    if (!recipe) throw new Error('Recipe not found');
+
+    let list = listId ? await this.getShoppingList(listId) : await this.getDefaultShoppingList();
+    if (!list) {
+      // No default exists, create one
+      list = await this.createShoppingList('Default');
+    }
+
+    const kb = await this.getIngredientKnowledgebase();
+    const newItems = await this.addRecipeToListLogic(recipe, kb, list);
+
+    const updatedItems = [...list.items, ...newItems];
+
+    await updateDoc(doc(db, 'shoppingLists', list.id), {
+      items: updatedItems,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  async clearCheckedItems(listId: string): Promise<void> {
+    const list = await this.getShoppingList(listId);
+    if (!list) throw new Error('Shopping list not found');
+
+    const updatedItems = list.items.filter((item: any) => !item.isCheckedOff);
+
+    await updateDoc(doc(db, 'shoppingLists', listId), {
+      items: updatedItems,
+      updatedAt: new Date().toISOString(),
+    });
   }
 }
