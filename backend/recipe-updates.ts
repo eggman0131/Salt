@@ -110,3 +110,47 @@ export function applyCategoryChange(
     return currentIds.filter(id => id !== categoryId);
   }
 }
+
+/**
+ * Scales ingredient quantities based on servings change.
+ * Extracts the first numeric value (int or decimal) from each ingredient
+ * and scales it by the ratio of newServings to currentServings.
+ * 
+ * Examples:
+ * - "500g beef" with 4→6 servings becomes "750g beef"
+ * - "2 cups flour" with 2→4 servings becomes "4 cups flour"
+ * - "1 onion, diced" with 1→2 servings becomes "2 onion, diced"
+ */
+export function scaleIngredients(
+  ingredients: string[],
+  currentServings: string,
+  newServings: string
+): string[] {
+  // Parse servings numbers from strings like "4 servings" or just "4"
+  const currentNum = parseFloat(currentServings);
+  const newNum = parseFloat(newServings);
+  
+  if (isNaN(currentNum) || isNaN(newNum) || currentNum === 0) {
+    return ingredients; // Can't scale if we can't parse the numbers
+  }
+  
+  const scaleFactor = newNum / currentNum;
+  
+  return ingredients.map(ingredient => {
+    // Match the first number (integer or decimal) in the ingredient
+    const match = ingredient.match(/^(\d+(?:\.\d+)?)/);
+    
+    if (!match) {
+      return ingredient; // No number found, return as-is
+    }
+    
+    const originalValue = parseFloat(match[1]);
+    const scaledValue = originalValue * scaleFactor;
+    
+    // Round to reasonable precision (1 decimal place for most cases)
+    const rounded = Math.round(scaledValue * 10) / 10;
+    
+    // Replace the original number with the scaled one
+    return ingredient.replace(/^\d+(?:\.\d+)?/, rounded.toString());
+  });
+}
