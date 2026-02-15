@@ -1169,16 +1169,15 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       const newItem: any = {
         shoppingListId,
         canonicalItemId: canonicalItem.id,
-        // Snapshot of canonical item data
-        canonicalItemName: canonicalItem.name,
-        canonicalItemUnit: canonicalItem.preferredUnit,
-        canonicalItemAisle: canonicalItem.aisle || null,
+        // Snapshot of canonical item data at creation time
+        name: canonicalItem.name,
+        aisle: canonicalItem.aisle || '',
+        isStaple: canonicalItem.isStaple || false,
         // From recipe ingredient
         quantity: ingredient.quantity || 1,
         unit: ingredient.unit || canonicalItem.preferredUnit,
-        isPurchased: false,
-        notes: ingredient.preparation || undefined,
-        addedAt: now
+        checked: false,
+        note: ingredient.preparation || undefined
       };
 
       // Remove undefined values
@@ -1232,16 +1231,15 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const newItem: any = {
       shoppingListId,
       canonicalItemId: canonicalItem.id,
-      // Snapshot of canonical item data
-      canonicalItemName: canonicalItem.name,
-      canonicalItemUnit: canonicalItem.preferredUnit,
-      canonicalItemAisle: canonicalItem.aisle || null,
+      // Snapshot of canonical item data at creation time
+      name: canonicalItem.name,
+      aisle: canonicalItem.aisle || '',
+      isStaple: canonicalItem.isStaple || false,
       // From manual entry
       quantity,
       unit,
-      isPurchased: false,
-      notes: undefined,
-      addedAt: now
+      checked: false,
+      note: undefined
     };
 
     // Remove undefined values
