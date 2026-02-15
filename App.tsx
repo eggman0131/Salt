@@ -110,19 +110,38 @@ const App: React.FC = () => {
   }, [view, activeTab, loadData]);
 
   const handleExportData = async () => {
-    const [r, i, u, p, s] = await Promise.all([
+    const [r, i, u, p, s, items, lists, units, aisles, cats] = await Promise.all([
       saltBackend.getRecipes(),
       saltBackend.getInventory(),
       saltBackend.getUsers(),
       saltBackend.getPlans(),
-      saltBackend.getKitchenSettings()
+      saltBackend.getKitchenSettings(),
+      saltBackend.getCanonicalItems(),
+      saltBackend.getShoppingLists(),
+      saltBackend.getUnits(),
+      saltBackend.getAisles(),
+      saltBackend.getCategories()
     ]);
+    
+    // Fetch all shopping list items for all lists
+    const allShoppingItems: any[] = [];
+    for (const list of lists) {
+      const items = await saltBackend.getShoppingListItems(list.id);
+      allShoppingItems.push(...items);
+    }
+    
     const exportObj = { 
       inventory: i, 
       recipes: r, 
       users: u, 
       plans: p, 
       settings: s,
+      canonicalItems: items,
+      shoppingLists: lists,
+      shoppingListItems: allShoppingItems,
+      units: units,
+      aisles: aisles,
+      categories: cats,
       exportedAt: new Date().toISOString() 
     };
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });

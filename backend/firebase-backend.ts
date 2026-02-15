@@ -1495,6 +1495,12 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     await this.clearCollection('recipes');
     await this.clearCollection('users');
     await this.clearCollection('plans');
+    await this.clearCollection('canonical_items');
+    await this.clearCollection('shopping_lists');
+    await this.clearCollection('shopping_list_items');
+    await this.clearCollection('units');
+    await this.clearCollection('aisles');
+    await this.clearCollection('categories');
     await deleteDoc(doc(db, 'settings', 'global'));
 
     // Batch write imports in chunks
@@ -1554,6 +1560,61 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       batch.set(docRef, data.settings);
       count += 1;
       await commitIfNeeded();
+    }
+
+    // Import new shopping items collections
+    if (data.canonicalItems) {
+      for (const item of data.canonicalItems) {
+        const docRef = doc(db, 'canonical_items', item.id);
+        batch.set(docRef, item);
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.shoppingLists) {
+      for (const list of data.shoppingLists) {
+        const docRef = doc(db, 'shopping_lists', list.id);
+        batch.set(docRef, list);
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.shoppingListItems) {
+      for (const item of data.shoppingListItems) {
+        const docRef = doc(db, 'shopping_list_items', item.id);
+        batch.set(docRef, item);
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.units) {
+      for (const unit of data.units) {
+        const docRef = doc(db, 'units', unit.id);
+        batch.set(docRef, unit);
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.aisles) {
+      for (const aisle of data.aisles) {
+        const docRef = doc(db, 'aisles', aisle.id);
+        batch.set(docRef, aisle);
+        count += 1;
+        await commitIfNeeded();
+      }
+    }
+
+    if (data.categories) {
+      for (const category of data.categories) {
+        const docRef = doc(db, 'categories', category.id);
+        batch.set(docRef, category);
+        count += 1;
+        await commitIfNeeded();
+      }
     }
 
     if (count > 0) {
