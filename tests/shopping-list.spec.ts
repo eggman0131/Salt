@@ -26,16 +26,16 @@ test.describe('Shopping List v2 - UI Navigation', () => {
     }
   });
 
-  test('should navigate to ingredients management', async ({ page }) => {
-    // Look for Ingredients navigation
-    const ingredientsLink = page.locator('text=Ingredients').or(page.getByRole('button', { name: /ingredients/i }));
+  test('should navigate to items management', async ({ page }) => {
+    // Look for Items navigation in Kitchen Data
+    const itemsLink = page.locator('text=Items').or(page.getByRole('button', { name: /items/i }));
     
-    if (await ingredientsLink.count() > 0) {
-      await ingredientsLink.first().click();
+    if (await itemsLink.count() > 0) {
+      await itemsLink.first().click();
       await page.waitForTimeout(500);
       
-      // Verify we're on the ingredients page
-      await expect(page.locator('text="Canonical Ingredients"').or(page.locator('text="Aisle"'))).toBeVisible({ timeout: 5000 });
+      // Verify we're on the items management page
+      await expect(page.locator('text="Item Database"').or(page.locator('text="Aisle"'))).toBeVisible({ timeout: 5000 });
     } else {
       test.skip();
     }
