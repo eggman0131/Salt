@@ -101,7 +101,10 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
 
       setStatus('imaging');
       setProgressMessage('Generating photograph...');
-      const imageData = await saltBackend.generateRecipeImage(recipeData.title || 'Dish');
+      const imageData = await saltBackend.generateRecipeImage(
+        recipeData.title || 'Dish',
+        recipeData.description
+      );
       
       setStatus('categorising');
       setProgressMessage('Categorising recipe...');
@@ -155,7 +158,10 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       // Generate image
       setStatus('imaging');
       setProgressMessage('Generating photograph...');
-      const imageData = await saltBackend.generateRecipeImage(importedRecipe.title || 'Dish');
+      const imageData = await saltBackend.generateRecipeImage(
+        importedRecipe.title || 'Dish',
+        importedRecipe.description
+      );
       
       // Save to recipes with post-processing
       setStatus('categorising');
@@ -220,7 +226,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
                   <span className={`text-sm font-medium transition-all duration-300 ${
                     status === 'finalising' 
                       ? 'text-orange-600 animate-pulse scale-105' 
-                      : status !== 'idle' && status !== 'organising' && status !== 'imaging' && status !== 'categorising' && status !== 'processing'
+                      : status === 'organising' || status === 'imaging' || status === 'categorising' || status === 'processing'
                         ? 'text-gray-900'
                         : 'text-gray-400'
                   }`}>

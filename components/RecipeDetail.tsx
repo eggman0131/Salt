@@ -250,7 +250,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const handleRegenerateImage = async () => {
     setIsRegeneratingImage(true);
     try {
-      const imageData = await saltBackend.generateRecipeImage(recipe.title);
+      const imageData = await saltBackend.generateRecipeImage(recipe.title, recipe.description);
       const updated = await saltBackend.updateRecipe(recipe.id, {}, imageData);
       setRecipe(updated);
       
