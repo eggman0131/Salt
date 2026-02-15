@@ -707,6 +707,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     let imagePath = updates.imagePath ?? existing.imagePath;
     if (imageData) {
       imagePath = `recipes/${id}/image-${Date.now()}.jpg`;
+      debugLogger.info('Recipe Update', `Uploading new image to: ${imagePath}`);
       await this.uploadRecipeImage(imagePath, imageData);
     }
     
@@ -957,7 +958,32 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
   }
 
   async deleteCanonicalItem(id: string): Promise<void> {
-    await deleteDoc(doc(db, 'canonical_items', id));
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'canonical_items', id));
+
+    const recipesSnap = await getDocs(collection(db, 'recipes'));
+    recipesSnap.forEach((recipeDoc) => {
+      const rawData = this.decodeRecipeFromFirestore(this.convertTimestamps(recipeDoc.data()));
+      const recipe = this.normalizeRecipeData({ ...rawData, id: recipeDoc.id }) as Recipe;
+      if (!Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0) return;
+
+      let changed = false;
+      const updatedIngredients = recipe.ingredients.map(ing => {
+        if (ing.canonicalItemId === id) {
+          changed = true;
+          return { ...ing, canonicalItemId: undefined };
+        }
+        return ing;
+      });
+
+      if (changed) {
+        const cleanedIngredients = this.cleanUndefinedValues(updatedIngredients);
+        const encodedIngredients = this.encodeRecipeForFirestore({ ingredients: cleanedIngredients }).ingredients;
+        batch.update(recipeDoc.ref, { ingredients: encodedIngredients });
+      }
+    });
+
+    await batch.commit();
   }
 
   // -- SHOPPING LISTS --
@@ -1172,6 +1198,11 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     } as ShoppingListItem;
   }
 
+  async deleteShoppingListItem(id: string): Promise<void> {
+    const docRef = doc(db, 'shopping_list_items', id);
+    await deleteDoc(docRef);
+  }
+
   // -- INTEGRATION METHODS --
 
   /**
@@ -1205,7 +1236,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
           canonicalItem = await this.createCanonicalItem({
             name: ingredient.ingredientName,
             normalisedName: normalizedName,
-            preferredUnit: ingredient.unit || '_item',
+            preferredUnit: ingredient.unit || 'items',
             aisle: '', // No aisle initially
             isStaple: false,
             synonyms: []
@@ -1257,19 +1288,44 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     aisle?: string
   ): Promise<ShoppingListItem> {
     // Normalize name
-    const normalizedName = name.toLowerCase().trim();
+    const trimmedName = name.trim();
+    const normalizedName = trimmedName.toLowerCase();
+    const unitInput = unit.trim();
+    const aisleInput = aisle?.trim() || '';
     
     // Find or create canonical item
     const existingItems = await this.getCanonicalItems();
     let canonicalItem = existingItems.find(item => item.normalisedName === normalizedName);
+    const unitToUse = unitInput || canonicalItem?.preferredUnit || 'items';
+    const aisleToUse = canonicalItem ? (canonicalItem.aisle || '') : aisleInput;
+
+    const units = await this.getUnits();
+    const unitExists = units.some(existingUnit => existingUnit.name.toLowerCase() === unitToUse.toLowerCase());
+    if (!unitExists) {
+      await this.createUnit({
+        name: unitToUse,
+        sortOrder: units.length
+      });
+    }
+
+    if (!canonicalItem && aisleToUse) {
+      const aisles = await this.getAisles();
+      const aisleExists = aisles.some(existingAisle => existingAisle.name.toLowerCase() === aisleToUse.toLowerCase());
+      if (!aisleExists) {
+        await this.createAisle({
+          name: aisleToUse,
+          sortOrder: aisles.length
+        });
+      }
+    }
     
     if (!canonicalItem) {
       // Create new canonical item
       canonicalItem = await this.createCanonicalItem({
-        name,
+        name: trimmedName,
         normalisedName: normalizedName,
-        preferredUnit: unit,
-        aisle: aisle || '', // Use provided aisle or empty string
+        preferredUnit: unitToUse,
+        aisle: aisleToUse,
         isStaple: false,
         synonyms: []
       });
@@ -1288,7 +1344,7 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
       isStaple: canonicalItem.isStaple || false,
       // From manual entry
       quantity,
-      unit,
+      unit: unitToUse,
       checked: false,
       note: undefined
     };

@@ -69,11 +69,9 @@ export type RecipeCategory = z.infer<typeof RecipeCategorySchema>;
 // Shopping Domain Schemas
 
 // Unit Schema (for shopping lists)
-// Special unit: '_item' means "count of the item itself" (e.g., 1 Onion, 2 Onions)
-// When displaying, if unit === '_item', show: "{quantity} {itemName}" with pluralization
 export const UnitSchema = z.object({
   id: z.string(),
-  name: z.string(), // e.g., 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', '_item'
+  name: z.string(), // e.g., 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp'
   sortOrder: z.number().default(999),
   createdAt: z.string(),
 });
@@ -96,7 +94,7 @@ export const CanonicalItemSchema = z.object({
   normalisedName: z.string(), // Lowercase, for matching
   isStaple: z.boolean().default(false),
   aisle: z.string(), // Dynamic aisle name from Aisle table
-  preferredUnit: z.string(), // Dynamic unit from Unit table (can be '_item')
+  preferredUnit: z.string(), // Dynamic unit from Unit table
   synonyms: z.array(z.string()).optional(),
   metadata: z.record(z.string(), z.any()).optional(),
   createdAt: z.string(),
@@ -277,6 +275,7 @@ export interface ISaltBackend {
   getShoppingListItems: (shoppingListId: string) => Promise<ShoppingListItem[]>;
   createShoppingListItem: (item: Omit<ShoppingListItem, 'id'>) => Promise<ShoppingListItem>;
   updateShoppingListItem: (id: string, updates: Partial<ShoppingListItem>) => Promise<ShoppingListItem>;
+  deleteShoppingListItem: (id: string) => Promise<void>;
   
   // Recipe Ingredient Processing
   processRecipeIngredients: (ingredients: string[] | RecipeIngredient[], recipeId: string) => Promise<RecipeIngredient[]>;
