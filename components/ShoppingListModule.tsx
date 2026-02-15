@@ -25,9 +25,14 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
   const [manualItemName, setManualItemName] = useState('');
   const [manualItemQuantity, setManualItemQuantity] = useState('');
   const [manualItemUnit, setManualItemUnit] = useState('pieces');
+  const [manualItemAisle, setManualItemAisle] = useState('');
   const [showCustomUnitInput, setShowCustomUnitInput] = useState(false);
+  const [showCustomAisleInput, setShowCustomAisleInput] = useState(false);
   const [customUnit, setCustomUnit] = useState('');
+  const [customAisle, setCustomAisle] = useState('');
   const [isAddingItem, setIsAddingItem] = useState(false);
+  const [addSuccess, setAddSuccess] = useState(false);
+  const [selectedCanonicalItem, setSelectedCanonicalItem] = useState<CanonicalItem | null>(null);
 
   const loadLists = async () => {
     try {
@@ -67,9 +72,12 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
       setUnits(unitsData);
       setAisles(aislesData);
       
-      // Set default unit if empty
+      // Set default unit and aisle if empty
       if (unitsData.length > 0 && !manualItemUnit) {
         setManualItemUnit(unitsData[0].name);
+      }
+      if (aislesData.length > 0 && !manualItemAisle) {
+        setManualItemAisle(aislesData[0].name);
       }
     } catch (err) {
       console.error('Failed to load units and aisles:', err);
@@ -177,7 +185,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
     }
   };
 
-  const handleAddManualItem = async () => {
+  const handleAddItem = async () => {
     if (!selectedList || !manualItemName.trim() || !manualItemQuantity) return;
     
     const quantity = parseFloat(manualItemQuantity);
@@ -186,29 +194,69 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
       return;
     }
 
-    // Determine which unit to use
-    let unitToUse = manualItemUnit;
-    if (showCustomUnitInput && customUnit.trim()) {
-      unitToUse = customUnit.trim();
-    }
-    
     setIsAddingItem(true);
+    setAddSuccess(false);
+    
     try {
+      // Determine which unit to use
+      let unitToUse = manualItemUnit;
+      if (showCustomUnitInput && customUnit.trim()) {
+        unitToUse = customUnit.trim();
+        // Create custom unit if it doesn't exist
+        const existingUnit = units.find(u => u.name.toLowerCase() === unitToUse.toLowerCase());
+        if (!existingUnit) {
+          await saltBackend.createUnit({
+            name: unitToUse,
+            sortOrder: units.length
+          });
+        }
+      }
+
+      // Determine which aisle to use
+      let aisleToUse = manualItemAisle;
+      if (showCustomAisleInput && customAisle.trim()) {
+        aisleToUse = customAisle.trim();
+        // Create custom aisle if it doesn't exist
+        const existingAisle = aisles.find(a => a.name.toLowerCase() === aisleToUse.toLowerCase());
+        if (!existingAisle) {
+          await saltBackend.createAisle({
+            name: aisleToUse,
+            sortOrder: aisles.length
+          });
+        }
+      }
+      
+      // Add item to shopping list (will create canonical item if needed)
       await saltBackend.addManualItemToShoppingList(
         selectedList.id,
         manualItemName.trim(),
         quantity,
-        unitToUse
+        unitToUse,
+        aisleToUse
       );
+
+      // Refresh data
+      await Promise.all([
+        loadItems(selectedList.id),
+        loadCanonicalItems(),
+        loadUnitsAndAisles()
+      ]);
+      
+      // Clear form and show success
       setManualItemName('');
       setManualItemQuantity('');
       setManualItemUnit(units.length > 0 ? units[0].name : '');
+      setManualItemAisle(aisles.length > 0 ? aisles[0].name : '');
       setShowCustomUnitInput(false);
+      setShowCustomAisleInput(false);
       setCustomUnit('');
-      setSearchQuery('');
-      await loadItems(selectedList.id);
-      await loadCanonicalItems(); // Refresh in case new item was created
-      await loadUnitsAndAisles(); // Refresh units in case custom unit was added
+      setCustomAisle('');
+      setSelectedCanonicalItem(null);
+      setAddSuccess(true);
+      
+      // Hide success message after 2 seconds
+      setTimeout(() => setAddSuccess(false), 2000);
+      
       onRefresh?.();
     } catch (err) {
       console.error('Add item failed:', err);
@@ -218,37 +266,28 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
     }
   };
 
-  const handleAddExistingIngredient = async (ingredient: CanonicalItem) => {
-    if (!selectedList) return;
-    
-    setIsAddingItem(true);
-    try {
-      await saltBackend.addManualItemToShoppingList(
-        selectedList.id,
-        ingredient.name,
-        1,
-        ingredient.preferredUnit
-      );
-      setSearchQuery('');
-      await loadItems(selectedList.id);
-      onRefresh?.();
-    } catch (err) {
-      console.error('Add item failed:', err);
-      alert('Failed to add item');
-    } finally {
-      setIsAddingItem(false);
+  const handleSelectCanonicalItem = (item: CanonicalItem) => {
+    setManualItemName(item.name);
+    setManualItemUnit(item.preferredUnit || (units.length > 0 ? units[0].name : ''));
+    setManualItemAisle(item.aisle || (aisles.length > 0 ? aisles[0].name : ''));
+    setSelectedCanonicalItem(item);
+    setShowCustomUnitInput(false);
+    setShowCustomAisleInput(false);
+    // Set default quantity if empty
+    if (!manualItemQuantity) {
+      setManualItemQuantity('1');
     }
   };
 
   const filteredIngredients = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    const query = searchQuery.toLowerCase();
+    if (!manualItemName.trim() || selectedCanonicalItem) return [];
+    const query = manualItemName.toLowerCase();
     return canonicalItems.filter(
       ing => ing.name.toLowerCase().includes(query) || 
              ing.normalisedName.includes(query) ||
              ing.synonyms?.some(s => s.toLowerCase().includes(query))
     ).slice(0, 10);
-  }, [searchQuery, canonicalItems]);
+  }, [manualItemName, canonicalItems, selectedCanonicalItem]);
 
   // Helper function for displaying quantities with smart pluralization for _item unit
   const formatQuantityDisplay = (quantity: number, unit: string, itemName: string): string => {
@@ -355,37 +394,58 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-bold text-gray-900">Add Items</h3>
-              <p className="text-sm text-gray-600 mt-1">Search existing items or add new ones</p>
+              <h3 className="text-xl font-bold text-gray-900">Add Item</h3>
+              <p className="text-sm text-gray-600 mt-1">Search for an existing item or create a new one</p>
             </div>
             
-            <div className="p-6 space-y-6 overflow-y-auto flex-1">
-              {/* Search existing items */}
-              <div>
-                <Label htmlFor="search">Search existing items</Label>
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Success message */}
+              {addSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-800">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
+                  </svg>
+                  <span className="font-medium">Item added to list</span>
+                </div>
+              )}
+              
+              {/* Item name with search suggestions */}
+              <div className="relative">
+                <Label htmlFor="item-name">Item name</Label>
                 <Input
-                  id="search"
+                  id="item-name"
                   type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Type to search..."
+                  value={manualItemName}
+                  onChange={(e) => {
+                    setManualItemName(e.target.value);
+                    setSelectedCanonicalItem(null);
+                  }}
+                  placeholder="Type to search or enter new item..."
                   autoFocus
+                  className={selectedCanonicalItem ? 'border-green-500 bg-green-50' : ''}
                 />
+                {selectedCanonicalItem && (
+                  <div className="mt-1 text-xs text-green-700 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Existing item selected
+                  </div>
+                )}
                 {filteredIngredients.length > 0 && (
-                  <div className="mt-2 border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 border border-gray-200 rounded-lg bg-white shadow-lg divide-y divide-gray-100 max-h-64 overflow-y-auto">
                     {filteredIngredients.map(ing => (
                       <button
                         key={ing.id}
-                        onClick={() => handleAddExistingIngredient(ing)}
-                        disabled={isAddingItem}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center justify-between disabled:opacity-50"
+                        onClick={() => handleSelectCanonicalItem(ing)}
+                        className="w-full px-4 py-3 text-left hover:bg-orange-50 transition-colors flex items-center justify-between"
                       >
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium text-gray-900">{ing.name}</p>
-                          <p className="text-xs text-gray-500">{ing.aisle}</p>
+                          <p className="text-xs text-gray-500">{ing.preferredUnit} • {ing.aisle}</p>
                         </div>
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/>
+                        <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
                         </svg>
                       </button>
                     ))}
@@ -393,89 +453,116 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
                 )}
               </div>
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
+              {/* Quantity and Unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="quantity">Quantity</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={manualItemQuantity}
+                    onChange={(e) => setManualItemQuantity(e.target.value)}
+                    placeholder="1"
+                  />
                 </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">or add manually</span>
+                <div>
+                  <Label htmlFor="unit">Unit</Label>
+                  {showCustomUnitInput ? (
+                    <div className="flex gap-2">
+                      <Input
+                        id="custom-unit"
+                        type="text"
+                        value={customUnit}
+                        onChange={(e) => setCustomUnit(e.target.value)}
+                        placeholder="e.g. bunch, tin"
+                        className="flex-1"
+                      />
+                      <button
+                        onClick={() => {
+                          setShowCustomUnitInput(false);
+                          setCustomUnit('');
+                          setManualItemUnit(units.length > 0 ? units[0].name : '');
+                        }}
+                        className="px-2 text-gray-500 hover:text-gray-700"
+                        title="Cancel"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      id="unit"
+                      value={manualItemUnit}
+                      onChange={(e) => {
+                        if (e.target.value === '__custom__') {
+                          setShowCustomUnitInput(true);
+                          setCustomUnit('');
+                        } else {
+                          setManualItemUnit(e.target.value);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    >
+                      {units.map(unit => (
+                        <option key={unit.id} value={unit.name}>{unit.name}</option>
+                      ))}
+                      <option value="__custom__">+ Add custom unit</option>
+                    </select>
+                  )}
                 </div>
               </div>
 
-              {/* Manual entry */}
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="manual-name">Item name</Label>
-                  <Input
-                    id="manual-name"
-                    type="text"
-                    value={manualItemName}
-                    onChange={(e) => setManualItemName(e.target.value)}
-                    placeholder="e.g. Kitchen roll, Dishwasher tablets, Milk"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="manual-quantity">Quantity</Label>
+              {/* Aisle */}
+              <div>
+                <Label htmlFor="aisle">Aisle {!selectedCanonicalItem && <span className="text-gray-400 font-normal">(optional for new items)</span>}</Label>
+                {showCustomAisleInput ? (
+                  <div className="flex gap-2">
                     <Input
-                      id="manual-quantity"
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={manualItemQuantity}
-                      onChange={(e) => setManualItemQuantity(e.target.value)}
-                      placeholder="1"
+                      id="custom-aisle"
+                      type="text"
+                      value={customAisle}
+                      onChange={(e) => setCustomAisle(e.target.value)}
+                      placeholder="e.g. Bakery, Frozen"
+                      className="flex-1"
                     />
+                    <button
+                      onClick={() => {
+                        setShowCustomAisleInput(false);
+                        setCustomAisle('');
+                        setManualItemAisle(aisles.length > 0 ? aisles[0].name : '');
+                      }}
+                      className="px-2 text-gray-500 hover:text-gray-700"
+                      title="Cancel"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    </button>
                   </div>
-                  <div>
-                    <Label htmlFor="manual-unit">Unit</Label>
-                    {showCustomUnitInput ? (
-                      <div className="flex gap-2">
-                        <Input
-                          id="custom-unit"
-                          type="text"
-                          value={customUnit}
-                          onChange={(e) => setCustomUnit(e.target.value)}
-                          placeholder="e.g. bunch, tin"
-                          autoFocus
-                          className="flex-1"
-                        />
-                        <button
-                          onClick={() => {
-                            setShowCustomUnitInput(false);
-                            setCustomUnit('');
-                          }}
-                          className="px-2 text-gray-500 hover:text-gray-700"
-                          title="Cancel"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
-                          </svg>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                        <select
-                          id="manual-unit"
-                          value={manualItemUnit}
-                          onChange={(e) => {
-                            if (e.target.value === '__custom__') {
-                              setShowCustomUnitInput(true);
-                            } else {
-                              setManualItemUnit(e.target.value);
-                            }
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        >
-                          {units.map(unit => (
-                            <option key={unit.id} value={unit.name}>{unit.name}</option>
-                          ))}
-                          <option value="__custom__">+ Add custom unit</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                ) : (
+                  <select
+                    id="aisle"
+                    value={manualItemAisle}
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setShowCustomAisleInput(true);
+                        setCustomAisle('');
+                      } else {
+                        setManualItemAisle(e.target.value);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    {aisles.map(aisle => (
+                      <option key={aisle.id} value={aisle.name}>{aisle.name}</option>
+                    ))}
+                    <option value="__custom__">+ Add custom aisle</option>
+                  </select>
+                )}
               </div>
             </div>
 
@@ -483,12 +570,16 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
               <button
                 onClick={() => {
                   setShowAddItemsModal(false);
-                  setSearchQuery('');
                   setManualItemName('');
                   setManualItemQuantity('');
                   setManualItemUnit(units.length > 0 ? units[0].name : '');
+                  setManualItemAisle(aisles.length > 0 ? aisles[0].name : '');
                   setShowCustomUnitInput(false);
+                  setShowCustomAisleInput(false);
                   setCustomUnit('');
+                  setCustomAisle('');
+                  setSelectedCanonicalItem(null);
+                  setAddSuccess(false);
                 }}
                 disabled={isAddingItem}
                 className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
@@ -496,11 +587,18 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
                 Close
               </button>
               <button
-                onClick={handleAddManualItem}
-                disabled={isAddingItem || !manualItemName.trim() || !manualItemQuantity || (showCustomUnitInput && !customUnit.trim())}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-orange-600 text-white font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleAddItem}
+                disabled={isAddingItem || !manualItemName.trim() || !manualItemQuantity || (showCustomUnitInput && !customUnit.trim()) || (showCustomAisleInput && !customAisle.trim())}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-orange-600 text-white font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isAddingItem ? 'Adding...' : 'Add to List'}
+                {isAddingItem ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  'Add to List'
+                )}
               </button>
             </div>
           </div>
