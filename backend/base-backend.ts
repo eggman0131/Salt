@@ -697,6 +697,7 @@ Return JSON array: [item1, item2, ...]`
   abstract getShoppingListItems(shoppingListId: string): Promise<ShoppingListItem[]>;
   abstract createShoppingListItem(item: Omit<ShoppingListItem, 'id'>): Promise<ShoppingListItem>;
   abstract updateShoppingListItem(id: string, updates: Partial<ShoppingListItem>): Promise<ShoppingListItem>;
+  abstract deleteShoppingListItem(id: string): Promise<void>;
 
   // Units & Aisles Management
   abstract getUnits(): Promise<Unit[]>;
