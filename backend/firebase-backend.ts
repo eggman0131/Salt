@@ -652,11 +652,24 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     
     await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(newRecipe));
     
-    // Auto-categorise the recipe as a post-processing step
+    // Post-processing: Auto-categorise and process ingredients
     const categoryIds = await this.categorizeRecipe(newRecipe as Recipe);
+    const postProcessUpdates: any = {};
+    
     if (categoryIds.length > 0) {
-      await updateDoc(doc(db, 'recipes', id), { categoryIds });
-      return { ...newRecipe, categoryIds } as Recipe;
+      postProcessUpdates.categoryIds = categoryIds;
+    }
+    
+    // Process ingredients to link to canonical items
+    if (Array.isArray(newRecipe.ingredients) && newRecipe.ingredients.length > 0) {
+      const processedIngredients = await this.processRecipeIngredients(newRecipe.ingredients as any, id);
+      postProcessUpdates.ingredients = processedIngredients;
+    }
+    
+    // Apply all post-processing updates in one write
+    if (Object.keys(postProcessUpdates).length > 0) {
+      await updateDoc(doc(db, 'recipes', id), postProcessUpdates);
+      return { ...newRecipe, ...postProcessUpdates } as Recipe;
     }
     
     return newRecipe as Recipe;
@@ -680,13 +693,27 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     const updated = { ...existing, ...normalizedUpdates, imagePath };
     await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(updated));
     
-    // Auto-categorise the recipe as a post-processing step, but only if categoryIds weren't explicitly provided
+    // Post-processing: Auto-categorise and process ingredients
+    const postProcessUpdates: any = {};
+    
+    // Auto-categorise if categoryIds weren't explicitly provided
     if (!updates.hasOwnProperty('categoryIds')) {
       const categoryIds = await this.categorizeRecipe(updated as Recipe);
       if (categoryIds.length > 0) {
-        await updateDoc(doc(db, 'recipes', id), { categoryIds });
-        return { ...updated, categoryIds } as Recipe;
+        postProcessUpdates.categoryIds = categoryIds;
       }
+    }
+    
+    // Process ingredients if they were updated
+    if (updates.hasOwnProperty('ingredients') && Array.isArray(updated.ingredients) && updated.ingredients.length > 0) {
+      const processedIngredients = await this.processRecipeIngredients(updated.ingredients as any, id);
+      postProcessUpdates.ingredients = processedIngredients;
+    }
+    
+    // Apply all post-processing updates in one write
+    if (Object.keys(postProcessUpdates).length > 0) {
+      await updateDoc(doc(db, 'recipes', id), postProcessUpdates);
+      return { ...updated, ...postProcessUpdates } as Recipe;
     }
     
     return updated as Recipe;
