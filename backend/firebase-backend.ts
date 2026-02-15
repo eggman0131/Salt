@@ -1,4 +1,4 @@
-import { User, Recipe, Equipment, Plan, KitchenSettings, RecipeCategory } from '../types/contract';
+import { User, Recipe, Equipment, Plan, KitchenSettings, RecipeCategory, CanonicalItem, RecipeIngredient, ShoppingList, ShoppingListItem, Unit, Aisle } from '../types/contract';
 import { BaseSaltBackend } from './base-backend';
 import { db, auth, storage, functions } from './firebase';
 import { debugLogger } from './debug-logger';
@@ -819,6 +819,94 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     });
     
     return categories;
+  }
+
+  // -- CANONICAL ITEMS (Universal Shopping Catalog) --
+
+  async getCanonicalItems(): Promise<CanonicalItem[]> {
+    const snapshot = await getDocs(collection(db, 'canonical_items'));
+    const items: CanonicalItem[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      items.push({
+        ...data,
+        id: doc.id
+      } as CanonicalItem);
+    });
+    
+    return items;
+  }
+
+  async getCanonicalItem(id: string): Promise<CanonicalItem | null> {
+    const docRef = doc(db, 'canonical_items', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      return null;
+    }
+    
+    const data = this.convertTimestamps(docSnap.data());
+    return {
+      ...data,
+      id: docSnap.id
+    } as CanonicalItem;
+  }
+
+  async createCanonicalItem(item: Omit<CanonicalItem, 'id' | 'createdAt'>): Promise<CanonicalItem> {
+    const now = new Date().toISOString();
+    const newItem: any = {
+      ...item,
+      createdAt: now,
+      isStaple: item.isStaple ?? false,
+      synonyms: item.synonyms || []
+    };
+
+    // Remove undefined values
+    Object.keys(newItem).forEach(key => {
+      if (newItem[key] === undefined) {
+        delete newItem[key];
+      }
+    });
+
+    // Generate ID with 'item-' prefix
+    const id = `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const docRef = doc(db, 'canonical_items', id);
+    await setDoc(docRef, newItem);
+
+    return {
+      ...newItem,
+      id
+    } as CanonicalItem;
+  }
+
+  async updateCanonicalItem(id: string, updates: Partial<CanonicalItem>): Promise<CanonicalItem> {
+    const docRef = doc(db, 'canonical_items', id);
+    
+    // Remove undefined values
+    const cleanUpdates: any = { ...updates };
+    Object.keys(cleanUpdates).forEach(key => {
+      if (cleanUpdates[key] === undefined) {
+        delete cleanUpdates[key];
+      }
+    });
+    
+    await updateDoc(docRef, cleanUpdates);
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Canonical item ${id} not found after update`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as CanonicalItem;
+  }
+
+  async deleteCanonicalItem(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'canonical_items', id));
   }
 
   // -- INVENTORY (KITCHEN KIT) --
