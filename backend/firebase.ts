@@ -16,8 +16,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-let db;
-let functions;
+let db: any;
+let functions: any;
 const auth = getAuth(app);
 const storage = getStorage(app);
 
@@ -68,6 +68,12 @@ if (isLocalhost) {
     // Fallback to getFirestore if initializeFirestore is not available
     db = getFirestore(app, 'saltstore');
   }
+  
+  // Ensure db is defined before connecting emulator
+  if (!db) {
+    db = getFirestore(app, 'saltstore');
+  }
+  
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
 
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
@@ -156,8 +162,20 @@ else {
   functions = getFunctions(app, 'europe-west2');
 }
 
-// Safety fallback
-if (!db) db = getFirestore(app, 'saltstore');
+// Safety fallback - ensure db is always defined
+if (!db) {
+  debugLogger.warn('Firebase Init', 'Database was not initialized, creating fallback instance');
+  db = getFirestore(app, 'saltstore');
+}
+
+// Verify db is a valid Firestore instance
+if (db && typeof db === 'object') {
+  debugLogger.log('Firebase Init', 'Database initialized successfully');
+} else {
+  debugLogger.error('Firebase Init', 'Database initialization failed! db is:', typeof db);
+  // Force re-initialization
+  db = getFirestore(app, 'saltstore');
+}
 
 // ---------------------------------------------------------------------------
 // ENVIRONMENT LOGGING
