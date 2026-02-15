@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CanonicalItem, Unit, Aisle } from '../types/contract';
+import { CanonicalItem, Unit, Aisle, Recipe } from '../types/contract';
 import { Button, Card, Input, Label } from './UI';
 import { saltBackend } from '../backend/api';
 
@@ -18,6 +18,8 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<CanonicalItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recipesUsingItem, setRecipesUsingItem] = useState<Recipe[]>([]);
+  const [isLoadingDeleteRecipes, setIsLoadingDeleteRecipes] = useState(false);
 
   // Form state
   const [formName, setFormName] = useState('');
@@ -110,9 +112,22 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     }
   };
 
-  const confirmDelete = (item: CanonicalItem) => {
+  const confirmDelete = async (item: CanonicalItem) => {
     setItemToDelete(item);
     setShowDeleteConfirm(true);
+    setRecipesUsingItem([]);
+    setIsLoadingDeleteRecipes(true);
+    try {
+      const recipes = await saltBackend.getRecipes();
+      const matched = recipes.filter(recipe =>
+        recipe.ingredients?.some(ing => ing.canonicalItemId === item.id)
+      );
+      setRecipesUsingItem(matched);
+    } catch (err) {
+      console.error('Failed to load recipes for item delete:', err);
+    } finally {
+      setIsLoadingDeleteRecipes(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -310,6 +325,27 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
               Are you sure you want to delete <strong>{itemToDelete.name}</strong>?
               This cannot be undone.
             </p>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+                Recipes using this item
+              </p>
+              {isLoadingDeleteRecipes ? (
+                <p className="text-sm text-gray-600">Loading recipes...</p>
+              ) : recipesUsingItem.length > 0 ? (
+                <ul className="space-y-1 max-h-40 overflow-y-auto text-sm text-gray-700">
+                  {recipesUsingItem.map(recipe => (
+                    <li key={recipe.id} className="truncate">{recipe.title}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-600">None</p>
+              )}
+              {recipesUsingItem.length > 0 && (
+                <p className="text-xs text-gray-500 mt-2">
+                  This will remove the item from those recipes.
+                </p>
+              )}
+            </div>
             <div className="flex gap-3">
               <Button
                 onClick={handleDelete}
