@@ -135,6 +135,28 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     return this.decodeNestedArrays(recipe);
   }
 
+  /**
+   * Remove undefined values from objects/arrays for Firestore compatibility.
+   * Firestore doesn't accept undefined - it must be null or omitted.
+   */
+  private cleanUndefinedValues(obj: any): any {
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.cleanUndefinedValues(item));
+    }
+    
+    if (obj && typeof obj === 'object') {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== undefined) {
+          cleaned[key] = this.cleanUndefinedValues(value);
+        }
+      }
+      return cleaned;
+    }
+    
+    return obj;
+  }
+
   private async uploadRecipeImage(path: string, imageData: string): Promise<void> {
     
     // DEFINITIVE FIX: Use built-in Vite env check (same as resolveImagePath)
@@ -668,7 +690,8 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     
     // Apply all post-processing updates in one write
     if (Object.keys(postProcessUpdates).length > 0) {
-      await updateDoc(doc(db, 'recipes', id), postProcessUpdates);
+      const cleanedUpdates = this.cleanUndefinedValues(postProcessUpdates);
+      await updateDoc(doc(db, 'recipes', id), cleanedUpdates);
       return { ...newRecipe, ...postProcessUpdates } as Recipe;
     }
     
@@ -712,7 +735,8 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     
     // Apply all post-processing updates in one write
     if (Object.keys(postProcessUpdates).length > 0) {
-      await updateDoc(doc(db, 'recipes', id), postProcessUpdates);
+      const cleanedUpdates = this.cleanUndefinedValues(postProcessUpdates);
+      await updateDoc(doc(db, 'recipes', id), cleanedUpdates);
       return { ...updated, ...postProcessUpdates } as Recipe;
     }
     
