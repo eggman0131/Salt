@@ -420,6 +420,8 @@ export abstract class BaseSaltBackend implements ISaltBackend {
       
       const unitNames = new Set(existingUnits.map(u => u.name.toLowerCase()));
       const aisleNames = new Set(existingAisles.map(a => a.name.toLowerCase()));
+      let nextUnitSortOrder = existingUnits.length;
+      let nextAisleSortOrder = existingAisles.length;
       
       // Create new canonical items and update results
       for (let i = 0; i < unmatched.length; i++) {
@@ -430,25 +432,25 @@ export abstract class BaseSaltBackend implements ISaltBackend {
           const unitName = aiResolution.preferredUnit || '_item';
           const aisleName = aiResolution.aisle || 'Other';
           
-          // Ensure unit exists
+          // Ensure unit exists (reuse if found, create if missing)
           if (!unitNames.has(unitName.toLowerCase())) {
             await this.createUnit({
               name: unitName,
-              sortOrder: existingUnits.length
+              sortOrder: nextUnitSortOrder++
             });
             unitNames.add(unitName.toLowerCase());
           }
           
-          // Ensure aisle exists
+          // Ensure aisle exists (reuse if found, create if missing)
           if (!aisleNames.has(aisleName.toLowerCase())) {
             await this.createAisle({
               name: aisleName,
-              sortOrder: existingAisles.length
+              sortOrder: nextAisleSortOrder++
             });
             aisleNames.add(aisleName.toLowerCase());
           }
           
-          // Create new canonical item
+          // Create new canonical item (using existing or newly created unit/aisle)
           const newItem = await this.createCanonicalItem({
             name: aiResolution.name,
             normalisedName: aiResolution.name.toLowerCase(),
