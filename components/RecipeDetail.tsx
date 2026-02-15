@@ -14,6 +14,7 @@ import { DeleteConfirmModal } from './RecipeModals/DeleteConfirmModal';
 import { CategoryPickerModal } from './RecipeModals/CategoryPickerModal';
 import { HistoryModal } from './RecipeModals/HistoryModal';
 import { ImageEditorModalWrapper } from './RecipeModals/ImageEditorModalWrapper';
+import { RepairRecipeModal } from './RecipeModals/RepairRecipeModal';
 
 // Section components
 import { AtAGlanceSection } from './RecipeSections/AtAGlanceSection';
@@ -100,6 +101,12 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
   const [showCategorySelector, setShowCategorySelector] = useState(false);
   const [isServingsChanging, setIsServingsChanging] = useState(false);
+  const [showRepairModal, setShowRepairModal] = useState(false);
+  const [isRepairing, setIsRepairing] = useState(false);
+  const [repairStages, setRepairStages] = useState({
+    categorise: true,
+    relinkIngredients: true
+  });
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -246,9 +253,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
       const imageData = await saltBackend.generateRecipeImage(recipe.title);
       const updated = await saltBackend.updateRecipe(recipe.id, {}, imageData);
       setRecipe(updated);
-      onRefresh();
+      
+      // Delay the parent refresh to avoid race condition with Firestore cache
+      setTimeout(() => {
+        onRefresh();
+      }, 500);
     } catch (err) {
       console.error(err);
+      alert('Failed to regenerate image');
     } finally {
       setIsRegeneratingImage(false);
     }
@@ -260,9 +272,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
       const updated = await saltBackend.updateRecipe(recipe.id, {}, imageData);
       setRecipe(updated);
       setShowImageEditor(false);
-      onRefresh();
+      
+      // Delay the parent refresh to avoid race condition with Firestore cache
+      setTimeout(() => {
+        onRefresh();
+      }, 500);
     } catch (err) {
       console.error(err);
+      alert('Failed to update image');
     } finally {
       setIsRegeneratingImage(false);
     }
@@ -349,6 +366,33 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     } catch (err) {
       console.error(err);
       alert("Delete failed.");
+    }
+  };
+
+  const handleRunRepair = async () => {
+    if (!repairStages.categorise && !repairStages.relinkIngredients) return;
+
+    setIsRepairing(true);
+    try {
+      const updates: Partial<Recipe> = {};
+
+      if (repairStages.relinkIngredients) {
+        updates.ingredients = recipe.ingredients || [];
+      }
+
+      if (!repairStages.categorise) {
+        updates.categoryIds = recipe.categoryIds || [];
+      }
+
+      const updated = await saltBackend.updateRecipe(recipe.id, updates);
+      setRecipe(updated);
+      setShowRepairModal(false);
+      onRefresh();
+    } catch (err) {
+      console.error('Repair failed:', err);
+      alert('Repair failed.');
+    } finally {
+      setIsRepairing(false);
     }
   };
 
@@ -491,6 +535,17 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         />
       )}
 
+      {/* Repair Modal */}
+      {showRepairModal && (
+        <RepairRecipeModal
+          stages={repairStages}
+          onToggle={(key) => setRepairStages(prev => ({ ...prev, [key]: !prev[key] }))}
+          onRun={handleRunRepair}
+          onCancel={() => setShowRepairModal(false)}
+          isRunning={isRepairing}
+        />
+      )}
+
       {/* Main Detail View */}
       <div
         className="bg-white w-full h-full md:h-auto md:max-h-[calc(100vh-7rem)] md:max-w-6xl md:rounded-2xl flex flex-col overflow-hidden shadow-2xl relative cursor-default"
@@ -523,6 +578,17 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                 </svg>
               </button>
             )}
+            <button
+              onClick={() => setShowRepairModal(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-orange-600 hover:text-orange-700 transition-colors shrink-0"
+              aria-label="Repair recipe"
+              title="Repair recipe"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232a3 3 0 0 1 4.243 4.243l-6.364 6.364a2 2 0 0 1-1.414.586H8.586a1 1 0 0 1-1-1v-2.121a2 2 0 0 1 .586-1.414l6.364-6.364Z"/>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18h6"/>
+              </svg>
+            </button>
             <button
               onClick={() => setShowHistory(true)}
               className="w-10 h-10 flex items-center justify-center rounded-lg text-blue-600 hover:text-blue-800 transition-colors shrink-0"
@@ -583,6 +649,16 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                 </svg>
               </button>
             )}
+            <button
+              onClick={() => setShowRepairModal(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-orange-600 hover:text-orange-700 transition-colors shrink-0"
+              title="Repair recipe"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232a3 3 0 0 1 4.243 4.243l-6.364 6.364a2 2 0 0 1-1.414.586H8.586a1 1 0 0 1-1-1v-2.121a2 2 0 0 1 .586-1.414l6.364-6.364Z"/>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18h6"/>
+              </svg>
+            </button>
             <button
               onClick={() => setShowHistory(true)}
               className="w-10 h-10 flex items-center justify-center rounded-lg text-blue-600 hover:text-blue-800 transition-colors shrink-0"
