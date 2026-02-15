@@ -1139,6 +1139,152 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     throw new Error('Not implemented yet - Phase 3d');
   }
 
+  // -- UNITS & AISLES MANAGEMENT --
+
+  async getUnits(): Promise<Unit[]> {
+    const snapshot = await getDocs(query(
+      collection(db, 'units'),
+      orderBy('sortOrder', 'asc')
+    ));
+    const units: Unit[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      units.push({
+        ...data,
+        id: doc.id
+      } as Unit);
+    });
+    
+    return units;
+  }
+
+  async createUnit(unit: Omit<Unit, 'id' | 'createdAt'>): Promise<Unit> {
+    const now = new Date().toISOString();
+    const newUnit: any = {
+      ...unit,
+      createdAt: now,
+      sortOrder: unit.sortOrder ?? 999
+    };
+
+    // Remove undefined values
+    Object.keys(newUnit).forEach(key => {
+      if (newUnit[key] === undefined) {
+        delete newUnit[key];
+      }
+    });
+
+    const id = `unit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const docRef = doc(db, 'units', id);
+    await setDoc(docRef, newUnit);
+
+    return {
+      ...newUnit,
+      id
+    } as Unit;
+  }
+
+  async updateUnit(id: string, updates: Partial<Unit>): Promise<Unit> {
+    const docRef = doc(db, 'units', id);
+    
+    // Remove undefined values
+    const cleanUpdates: any = { ...updates };
+    Object.keys(cleanUpdates).forEach(key => {
+      if (cleanUpdates[key] === undefined) {
+        delete cleanUpdates[key];
+      }
+    });
+    
+    await updateDoc(docRef, cleanUpdates);
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Unit ${id} not found after update`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as Unit;
+  }
+
+  async deleteUnit(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'units', id));
+  }
+
+  async getAisles(): Promise<Aisle[]> {
+    const snapshot = await getDocs(query(
+      collection(db, 'aisles'),
+      orderBy('sortOrder', 'asc')
+    ));
+    const aisles: Aisle[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      aisles.push({
+        ...data,
+        id: doc.id
+      } as Aisle);
+    });
+    
+    return aisles;
+  }
+
+  async createAisle(aisle: Omit<Aisle, 'id' | 'createdAt'>): Promise<Aisle> {
+    const now = new Date().toISOString();
+    const newAisle: any = {
+      ...aisle,
+      createdAt: now,
+      sortOrder: aisle.sortOrder ?? 999
+    };
+
+    // Remove undefined values
+    Object.keys(newAisle).forEach(key => {
+      if (newAisle[key] === undefined) {
+        delete newAisle[key];
+      }
+    });
+
+    const id = `aisle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const docRef = doc(db, 'aisles', id);
+    await setDoc(docRef, newAisle);
+
+    return {
+      ...newAisle,
+      id
+    } as Aisle;
+  }
+
+  async updateAisle(id: string, updates: Partial<Aisle>): Promise<Aisle> {
+    const docRef = doc(db, 'aisles', id);
+    
+    // Remove undefined values
+    const cleanUpdates: any = { ...updates };
+    Object.keys(cleanUpdates).forEach(key => {
+      if (cleanUpdates[key] === undefined) {
+        delete cleanUpdates[key];
+      }
+    });
+    
+    await updateDoc(docRef, cleanUpdates);
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Aisle ${id} not found after update`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as Aisle;
+  }
+
+  async deleteAisle(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'aisles', id));
+  }
+
   // -- INVENTORY (KITCHEN KIT) --
   async getInventory(): Promise<Equipment[]> {
     const snapshot = await getDocs(collection(db, 'inventory'));
