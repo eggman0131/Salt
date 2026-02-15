@@ -204,7 +204,7 @@ RETURN JSON (MANDATORY SCHEMA):
 };
 
 /**
- * INGREDIENT PROCESSING PROMPTS (Future Implementation)
+ * INGREDIENT PROCESSING
  * 
  * TERMINOLOGY NOTE:
  * - "Ingredient" terminology is correct in this context - we're processing recipe ingredients
@@ -212,17 +212,12 @@ RETURN JSON (MANDATORY SCHEMA):
  * - The item database is universal (food + household items like cleaning supplies)
  * - This maintains semantic correctness: recipes use culinary terms, shopping uses retail terms
  * 
- * When implementing processRecipeIngredients(), prompts should:
+ * Process:
  * 1. Parse recipe ingredient strings into structured RecipeIngredient objects
- * 2. Fuzzy match against the canonical item database
- * 3. Create new CanonicalItems for unknown ingredients
- * 4. Return RecipeIngredient[] with canonicalItemId links where matched
+ * 2. Fuzzy match against the canonical item database (0.85+ similarity)
+ * 3. Batch unmatched ingredients and send to AI for resolution in ONE call
+ * 4. Create new CanonicalItems from AI response
+ * 5. Return RecipeIngredient[] with canonicalItemId links
  * 
- * Example prompt structure:
- * ```
- * You are processing recipe ingredients and matching them to the canonical ITEM database.
- * Items include both ingredients (food) and household goods (cleaning supplies, toiletries).
- * For each recipe ingredient string, extract quantity, unit, ingredientName, and preparation.
- * Match ingredientName to existing items using fuzzy matching (0.85+ similarity threshold).
- * ```
+ * Implementation is in base-backend.ts processRecipeIngredients()
  */

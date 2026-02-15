@@ -104,7 +104,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       const imageData = await saltBackend.generateRecipeImage(recipeData.title || 'Dish');
       
       setStatus('categorising');
-      setProgressMessage('Categorising recipe...');
+      setProgressMessage('Finalising recipe...');
       await saltBackend.createRecipe({
         ...recipeData,
         ingredients: recipeData.ingredients || [],
@@ -153,9 +153,9 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       setProgressMessage('Generating photograph...');
       const imageData = await saltBackend.generateRecipeImage(importedRecipe.title || 'Dish');
       
-      // Save to recipes
+      // Save to recipes with post-processing
       setStatus('categorising');
-      setProgressMessage('Categorising recipe...');
+      setProgressMessage('Finalising recipe...');
       await saltBackend.createRecipe({
         ...importedRecipe,
         ingredients: importedRecipe.ingredients || [],

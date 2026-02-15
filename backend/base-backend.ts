@@ -346,21 +346,231 @@ export abstract class BaseSaltBackend implements ISaltBackend {
 
   /**
    * Process raw recipe ingredient strings into structured RecipeIngredient objects.
-   * This is a placeholder implementation - will be built in subsequent phases
-   * Dependencies: Requires canonical items, AI prompts, fuzzy matching
+   * Uses deterministic parsing + fuzzy matching + batched AI resolution.
+   * Post-processing step similar to categorization.
    */
-  async processRecipeIngredients(ingredients: string[], recipeId: string): Promise<RecipeIngredient[]> {
-    // TODO: Phase 2 implementation
-    // For now, return basic structure to allow recipes to compile
-    return ingredients.map((raw, idx) => ({
-      id: `ring-${recipeId}-${idx}`,
-      raw,
-      quantity: null,
-      unit: null,
-      ingredientName: raw,
-      preparation: undefined,
-      canonicalItemId: undefined
-    }));
+  async processRecipeIngredients(ingredients: string[] | RecipeIngredient[], recipeId: string): Promise<RecipeIngredient[]> {
+    // If already structured, return as-is
+    if (ingredients.length > 0 && typeof ingredients[0] === 'object') {
+      return ingredients as RecipeIngredient[];
+    }
+
+    // Get all canonical items for fuzzy matching
+    const allItems = await this.getCanonicalItems();
+    const results: RecipeIngredient[] = [];
+    const unmatched: { index: number; parsed: any }[] = [];
+
+    // Step 1: Parse and fuzzy match each ingredient
+    for (let idx = 0; idx < ingredients.length; idx++) {
+      const raw = typeof ingredients[idx] === 'string' ? ingredients[idx] as string : '';
+      const parsed = this.parseIngredientString(raw);
+      
+      // Try fuzzy match to existing canonical items
+      let bestMatch: CanonicalItem | null = null;
+      let bestScore = 0;
+      
+      for (const item of allItems) {
+        const score = this.fuzzyMatch(parsed.ingredientName.toLowerCase(), item.normalisedName);
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = item;
+        }
+        
+        // Also check synonyms
+        if (item.synonyms) {
+          for (const syn of item.synonyms) {
+            const synScore = this.fuzzyMatch(parsed.ingredientName.toLowerCase(), syn.toLowerCase());
+            if (synScore > bestScore) {
+              bestScore = synScore;
+              bestMatch = item;
+            }
+          }
+        }
+      }
+      
+      // If good match found (85%+), use it
+      if (bestScore >= 0.85 && bestMatch) {
+        results.push({
+          id: `ring-${recipeId}-${idx}`,
+          raw,
+          ...parsed,
+          canonicalItemId: bestMatch.id
+        });
+      } else {
+        // Queue for AI resolution
+        results.push({
+          id: `ring-${recipeId}-${idx}`,
+          raw,
+          ...parsed,
+          canonicalItemId: undefined
+        });
+        unmatched.push({ index: idx, parsed });
+      }
+    }
+
+    // Step 2: Batch resolve unmatched items via AI
+    if (unmatched.length > 0) {
+      const resolved = await this.resolveUnmatchedIngredients(unmatched.map(u => u.parsed.ingredientName));
+      
+      // Create new canonical items and update results
+      for (let i = 0; i < unmatched.length; i++) {
+        const { index } = unmatched[i];
+        const aiResolution = resolved[i];
+        
+        if (aiResolution) {
+          // Create new canonical item
+          const newItem = await this.createCanonicalItem({
+            name: aiResolution.name,
+            normalisedName: aiResolution.name.toLowerCase(),
+            preferredUnit: aiResolution.preferredUnit || '_item',
+            aisle: aiResolution.aisle || 'Other',
+            isStaple: aiResolution.isStaple || false,
+            synonyms: aiResolution.synonyms || [],
+            metadata: {}
+          });
+          
+          // Update the result with canonical link
+          results[index].canonicalItemId = newItem.id;
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Parse a raw ingredient string into structured components.
+   * Examples:
+   *   "500g beef mince" → {quantity: 500, unit: "g", ingredientName: "beef mince", preparation: null}
+   *   "1 red onion, finely diced" → {quantity: 1, unit: "_item", ingredientName: "red onion", preparation: "finely diced"}
+   */
+  private parseIngredientString(raw: string): Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'> {
+    let text = raw.toLowerCase().trim();
+    
+    // Extract quantity and unit
+    const knownUnits = ['g', 'kg', 'mg', 'ml', 'l', 'tsp', 'tbsp', 'piece', 'pinch'];
+    const unitPattern = knownUnits.join('|');
+    const quantityMatch = text.match(new RegExp(`^(\\d+\\.?\\d*|\\d*\\.\\d+)\\s*(${unitPattern})?\\s+(.+)$`));
+    
+    let quantity: number | null = null;
+    let unit: string | null = null;
+    
+    if (quantityMatch) {
+      quantity = parseFloat(quantityMatch[1]);
+      unit = quantityMatch[2] || '_item'; // Default to countable if no unit specified
+      text = quantityMatch[3];
+    }
+    
+    // Extract preparation instructions (comma-separated descriptors at end)
+    const prepMatch = text.match(/,\s*(.+)$/);
+    const preparation = prepMatch ? prepMatch[1].trim() : null;
+    if (prepMatch) {
+      text = text.substring(0, prepMatch.index).trim();
+    }
+    
+    // Remove size adjectives (non-identity descriptors)
+    text = text.replace(/\b(small|medium|large)\b/g, '').trim();
+    
+    // Basic singularization
+    text = text.replace(/ies$/, 'y').replace(/([^s])s$/, '$1');
+    
+    // Normalize whitespace
+    const ingredientName = text.replace(/\s+/g, ' ').trim();
+    
+    return {
+      quantity,
+      unit,
+      ingredientName,
+      preparation: preparation || undefined
+    };
+  }
+
+  /**
+   * Levenshtein distance for fuzzy string matching.
+   * Returns similarity score 0.0 - 1.0 (1.0 = exact match)
+   */
+  private fuzzyMatch(a: string, b: string): number {
+    const longer = a.length > b.length ? a : b;
+    const shorter = a.length > b.length ? b : a;
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = this.levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+
+  private levenshteinDistance(a: string, b: string): number {
+    const matrix: number[][] = [];
+    
+    for (let i = 0; i <= b.length; i++) {
+      matrix[i] = [i];
+    }
+    for (let j = 0; j <= a.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    
+    return matrix[b.length][a.length];
+  }
+
+  /**
+   * Batch resolve unmatched ingredient names via AI.
+   * Sends all unmatched items in ONE prompt to minimize API calls.
+   */
+  private async resolveUnmatchedIngredients(ingredientNames: string[]): Promise<any[]> {
+    if (ingredientNames.length === 0) return [];
+    
+    const instruction = await this.getSystemInstruction("You are the Head Chef resolving ingredient names to canonical items.");
+    
+    const response = await this.callGenerateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: `Resolve these recipe ingredients to canonical item database entries. Return JSON array with one entry per ingredient.
+
+INGREDIENTS TO RESOLVE:
+${ingredientNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
+
+For each ingredient, return:
+{
+  "name": "Canonical item name (title case)",
+  "preferredUnit": "g|kg|ml|l|_item",
+  "aisle": "Produce|Meat & Fish|Dairy|Bakery|Pantry|Frozen|Other",
+  "isStaple": true/false,
+  "synonyms": ["alternate name 1", "alternate name 2"]
+}
+
+RULES:
+- Use British English (courgette not zucchini, aubergine not eggplant)
+- Use metric units only
+- Use _item for countable things (eggs, onions, cans)
+- Keep culinary identity descriptors (red onion, beef mince, whole milk)
+- Remove size adjectives (small, medium, large)
+
+Return JSON array: [item1, item2, ...]`
+        }]
+      }],
+      config: {
+        systemInstruction: instruction,
+        responseMimeType: "application/json",
+      }
+    });
+
+    const parsed = JSON.parse(this.sanitizeJson(response.text || '[]'));
+    return Array.isArray(parsed) ? parsed : [];
   }
 
   /**
