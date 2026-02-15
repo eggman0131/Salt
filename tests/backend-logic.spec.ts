@@ -3,6 +3,8 @@ import { test, expect } from '@playwright/test';
 /**
  * Shopping List v2 - Backend Logic Tests
  * Tests The Brain (base-backend.ts) logic for ingredient processing
+ * Note: "Ingredient" terminology is correct here - we're processing recipe ingredients
+ * which then link to the canonical item database via canonicalItemId
  */
 
 test.describe('Ingredient Processing - Normalisation Pipeline', () => {

@@ -202,3 +202,27 @@ RETURN JSON (MANDATORY SCHEMA):
   "stepAlerts": {"0": "Alert text if needed"}
 }`
 };
+
+/**
+ * INGREDIENT PROCESSING PROMPTS (Future Implementation)
+ * 
+ * TERMINOLOGY NOTE:
+ * - "Ingredient" terminology is correct in this context - we're processing recipe ingredients
+ * - These ingredients link to the canonical ITEM database via canonicalItemId
+ * - The item database is universal (food + household items like cleaning supplies)
+ * - This maintains semantic correctness: recipes use culinary terms, shopping uses retail terms
+ * 
+ * When implementing processRecipeIngredients(), prompts should:
+ * 1. Parse recipe ingredient strings into structured RecipeIngredient objects
+ * 2. Fuzzy match against the canonical item database
+ * 3. Create new CanonicalItems for unknown ingredients
+ * 4. Return RecipeIngredient[] with canonicalItemId links where matched
+ * 
+ * Example prompt structure:
+ * ```
+ * You are processing recipe ingredients and matching them to the canonical ITEM database.
+ * Items include both ingredients (food) and household goods (cleaning supplies, toiletries).
+ * For each recipe ingredient string, extract quantity, unit, ingredientName, and preparation.
+ * Match ingredientName to existing items using fuzzy matching (0.85+ similarity threshold).
+ * ```
+ */
