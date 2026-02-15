@@ -122,10 +122,10 @@ export function applyCategoryChange(
  * - "1 onion, diced" with 1→2 servings becomes "2 onion, diced"
  */
 export function scaleIngredients(
-  ingredients: string[],
+  ingredients: (string | any)[],
   currentServings: string,
   newServings: string
-): string[] {
+): (string | any)[] {
   // Parse servings numbers from strings like "4 servings" or just "4"
   const currentNum = parseFloat(currentServings);
   const newNum = parseFloat(newServings);
@@ -137,7 +137,20 @@ export function scaleIngredients(
   const scaleFactor = newNum / currentNum;
   
   return ingredients.map(ingredient => {
-    // Match the first number (integer or decimal) in the ingredient
+    // Handle new RecipeIngredient format
+    if (typeof ingredient === 'object' && ingredient.quantity !== undefined) {
+      return {
+        ...ingredient,
+        quantity: ingredient.quantity !== null ? ingredient.quantity * scaleFactor : null
+      };
+    }
+    
+    // Handle legacy string format
+    if (typeof ingredient !== 'string') {
+      return ingredient; // Unknown format, return as-is
+    }
+    
+    // Match the first number (integer or decimal) in the ingredient string
     const match = ingredient.match(/^(\d+(?:\.\d+)?)/);
     
     if (!match) {
