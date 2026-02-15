@@ -12,7 +12,8 @@
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import { 
   ISaltBackend, User, Recipe, Equipment, EquipmentCandidate, 
-  Accessory, Plan, KitchenSettings, RecipeCategory
+  Accessory, Plan, KitchenSettings, RecipeCategory,
+  CanonicalItem, RecipeIngredient, ShoppingList, ShoppingListItem, Unit, Aisle
 } from '../types/contract';
 import { SYSTEM_CORE, EQUIPMENT_PROMPTS, RECIPE_PROMPTS } from './prompts';
 
@@ -287,6 +288,14 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     const existingCategories = await this.getCategories();
     const categoryNames = existingCategories.map(cat => `${cat.id}:${cat.name}`).join(', ');
     
+    // Extract ingredient names for categorization
+    // Handle both legacy string[] and new RecipeIngredient[] formats
+    const ingredientNames = Array.isArray(recipe.ingredients)
+      ? recipe.ingredients.map((ing: any) => 
+          typeof ing === 'string' ? ing : (ing.ingredientName || ing.raw || '')
+        )
+      : [];
+    
     // Call AI with categorization prompt
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
@@ -295,7 +304,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
         parts: [{
           text: RECIPE_PROMPTS.categorization(
             recipe.title,
-            recipe.ingredients,
+            ingredientNames,
             recipe.instructions,
             categoryNames ? categoryNames.split(', ') : []
           )
@@ -331,6 +340,43 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     }
 
     return allCategoryIds;
+  }
+
+  // -- SHOPPING ITEM & RECIPE INGREDIENT PROCESSING --
+
+  /**
+   * Process raw recipe ingredient strings into structured RecipeIngredient objects.
+   * This is a placeholder implementation - will be built in subsequent phases
+   * Dependencies: Requires canonical items, AI prompts, fuzzy matching
+   */
+  async processRecipeIngredients(ingredients: string[], recipeId: string): Promise<RecipeIngredient[]> {
+    // TODO: Phase 2 implementation
+    // For now, return basic structure to allow recipes to compile
+    return ingredients.map((raw, idx) => ({
+      id: `ring-${recipeId}-${idx}`,
+      raw,
+      quantity: null,
+      unit: null,
+      ingredientName: raw,
+      preparation: undefined,
+      canonicalItemId: undefined
+    }));
+  }
+
+  /**
+   * Generate a shopping list from selected recipes.
+   * This is a placeholder implementation - will be built in subsequent phases
+   * Dependencies: Requires lists, items, merging logic
+   */
+  async generateShoppingList(recipeIds: string[], name: string): Promise<{ list: ShoppingList; items: ShoppingListItem[] }> {
+    // TODO: Phase 2 implementation
+    const list: ShoppingList = {
+      id: `sl-${Date.now()}`,
+      name,
+      recipeIds,
+      createdAt: new Date().toISOString(),
+    };
+    return { list, items: [] };
   }
 
   // -- ABSTRACT METHODS (Implemented by Subclasses) --
@@ -370,4 +416,35 @@ export abstract class BaseSaltBackend implements ISaltBackend {
   abstract approveCategory(id: string): Promise<void>;
   abstract getPendingCategories(): Promise<RecipeCategory[]>;
   abstract importSystemState(json: string): Promise<void>;
+
+  // Shopping Items (Universal Catalog)
+  abstract getCanonicalItems(): Promise<CanonicalItem[]>;
+  abstract getCanonicalItem(id: string): Promise<CanonicalItem | null>;
+  abstract createCanonicalItem(item: Omit<CanonicalItem, 'id' | 'createdAt'>): Promise<CanonicalItem>;
+  abstract updateCanonicalItem(id: string, updates: Partial<CanonicalItem>): Promise<CanonicalItem>;
+  abstract deleteCanonicalItem(id: string): Promise<void>;
+
+  // Shopping Lists
+  abstract getShoppingLists(): Promise<ShoppingList[]>;
+  abstract getShoppingList(id: string): Promise<ShoppingList | null>;
+  abstract getDefaultShoppingList(): Promise<ShoppingList>;
+  abstract setDefaultShoppingList(id: string): Promise<void>;
+  abstract createShoppingList(list: Omit<ShoppingList, 'id' | 'createdAt' | 'createdBy'>): Promise<ShoppingList>;
+  abstract updateShoppingList(id: string, updates: Partial<ShoppingList>): Promise<ShoppingList>;
+  abstract deleteShoppingList(id: string): Promise<void>;
+  abstract addRecipeToShoppingList(recipeId: string, shoppingListId: string): Promise<void>;
+  abstract addManualItemToShoppingList(shoppingListId: string, name: string, quantity: number, unit: string, aisle?: string): Promise<ShoppingListItem>;
+  abstract getShoppingListItems(shoppingListId: string): Promise<ShoppingListItem[]>;
+  abstract createShoppingListItem(item: Omit<ShoppingListItem, 'id'>): Promise<ShoppingListItem>;
+  abstract updateShoppingListItem(id: string, updates: Partial<ShoppingListItem>): Promise<ShoppingListItem>;
+
+  // Units & Aisles Management
+  abstract getUnits(): Promise<Unit[]>;
+  abstract createUnit(unit: Omit<Unit, 'id' | 'createdAt'>): Promise<Unit>;
+  abstract updateUnit(id: string, updates: Partial<Unit>): Promise<Unit>;
+  abstract deleteUnit(id: string): Promise<void>;
+  abstract getAisles(): Promise<Aisle[]>;
+  abstract createAisle(aisle: Omit<Aisle, 'id' | 'createdAt'>): Promise<Aisle>;
+  abstract updateAisle(id: string, updates: Partial<Aisle>): Promise<Aisle>;
+  abstract deleteAisle(id: string): Promise<void>;
 }
