@@ -85,16 +85,16 @@ export const RecipeIngredientsSection: React.FC<RecipeIngredientsSectionProps> =
         <ul className="space-y-2">
           {(recipe.ingredients || []).map((ing, i) => {
             const displayText = formatIngredient(ing);
-            const isLinked = typeof ing !== 'string' && ing.canonicalItemId;
+            const isUnlinked = typeof ing !== 'string' && !ing.canonicalItemId;
             
             return (
               <li key={i} className="flex items-start gap-3 text-base text-gray-700">
                 <span className="mt-2 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
                 <div className="flex-1">
                   <span>{displayText}</span>
-                  {isLinked && (
-                    <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                      Linked
+                  {isUnlinked && (
+                    <span className="ml-2 text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full">
+                      Unlinked
                     </span>
                   )}
                 </div>
