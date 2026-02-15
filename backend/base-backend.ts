@@ -420,6 +420,13 @@ export abstract class BaseSaltBackend implements ISaltBackend {
       
       const unitNames = new Set(existingUnits.map(u => u.name.toLowerCase()));
       const aisleNames = new Set(existingAisles.map(a => a.name.toLowerCase()));
+      
+      // Track existing canonical items to avoid duplicates
+      const canonicalItemNames = new Map<string, string>(); // normalized name -> item ID
+      for (const item of allItems) {
+        canonicalItemNames.set(item.normalisedName, item.id);
+      }
+      
       let nextUnitSortOrder = existingUnits.length;
       let nextAisleSortOrder = existingAisles.length;
       
@@ -431,6 +438,7 @@ export abstract class BaseSaltBackend implements ISaltBackend {
         if (aiResolution) {
           const unitName = aiResolution.preferredUnit || '_item';
           const aisleName = aiResolution.aisle || 'Other';
+          const normalizedItemName = aiResolution.name.toLowerCase();
           
           // Ensure unit exists (reuse if found, create if missing)
           if (!unitNames.has(unitName.toLowerCase())) {
@@ -450,19 +458,29 @@ export abstract class BaseSaltBackend implements ISaltBackend {
             aisleNames.add(aisleName.toLowerCase());
           }
           
-          // Create new canonical item (using existing or newly created unit/aisle)
-          const newItem = await this.createCanonicalItem({
-            name: aiResolution.name,
-            normalisedName: aiResolution.name.toLowerCase(),
-            preferredUnit: unitName,
-            aisle: aisleName,
-            isStaple: aiResolution.isStaple || false,
-            synonyms: aiResolution.synonyms || [],
-            metadata: {}
-          });
+          // Check if canonical item already exists (reuse if found, create if missing)
+          let itemId: string;
+          if (canonicalItemNames.has(normalizedItemName)) {
+            // Reuse existing item
+            itemId = canonicalItemNames.get(normalizedItemName)!;
+          } else {
+            // Create new canonical item
+            const newItem = await this.createCanonicalItem({
+              name: aiResolution.name,
+              normalisedName: normalizedItemName,
+              preferredUnit: unitName,
+              aisle: aisleName,
+              isStaple: aiResolution.isStaple || false,
+              synonyms: aiResolution.synonyms || [],
+              metadata: {}
+            });
+            itemId = newItem.id;
+            // Track to prevent duplicates within this batch
+            canonicalItemNames.set(normalizedItemName, itemId);
+          }
           
           // Update the result with canonical link
-          results[index].canonicalItemId = newItem.id;
+          results[index].canonicalItemId = itemId;
         }
       }
     }
