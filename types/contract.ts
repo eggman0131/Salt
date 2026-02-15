@@ -279,7 +279,7 @@ export interface ISaltBackend {
   updateShoppingListItem: (id: string, updates: Partial<ShoppingListItem>) => Promise<ShoppingListItem>;
   
   // Recipe Ingredient Processing
-  processRecipeIngredients: (ingredients: string[], recipeId: string) => Promise<RecipeIngredient[]>;
+  processRecipeIngredients: (ingredients: string[] | RecipeIngredient[], recipeId: string) => Promise<RecipeIngredient[]>;
   generateShoppingList: (recipeIds: string[], name: string) => Promise<{ list: ShoppingList; items: ShoppingListItem[] }>;
   
   // Units & Aisles Management
