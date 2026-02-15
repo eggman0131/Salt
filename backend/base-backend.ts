@@ -248,10 +248,10 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     return response.text || '';
   }
 
-  async generateRecipeImage(title: string): Promise<string> {
+  async generateRecipeImage(title: string, description?: string): Promise<string> {
     const response = await this.callGenerateContent({
       model: 'gemini-2.5-flash-image',
-      contents: [{ role: 'user', parts: [{ text: RECIPE_PROMPTS.imagePrompt(title) }] }],
+      contents: [{ role: 'user', parts: [{ text: RECIPE_PROMPTS.imagePrompt(title, description) }] }],
       config: { imageConfig: { aspectRatio: "4:3" } }
     });
     // Fix: Access inline data correctly based on Gemini Node SDK response shape

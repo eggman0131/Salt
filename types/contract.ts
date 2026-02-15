@@ -238,7 +238,7 @@ export interface ISaltBackend {
   chatWithRecipe: (recipe: Recipe, message: string, history: {role: string, text: string}[], onChunk?: (chunk: string) => void) => Promise<string>;
   summarizeAgreedRecipe: (history: {role: string, text: string}[], currentRecipe?: Recipe) => Promise<string>;
   chatForDraft: (history: {role: string, text: string}[]) => Promise<string>;
-  generateRecipeImage: (recipeTitle: string) => Promise<string>;
+  generateRecipeImage: (recipeTitle: string, description?: string) => Promise<string>;
   importRecipeFromUrl: (url: string) => Promise<Partial<Recipe>>;
   importSystemState: (json: string) => Promise<void>;
   getPlans(): Promise<Plan[]>;
