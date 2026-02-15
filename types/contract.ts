@@ -66,6 +66,86 @@ export const RecipeCategorySchema = z.object({
 });
 export type RecipeCategory = z.infer<typeof RecipeCategorySchema>;
 
+// Shopping Domain Schemas
+
+// Unit Schema (for shopping lists)
+// Special unit: '_item' means "count of the item itself" (e.g., 1 Onion, 2 Onions)
+// When displaying, if unit === '_item', show: "{quantity} {itemName}" with pluralization
+export const UnitSchema = z.object({
+  id: z.string(),
+  name: z.string(), // e.g., 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', '_item'
+  sortOrder: z.number().default(999),
+  createdAt: z.string(),
+});
+export type Unit = z.infer<typeof UnitSchema>;
+
+// Aisle Schema (for shopping lists and item database)
+export const AisleSchema = z.object({
+  id: z.string(),
+  name: z.string(), // e.g., 'Produce', 'Dairy & Eggs', 'Household / Cleaning'
+  sortOrder: z.number().default(999),
+  createdAt: z.string(),
+});
+export type Aisle = z.infer<typeof AisleSchema>;
+
+// CanonicalItem Schema (Universal Shopping Item Catalog)
+// Items can be food ingredients OR household goods (toilet paper, cleaning supplies)
+export const CanonicalItemSchema = z.object({
+  id: z.string(),
+  name: z.string(), // e.g., "Onion" (singular form preferred)
+  normalisedName: z.string(), // Lowercase, for matching
+  isStaple: z.boolean().default(false),
+  aisle: z.string(), // Dynamic aisle name from Aisle table
+  preferredUnit: z.string(), // Dynamic unit from Unit table (can be '_item')
+  synonyms: z.array(z.string()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+  createdAt: z.string(),
+  createdBy: z.string().optional(),
+});
+export type CanonicalItem = z.infer<typeof CanonicalItemSchema>;
+
+// RecipeIngredient Schema (Recipe Context - Culinary Domain)
+// Note: This represents an ingredient IN A RECIPE, which links to the universal item catalog
+export const RecipeIngredientSchema = z.object({
+  id: z.string(),
+  raw: z.string(), // Original recipe text: "2 red onions, diced"
+  quantity: z.number().nullable(),
+  unit: z.string().nullable(),
+  ingredientName: z.string(), // The ingredient name in cooking context
+  preparation: z.string().optional(), // e.g., "diced", "chopped"
+  canonicalItemId: z.string().optional(), // Links to CanonicalItem
+});
+export type RecipeIngredient = z.infer<typeof RecipeIngredientSchema>;
+
+// Shopping List Schema
+export const ShoppingListSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  recipeIds: z.array(z.string()).optional(),
+  isDefault: z.boolean().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string().optional(),
+  createdBy: z.string().optional(),
+});
+export type ShoppingList = z.infer<typeof ShoppingListSchema>;
+
+// Shopping List Item Schema
+export const ShoppingListItemSchema = z.object({
+  id: z.string(),
+  shoppingListId: z.string(),
+  canonicalItemId: z.string(), // Links to CanonicalItem
+  name: z.string(), // Snapshot at creation time
+  aisle: z.string(), // Snapshot at creation time
+  quantity: z.number(),
+  unit: z.string(),
+  checked: z.boolean(),
+  isStaple: z.boolean(),
+  sourceRecipeIds: z.array(z.string()).optional(),
+  sourceRecipeIngredientIds: z.array(z.string()).optional(),
+  note: z.string().optional(),
+});
+export type ShoppingListItem = z.infer<typeof ShoppingListItemSchema>;
+
 // Recipe History Entry
 export const RecipeHistoryEntrySchema = z.object({
   timestamp: z.string(),
@@ -80,7 +160,8 @@ export const RecipeSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string(),
-  ingredients: z.array(z.string()),
+  ingredients: z.array(RecipeIngredientSchema), // Structured format
+  legacyIngredients: z.array(z.string()).optional(), // For rollback compatibility
   instructions: z.array(z.string()),
   equipmentNeeded: z.array(z.string()),
   prepTime: z.string(),
@@ -175,4 +256,39 @@ export interface ISaltBackend {
   approveCategory: (id: string) => Promise<void>;
   getPendingCategories: () => Promise<RecipeCategory[]>;
   categorizeRecipe: (recipe: Recipe) => Promise<string[]>;
+  
+  // Shopping Items (Universal Catalog)
+  getCanonicalItems: () => Promise<CanonicalItem[]>;
+  getCanonicalItem: (id: string) => Promise<CanonicalItem | null>;
+  createCanonicalItem: (item: Omit<CanonicalItem, 'id' | 'createdAt'>) => Promise<CanonicalItem>;
+  updateCanonicalItem: (id: string, updates: Partial<CanonicalItem>) => Promise<CanonicalItem>;
+  deleteCanonicalItem: (id: string) => Promise<void>;
+  
+  // Shopping Lists
+  getShoppingLists: () => Promise<ShoppingList[]>;
+  getShoppingList: (id: string) => Promise<ShoppingList | null>;
+  getDefaultShoppingList: () => Promise<ShoppingList>;
+  setDefaultShoppingList: (id: string) => Promise<void>;
+  createShoppingList: (list: Omit<ShoppingList, 'id' | 'createdAt' | 'createdBy'>) => Promise<ShoppingList>;
+  updateShoppingList: (id: string, updates: Partial<ShoppingList>) => Promise<ShoppingList>;
+  deleteShoppingList: (id: string) => Promise<void>;
+  addRecipeToShoppingList: (recipeId: string, shoppingListId: string) => Promise<void>;
+  addManualItemToShoppingList: (shoppingListId: string, name: string, quantity: number, unit: string, aisle?: string) => Promise<ShoppingListItem>;
+  getShoppingListItems: (shoppingListId: string) => Promise<ShoppingListItem[]>;
+  createShoppingListItem: (item: Omit<ShoppingListItem, 'id'>) => Promise<ShoppingListItem>;
+  updateShoppingListItem: (id: string, updates: Partial<ShoppingListItem>) => Promise<ShoppingListItem>;
+  
+  // Recipe Ingredient Processing
+  processRecipeIngredients: (ingredients: string[], recipeId: string) => Promise<RecipeIngredient[]>;
+  generateShoppingList: (recipeIds: string[], name: string) => Promise<{ list: ShoppingList; items: ShoppingListItem[] }>;
+  
+  // Units & Aisles Management
+  getUnits: () => Promise<Unit[]>;
+  createUnit: (unit: Omit<Unit, 'id' | 'createdAt'>) => Promise<Unit>;
+  updateUnit: (id: string, updates: Partial<Unit>) => Promise<Unit>;
+  deleteUnit: (id: string) => Promise<void>;
+  getAisles: () => Promise<Aisle[]>;
+  createAisle: (aisle: Omit<Aisle, 'id' | 'createdAt'>) => Promise<Aisle>;
+  updateAisle: (id: string, updates: Partial<Aisle>) => Promise<Aisle>;
+  deleteAisle: (id: string) => Promise<void>;
 }
