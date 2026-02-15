@@ -1,5 +1,5 @@
 import React from 'react';
-import { Recipe } from '../../types/contract';
+import { Recipe, RecipeIngredient } from '../../types/contract';
 
 interface RecipeIngredientsSectionProps {
   recipe: Recipe;
@@ -18,6 +18,39 @@ export const RecipeIngredientsSection: React.FC<RecipeIngredientsSectionProps> =
   onDeleteIngredient,
   onAddIngredient,
 }) => {
+  // Helper to display an ingredient (handles both RecipeIngredient objects and legacy strings)
+  const formatIngredient = (ing: RecipeIngredient | string): string => {
+    if (typeof ing === 'string') {
+      return ing; // Legacy format
+    }
+    // New format: RecipeIngredient object
+    // Prefer raw text if available, otherwise reconstruct
+    if (ing.raw) {
+      return ing.raw;
+    }
+    // Reconstruct from structured data
+    let parts: string[] = [];
+    if (ing.quantity !== null) {
+      parts.push(ing.quantity.toString());
+    }
+    if (ing.unit) {
+      parts.push(ing.unit);
+    }
+    parts.push(ing.ingredientName);
+    if (ing.preparation) {
+      parts.push(`(${ing.preparation})`);
+    }
+    return parts.join(' ');
+  };
+
+  // Helper to get editable value (string) from ingredient
+  const getEditableValue = (ing: RecipeIngredient | string): string => {
+    if (typeof ing === 'string') {
+      return ing;
+    }
+    return ing.raw || formatIngredient(ing);
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-4">
       <h3 className="text-xl font-semibold text-gray-900">Ingredients</h3>
@@ -27,7 +60,7 @@ export const RecipeIngredientsSection: React.FC<RecipeIngredientsSectionProps> =
             <div key={i} className="flex items-center gap-2">
               <input
                 type="text"
-                value={ing}
+                value={getEditableValue(ing)}
                 onChange={(e) => onEditIngredient(i, e.target.value)}
                 className="flex-1 text-base border border-gray-300 rounded-lg px-3 py-2"
                 placeholder="Ingredient"
@@ -50,12 +83,24 @@ export const RecipeIngredientsSection: React.FC<RecipeIngredientsSectionProps> =
         </div>
       ) : (
         <ul className="space-y-2">
-          {(recipe.ingredients || []).map((ing, i) => (
-            <li key={i} className="flex items-start gap-3 text-base text-gray-700">
-              <span className="mt-2 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
-              {ing}
-            </li>
-          ))}
+          {(recipe.ingredients || []).map((ing, i) => {
+            const displayText = formatIngredient(ing);
+            const isLinked = typeof ing !== 'string' && ing.canonicalItemId;
+            
+            return (
+              <li key={i} className="flex items-start gap-3 text-base text-gray-700">
+                <span className="mt-2 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
+                <div className="flex-1">
+                  <span>{displayText}</span>
+                  {isLinked && (
+                    <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                      Linked
+                    </span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
