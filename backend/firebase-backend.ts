@@ -909,6 +909,236 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     await deleteDoc(doc(db, 'canonical_items', id));
   }
 
+  // -- SHOPPING LISTS --
+
+  async getShoppingLists(): Promise<ShoppingList[]> {
+    const snapshot = await getDocs(collection(db, 'shopping_lists'));
+    const lists: ShoppingList[] = [];
+    
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      lists.push({
+        ...data,
+        id: doc.id
+      } as ShoppingList);
+    });
+    
+    return lists.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getShoppingList(id: string): Promise<ShoppingList | null> {
+    const docRef = doc(db, 'shopping_lists', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      return null;
+    }
+    
+    const data = this.convertTimestamps(docSnap.data());
+    return {
+      ...data,
+      id: docSnap.id
+    } as ShoppingList;
+  }
+
+  async getDefaultShoppingList(): Promise<ShoppingList> {
+    // Find list marked as default
+    const snapshot = await getDocs(query(
+      collection(db, 'shopping_lists'),
+      where('isDefault', '==', true)
+    ));
+    
+    if (!snapshot.empty) {
+      const data = this.convertTimestamps(snapshot.docs[0].data());
+      return {
+        ...data,
+        id: snapshot.docs[0].id
+      } as ShoppingList;
+    }
+    
+    // No default list exists, create one
+    const defaultList = await this.createShoppingList({
+      name: 'Shopping List',
+      isDefault: true,
+    });
+    
+    return defaultList;
+  }
+
+  async setDefaultShoppingList(id: string): Promise<void> {
+    const batch = writeBatch(db);
+    
+    // Remove default flag from all lists
+    const allLists = await getDocs(collection(db, 'shopping_lists'));
+    allLists.forEach(docSnap => {
+      if (docSnap.data().isDefault) {
+        batch.update(docSnap.ref, { isDefault: false });
+      }
+    });
+    
+    // Set new default
+    batch.update(doc(db, 'shopping_lists', id), { isDefault: true });
+    
+    await batch.commit();
+  }
+
+  async createShoppingList(list: Omit<ShoppingList, 'id' | 'createdAt' | 'createdBy'>): Promise<ShoppingList> {
+    const currentUser = await this.getCurrentUser();
+    const now = new Date().toISOString();
+    
+    const newList: any = {
+      ...list,
+      createdAt: now,
+      createdBy: currentUser?.email || 'unknown'
+    };
+
+    // Remove undefined values
+    Object.keys(newList).forEach(key => {
+      if (newList[key] === undefined) {
+        delete newList[key];
+      }
+    });
+
+    const id = `sl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const docRef = doc(db, 'shopping_lists', id);
+    await setDoc(docRef, newList);
+
+    return {
+      ...newList,
+      id
+    } as ShoppingList;
+  }
+
+  async updateShoppingList(id: string, updates: Partial<ShoppingList>): Promise<ShoppingList> {
+    const docRef = doc(db, 'shopping_lists', id);
+    
+    // Remove undefined values
+    const cleanUpdates: any = { 
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    Object.keys(cleanUpdates).forEach(key => {
+      if (cleanUpdates[key] === undefined) {
+        delete cleanUpdates[key];
+      }
+    });
+    
+    await updateDoc(docRef, cleanUpdates);
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Shopping list ${id} not found after update`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as ShoppingList;
+  }
+
+  async deleteShoppingList(id: string): Promise<void> {
+    const batch = writeBatch(db);
+    
+    // Delete the list
+    batch.delete(doc(db, 'shopping_lists', id));
+    
+    // Delete all items in this list
+    const itemsSnap = await getDocs(query(
+      collection(db, 'shopping_list_items'),
+      where('shoppingListId', '==', id)
+    ));
+    
+    itemsSnap.forEach(itemDoc => {
+      batch.delete(itemDoc.ref);
+    });
+    
+    await batch.commit();
+  }
+
+  // -- SHOPPING LIST ITEMS --
+
+  async getShoppingListItems(shoppingListId: string): Promise<ShoppingListItem[]> {
+    const snapshot = await getDocs(query(
+      collection(db, 'shopping_list_items'),
+      where('shoppingListId', '==', shoppingListId)
+    ));
+    
+    const items: ShoppingListItem[] = [];
+    snapshot.forEach((doc) => {
+      const data = this.convertTimestamps(doc.data());
+      items.push({
+        ...data,
+        id: doc.id
+      } as ShoppingListItem);
+    });
+    
+    return items;
+  }
+
+  async createShoppingListItem(item: Omit<ShoppingListItem, 'id'>): Promise<ShoppingListItem> {
+    const newItem: any = { ...item };
+
+    // Remove undefined values
+    Object.keys(newItem).forEach(key => {
+      if (newItem[key] === undefined) {
+        delete newItem[key];
+      }
+    });
+
+    const id = `sli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const docRef = doc(db, 'shopping_list_items', id);
+    await setDoc(docRef, newItem);
+
+    return {
+      ...newItem,
+      id
+    } as ShoppingListItem;
+  }
+
+  async updateShoppingListItem(id: string, updates: Partial<ShoppingListItem>): Promise<ShoppingListItem> {
+    const docRef = doc(db, 'shopping_list_items', id);
+    
+    // Remove undefined values
+    const cleanUpdates: any = { ...updates };
+    Object.keys(cleanUpdates).forEach(key => {
+      if (cleanUpdates[key] === undefined) {
+        delete cleanUpdates[key];
+      }
+    });
+    
+    await updateDoc(docRef, cleanUpdates);
+    
+    const updated = await getDoc(docRef);
+    if (!updated.exists()) {
+      throw new Error(`Shopping list item ${id} not found after update`);
+    }
+
+    const data = this.convertTimestamps(updated.data());
+    return {
+      ...data,
+      id: updated.id
+    } as ShoppingListItem;
+  }
+
+  // TODO: addRecipeToShoppingList and addManualItemToShoppingList
+  // will be implemented in Phase 3d (Integration methods) as they require
+  // processRecipeIngredients logic and item matching
+
+  async addRecipeToShoppingList(recipeId: string, shoppingListId: string): Promise<void> {
+    throw new Error('Not implemented yet - Phase 3d');
+  }
+
+  async addManualItemToShoppingList(
+    shoppingListId: string,
+    name: string,
+    quantity: number,
+    unit: string,
+    aisle?: string
+  ): Promise<ShoppingListItem> {
+    throw new Error('Not implemented yet - Phase 3d');
+  }
+
   // -- INVENTORY (KITCHEN KIT) --
   async getInventory(): Promise<Equipment[]> {
     const snapshot = await getDocs(collection(db, 'inventory'));
