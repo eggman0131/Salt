@@ -250,6 +250,25 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
     ).slice(0, 10);
   }, [searchQuery, canonicalItems]);
 
+  // Helper function for displaying quantities with smart pluralization for _item unit
+  const formatQuantityDisplay = (quantity: number, unit: string, itemName: string): string => {
+    if (unit === '_item') {
+      // Smart pluralization: 1 Onion, 2 Onions
+      if (quantity === 1) {
+        return `${quantity} ${itemName}`;
+      } else {
+        // Simple pluralization (add 's' or 'es')
+        const plural = itemName.endsWith('s') || itemName.endsWith('sh') || itemName.endsWith('ch') || itemName.endsWith('x') || itemName.endsWith('z')
+          ? `${itemName}es`
+          : `${itemName}s`;
+        return `${quantity} ${plural}`;
+      }
+    } else {
+      // Standard unit display: "500 g Flour"
+      return `${quantity} ${unit} ${itemName}`;
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header with dropdown and new list button */}
@@ -622,7 +641,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
                                   {item.name}
                                 </h5>
                                 <p className="text-sm text-gray-600 mt-1">
-                                  {item.quantity} {item.unit}
+                                  {formatQuantityDisplay(item.quantity, item.unit, item.name)}
                                 </p>
                                 {item.isStaple && (
                                   <span className="inline-block text-[9px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-wide font-bold mt-2">
