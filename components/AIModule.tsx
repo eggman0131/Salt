@@ -21,7 +21,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
   const [userInput, setUserInput] = useState('');
   const [recipeUrl, setRecipeUrl] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'finalising' | 'organising' | 'imaging' | 'categorising'>('idle');
+  const [status, setStatus] = useState<'idle' | 'finalising' | 'organising' | 'imaging' | 'categorising' | 'processing'>('idle');
   const [progressMessage, setProgressMessage] = useState('');
 
   const hasSentInitial = useRef(false);
@@ -104,7 +104,11 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       const imageData = await saltBackend.generateRecipeImage(recipeData.title || 'Dish');
       
       setStatus('categorising');
-      setProgressMessage('Finalising recipe...');
+      setProgressMessage('Categorising recipe...');
+      await new Promise(r => setTimeout(r, 100)); // Brief pause for visual feedback
+      
+      setStatus('processing');
+      setProgressMessage('Processing ingredients...');
       await saltBackend.createRecipe({
         ...recipeData,
         ingredients: recipeData.ingredients || [],
@@ -155,7 +159,11 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       
       // Save to recipes with post-processing
       setStatus('categorising');
-      setProgressMessage('Finalising recipe...');
+      setProgressMessage('Categorising recipe...');
+      await new Promise(r => setTimeout(r, 100)); // Brief pause for visual feedback
+      
+      setStatus('processing');
+      setProgressMessage('Processing ingredients...');
       await saltBackend.createRecipe({
         ...importedRecipe,
         ingredients: importedRecipe.ingredients || [],
@@ -201,33 +209,65 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     <div className="h-[calc(100vh-120px)] md:h-[calc(100vh-160px)] flex flex-col relative animate-in fade-in duration-500 overflow-hidden bg-gray-50">
       {isBusy && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-          <Card className="w-full max-w-md p-8 bg-white border border-gray-200 shadow-md space-y-4 text-center animate-in zoom-in-95 duration-300">
+          <Card className="w-full max-w-md p-8 bg-white border border-gray-200 shadow-md space-y-6 text-center animate-in zoom-in-95 duration-300">
             <div className="flex justify-center">
               <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <h4 className="text-lg font-semibold text-gray-900">Finalising Recipe</h4>
-              <div className="flex items-center justify-center h-6">
-                <p className="text-sm text-gray-600 font-medium transition">
-                  {progressMessage || 'Preparing...'}
-                </p>
-              </div>
-              <div className="pt-2 space-y-1">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <div className={`w-2 h-2 rounded-full ${status === 'finalising' ? 'bg-orange-500' : 'bg-gray-300'}`} />
-                  Summarising discussion
+              <div className="space-y-2.5">
+                <div className="flex flex-col items-center gap-1">
+                  <span className={`text-sm font-medium transition-all duration-300 ${
+                    status === 'finalising' 
+                      ? 'text-orange-600 animate-pulse scale-105' 
+                      : status !== 'idle' && status !== 'organising' && status !== 'imaging' && status !== 'categorising' && status !== 'processing'
+                        ? 'text-gray-900'
+                        : 'text-gray-400'
+                  }`}>
+                    Summarising discussion
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <div className={`w-2 h-2 rounded-full ${status === 'organising' ? 'bg-orange-500' : 'bg-gray-300'}`} />
-                  Building recipe
+                <div className="flex flex-col items-center gap-1">
+                  <span className={`text-sm font-medium transition-all duration-300 ${
+                    status === 'organising' 
+                      ? 'text-orange-600 animate-pulse scale-105' 
+                      : status === 'imaging' || status === 'categorising' || status === 'processing'
+                        ? 'text-gray-900'
+                        : 'text-gray-400'
+                  }`}>
+                    Building recipe
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <div className={`w-2 h-2 rounded-full ${status === 'imaging' ? 'bg-orange-500' : 'bg-gray-300'}`} />
-                  Generating photograph
+                <div className="flex flex-col items-center gap-1">
+                  <span className={`text-sm font-medium transition-all duration-300 ${
+                    status === 'imaging' 
+                      ? 'text-orange-600 animate-pulse scale-105' 
+                      : status === 'categorising' || status === 'processing'
+                        ? 'text-gray-900'
+                        : 'text-gray-400'
+                  }`}>
+                    Generating photograph
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <div className={`w-2 h-2 rounded-full ${status === 'categorising' ? 'bg-orange-500' : 'bg-gray-300'}`} />
-                  Categorising recipe
+                <div className="flex flex-col items-center gap-1">
+                  <span className={`text-sm font-medium transition-all duration-300 ${
+                    status === 'categorising' 
+                      ? 'text-orange-600 animate-pulse scale-105' 
+                      : status === 'processing'
+                        ? 'text-gray-900'
+                        : 'text-gray-400'
+                  }`}>
+                    Categorising recipe
+                  </span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className={`text-sm font-medium transition-all duration-300 ${
+                    status === 'processing' 
+                      ? 'text-orange-600 animate-pulse scale-105' 
+                      : 'text-gray-400'
+                  }`}>
+                    Processing ingredients
+                  </span>
                 </div>
               </div>
             </div>
