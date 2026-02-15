@@ -412,18 +412,48 @@ export abstract class BaseSaltBackend implements ISaltBackend {
     if (unmatched.length > 0) {
       const resolved = await this.resolveUnmatchedIngredients(unmatched.map(u => u.parsed.ingredientName));
       
+      // Get existing units and aisles to check what needs creating
+      const [existingUnits, existingAisles] = await Promise.all([
+        this.getUnits(),
+        this.getAisles()
+      ]);
+      
+      const unitNames = new Set(existingUnits.map(u => u.name.toLowerCase()));
+      const aisleNames = new Set(existingAisles.map(a => a.name.toLowerCase()));
+      
       // Create new canonical items and update results
       for (let i = 0; i < unmatched.length; i++) {
         const { index } = unmatched[i];
         const aiResolution = resolved[i];
         
         if (aiResolution) {
+          const unitName = aiResolution.preferredUnit || '_item';
+          const aisleName = aiResolution.aisle || 'Other';
+          
+          // Ensure unit exists
+          if (!unitNames.has(unitName.toLowerCase())) {
+            await this.createUnit({
+              name: unitName,
+              sortOrder: existingUnits.length
+            });
+            unitNames.add(unitName.toLowerCase());
+          }
+          
+          // Ensure aisle exists
+          if (!aisleNames.has(aisleName.toLowerCase())) {
+            await this.createAisle({
+              name: aisleName,
+              sortOrder: existingAisles.length
+            });
+            aisleNames.add(aisleName.toLowerCase());
+          }
+          
           // Create new canonical item
           const newItem = await this.createCanonicalItem({
             name: aiResolution.name,
             normalisedName: aiResolution.name.toLowerCase(),
-            preferredUnit: aiResolution.preferredUnit || '_item',
-            aisle: aiResolution.aisle || 'Other',
+            preferredUnit: unitName,
+            aisle: aisleName,
             isStaple: aiResolution.isStaple || false,
             synonyms: aiResolution.synonyms || [],
             metadata: {}
