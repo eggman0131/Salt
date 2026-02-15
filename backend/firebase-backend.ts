@@ -1121,14 +1121,84 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     } as ShoppingListItem;
   }
 
-  // TODO: addRecipeToShoppingList and addManualItemToShoppingList
-  // will be implemented in Phase 3d (Integration methods) as they require
-  // processRecipeIngredients logic and item matching
+  // -- INTEGRATION METHODS --
 
+  /**
+   * Add all ingredients from a recipe to a shopping list
+   */
   async addRecipeToShoppingList(recipeId: string, shoppingListId: string): Promise<void> {
-    throw new Error('Not implemented yet - Phase 3d');
+    // Get the recipe
+    const recipe = await this.getRecipe(recipeId);
+    if (!recipe.ingredients || recipe.ingredients.length === 0) {
+      return; // No ingredients to add
+    }
+
+    // For each ingredient, find or create canonical item and add to list
+    const batch = writeBatch(db);
+    
+    for (const ingredient of recipe.ingredients) {
+      // Try to find existing canonical item
+      let canonicalItem: CanonicalItem | undefined;
+      
+      if (ingredient.canonicalItemId) {
+        // Use existing link
+        canonicalItem = await this.getCanonicalItem(ingredient.canonicalItemId);
+      } else {
+        // Try to find by name
+        const normalizedName = ingredient.ingredientName.toLowerCase().trim();
+        const existingItems = await this.getCanonicalItems();
+        canonicalItem = existingItems.find(item => item.normalisedName === normalizedName);
+        
+        // Create new canonical item if not found
+        if (!canonicalItem) {
+          canonicalItem = await this.createCanonicalItem({
+            name: ingredient.ingredientName,
+            normalisedName: normalizedName,
+            preferredUnit: ingredient.unit || '_item',
+            aisle: '', // No aisle initially
+            isStaple: false,
+            synonyms: []
+          });
+        }
+      }
+
+      // Create shopping list item
+      const itemId = `sli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const now = new Date().toISOString();
+      
+      const newItem: any = {
+        shoppingListId,
+        canonicalItemId: canonicalItem.id,
+        // Snapshot of canonical item data
+        canonicalItemName: canonicalItem.name,
+        canonicalItemUnit: canonicalItem.preferredUnit,
+        canonicalItemAisle: canonicalItem.aisle || null,
+        // From recipe ingredient
+        quantity: ingredient.quantity || 1,
+        unit: ingredient.unit || canonicalItem.preferredUnit,
+        isPurchased: false,
+        notes: ingredient.preparation || undefined,
+        addedAt: now
+      };
+
+      // Remove undefined values
+      Object.keys(newItem).forEach(key => {
+        if (newItem[key] === undefined) {
+          delete newItem[key];
+        }
+      });
+
+      const itemRef = doc(db, 'shopping_list_items', itemId);
+      batch.set(itemRef, newItem);
+    }
+
+    // Commit all items
+    await batch.commit();
   }
 
+  /**
+   * Add a single manual item to a shopping list
+   */
   async addManualItemToShoppingList(
     shoppingListId: string,
     name: string,
@@ -1136,7 +1206,60 @@ export class SaltFirebaseBackend extends BaseSaltBackend {
     unit: string,
     aisle?: string
   ): Promise<ShoppingListItem> {
-    throw new Error('Not implemented yet - Phase 3d');
+    // Normalize name
+    const normalizedName = name.toLowerCase().trim();
+    
+    // Find or create canonical item
+    const existingItems = await this.getCanonicalItems();
+    let canonicalItem = existingItems.find(item => item.normalisedName === normalizedName);
+    
+    if (!canonicalItem) {
+      // Create new canonical item
+      canonicalItem = await this.createCanonicalItem({
+        name,
+        normalisedName: normalizedName,
+        preferredUnit: unit,
+        aisle: aisle || '', // Use provided aisle or empty string
+        isStaple: false,
+        synonyms: []
+      });
+    }
+
+    // Create shopping list item
+    const itemId = `sli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+    
+    const newItem: any = {
+      shoppingListId,
+      canonicalItemId: canonicalItem.id,
+      // Snapshot of canonical item data
+      canonicalItemName: canonicalItem.name,
+      canonicalItemUnit: canonicalItem.preferredUnit,
+      canonicalItemAisle: canonicalItem.aisle || null,
+      // From manual entry
+      quantity,
+      unit,
+      isPurchased: false,
+      notes: undefined,
+      addedAt: now
+    };
+
+    // Remove undefined values
+    Object.keys(newItem).forEach(key => {
+      if (newItem[key] === undefined) {
+        delete newItem[key];
+      }
+    });
+
+    const itemRef = doc(db, 'shopping_list_items', itemId);
+    await setDoc(itemRef, newItem);
+
+    // Return the created item
+    const created = this.convertTimestamps(newItem);
+    return {
+      ...created,
+      id: itemId
+    } as ShoppingListItem;
   }
 
   // -- UNITS & AISLES MANAGEMENT --
