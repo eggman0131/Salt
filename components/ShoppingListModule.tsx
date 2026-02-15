@@ -611,16 +611,16 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
             </Card>
           ) : (
             <div className="space-y-6">
-              {aisles.filter(aisle => itemsByAisle[aisle.name]?.length > 0).map(aisle => (
-                <div key={aisle.id}>
+              {Object.keys(itemsByAisle).sort().map(aisleName => (
+                <div key={aisleName}>
                   <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
-                    {aisle.name}
+                    {aisleName}
                     <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-bold">
-                      {itemsByAisle[aisle.name].length}
+                      {itemsByAisle[aisleName].length}
                     </span>
                   </h4>
                   <div className="space-y-2">
-                    {itemsByAisle[aisle.name].map(item => (
+                    {itemsByAisle[aisleName].map(item => (
                       <Card
                         key={item.id}
                         className={`p-4 transition-all ${
