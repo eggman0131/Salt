@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { BaseRecipesBackend } from '../base-recipes-backend';
-import type { RecipesBackendInterface } from '../recipes-backend.interface';
+import { BaseRecipesBackend } from '../backend/base-recipes-backend';
+import type { RecipesBackendInterface } from '../backend/recipes-backend.interface';
 import type { Recipe } from '../../../types/contract';
 
 /**
