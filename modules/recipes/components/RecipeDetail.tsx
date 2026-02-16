@@ -1,33 +1,33 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Card, Button, Input, Label, ErrorBoundary } from './UI';
+import { Card, Button, Input, Label, ErrorBoundary } from '../../../components/UI';
 import { ImageEditor } from './ImageEditor';
-import { CookMode } from './CookMode';
-import { Recipe, Equipment, RecipeHistoryEntry, User, RecipeCategory, RecipeSchema } from '../types/contract';
-import { saltBackend, sanitizeJson } from '../backend/api';
+import { CookMode } from '../../../components/CookMode';
+import { Recipe, Equipment, RecipeHistoryEntry, User, RecipeCategory, RecipeSchema } from '../../../types/contract';
+import { saltBackend, sanitizeJson } from '../../../backend/api';
 import { marked } from 'marked';
-import { buildManualEditSummary, createHistoryEntry, applyCategoryChange, scaleIngredients } from '../backend/recipe-updates';
+import { buildManualEditSummary, createHistoryEntry, applyCategoryChange, scaleIngredients } from '../../../backend/recipe-updates';
 
 // Modal components
-import { ProposalModal } from './RecipeModals/ProposalModal';
-import { RollbackConfirmModal } from './RecipeModals/RollbackConfirmModal';
-import { DeleteConfirmModal } from './RecipeModals/DeleteConfirmModal';
-import { CategoryPickerModal } from './RecipeModals/CategoryPickerModal';
-import { HistoryModal } from './RecipeModals/HistoryModal';
-import { ImageEditorModalWrapper } from './RecipeModals/ImageEditorModalWrapper';
-import { RepairRecipeModal } from './RecipeModals/RepairRecipeModal';
+import { ProposalModal } from './ProposalModal';
+import { RollbackConfirmModal } from './RollbackConfirmModal';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { CategoryPickerModal } from './CategoryPickerModal';
+import { HistoryModal } from './HistoryModal';
+import { ImageEditorModalWrapper } from './ImageEditorModalWrapper';
+import { RepairRecipeModal } from './RepairRecipeModal';
 
 // Section components
-import { AtAGlanceSection } from './RecipeSections/AtAGlanceSection';
-import { RecipeImageCard } from './RecipeSections/RecipeImageCard';
-import { RecipeIngredientsSection } from './RecipeSections/RecipeIngredientsSection';
-import { RecipeInstructionsSection } from './RecipeSections/RecipeInstructionsSection';
-import { RecipeCategoryDisplay } from './RecipeSections/RecipeCategoryDisplay';
-import { RecipeChefSidebar } from './RecipeSections/RecipeChefSidebar';
-import { RecipeEditModeBar } from './RecipeSections/RecipeEditModeBar';
-import { RecipeTabNavigation } from './RecipeSections/RecipeTabNavigation';
-import { WorkflowAdviceSection } from './RecipeSections/WorkflowAdviceSection';
-import { RecipeHistorySection } from './RecipeSections/RecipeHistorySection';
-import { EditableMetadataSection } from './RecipeSections/EditableMetadataSection';
+import { AtAGlanceSection } from './AtAGlanceSection';
+import { RecipeImageCard } from './RecipeImageCard';
+import { RecipeIngredientsSection } from './RecipeIngredientsSection';
+import { RecipeInstructionsSection } from './RecipeInstructionsSection';
+import { RecipeCategoryDisplay } from './RecipeCategoryDisplay';
+import { RecipeChefSidebar } from './RecipeChefSidebar';
+import { RecipeEditModeBar } from './RecipeEditModeBar';
+import { RecipeTabNavigation } from './RecipeTabNavigation';
+import { WorkflowAdviceSection } from './WorkflowAdviceSection';
+import { RecipeHistorySection } from './RecipeHistorySection';
+import { EditableMetadataSection } from './EditableMetadataSection';
 
 export interface RecipeDetailProps {
   recipe: Recipe;
