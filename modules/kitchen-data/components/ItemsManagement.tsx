@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { CanonicalItem, Unit, Aisle, Recipe } from '../types/contract';
-import { Button, Card, Input, Label } from './UI';
-import { saltBackend } from '../backend/api';
+import { CanonicalItem, Unit, Aisle, Recipe } from '../../../types/contract';
+import { Button, Card, Input, Label } from '../../../components/UI';
+import { kitchenDataBackend } from '../backend';
+import { saltBackend } from '../../../backend/api';
 
 interface ItemsManagementProps {
   onRefresh?: () => void;
@@ -32,9 +33,9 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     setIsLoading(true);
     try {
       const [itemsData, unitsData, aislesData] = await Promise.all([
-        saltBackend.getCanonicalItems(),
-        saltBackend.getUnits(),
-        saltBackend.getAisles()
+        kitchenDataBackend.getCanonicalItems(),
+        kitchenDataBackend.getUnits(),
+        kitchenDataBackend.getAisles()
       ]);
       setItems(itemsData.sort((a, b) => a.name.localeCompare(b.name)));
       setUnits(unitsData);
@@ -96,9 +97,9 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       };
 
       if (editingItem) {
-        await saltBackend.updateCanonicalItem(editingItem.id, itemData);
+        await kitchenDataBackend.updateCanonicalItem(editingItem.id, itemData);
       } else {
-        await saltBackend.createCanonicalItem(itemData);
+        await kitchenDataBackend.createCanonicalItem(itemData);
       }
 
       setShowNewItemModal(false);
@@ -135,7 +136,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
 
     setIsSubmitting(true);
     try {
-      await saltBackend.deleteCanonicalItem(itemToDelete.id);
+      await kitchenDataBackend.deleteCanonicalItem(itemToDelete.id);
       setShowDeleteConfirm(false);
       setItemToDelete(null);
       await loadData();

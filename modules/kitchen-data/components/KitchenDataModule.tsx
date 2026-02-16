@@ -3,7 +3,7 @@ import { CategoryManagement } from './CategoryManagement';
 import { ItemsManagement } from './ItemsManagement';
 import { UnitsManagement } from './UnitsManagement';
 import { AislesManagement } from './AislesManagement';
-import { saltBackend } from '../backend/api';
+import { kitchenDataBackend } from '../backend';
 
 type Tab = 'categories' | 'items' | 'units' | 'aisles';
 
@@ -22,7 +22,7 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({ onRefresh,
 
   const loadSuggestionsCount = async () => {
     try {
-      const pending = await saltBackend.getPendingCategories();
+      const pending = await kitchenDataBackend.getPendingCategories();
       setSuggestionsCount(pending.length);
     } catch (err) {
       console.error('Failed to load suggestions count:', err);

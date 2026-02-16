@@ -10,7 +10,8 @@ The Shopping module handles shopping list creation, management, and item trackin
 - **List Item Management** - Add, edit, remove, check/uncheck items
 - **Mobile Experience** - Touch-optimized UI with swipe gestures
 - **Desktop Experience** - Mouse/keyboard-optimized UI with hover states
-- **Kitchen Data Integration** - Uses units and aisles from `kitchen-data` module (read-only)
+- **Recipe Integration** - AI-powered shopping list generation from recipes
+- **Kitchen Data Integration** - Imports units, aisles, and canonical items from `kitchen-data` module (read-only)
 
 ## Architecture
 
@@ -82,21 +83,21 @@ The shopping module has been successfully extracted into the new modular archite
 
 The shopping module has its own backend implementation extracted from the monolithic Salt backend.
 
-**Interface:** `IShoppingBackend` (30 methods)
-- Canonical Items: CRUD operations (5 methods)
+**Interface:** `IShoppingBackend` (17 methods)
 - Shopping Lists: CRUD + default list management (7 methods)
 - Shopping List Items: CRUD operations (4 methods)
-- Recipe Integration: AI-powered list generation (4 methods)
-- Units & Aisles: CRUD operations (10 methods)
+- Recipe Integration: AI-powered list generation + ingredient parsing (6 methods)
+
+**Note:** Units, Aisles, and Canonical Items are managed by the `kitchen-data` module. Shopping components import `kitchenDataBackend` for these operations.
 
 **Base Backend:** `BaseShoppingBackend`
 - AI-Powered Features:
   - `processRecipeIngredients()`: Parse raw ingredients → structured data with canonical links
-    - Fuzzy matching (85%+ similarity) against existing items
+    - Fuzzy matching (85%+ similarity) against existing items (via kitchen-data)
     - AI fallback for unmatched ingredients (batch resolution)
-    - Auto-create missing units, aisles, canonical items
+    - Auto-create missing units, aisles, canonical items (via kitchen-data backend)
   - `resolveUnmatchedIngredients()`: Batch AI calls to resolve unknown items
-  - `generateShoppingList()`: (placeholder) Convert recipes → consolidated list
+  - `generateShoppingList()`: Convert recipes → consolidated list
 - Helper Methods:
   - `parseIngredientString()`: Extract quantity, unit, name, preparation
   - `fuzzyMatch()`: Levenshtein distance for string similarity

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { ShoppingList, ShoppingListItem, CanonicalItem, Unit, Aisle } from '../../../types/contract';
 import { Card } from '../../../components/UI';
 import { shoppingBackend } from '../backend';
+import { kitchenDataBackend } from '../../kitchen-data';
 import { ShoppingListMobileView } from './MobileView';
 import { ShoppingListDesktopView } from './DesktopView';
 import { ShoppingListModals } from './modals/ShoppingListModals';
@@ -71,7 +72,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
   const loadCanonicalItems = async () => {
     try {
-      const data = await shoppingBackend.getCanonicalItems();
+      const data = await kitchenDataBackend.getCanonicalItems();
       setCanonicalItems(data.sort((a, b) => a.name.localeCompare(b.name)));
     } catch (err) {
       console.error('Failed to load canonical items:', err);
@@ -81,8 +82,8 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
   const loadUnitsAndAisles = async () => {
     try {
       const [unitsData, aislesData] = await Promise.all([
-        shoppingBackend.getUnits(),
-        shoppingBackend.getAisles()
+        kitchenDataBackend.getUnits(),
+        kitchenDataBackend.getAisles()
       ]);
       setUnits(unitsData);
       setAisles(aislesData);
@@ -170,7 +171,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
   const handleEnsureUnitExists = async (unitName: string): Promise<Unit> => {
     return await ensureUnitExists(unitName, units, async (name) => {
-      const newUnit = await shoppingBackend.createUnit({
+      const newUnit = await kitchenDataBackend.createUnit({
         name,
         sortOrder: units.length
       });
@@ -181,7 +182,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
   const handleEnsureAisleExists = async (aisleName: string): Promise<Aisle> => {
     return await ensureAisleExists(aisleName, aisles, async (name, sortOrder) => {
-      const newAisle = await shoppingBackend.createAisle({
+      const newAisle = await kitchenDataBackend.createAisle({
         name,
         sortOrder: sortOrder ?? aisles.length
       });
