@@ -8,18 +8,21 @@
  * - Recipe ingredient processing
  * 
  * Subclasses (Firebase, Simulation) implement persistence only.
+ * 
+ * Note: Units, Aisles, and Canonical Items are imported from kitchen-data module.
  */
 
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import {
   ShoppingList,
   ShoppingListItem,
+  RecipeIngredient,
   CanonicalItem,
   Unit,
   Aisle,
-  RecipeIngredient,
 } from '../../../types/contract';
 import { IShoppingBackend } from './shopping-backend.interface';
+import { kitchenDataBackend } from '../../kitchen-data';
 
 export abstract class BaseShoppingBackend implements IShoppingBackend {
   
@@ -29,13 +32,6 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
   protected abstract callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse>;
   protected abstract callGenerateContentStream(params: GenerateContentParameters): Promise<AsyncIterable<GenerateContentResponse>>;
   protected abstract getSystemInstruction(customContext?: string): Promise<string>;
-  
-  // Canonical Items (CRUD)
-  abstract getCanonicalItems(): Promise<CanonicalItem[]>;
-  abstract getCanonicalItem(id: string): Promise<CanonicalItem | null>;
-  abstract createCanonicalItem(item: Omit<CanonicalItem, 'id' | 'createdAt'>): Promise<CanonicalItem>;
-  abstract updateCanonicalItem(id: string, updates: Partial<CanonicalItem>): Promise<CanonicalItem>;
-  abstract deleteCanonicalItem(id: string): Promise<void>;
   
   // Shopping Lists (CRUD)
   abstract getShoppingLists(): Promise<ShoppingList[]>;
@@ -55,16 +51,6 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
   // Recipe Integration
   abstract addRecipeToShoppingList(recipeId: string, shoppingListId: string): Promise<void>;
   abstract addManualItemToShoppingList(shoppingListId: string, name: string, quantity: number, unit: string, aisle?: string): Promise<ShoppingListItem>;
-  
-  // Units & Aisles (Kitchen Data)
-  abstract getUnits(): Promise<Unit[]>;
-  abstract createUnit(unit: Omit<Unit, 'id' | 'createdAt'>): Promise<Unit>;
-  abstract updateUnit(id: string, updates: Partial<Unit>): Promise<Unit>;
-  abstract deleteUnit(id: string): Promise<void>;
-  abstract getAisles(): Promise<Aisle[]>;
-  abstract createAisle(aisle: Omit<Aisle, 'id' | 'createdAt'>): Promise<Aisle>;
-  abstract updateAisle(id: string, updates: Partial<Aisle>): Promise<Aisle>;
-  abstract deleteAisle(id: string): Promise<void>;
   
   // ==================== AI-POWERED INGREDIENT PROCESSING ====================
   
@@ -86,7 +72,7 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
     }
 
     // Get all canonical items for fuzzy matching
-    const allItems = await this.getCanonicalItems();
+    const allItems = await kitchenDataBackend.getCanonicalItems();
     const results: RecipeIngredient[] = [];
     const unmatched: { index: number; parsed: any }[] = [];
 
@@ -144,8 +130,8 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
       
       // Get existing units and aisles to check what needs creating
       const [existingUnits, existingAisles] = await Promise.all([
-        this.getUnits(),
-        this.getAisles()
+        kitchenDataBackend.getUnits(),
+        kitchenDataBackend.getAisles()
       ]);
       
       const unitNames = new Set(existingUnits.map(u => u.name.toLowerCase()));
@@ -172,7 +158,7 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
           
           // Ensure unit exists (reuse if found, create if missing)
           if (!unitNames.has(unitName.toLowerCase())) {
-            await this.createUnit({
+            await kitchenDataBackend.createUnit({
               name: unitName,
               sortOrder: nextUnitSortOrder++
             });
@@ -181,7 +167,7 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
           
           // Ensure aisle exists (reuse if found, create if missing)
           if (!aisleNames.has(aisleName.toLowerCase())) {
-            await this.createAisle({
+            await kitchenDataBackend.createAisle({
               name: aisleName,
               sortOrder: nextAisleSortOrder++
             });
@@ -191,7 +177,7 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
           // Create canonical item if it doesn't exist
           let canonicalItemId = canonicalItemNames.get(normalizedItemName);
           if (!canonicalItemId) {
-            const newItem = await this.createCanonicalItem({
+            const newItem = await kitchenDataBackend.createCanonicalItem({
               name: aiResolution.name,
               normalisedName: normalizedItemName,
               preferredUnit: unitName,

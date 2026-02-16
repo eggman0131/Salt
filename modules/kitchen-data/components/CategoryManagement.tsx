@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Input, Label } from './UI';
-import { RecipeCategory } from '../types/contract';
-import { saltBackend } from '../backend/api';
+import { Card, Input, Label } from '../../../components/UI';
+import { RecipeCategory } from '../../../types/contract';
+import { kitchenDataBackend } from '../backend';
+import { saltBackend } from '../../../backend/api';
 
 interface CategoryManagementProps {
   onRefresh: () => void;
@@ -33,8 +34,8 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
     setIsLoading(true);
     try {
       const [cats, pending, recipes] = await Promise.all([
-        saltBackend.getCategories(),
-        saltBackend.getPendingCategories(),
+        kitchenDataBackend.getCategories(),
+        kitchenDataBackend.getPendingCategories(),
         saltBackend.getRecipes()
       ]);
       
@@ -78,7 +79,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
         categoryData.synonyms = synonyms;
       }
 
-      await saltBackend.createCategory(categoryData);
+      await kitchenDataBackend.createCategory(categoryData);
 
       setFormName('');
       setFormDesc('');
@@ -96,7 +97,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
 
   const handleApprovePendingCategory = async (id: string) => {
     try {
-      await saltBackend.approveCategory(id);
+      await kitchenDataBackend.approveCategory(id);
       await loadData();
       onRefresh();
       if (onSuggestionsChanged) onSuggestionsChanged();
@@ -108,7 +109,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
 
   const handleRejectPendingCategory = async (id: string) => {
     try {
-      await saltBackend.deleteCategory(id);
+      await kitchenDataBackend.deleteCategory(id);
       await loadData();
       onRefresh();
       if (onSuggestionsChanged) onSuggestionsChanged();
@@ -154,7 +155,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
         updates.synonyms = synonyms;
       }
 
-      await saltBackend.updateCategory(id, updates);
+      await kitchenDataBackend.updateCategory(id, updates);
 
       handleClearForm();
       await loadData();
@@ -169,7 +170,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
 
   const handleDeleteCategory = async (id: string) => {
     try {
-      await saltBackend.deleteCategory(id);
+      await kitchenDataBackend.deleteCategory(id);
       if (editingId === id) {
         handleClearForm();
       }
