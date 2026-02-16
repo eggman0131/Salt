@@ -9,7 +9,7 @@ import { saltBackend } from './backend/api';
 
 // Feature Modules
 import { InventoryModule } from './components/InventoryModule';
-import { RecipesModule } from './components/RecipesModule';
+import { RecipesModule } from './modules/recipes';
 import { AdminModule } from './components/AdminModule';
 import { AIModule } from './components/AIModule';
 import { PlannerModule } from './components/PlannerModule';
