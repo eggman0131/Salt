@@ -14,7 +14,7 @@ import { AdminModule } from './components/AdminModule';
 import { AIModule } from './components/AIModule';
 import { PlannerModule } from './components/PlannerModule';
 import { KitchenDataModule } from './components/KitchenDataModule';
-import { ShoppingListModule } from './components/ShoppingListModule';
+import { ShoppingListModule } from './modules/shopping';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
 
 type AppState = 'landing' | 'login' | 'dashboard' | 'loading';
