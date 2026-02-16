@@ -246,8 +246,13 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
     // Remove size adjectives (non-identity descriptors)
     text = text.replace(/\b(small|medium|large)\b/g, '').trim();
     
-    // Basic singularization
-    text = text.replace(/ies$/, 'y').replace(/([^s])s$/, '$1');
+    // Basic singularization: handle common plural forms
+    text = text
+      .replace(/ies$/, 'y')           // cherries → cherry
+      .replace(/oes$/, 'o')            // tomatoes → tomato
+      .replace(/xes$/, 'x')            // boxes → box
+      .replace(/zes$/, 'z')            // sizes → size
+      .replace(/([^s])s$/, '$1');      // apples → apple
     
     // Normalize whitespace
     const ingredientName = text.replace(/\s+/g, ' ').trim();
