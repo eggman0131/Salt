@@ -1,17 +1,17 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ShoppingList, ShoppingListItem, CanonicalItem, Unit, Aisle } from '../types/contract';
-import { Card } from './UI';
-import { saltBackend } from '../backend/api';
-import { ShoppingListDesktopView } from '../modules/shopping/components/DesktopView';
-import { ShoppingListMobileView } from '../modules/shopping/components/MobileView';
-import { ShoppingListModals } from '../modules/shopping/components/modals/ShoppingListModals';
+import { ShoppingList, ShoppingListItem, CanonicalItem, Unit, Aisle } from '../../../types/contract';
+import { Card } from '../../../components/UI';
+import { saltBackend } from '../../../backend/api';
+import { ShoppingListMobileView } from './MobileView';
+import { ShoppingListDesktopView } from './DesktopView';
+import { ShoppingListModals } from './modals/ShoppingListModals';
 import {
   ensureUnitExists,
   ensureAisleExists,
   groupItemsByAisle,
   filterCanonicalItems,
   calculateProgress,
-} from '../modules/shopping/utils';
+} from '../utils';
 
 interface ShoppingListModuleProps {
   onRefresh?: () => void;

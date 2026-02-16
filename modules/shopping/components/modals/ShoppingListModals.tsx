@@ -1,6 +1,6 @@
 import React from 'react';
-import { ShoppingList, ShoppingListItem, CanonicalItem, Unit, Aisle } from '../../types/contract';
-import { Button, Input, Label } from '../UI';
+import { ShoppingList, ShoppingListItem, CanonicalItem, Unit, Aisle } from '../../../../types/contract';
+import { Button, Input, Label } from '../../../../components/UI';
 
 interface ShoppingListModalsProps {
   // List Selector Modal
