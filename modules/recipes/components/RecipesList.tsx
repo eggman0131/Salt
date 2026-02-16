@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, Button, Input, Label } from './UI';
-import { Recipe, RecipeCategory } from '../types/contract';
-import { saltBackend } from '../backend/api';
+import { Card, Button, Input, Label } from '../../../components/UI';
+import { Recipe, RecipeCategory } from '../../../types/contract';
+import { saltBackend } from '../../../backend/api';
 
 const RemoteImage: React.FC<{ path?: string; className?: string; alt?: string }> = ({ path, className, alt }) => {
   const [src, setSrc] = useState<string>('');

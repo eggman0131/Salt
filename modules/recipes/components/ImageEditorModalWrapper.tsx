@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card } from '../UI';
-import { ImageEditor } from '../ImageEditor';
+import { Card } from '../../../components/UI';
+import { ImageEditor } from '../../../components/ImageEditor';
 
 interface ImageEditorModalWrapperProps {
   onSave: (imageData: string) => void;
