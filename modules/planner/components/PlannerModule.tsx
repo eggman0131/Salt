@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Card, Button, Input, Label } from './UI';
-import { User, Plan, DayPlan } from '../types/contract';
-import { saltBackend } from '../backend/api';
+import { Card, Button, Input, Label } from '../../../components/UI';
+import { User, Plan, DayPlan } from '../../../types/contract';
+import { plannerBackend } from '../backend';
 
 interface PlannerModuleProps {
   users: User[];
@@ -39,7 +39,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   }
 
   const loadAllPlans = useCallback(async () => {
-    const plans = await saltBackend.getPlans();
+    const plans = await plannerBackend.getPlans();
     setAllPlans(plans);
   }, []);
 
@@ -48,7 +48,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     let mounted = true;
     (async () => {
       try {
-        const settings = await saltBackend.getKitchenSettings();
+        const settings = await plannerBackend.getKitchenSettings();
         if (mounted && settings?.userOrder && Array.isArray(settings.userOrder)) {
           setKitchenUserOrder(settings.userOrder as string[]);
         }
@@ -91,13 +91,13 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     if (isInitialLoadForDate) setIsLoading(true);
     
     try {
-      const existing = await saltBackend.getPlanByDate(startDate);
+      const existing = await plannerBackend.getPlanByDate(startDate);
       let targetPlan: Plan;
       
       if (existing) {
         targetPlan = existing;
       } else {
-        const all = await saltBackend.getPlans();
+        const all = await plannerBackend.getPlans();
         const template = all.find(p => p.id === TEMPLATE_ID || p.startDate === 'template');
 
         const days: DayPlan[] = Array.from({ length: 7 }).map((_, i) => {
@@ -148,7 +148,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     if (isInitialLoadForDate) setIsLoading(true);
     
     try {
-      const all = await saltBackend.getPlans();
+      const all = await plannerBackend.getPlans();
       let template = all.find(p => p.id === TEMPLATE_ID || p.startDate === 'template');
       
       if (!template) {
@@ -208,7 +208,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
           ? { ...data, id: TEMPLATE_ID, startDate: 'template' } 
           : { ...data, id: plan.id };
           
-        const saved = await saltBackend.createOrUpdatePlan(payload as any);
+        const saved = await plannerBackend.createOrUpdatePlan(payload as any);
         
         if (plan.id === 'new') {
           setPlan(prev => prev ? { ...prev, id: saved.id } : null);
@@ -255,7 +255,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
 
   const handleDeletePlan = async (id: string) => {
     try {
-      await saltBackend.deletePlan(id);
+      await plannerBackend.deletePlan(id);
       setDeletingId(null);
       loadAllPlans();
       onRefresh();

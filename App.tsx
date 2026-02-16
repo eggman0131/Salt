@@ -12,7 +12,7 @@ import { InventoryModule } from './modules/inventory';
 import { RecipesModule } from './modules/recipes';
 import { AdminModule } from './components/AdminModule';
 import { AIModule } from './components/AIModule';
-import { PlannerModule } from './components/PlannerModule';
+import { PlannerModule } from './modules/planner';
 import { KitchenDataModule } from './modules/kitchen-data';
 import { ShoppingListModule } from './modules/shopping';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
