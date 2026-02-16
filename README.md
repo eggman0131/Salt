@@ -6,17 +6,27 @@ A technical culinary orchestrator for high-end domestic UK kitchens, powered by 
 ## 🏗 System Architecture
 Salt follows a strict "Constitution" to ensure data integrity and logic preservation:
 1. **The Law (`types/contract.ts`):** Immutable data schema.
-2. **The Soul (`backend/prompts.ts`):** The Head Chef's voice and culinary filters.
-3. **The Brain (`backend/base-backend.ts`):** Domain logic and AI synthesis engine.
-4. **The Hands (`backend/firebase-backend.ts`):** Firebase persistence layer with offline support.
+2. **The Soul (`shared/backend/prompts.ts`):** The Head Chef's voice and culinary filters.
+3. **The Brain (`modules/*/backend/base-*-backend.ts`):** Domain logic and AI synthesis per module.
+4. **The Hands (`modules/*/backend/firebase-*-backend.ts`):** Firebase persistence per module.
+
+**System services:** Auth, user access, kitchen settings, import/export, debug logging, and Firebase initialization live in `shared/backend/`.
 
 ## 🛠 Local Development
 
 ### 1. Environment Configuration
-Salt requires a Gemini API Key. Configure it in `functions/.env.local`:
+Salt requires a Gemini API Key. Set it in both places:
+
 ```bash
+# Frontend (copy .env.example to .env)
+VITE_GEMINI_API_KEY=your_key_here
+```
+
+```bash
+# Firebase Functions (functions/.env.local)
 GEMINI_API_KEY=your_key_here
 ```
+
 - **Gemini Core:** Uses Gemini 3 Flash for text synthesis and 2.5 Flash for image generation.
 - **Firebase Functions:** AI requests are proxied through Firebase Functions for secure API key management.
 
@@ -49,13 +59,18 @@ Salt is manifest-based. Use the **Export Backup** feature in the Admin panel to 
 
 **System-wide principles:** See [guidelines.md](./guidelines.md) for language (British English), units (Metric), architectural hierarchy, and non-negotiable rules.
 
-**Comprehensive docs:** All detailed guidelines for architecture, modules, development, and deployment are organized in the [`docs/`](./docs/) folder:
-- **[Architecture & Design](./docs/architecture/)** — Backend/frontend guidelines, contract, Firebase implementation
-- **[Module Specifications](./docs/modules/)** — Inventory, Planner, Recipe module rules
-- **[Development & Testing](./docs/development/)** — Change management, prompt guidelines, AI development workflows
-- **[Deployment](./docs/deployment/)** — Migration roadmap and post-deployment checklist
+**Modules:** Each module documents its scope and rules in its own README:
+- [modules/recipes/README.md](./modules/recipes/README.md)
+- [modules/shopping/README.md](./modules/shopping/README.md)
+- [modules/inventory/README.md](./modules/inventory/README.md)
+- [modules/planner/README.md](./modules/planner/README.md)
+- [modules/kitchen-data/README.md](./modules/kitchen-data/README.md)
+- [modules/ai/README.md](./modules/ai/README.md)
+- [modules/admin/README.md](./modules/admin/README.md)
 
-**Start here:** [docs/README.md](./docs/README.md) for navigation and quick task reference.
+**Project notes:**
+- [MODULES_MIGRATION_COMPLETE.md](./MODULES_MIGRATION_COMPLETE.md) — migration status
+- [TESTING.md](./TESTING.md) — testing guidance
 
 ---
 **v0.1.0-alpha** | Professional Culinary Orchestrator

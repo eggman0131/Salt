@@ -1,6 +1,6 @@
 # SALT - Global Project Guidelines (Quick Reference)
 
-**This is a quick reference card for system-wide principles. For detailed guidelines by topic, see [docs/README.md](./docs/README.md).**
+**This is a quick reference card for system-wide principles. For module-specific rules, see each module README.**
 
 ## 1. System Identity & Language
 - **Project Name:** Salt.
@@ -18,9 +18,11 @@
 
 ## 3. Architectural Hierarchy
 1. **The Law:** `types/contract.ts` (Data shape).
-2. **The Soul:** `backend/prompts.ts` (Persona).
-3. **The Brain:** `backend/base-backend.ts` (AI logic).
-4. **The Hands:** `backend/firebase-backend.ts` (Firebase persistence with offline support).
+2. **The Soul:** `shared/backend/prompts.ts` (Persona).
+3. **The Brain:** `modules/*/backend/base-*-backend.ts` (AI logic per module).
+4. **The Hands:** `modules/*/backend/firebase-*-backend.ts` (Firebase persistence per module).
+
+**System services:** `shared/backend/system-backend.ts` (auth, settings, import/export, debug logging, Firebase).
 
 ## 4. DO NOT MODIFY
 - Do not rename files or folders.
@@ -30,7 +32,6 @@
 ---
 
 **For detailed documentation:**
-- Architecture & design rules → [docs/architecture/](./docs/architecture/)
-- Module specifications → [docs/modules/](./docs/modules/)
-- Development workflows & change management → [docs/development/](./docs/development/)
-- Deployment & migration → [docs/deployment/](./docs/deployment/)
+- Module specifications → [modules/recipes/README.md](./modules/recipes/README.md)
+- Shopping rules → [modules/shopping/README.md](./modules/shopping/README.md)
+- Kitchen data rules → [modules/kitchen-data/README.md](./modules/kitchen-data/README.md)

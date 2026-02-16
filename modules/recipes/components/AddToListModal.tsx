@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingList } from '../../types/contract';
-import { saltBackend } from '../../backend/api';
+import { shoppingBackend } from '../../shopping';
 
 interface AddToListModalProps {
   recipeId: string;
@@ -24,7 +24,7 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({ recipeId, recipe
   const loadLists = async () => {
     setIsLoading(true);
     try {
-      const data = await saltBackend.getShoppingLists();
+      const data = await shoppingBackend.getShoppingLists();
       setLists(data);
       
       // Pre-select default list
@@ -46,7 +46,7 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({ recipeId, recipe
     
     setIsAdding(true);
     try {
-      await saltBackend.addRecipeToShoppingList(recipeId, selectedListId);
+      await shoppingBackend.addRecipeToShoppingList(recipeId, selectedListId);
       onSuccess();
     } catch (error: any) {
       alert(error.message || 'Failed to add recipe to list');
@@ -60,12 +60,12 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({ recipeId, recipe
     
     setIsAdding(true);
     try {
-      const newList = await saltBackend.createShoppingList({
+      const newList = await shoppingBackend.createShoppingList({
         name: newListName.trim(),
         recipeIds: []
       });
       
-      await saltBackend.addRecipeToShoppingList(recipeId, newList.id);
+      await shoppingBackend.addRecipeToShoppingList(recipeId, newList.id);
       onSuccess();
     } catch (error: any) {
       alert(error.message || 'Failed to create list and add recipe');

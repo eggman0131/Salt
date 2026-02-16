@@ -20,7 +20,7 @@ import {
   Aisle,
 } from '../../../types/contract';
 import { IRecipesBackend } from './recipes-backend.interface';
-import { RECIPE_PROMPTS } from '../../../backend/prompts';
+import { RECIPE_PROMPTS } from '../../../shared/backend/prompts';
 
 export abstract class BaseRecipesBackend implements IRecipesBackend {
   

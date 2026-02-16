@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { ShoppingList, ShoppingListItem, CanonicalItem, Unit, Aisle } from '../types/contract';
 import { Card } from './UI';
-import { saltBackend } from '../backend/api';
+import { kitchenDataBackend } from '../modules/kitchen-data';
+import { shoppingBackend } from '../modules/shopping';
 import { ShoppingListDesktopView } from '../modules/shopping/components/DesktopView';
 import { ShoppingListMobileView } from '../modules/shopping/components/MobileView';
 import { ShoppingListModals } from '../modules/shopping/components/modals/ShoppingListModals';
@@ -51,7 +52,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
   const loadLists = async () => {
     try {
-      const data = await saltBackend.getShoppingLists();
+      const data = await shoppingBackend.getShoppingLists();
       setLists(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       
       // Auto-select default list if no list is selected
@@ -71,7 +72,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
   const loadCanonicalItems = async () => {
     try {
-      const data = await saltBackend.getCanonicalItems();
+      const data = await kitchenDataBackend.getCanonicalItems();
       setCanonicalItems(data.sort((a, b) => a.name.localeCompare(b.name)));
     } catch (err) {
       console.error('Failed to load canonical items:', err);
@@ -81,8 +82,8 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
   const loadUnitsAndAisles = async () => {
     try {
       const [unitsData, aislesData] = await Promise.all([
-        saltBackend.getUnits(),
-        saltBackend.getAisles()
+        kitchenDataBackend.getUnits(),
+        kitchenDataBackend.getAisles()
       ]);
       setUnits(unitsData);
       setAisles(aislesData);
@@ -103,7 +104,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
   const loadItems = async (listId: string) => {
     try {
-      const data = await saltBackend.getShoppingListItems(listId);
+      const data = await shoppingBackend.getShoppingListItems(listId);
       setItems(data);
     } catch (err) {
       console.error('Failed to load items:', err);
@@ -128,7 +129,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
   const handleToggleChecked = async (item: ShoppingListItem) => {
     try {
-      await saltBackend.updateShoppingListItem(item.id, { checked: !item.checked });
+      await shoppingBackend.updateShoppingListItem(item.id, { checked: !item.checked });
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: !i.checked } : i));
     } catch (err) {
       console.error('Toggle failed:', err);
@@ -138,7 +139,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
   const handleUpdateNotes = async (itemId: string) => {
     const note = editingNotes[itemId];
     try {
-      await saltBackend.updateShoppingListItem(itemId, { note });
+      await shoppingBackend.updateShoppingListItem(itemId, { note });
       setItems(prev => prev.map(i => i.id === itemId ? { ...i, note } : i));
       const newEditingNotes = { ...editingNotes };
       delete newEditingNotes[itemId];
@@ -170,7 +171,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
   const handleEnsureUnitExists = async (unitName: string): Promise<Unit> => {
     return await ensureUnitExists(unitName, units, async (name) => {
-      const newUnit = await saltBackend.createUnit({
+      const newUnit = await kitchenDataBackend.createUnit({
         name,
         sortOrder: units.length
       });
@@ -181,7 +182,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
   const handleEnsureAisleExists = async (aisleName: string): Promise<Aisle> => {
     return await ensureAisleExists(aisleName, aisles, async (name, sortOrder) => {
-      const newAisle = await saltBackend.createAisle({
+      const newAisle = await kitchenDataBackend.createAisle({
         name,
         sortOrder: sortOrder ?? aisles.length
       });
@@ -208,7 +209,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
       await handleEnsureUnitExists(unitToUse);
       await handleEnsureAisleExists(aisleToUse);
 
-      const updated = await saltBackend.updateShoppingListItem(itemId, {
+      const updated = await shoppingBackend.updateShoppingListItem(itemId, {
         name: draft.name.trim(),
         quantity,
         unit: unitToUse,
@@ -235,7 +236,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
   const handleDeleteItemDirect = async (item: ShoppingListItem) => {
     setUpdatingItemId(item.id);
     try {
-      await saltBackend.deleteShoppingListItem(item.id);
+      await shoppingBackend.deleteShoppingListItem(item.id);
       setItems(prev => prev.filter(i => i.id !== item.id));
       setSwipedItemId(null);
       onRefresh?.();
@@ -252,7 +253,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
     setUpdatingItemId(itemToDelete.id);
     try {
-      await saltBackend.deleteShoppingListItem(itemToDelete.id);
+      await shoppingBackend.deleteShoppingListItem(itemToDelete.id);
       setItems(prev => prev.filter(i => i.id !== itemToDelete.id));
       setShowDeleteItemConfirm(false);
       setItemToDelete(null);
@@ -271,7 +272,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
 
     setRemovingChecked(true);
     try {
-      await Promise.all(checkedItems.map(item => saltBackend.deleteShoppingListItem(item.id)));
+      await Promise.all(checkedItems.map(item => shoppingBackend.deleteShoppingListItem(item.id)));
       setItems(prev => prev.filter(item => !item.checked));
       setShowRemoveCheckedConfirm(false);
       onRefresh?.();
@@ -286,7 +287,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
   const handleDeleteList = async () => {
     if (!selectedList) return;
     try {
-      await saltBackend.deleteShoppingList(selectedList.id);
+      await shoppingBackend.deleteShoppingList(selectedList.id);
       setShowDeleteConfirmModal(false);
       setSelectedList(null);
       setItems([]);
@@ -311,7 +312,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
     
     setIsCreatingList(true);
     try {
-      const newList = await saltBackend.createShoppingList({
+      const newList = await shoppingBackend.createShoppingList({
         name: newListName.trim(),
         recipeIds: []
       });
@@ -357,7 +358,7 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
       }
       
       // Add item to shopping list (will create canonical item if needed)
-      await saltBackend.addManualItemToShoppingList(
+      await shoppingBackend.addManualItemToShoppingList(
         selectedList.id,
         trimmedName,
         quantity,

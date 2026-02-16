@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { CanonicalIngredient } from '../types/contract';
+import { CanonicalItem } from '../types/contract';
 import { Button, Card, Input, Label } from './UI';
-import { saltBackend } from '../backend/api';
+import { kitchenDataBackend } from '../modules/kitchen-data';
 
 interface IngredientsManagementModuleProps {
   onRefresh?: () => void;
 }
 
-type Aisle = CanonicalIngredient['aisle'];
+type Aisle = CanonicalItem['aisle'];
 type PreferredUnit = string;
 
 const AISLES: Aisle[] = [
@@ -31,11 +31,11 @@ const AISLES: Aisle[] = [
 const UNITS: PreferredUnit[] = ['g', 'kg', 'ml', 'l', 'piece', 'tsp', 'tbsp', 'pinch'];
 
 export const IngredientsManagementModule: React.FC<IngredientsManagementModuleProps> = ({ onRefresh }) => {
-  const [ingredients, setIngredients] = useState<CanonicalIngredient[]>([]);
+  const [ingredients, setIngredients] = useState<CanonicalItem[]>([]);
   const [search, setSearch] = useState('');
   const [aisleFilter, setAisleFilter] = useState<Aisle | 'all'>('all');
   const [isStapleFilter, setIsStapleFilter] = useState<'all' | 'staple' | 'regular'>('all');
-  const [editingItem, setEditingItem] = useState<Partial<CanonicalIngredient> | null>(null);
+  const [editingItem, setEditingItem] = useState<Partial<CanonicalItem> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -44,7 +44,7 @@ export const IngredientsManagementModule: React.FC<IngredientsManagementModulePr
   const loadIngredients = async () => {
     setIsLoading(true);
     try {
-      const data = await saltBackend.getCanonicalIngredients();
+      const data = await kitchenDataBackend.getCanonicalItems();
       setIngredients(data);
     } catch (err) {
       console.error('Failed to load ingredients:', err);
@@ -63,10 +63,11 @@ export const IngredientsManagementModule: React.FC<IngredientsManagementModulePr
     setIsSaving(true);
     try {
       if (editingItem.id) {
-        await saltBackend.updateCanonicalIngredient(editingItem.id, editingItem);
+        const { id, createdAt, ...updates } = editingItem;
+        await kitchenDataBackend.updateCanonicalItem(id, updates);
       } else {
         // Creating new ingredient
-        const newIngredient: Omit<CanonicalIngredient, 'id' | 'createdAt'> = {
+        const newIngredient: Omit<CanonicalItem, 'id' | 'createdAt'> = {
           name: editingItem.name,
           normalisedName: editingItem.name.toLowerCase(),
           aisle: editingItem.aisle || 'Miscellaneous',
@@ -75,7 +76,7 @@ export const IngredientsManagementModule: React.FC<IngredientsManagementModulePr
           synonyms: editingItem.synonyms || [],
           createdBy: 'system',
         };
-        await saltBackend.createCanonicalIngredient(newIngredient);
+        await kitchenDataBackend.createCanonicalItem(newIngredient);
       }
       setEditingItem(null);
       await loadIngredients();
@@ -91,7 +92,7 @@ export const IngredientsManagementModule: React.FC<IngredientsManagementModulePr
   const handleDelete = async () => {
     if (!editingItem?.id) return;
     try {
-      await saltBackend.deleteCanonicalIngredient(editingItem.id);
+      await kitchenDataBackend.deleteCanonicalItem(editingItem.id);
       setShowDeleteConfirmModal(false);
       setEditingItem(null);
       await loadIngredients();

@@ -5,16 +5,21 @@ import { LoginPage } from './pages/Login';
 import { DashboardLayout } from './components/Layout';
 import { Card, Button } from './components/UI';
 import { User, Recipe, Equipment, Plan } from './types/contract';
-import { saltBackend } from './backend/api';
+import { systemBackend } from './shared/backend/system-backend';
 
 // Feature Modules
 import { InventoryModule } from './modules/inventory';
+import { inventoryBackend } from './modules/inventory';
 import { RecipesModule } from './modules/recipes';
+import { recipesBackend } from './modules/recipes';
 import { AdminModule } from './modules/admin';
 import { AIModule } from './modules/ai';
 import { PlannerModule } from './modules/planner';
+import { plannerBackend } from './modules/planner';
 import { KitchenDataModule } from './modules/kitchen-data';
+import { kitchenDataBackend } from './modules/kitchen-data';
 import { ShoppingListModule } from './modules/shopping';
+import { shoppingBackend } from './modules/shopping';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
 
 type AppState = 'landing' | 'login' | 'dashboard' | 'loading';
@@ -61,11 +66,11 @@ const App: React.FC = () => {
     const nextWeekStr = getLocalDateString(nextWeekDate);
 
     const [r, i, u, p, nextP] = await Promise.all([
-      saltBackend.getRecipes(),
-      saltBackend.getInventory(),
-      saltBackend.getUsers(),
-      saltBackend.getPlanIncludingDate(today),
-      saltBackend.getPlanIncludingDate(nextWeekStr)
+      recipesBackend.getRecipes(),
+      inventoryBackend.getInventory(),
+      systemBackend.getUsers(),
+      plannerBackend.getPlanIncludingDate(today),
+      plannerBackend.getPlanIncludingDate(nextWeekStr)
     ]);
     setRecipes(r);
     setInventory(i);
@@ -80,7 +85,7 @@ const App: React.FC = () => {
     const checkAuth = async () => {
       try {
         // 1. Check for Redirect Result (Firebase Redirect Flow)
-        const redirectUser = await saltBackend.handleRedirectResult();
+        const redirectUser = await systemBackend.handleRedirectResult();
         if (redirectUser) {
           setUser(redirectUser);
           setView('dashboard');
@@ -92,7 +97,7 @@ const App: React.FC = () => {
       }
 
       // 2. Check for Existing Session (Firebase Persistence or Simulation)
-      const currentUser = await saltBackend.getCurrentUser();
+      const currentUser = await systemBackend.getCurrentUser();
       if (currentUser) {
         setUser(currentUser);
         setView('dashboard');
@@ -112,22 +117,22 @@ const App: React.FC = () => {
 
   const handleExportData = async () => {
     const [r, i, u, p, s, items, lists, units, aisles, cats] = await Promise.all([
-      saltBackend.getRecipes(),
-      saltBackend.getInventory(),
-      saltBackend.getUsers(),
-      saltBackend.getPlans(),
-      saltBackend.getKitchenSettings(),
-      saltBackend.getCanonicalItems(),
-      saltBackend.getShoppingLists(),
-      saltBackend.getUnits(),
-      saltBackend.getAisles(),
-      saltBackend.getCategories()
+      recipesBackend.getRecipes(),
+      inventoryBackend.getInventory(),
+      systemBackend.getUsers(),
+      plannerBackend.getPlans(),
+      systemBackend.getKitchenSettings(),
+      kitchenDataBackend.getCanonicalItems(),
+      shoppingBackend.getShoppingLists(),
+      kitchenDataBackend.getUnits(),
+      kitchenDataBackend.getAisles(),
+      kitchenDataBackend.getCategories()
     ]);
     
     // Fetch all shopping list items for all lists
     const allShoppingItems: any[] = [];
     for (const list of lists) {
-      const items = await saltBackend.getShoppingListItems(list.id);
+      const items = await shoppingBackend.getShoppingListItems(list.id);
       allShoppingItems.push(...items);
     }
     
@@ -161,7 +166,7 @@ const App: React.FC = () => {
     setIsImporting(true);
     try {
       const text = await file.text();
-      await saltBackend.importSystemState(text);
+      await systemBackend.importSystemState(text);
       await loadData();
       alert("Kitchen state restored.");
     } catch (err: any) {
@@ -178,7 +183,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await saltBackend.logout();
+    await systemBackend.logout();
     setUser(null);
     setView('landing');
   };

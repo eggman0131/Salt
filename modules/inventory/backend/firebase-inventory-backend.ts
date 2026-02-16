@@ -11,7 +11,7 @@ import {
   EquipmentCandidate,
   Accessory,
 } from '../../../types/contract';
-import { db, auth, functions } from '../../../backend/firebase';
+import { db, auth, functions } from '../../../shared/backend/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";

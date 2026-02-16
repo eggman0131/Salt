@@ -6,12 +6,12 @@
  * history descriptions and update patterns.
  */
 
-import { Recipe, RecipeHistoryEntry } from '../types/contract';
+import { Recipe, RecipeHistoryEntry } from '../../../types/contract';
 
 /**
  * Builds a human-readable summary of manual edits made to a recipe.
  * Compares before and after states and generates a description like:
- * "Edited: title, ingredients (+2, −1), steps (+1), categories"
+ * "Edited: title, ingredients (+2, -1), steps (+1), categories"
  */
 export function buildManualEditSummary(before: Recipe, after: Recipe): string {
   const changes: string[] = [];
@@ -35,7 +35,7 @@ export function buildManualEditSummary(before: Recipe, after: Recipe): string {
     if (added > 0) {
       changes.push(`ingredients (+${added})`);
     } else if (added < 0) {
-      changes.push(`ingredients (−${Math.abs(added)})`);
+      changes.push(`ingredients (-${Math.abs(added)})`);
     } else {
       changes.push('ingredients');
     }
@@ -50,7 +50,7 @@ export function buildManualEditSummary(before: Recipe, after: Recipe): string {
     if (added > 0) {
       changes.push(`steps (+${added})`);
     } else if (added < 0) {
-      changes.push(`steps (−${Math.abs(added)})`);
+      changes.push(`steps (-${Math.abs(added)})`);
     } else {
       changes.push('steps');
     }
@@ -117,9 +117,9 @@ export function applyCategoryChange(
  * and scales it by the ratio of newServings to currentServings.
  * 
  * Examples:
- * - "500g beef" with 4→6 servings becomes "750g beef"
- * - "2 cups flour" with 2→4 servings becomes "4 cups flour"
- * - "1 onion, diced" with 1→2 servings becomes "2 onion, diced"
+ * - "500g beef" with 4->6 servings becomes "750g beef"
+ * - "2 cups flour" with 2->4 servings becomes "4 cups flour"
+ * - "1 onion, diced" with 1->2 servings becomes "2 onion, diced"
  */
 export function scaleIngredients(
   ingredients: (string | any)[],

@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, Button, Input, Label } from '../../../components/UI';
 import { recipesBackend } from '../../recipes';
-import { sanitizeJson } from '../../../backend/api';
 import { marked } from 'marked';
 
 interface Message {
@@ -14,6 +13,17 @@ interface AIModuleProps {
   onRecipeGenerated: () => void;
   initialUserMessage?: string;
 }
+
+const sanitizeJson = (text: string): string => {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1) {
+    const startArr = text.indexOf('[');
+    const endArr = text.lastIndexOf(']');
+    return startArr !== -1 && endArr !== -1 ? text.substring(startArr, endArr + 1) : text.trim();
+  }
+  return start !== -1 && end !== -1 ? text.substring(start, end + 1) : text.trim();
+};
 
 export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUserMessage }) => {
   const [messages, setMessages] = useState<Message[]>([

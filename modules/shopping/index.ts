@@ -5,5 +5,7 @@
  * Internal components and utilities are private to the module.
  */
 
+export { shoppingBackend } from './backend';
+export type { IShoppingBackend } from './backend';
 export { ShoppingListModule } from './components/ShoppingListModule';
 export type { ShoppingList, ShoppingListItem } from '../../types/contract';
