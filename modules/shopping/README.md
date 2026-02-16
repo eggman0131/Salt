@@ -22,12 +22,15 @@ modules/shopping/
     DesktopView.tsx             ← Desktop-optimized UI
     modals/
       ShoppingListModals.tsx    ← All modal dialogs
-    index.ts                    ← Public exports
   backend/
-    [Future: shopping-api.ts]   ← Shopping-specific API wrapper
+    shopping-backend.interface.ts  ← IShoppingBackend interface (30 methods)
+    base-shopping-backend.ts       ← AI-powered logic + abstract persistence
+    firebase-shopping-backend.ts   ← Firebase Firestore implementation
+    index.ts                       ← Public API (exports shoppingBackend)
   hooks/
     [Future: useShoppingLists.ts, useListItems.ts]
   utils.ts                      ← Shopping-specific utilities
+  index.ts                      ← Public exports (ShoppingListModule + types)
   README.md                     ← This file
 ```
 
@@ -75,6 +78,74 @@ The shopping module has been successfully extracted into the new modular archite
 - `calculateProgress()` - Compute completion percentage
 - `validateItemData()` - Input validation
 
+### Backend Architecture
+
+The shopping module has its own backend implementation extracted from the monolithic Salt backend.
+
+**Interface:** `IShoppingBackend` (30 methods)
+- Canonical Items: CRUD operations (5 methods)
+- Shopping Lists: CRUD + default list management (7 methods)
+- Shopping List Items: CRUD operations (4 methods)
+- Recipe Integration: AI-powered list generation (4 methods)
+- Units & Aisles: CRUD operations (10 methods)
+
+**Base Backend:** `BaseShoppingBackend`
+- AI-Powered Features:
+  - `processRecipeIngredients()`: Parse raw ingredients → structured data with canonical links
+    - Fuzzy matching (85%+ similarity) against existing items
+    - AI fallback for unmatched ingredients (batch resolution)
+    - Auto-create missing units, aisles, canonical items
+  - `resolveUnmatchedIngredients()`: Batch AI calls to resolve unknown items
+  - `generateShoppingList()`: (placeholder) Convert recipes → consolidated list
+- Helper Methods:
+  - `parseIngredientString()`: Extract quantity, unit, name, preparation
+  - `fuzzyMatch()`: Levenshtein distance for string similarity
+  - `sanitizeJson()`: Extract JSON from AI responses
+
+**Firebase Backend:** `FirebaseShoppingBackend`
+- Firestore collections:
+  - `canonical_items`: Universal item catalog (food + household)
+  - `shopping_lists`: List metadata
+  - `shopping_list_items`: Items in lists (with snapshot data)
+  - `units`: Available units (g, kg, ml, l, items, etc.)
+  - `aisles`: Store sections (Produce, Dairy, etc.)
+- AI Transport: Uses Cloud Functions for authenticated Gemini API access
+- Data Integrity:
+  - Auto-creates missing units/aisles
+  - Links shopping items to canonical catalog
+  - Batch operations for list deletion (cascades to items)
+  - Recipe deletion unlinks canonical items
+
+**Public API:** `shoppingBackend` singleton
+- Exported from `modules/shopping/backend/index.ts`
+- Used by `ShoppingListModule.tsx` for all operations
+- Configurable via `VITE_BACKEND_MODE` (firebase | simulation)
+
+**Module Integration:**
+```typescript
+// In ShoppingListModule.tsx
+import { shoppingBackend } from '../backend';
+
+// Load lists
+const lists = await shoppingBackend.getShoppingLists();
+
+// Add item
+const item = await shoppingBackend.addManualItemToShoppingList(
+  listId, name, quantity, unit, aisle
+);
+
+// Process recipe ingredients (AI-powered)
+const structured = await shoppingBackend.processRecipeIngredients(
+  rawIngredients, recipeId
+);
+```
+
+**Future Enhancements:**
+- Simulation backend for offline development
+- Custom hooks for shopping operations
+- Optimistic updates with rollback
+- Real-time sync via Firestore listeners
+
 ## Data Flow
 
 ```
@@ -84,9 +155,11 @@ View Component (Mobile/Desktop)
     ↓
 ShoppingListModule handlers
     ↓
-shared/backend/api (saltBackend)
+modules/shopping/backend (shoppingBackend)
     ↓
-Firebase/Simulation Backend
+FirebaseShoppingBackend / SimulationShoppingBackend
+    ↓
+Firebase Firestore / In-Memory Store
     ↓
 State update in ShoppingListModule
     ↓
