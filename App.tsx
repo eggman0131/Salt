@@ -8,7 +8,7 @@ import { User, Recipe, Equipment, Plan } from './types/contract';
 import { saltBackend } from './backend/api';
 
 // Feature Modules
-import { InventoryModule } from './components/InventoryModule';
+import { InventoryModule } from './modules/inventory';
 import { RecipesModule } from './modules/recipes';
 import { AdminModule } from './components/AdminModule';
 import { AIModule } from './components/AIModule';

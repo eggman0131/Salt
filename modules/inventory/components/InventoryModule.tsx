@@ -1,8 +1,7 @@
-
-import { Accessory, Equipment, EquipmentCandidate } from '../types/contract';
-import { Button, Card, Input, Label } from './UI';
+import { Accessory, Equipment, EquipmentCandidate } from '../../../types/contract';
+import { Button, Card, Input, Label } from '../../../components/UI';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { saltBackend } from '../backend/api';
+import { inventoryBackend } from '../backend';
 
 interface InventoryModuleProps {
   inventory: Equipment[];
@@ -45,7 +44,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
     setIsSearching(true);
     setCandidates([]);
     try {
-      const results = await saltBackend.searchEquipmentCandidates(searchQuery);
+      const results = await inventoryBackend.searchEquipmentCandidates(searchQuery);
       setCandidates(results || []);
     } catch (err) { 
       console.error(err);
@@ -57,7 +56,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
   const handleSelectCandidate = async (candidate: EquipmentCandidate) => {
     setIsGenerating(true);
     try {
-      const details = await saltBackend.generateEquipmentDetails(candidate);
+      const details = await inventoryBackend.generateEquipmentDetails(candidate);
       setEditingItem({
         ...details,
         brand: details.brand || candidate.brand,
@@ -81,7 +80,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
         description: '',
         category: (editingItem.class as any) || 'Complex Appliance'
       };
-      const details = await saltBackend.generateEquipmentDetails(candidate);
+      const details = await inventoryBackend.generateEquipmentDetails(candidate);
       setEditingItem({
         ...editingItem,
         ...details,
@@ -98,9 +97,9 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
     if (!editingItem) return;
     try {
       if (editingItem.id) {
-        await saltBackend.updateEquipment(editingItem.id, editingItem);
+        await inventoryBackend.updateEquipment(editingItem.id, editingItem);
       } else {
-        await saltBackend.createEquipment(editingItem as any);
+        await inventoryBackend.createEquipment(editingItem as any);
       }
       setEditingItem(null);
       setIsAdding(false);
@@ -111,7 +110,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
   const handleDelete = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     try {
-      await saltBackend.deleteEquipment(id);
+      await inventoryBackend.deleteEquipment(id);
       setIsDeletingConfirm(false);
       setShowDeleteConfirmModal(false);
       setEditingItem(null);
@@ -126,7 +125,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
     if (!editingItem || !manualAccName) return;
     setIsValidatingAcc(true);
     try {
-      const validated = await saltBackend.validateAccessory(editingItem.name || editingItem.modelName || '', manualAccName);
+      const validated = await inventoryBackend.validateAccessory(editingItem.name || editingItem.modelName || '', manualAccName);
       const newAcc: Accessory = {
         ...validated,
         id: `acc-${Math.random().toString(36).substr(2, 5)}`,
