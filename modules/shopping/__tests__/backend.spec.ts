@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { BaseShoppingBackend } from '../base-shopping-backend';
-import type { ShoppingBackendInterface } from '../shopping-backend.interface';
+import { BaseShoppingBackend } from '../backend/base-shopping-backend';
+import type { ShoppingBackendInterface } from '../backend/shopping-backend.interface';
 import type { ShoppingList, ShoppingItem } from '../../../types/contract';
 
 /**
