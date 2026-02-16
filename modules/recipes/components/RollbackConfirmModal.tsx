@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from '../UI';
+import { Card } from '../../../components/UI';
 import { RecipeHistoryEntry } from '../../types/contract';
 
 interface RollbackConfirmModalProps {

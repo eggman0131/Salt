@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ErrorBoundary } from './UI';
+import { ErrorBoundary } from '../../../components/UI';
 import { RecipesList } from './RecipesList';
 import { RecipeDetail } from './RecipeDetail';
-import { Recipe, Equipment, User } from '../types/contract';
+import { Recipe, Equipment, User } from '../../../types/contract';
 
 interface RecipesModuleProps {
   recipes: Recipe[];
