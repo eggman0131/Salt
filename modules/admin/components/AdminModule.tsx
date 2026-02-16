@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { UsersModule } from './UsersModule';
-import { Card, Button, Label } from './UI';
-import { User, KitchenSettings } from '../types/contract';
-import { getActiveBackendMode, saltBackend } from '../backend/api';
-import { debugLogger } from '../backend/debug-logger';
+import { UsersModule } from '../../../components/UsersModule';
+import { Card, Button, Label } from '../../../components/UI';
+import { User, KitchenSettings } from '../../../types/contract';
+import { getActiveBackendMode } from '../../../backend/api';
+import { plannerBackend } from '../../planner';
+import { debugLogger } from '../../../backend/debug-logger';
 
 interface AdminModuleProps {
   users: User[];
@@ -31,7 +32,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
   // Re-fetch whenever lastSync changes (e.g. after import)
   useEffect(() => {
-    saltBackend.getKitchenSettings().then(s => {
+    plannerBackend.getKitchenSettings().then(s => {
       setDirectives(s.directives);
       setDebugEnabled(s.debugEnabled || false);
       debugLogger.setEnabled(s.debugEnabled || false);
@@ -45,7 +46,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     if (debounceTimerRef.current) window.clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = window.setTimeout(async () => {
       try {
-        await saltBackend.updateKitchenSettings({ directives: val, debugEnabled });
+        await plannerBackend.updateKitchenSettings({ directives: val, debugEnabled });
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch (err) {
@@ -60,7 +61,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     setSaveStatus('saving');
     
     try {
-      await saltBackend.updateKitchenSettings({ directives, debugEnabled: enabled });
+      await plannerBackend.updateKitchenSettings({ directives, debugEnabled: enabled });
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err) {
