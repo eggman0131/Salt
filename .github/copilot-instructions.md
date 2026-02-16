@@ -4,14 +4,14 @@
 
 **Salt** is a technical culinary orchestrator for high-end domestic UK kitchens, powered by Gemini AI. The system is a React/TypeScript application with Firebase backend and a sophisticated AI-powered recipe and inventory management system.
 
-## System Architecture
+## The Constitution (Non-Negotiables)
 
-Salt follows a strict "Constitution" to ensure data integrity and logic preservation:
+Salt follows a strict hierarchy to ensure data integrity:
 
-1. **The Law (`types/contract.ts`):** Immutable data schema — the single source of truth.
-2. **The Soul (`backend/prompts.ts`):** The Head Chef's voice and culinary filters.
-3. **The Brain (`backend/base-backend.ts`):** Domain logic and AI synthesis engine.
-4. **The Hands (`backend/simulated.ts` or `backend/firebase-backend.ts`):** The persistence layer.
+1. **The Law** (`types/contract.ts`) - Immutable data schema, the single source of truth
+2. **The Soul** (`shared/backend/prompts.ts`) - The Head Chef's voice and culinary filters
+3. **The Brain** (`shared/backend/base-backend.ts`) - Domain logic and AI synthesis engine
+4. **The Hands** (`shared/backend/firebase-backend.ts`) - The persistence layer
 
 **Hierarchy Rule:** Never modify "The Brain" during "The Hands" migration. The Contract is the law — any logic that bypasses Zod validation is a system failure.
 
@@ -47,6 +47,48 @@ Strictly avoid software jargon in UI labels and AI responses.
 ### Culinary Filter
 The AI ignores non-functional items: manuals, cases, cookbooks. Focus on actual kitchen equipment and ingredients.
 
+## Module Architecture
+
+Salt uses a **modular architecture**. Each module is self-contained with its own components, backend logic, and documentation.
+
+```
+modules/
+  shopping/          ← Shopping lists and items
+  recipes/           ← Recipe management and AI generation
+  kitchen-data/      ← Units, Aisles, Categories, Canonical Items
+  planner/           ← Meal planning
+  inventory/         ← Inventory management
+  admin/             ← System administration
+  ai/                ← AI chat interface
+
+shared/              ← Cross-module code (UI, hooks, backend foundation)
+types/contract.ts    ← The Law (all modules import from here)
+```
+
+### Working in Modules
+
+**When working in a specific module:**
+1. Read that module's `README.md` first (e.g., `modules/shopping/README.md`)
+2. Respect module boundaries - only import from:
+   - The module you're in
+   - `shared/*`
+   - `types/contract.ts`
+3. **DO NOT** import from other modules' internals
+4. **DO NOT** modify files outside your current module without explicit permission
+
+**If you need shared functionality:**
+- Put it in `shared/` if used by multiple modules
+- Keep it in the module if only used there
+
+### Module Dependencies
+
+- All modules → `types/contract.ts` (The Law)
+- All modules → `shared/components` (UI library)
+- All modules → `shared/backend` (API transport)
+- `shopping` → `kitchen-data` (read-only: units, aisles)
+- `planner` → `recipes` (read-only: recipe data)
+- `planner` → `shopping` (can create lists)
+
 ## Tech Stack
 
 - **Frontend:** React 19, TypeScript, Vite
@@ -64,7 +106,7 @@ The AI ignores non-functional items: manuals, cases, cookbooks. Focus on actual 
 - Use TypeScript strict mode
 
 ### File Organization
-- Keep the existing file structure intact
+- Keep the existing file structure intact within each module
 - Do not rename files or folders without explicit discussion
 - Follow the architectural hierarchy (Law → Soul → Brain → Hands)
 
@@ -95,16 +137,6 @@ The AI ignores non-functional items: manuals, cases, cookbooks. Focus on actual 
 - Use `./scripts/save-db.sh` to save state while running
 - Graceful shutdown (Ctrl+C) triggers auto-export
 
-## Documentation Structure
-
-Comprehensive documentation is organized in the `docs/` folder:
-- **Architecture & Design:** `docs/architecture/` - Backend/frontend guidelines, contract, Firebase implementation
-- **Module Specifications:** `docs/modules/` - Inventory, Planner, Recipe module rules
-- **Development & Testing:** `docs/development/` - Change management, prompt guidelines, parity testing
-- **Deployment:** `docs/deployment/` - Migration roadmap and checklists
-
-**Always consult relevant documentation before making changes.**
-
 ## Critical Rules (DO NOT MODIFY)
 
 1. **Never modify `types/contract.ts` without understanding system-wide impact**
@@ -114,6 +146,7 @@ Comprehensive documentation is organized in the `docs/` folder:
 5. **Never use American English spelling or culinary terms**
 6. **Never use tech jargon in user-facing strings**
 7. **Never make the AI sound like an assistant**
+8. **Never import from another module's internals**
 
 ## Data Portability
 
@@ -128,10 +161,10 @@ Salt is manifest-based. The Export Backup feature in the Admin panel moves entir
 
 ## When Making Changes
 
-1. Read relevant documentation in `docs/` first
+1. Read the module's `README.md` if working in a module
 2. Understand the architectural hierarchy
 3. Maintain type safety with Zod schemas
 4. Test with both simulation and Firebase backends
 5. Verify British English and metric units
 6. Keep changes minimal and focused
-7. Document any new patterns or conventions
+7. Document any new patterns or conventions in the module's README

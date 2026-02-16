@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ShoppingList, ShoppingListItem, Unit, Aisle } from '../../types/contract';
-import { Button, Card, Input, Label } from '../UI';
+import { ShoppingList, ShoppingListItem, Unit, Aisle } from '../../../types/contract';
+import { Button, Card, Input, Label } from '../../../components/UI';
 
 interface DesktopViewProps {
   selectedList: ShoppingList;
