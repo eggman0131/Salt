@@ -1,0 +1,41 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Contract Snapshot Test > should match contract schema snapshot 1`] = `
+{
+  "schemas": {
+    "AccessorySchema": "[object Object]",
+    "AisleSchema": "[object Object]",
+    "CanonicalItemSchema": "[object Object]",
+    "DayPlanSchema": "[object Object]",
+    "EquipmentSchema": "[object Object]",
+    "KitchenSettingsSchema": "[object Object]",
+    "PlanSchema": "[object Object]",
+    "RecipeCategorySchema": "[object Object]",
+    "RecipeHistoryEntrySchema": "[object Object]",
+    "RecipeIngredientSchema": "[object Object]",
+    "RecipeSchema": "[object Object]",
+    "ShoppingListItemSchema": "[object Object]",
+    "ShoppingListSchema": "[object Object]",
+    "UnitSchema": "[object Object]",
+    "UserSchema": "[object Object]",
+  },
+  "types": {
+    "Accessory": "Accessory",
+    "Aisle": "Aisle",
+    "CanonicalItem": "CanonicalItem",
+    "DayPlan": "DayPlan",
+    "Equipment": "Equipment",
+    "EquipmentCandidate": "EquipmentCandidate",
+    "KitchenSettings": "KitchenSettings",
+    "Plan": "Plan",
+    "Recipe": "Recipe",
+    "RecipeCategory": "RecipeCategory",
+    "RecipeHistoryEntry": "RecipeHistoryEntry",
+    "RecipeIngredient": "RecipeIngredient",
+    "ShoppingList": "ShoppingList",
+    "ShoppingListItem": "ShoppingListItem",
+    "Unit": "Unit",
+    "User": "User",
+  },
+}
+`;
