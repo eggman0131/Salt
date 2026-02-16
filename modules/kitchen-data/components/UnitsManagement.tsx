@@ -1,106 +1,106 @@
 import React, { useState, useEffect } from 'react';
-import { Aisle } from '../types/contract';
-import { Button, Card, Input, Label } from './UI';
-import { saltBackend } from '../backend/api';
+import { Unit } from '../../../types/contract';
+import { Button, Card, Input, Label } from '../../../components/UI';
+import { kitchenDataBackend } from '../backend';
 
-interface AislesManagementProps {
+interface UnitsManagementProps {
   onRefresh?: () => void;
 }
 
-export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh }) => {
-  const [aisles, setAisles] = useState<Aisle[]>([]);
+export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) => {
+  const [units, setUnits] = useState<Unit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [editingAisle, setEditingAisle] = useState<Aisle | null>(null);
-  const [showNewAisleModal, setShowNewAisleModal] = useState(false);
+  const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
+  const [showNewUnitModal, setShowNewUnitModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [aisleToDelete, setAisleToDelete] = useState<Aisle | null>(null);
+  const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form state
   const [formName, setFormName] = useState('');
   const [formSortOrder, setFormSortOrder] = useState(999);
 
-  const loadAisles = async () => {
+  const loadUnits = async () => {
     setIsLoading(true);
     try {
-      const data = await saltBackend.getAisles();
-      setAisles(data);
+      const data = await kitchenDataBackend.getUnits();
+      setUnits(data);
     } catch (err) {
-      console.error('Failed to load aisles:', err);
-      alert('Failed to load aisles');
+      console.error('Failed to load units:', err);
+      alert('Failed to load units');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAisles();
+    loadUnits();
   }, []);
 
-  const openNewAisleModal = () => {
+  const openNewUnitModal = () => {
     setFormName('');
-    setFormSortOrder(aisles.length > 0 ? Math.max(...aisles.map(a => a.sortOrder)) + 10 : 10);
-    setEditingAisle(null);
-    setShowNewAisleModal(true);
+    setFormSortOrder(units.length > 0 ? Math.max(...units.map(u => u.sortOrder)) + 10 : 10);
+    setEditingUnit(null);
+    setShowNewUnitModal(true);
   };
 
-  const openEditModal = (aisle: Aisle) => {
-    setFormName(aisle.name);
-    setFormSortOrder(aisle.sortOrder);
-    setEditingAisle(aisle);
-    setShowNewAisleModal(true);
+  const openEditModal = (unit: Unit) => {
+    setFormName(unit.name);
+    setFormSortOrder(unit.sortOrder);
+    setEditingUnit(unit);
+    setShowNewUnitModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formName.trim()) {
-      alert('Aisle name is required');
+      alert('Unit name is required');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const aisleData = {
+      const unitData = {
         name: formName.trim(),
         sortOrder: formSortOrder
       };
 
-      if (editingAisle) {
-        await saltBackend.updateAisle(editingAisle.id, aisleData);
+      if (editingUnit) {
+        await kitchenDataBackend.updateUnit(editingUnit.id, unitData);
       } else {
-        await saltBackend.createAisle(aisleData);
+        await kitchenDataBackend.createUnit(unitData);
       }
 
-      setShowNewAisleModal(false);
-      await loadAisles();
+      setShowNewUnitModal(false);
+      await loadUnits();
       onRefresh?.();
     } catch (err) {
-      console.error('Failed to save aisle:', err);
-      alert('Failed to save aisle');
+      console.error('Failed to save unit:', err);
+      alert('Failed to save unit');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const confirmDelete = (aisle: Aisle) => {
-    setAisleToDelete(aisle);
+  const confirmDelete = (unit: Unit) => {
+    setUnitToDelete(unit);
     setShowDeleteConfirm(true);
   };
 
   const handleDelete = async () => {
-    if (!aisleToDelete) return;
+    if (!unitToDelete) return;
 
     setIsSubmitting(true);
     try {
-      await saltBackend.deleteAisle(aisleToDelete.id);
+      await kitchenDataBackend.deleteUnit(unitToDelete.id);
       setShowDeleteConfirm(false);
-      setAisleToDelete(null);
-      await loadAisles();
+      setUnitToDelete(null);
+      await loadUnits();
       onRefresh?.();
     } catch (err) {
-      console.error('Failed to delete aisle:', err);
-      alert('Failed to delete aisle');
+      console.error('Failed to delete unit:', err);
+      alert('Failed to delete unit');
     } finally {
       setIsSubmitting(false);
     }
@@ -109,7 +109,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading aisles...</div>
+        <div className="text-gray-500">Loading units...</div>
       </div>
     );
   }
@@ -119,34 +119,34 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
       {/* Header */}
       <div className="flex justify-between items-center">
         <p className="text-sm text-gray-600">
-          Aisles help organize shopping lists. Sort order determines display order.
+          Units are used for measuring items. Sort order determines display order.
         </p>
-        <Button onClick={openNewAisleModal}>Add Aisle</Button>
+        <Button onClick={openNewUnitModal}>Add Unit</Button>
       </div>
 
-      {/* Aisles List */}
+      {/* Units List */}
       <div className="grid gap-3">
-        {aisles.length === 0 ? (
+        {units.length === 0 ? (
           <Card className="p-6 text-center text-gray-500">
-            No aisles yet
+            No units yet
           </Card>
         ) : (
-          aisles.map((aisle) => (
-            <Card key={aisle.id} className="p-4">
+          units.map((unit) => (
+            <Card key={unit.id} className="p-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-gray-900">{aisle.name}</h3>
+                    <h3 className="font-semibold text-gray-900">{unit.name}</h3>
                     <span className="text-xs text-gray-500">
-                      Sort: {aisle.sortOrder}
+                      Sort: {unit.sortOrder}
                     </span>
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <Button onClick={() => openEditModal(aisle)} className="text-sm">
+                  <Button onClick={() => openEditModal(unit)} className="text-sm">
                     Edit
                   </Button>
-                  <Button onClick={() => confirmDelete(aisle)} className="text-sm bg-red-600 hover:bg-red-700">
+                  <Button onClick={() => confirmDelete(unit)} className="text-sm bg-red-600 hover:bg-red-700">
                     Delete
                   </Button>
                 </div>
@@ -156,25 +156,28 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
         )}
       </div>
 
-      {/* New/Edit Aisle Modal */}
-      {showNewAisleModal && (
+      {/* New/Edit Unit Modal */}
+      {showNewUnitModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-md w-full">
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <h2 className="text-xl font-bold text-gray-900">
-                {editingAisle ? 'Edit Aisle' : 'New Aisle'}
+                {editingUnit ? 'Edit Unit' : 'New Unit'}
               </h2>
 
               <div>
-                <Label htmlFor="name">Aisle Name</Label>
+                <Label htmlFor="name">Unit Name</Label>
                 <Input
                   id="name"
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g., Produce, Dairy, Bakery"
+                  placeholder="e.g., g, kg, ml, l"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Use metric units (g, kg, ml, l). Special unit: <code className="bg-gray-100 px-1 rounded">_item</code> for natural counting
+                </p>
               </div>
 
               <div>
@@ -194,11 +197,11 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
 
               <div className="flex gap-3 pt-4">
                 <Button type="submit" disabled={isSubmitting} className="flex-1">
-                  {isSubmitting ? 'Saving...' : editingAisle ? 'Update' : 'Create'}
+                  {isSubmitting ? 'Saving...' : editingUnit ? 'Update' : 'Create'}
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => setShowNewAisleModal(false)}
+                  onClick={() => setShowNewUnitModal(false)}
                   disabled={isSubmitting}
                   className="bg-gray-500 hover:bg-gray-600"
                 >
@@ -211,13 +214,13 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
       )}
 
       {/* Delete Confirmation */}
-      {showDeleteConfirm && aisleToDelete && (
+      {showDeleteConfirm && unitToDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-md w-full p-6 space-y-4">
             <h2 className="text-xl font-bold text-gray-900">Confirm Delete</h2>
             <p className="text-gray-600">
-              Are you sure you want to delete the aisle <strong>{aisleToDelete.name}</strong>?
-              This may affect items using this aisle.
+              Are you sure you want to delete the unit <strong>{unitToDelete.name}</strong>?
+              This may affect items using this unit.
             </p>
             <div className="flex gap-3">
               <Button

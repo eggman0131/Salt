@@ -13,7 +13,7 @@ import { RecipesModule } from './components/RecipesModule';
 import { AdminModule } from './components/AdminModule';
 import { AIModule } from './components/AIModule';
 import { PlannerModule } from './components/PlannerModule';
-import { KitchenDataModule } from './components/KitchenDataModule';
+import { KitchenDataModule } from './modules/kitchen-data';
 import { ShoppingListModule } from './modules/shopping';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
 

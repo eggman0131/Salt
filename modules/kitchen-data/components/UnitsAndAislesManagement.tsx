@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Unit, Aisle } from '../types/contract';
-import { Button, Card, Input, Label } from './UI';
-import { saltBackend } from '../backend/api';
+import { Unit, Aisle } from '../../../types/contract';
+import { Button, Card, Input, Label } from '../../../components/UI';
+import { kitchenDataBackend } from '../backend';
 
 interface UnitsAndAislesManagementProps {
   onRefresh?: () => void;
@@ -29,8 +29,8 @@ export const UnitsAndAislesManagement: React.FC<UnitsAndAislesManagementProps> =
     setIsLoading(true);
     try {
       const [unitsData, aislesData] = await Promise.all([
-        saltBackend.getUnits(),
-        saltBackend.getAisles()
+        kitchenDataBackend.getUnits(),
+        kitchenDataBackend.getAisles()
       ]);
       setUnits(unitsData);
       setAisles(aislesData);
@@ -51,7 +51,7 @@ export const UnitsAndAislesManagement: React.FC<UnitsAndAislesManagementProps> =
     
     setIsAddingUnit(true);
     try {
-      await saltBackend.createUnit({
+      await kitchenDataBackend.createUnit({
         name: newUnitName.trim(),
         sortOrder: units.length
       });
@@ -70,7 +70,7 @@ export const UnitsAndAislesManagement: React.FC<UnitsAndAislesManagementProps> =
     if (!editingUnitName.trim()) return;
     
     try {
-      await saltBackend.updateUnit(id, { name: editingUnitName.trim() });
+      await kitchenDataBackend.updateUnit(id, { name: editingUnitName.trim() });
       setEditingUnitId(null);
       setEditingUnitName('');
       await loadData();
@@ -85,7 +85,7 @@ export const UnitsAndAislesManagement: React.FC<UnitsAndAislesManagementProps> =
     if (!confirm(`Delete unit "${name}"? This may affect existing items using this unit.`)) return;
     
     try {
-      await saltBackend.deleteUnit(id);
+      await kitchenDataBackend.deleteUnit(id);
       await loadData();
       onRefresh?.();
     } catch (err) {
@@ -105,8 +105,8 @@ export const UnitsAndAislesManagement: React.FC<UnitsAndAislesManagementProps> =
 
     try {
       await Promise.all([
-        saltBackend.updateUnit(id, { sortOrder: newIndex }),
-        saltBackend.updateUnit(otherUnit.id, { sortOrder: index })
+        kitchenDataBackend.updateUnit(id, { sortOrder: newIndex }),
+        kitchenDataBackend.updateUnit(otherUnit.id, { sortOrder: index })
       ]);
       await loadData();
       onRefresh?.();
@@ -121,7 +121,7 @@ export const UnitsAndAislesManagement: React.FC<UnitsAndAislesManagementProps> =
     
     setIsAddingAisle(true);
     try {
-      await saltBackend.createAisle({
+      await kitchenDataBackend.createAisle({
         name: newAisleName.trim(),
         sortOrder: aisles.length
       });
@@ -140,7 +140,7 @@ export const UnitsAndAislesManagement: React.FC<UnitsAndAislesManagementProps> =
     if (!editingAisleName.trim()) return;
     
     try {
-      await saltBackend.updateAisle(id, { name: editingAisleName.trim() });
+      await kitchenDataBackend.updateAisle(id, { name: editingAisleName.trim() });
       setEditingAisleId(null);
       setEditingAisleName('');
       await loadData();
@@ -155,7 +155,7 @@ export const UnitsAndAislesManagement: React.FC<UnitsAndAislesManagementProps> =
     if (!confirm(`Delete aisle "${name}"? This may affect existing items in this aisle.`)) return;
     
     try {
-      await saltBackend.deleteAisle(id);
+      await kitchenDataBackend.deleteAisle(id);
       await loadData();
       onRefresh?.();
     } catch (err) {
@@ -175,8 +175,8 @@ export const UnitsAndAislesManagement: React.FC<UnitsAndAislesManagementProps> =
 
     try {
       await Promise.all([
-        saltBackend.updateAisle(id, { sortOrder: newIndex }),
-        saltBackend.updateAisle(otherAisle.id, { sortOrder: index })
+        kitchenDataBackend.updateAisle(id, { sortOrder: newIndex }),
+        kitchenDataBackend.updateAisle(otherAisle.id, { sortOrder: index })
       ]);
       await loadData();
       onRefresh?.();
