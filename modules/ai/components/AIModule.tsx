@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, Button, Input, Label } from './UI';
-import { saltBackend, sanitizeJson } from '../backend/api';
+import { Card, Button, Input, Label } from '../../../components/UI';
+import { recipesBackend } from '../../recipes';
+import { sanitizeJson } from '../../../backend/api';
 import { marked } from 'marked';
 
 interface Message {
@@ -42,7 +43,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     
     setIsTyping(true);
     try {
-      const response = await saltBackend.chatForDraft(newHistory);
+      const response = await recipesBackend.chatForDraft(newHistory);
       setMessages(prev => [...prev, { role: 'ai', text: response }]);
     } catch (err) {
       console.error("Salt AI Module Error:", err);
@@ -67,7 +68,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     
     setIsTyping(true);
     try {
-      const response = await saltBackend.chatForDraft(newHistory);
+      const response = await recipesBackend.chatForDraft(newHistory);
       setMessages(prev => [...prev, { role: 'ai', text: response }]);
     } catch (err) {
       console.error("Salt AI Module Error:", err);
@@ -83,7 +84,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     try {
       setStatus('finalising');
       setProgressMessage('Summarising your discussion...');
-      const consensusResponse = await saltBackend.summarizeAgreedRecipe(messages);
+      const consensusResponse = await recipesBackend.summarizeAgreedRecipe(messages);
       const cleanedConsensus = sanitizeJson(consensusResponse);
       const { consensusDraft } = JSON.parse(cleanedConsensus);
       
@@ -91,7 +92,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
 
       setStatus('organising');
       setProgressMessage('Building your recipe...');
-      const recipeData = await saltBackend.generateRecipeFromPrompt(
+      const recipeData = await recipesBackend.generateRecipeFromPrompt(
         consensusDraft || "A professional recipe based on the agreed plan.",
         undefined,
         messages
@@ -101,7 +102,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
 
       setStatus('imaging');
       setProgressMessage('Generating photograph...');
-      const imageData = await saltBackend.generateRecipeImage(
+      const imageData = await recipesBackend.generateRecipeImage(
         recipeData.title || 'Dish',
         recipeData.description
       );
@@ -112,7 +113,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       
       setStatus('processing');
       setProgressMessage('Processing ingredients...');
-      await saltBackend.createRecipe({
+      await recipesBackend.createRecipe({
         ...recipeData,
         ingredients: recipeData.ingredients || [],
         instructions: recipeData.instructions || [],
@@ -145,7 +146,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     
     try {
       // Import recipe from URL
-      const importedRecipe = await saltBackend.importRecipeFromUrl(recipeUrl);
+      const importedRecipe = await recipesBackend.importRecipeFromUrl(recipeUrl);
       
       // Add to conversation as context
       const importSummary = `Imported recipe: ${importedRecipe.title}\n\nIngredients:\n${(importedRecipe.ingredients || []).join('\n')}\n\nMethod:\n${(importedRecipe.instructions || []).join('\n')}`;
@@ -158,7 +159,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       // Generate image
       setStatus('imaging');
       setProgressMessage('Generating photograph...');
-      const imageData = await saltBackend.generateRecipeImage(
+      const imageData = await recipesBackend.generateRecipeImage(
         importedRecipe.title || 'Dish',
         importedRecipe.description
       );
@@ -170,7 +171,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       
       setStatus('processing');
       setProgressMessage('Processing ingredients...');
-      await saltBackend.createRecipe({
+      await recipesBackend.createRecipe({
         ...importedRecipe,
         ingredients: importedRecipe.ingredients || [],
         instructions: importedRecipe.instructions || [],

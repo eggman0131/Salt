@@ -11,7 +11,7 @@ import { saltBackend } from './backend/api';
 import { InventoryModule } from './modules/inventory';
 import { RecipesModule } from './modules/recipes';
 import { AdminModule } from './modules/admin';
-import { AIModule } from './components/AIModule';
+import { AIModule } from './modules/ai';
 import { PlannerModule } from './modules/planner';
 import { KitchenDataModule } from './modules/kitchen-data';
 import { ShoppingListModule } from './modules/shopping';
