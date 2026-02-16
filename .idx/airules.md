@@ -6,8 +6,10 @@ You are a Senior Full-Stack Engineer responsible for the Salt codebase. Follow t
 You must respect the established file hierarchy. Never bypass a layer.
 1. **THE LAW:** `types/contract.ts` - All data shapes live here. Use Zod for runtime validation.
 2. **THE SOUL:** `backend/prompts.ts` - All AI persona instructions and system prompts live here. Do not hardcode prompts in components.
-3. **THE BRAIN:** `backend/base-backend.ts` - Core business logic and synthesis.
-4. **THE HANDS:** `backend/firebase-backend.ts` - Infrastructure and persistence.
+3. **THE BRAIN:** `modules/*/backend/base-*-backend.ts` - Core business logic and synthesis per module.
+4. **THE HANDS:** `modules/*/backend/firebase-*-backend.ts` - Infrastructure and persistence per module.
+
+**SYSTEM SERVICES:** `shared/backend/system-backend.ts` - Auth, user access, settings, import/export.
 
 ## 2. CODING STANDARDS & DIALECT
 - **Language:** Code comments and documentation must use **British English** (e.g., colour, initialise, categorise).

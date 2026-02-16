@@ -3,9 +3,10 @@ import { Card, Button, Input, Label, ErrorBoundary } from '../../../components/U
 import { ImageEditor } from './ImageEditor';
 import { CookMode } from '../../../components/CookMode';
 import { Recipe, Equipment, RecipeHistoryEntry, User, RecipeCategory, RecipeSchema } from '../../../types/contract';
-import { saltBackend, sanitizeJson } from '../../../backend/api';
+import { recipesBackend } from '../backend';
+import { kitchenDataBackend } from '../../kitchen-data';
 import { marked } from 'marked';
-import { buildManualEditSummary, createHistoryEntry, applyCategoryChange, scaleIngredients } from '../../../backend/recipe-updates';
+import { buildManualEditSummary, createHistoryEntry, applyCategoryChange, scaleIngredients } from '../backend/recipe-updates';
 
 // Modal components
 import { ProposalModal } from './ProposalModal';
@@ -44,7 +45,7 @@ const RemoteImage: React.FC<{ path?: string; className?: string; alt?: string }>
   useEffect(() => {
     if (path) {
       setIsLoading(true);
-      saltBackend.resolveImagePath(path)
+      recipesBackend.resolveImagePath(path)
         .then(setSrc)
         .catch(() => setSrc(''))
         .finally(() => setIsLoading(false));
@@ -71,6 +72,17 @@ const RemoteImage: React.FC<{ path?: string; className?: string; alt?: string }>
   }
 
   return <img src={src} className={className} alt={alt} />;
+};
+
+const sanitizeJson = (text: string): string => {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1) {
+    const startArr = text.indexOf('[');
+    const endArr = text.lastIndexOf(']');
+    return startArr !== -1 && endArr !== -1 ? text.substring(startArr, endArr + 1) : text.trim();
+  }
+  return start !== -1 && end !== -1 ? text.substring(start, end + 1) : text.trim();
 };
 
 interface Proposal {
@@ -118,7 +130,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
 
   useEffect(() => {
     // Load categories for display
-    saltBackend.getCategories().then(cats => setCategories(cats)).catch(err => console.error('Failed to load categories:', err));
+    kitchenDataBackend.getCategories().then(cats => setCategories(cats)).catch(err => console.error('Failed to load categories:', err));
   }, []);
 
   useEffect(() => {
@@ -147,7 +159,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     setIsTyping(true);
     setMessages(prev => [...prev, { role: 'ai', text: '' }]);
     try {
-      await saltBackend.chatWithRecipe(recipe, userMsg, messages, (chunk) => {
+      await recipesBackend.chatWithRecipe(recipe, userMsg, messages, (chunk) => {
         setMessages(prev => {
           const last = prev[prev.length - 1];
           if (last?.role === 'ai') {
@@ -171,7 +183,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     setIsUpdating(true);
     setUpdateStatus('analyzing');
     try {
-      const summaryResponse = await saltBackend.summarizeAgreedRecipe(messages, recipe);
+      const summaryResponse = await recipesBackend.summarizeAgreedRecipe(messages, recipe);
       const { proposals } = JSON.parse(sanitizeJson(summaryResponse));
       setPendingProposals((proposals || []).map((p: any) => ({ ...p, selected: true })));
     } catch (err) {
@@ -194,7 +206,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     setUpdateStatus('saving');
     try {
       const consolidatedInstructions = selected.map(p => p.technicalInstruction).join("\n");
-      const updatedData = await saltBackend.generateRecipeFromPrompt(consolidatedInstructions, recipe, messages);
+      const updatedData = await recipesBackend.generateRecipeFromPrompt(consolidatedInstructions, recipe, messages);
       const leanSnapshot = { ...recipe };
       delete (leanSnapshot as any).history;
       const summaryStr = selected.map(p => p.description).join("; ");
@@ -204,7 +216,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         changeDescription: summaryStr || 'Applied discussed refinements.',
         snapshot: leanSnapshot
       };
-      const updated = await saltBackend.updateRecipe(recipe.id, {
+      const updated = await recipesBackend.updateRecipe(recipe.id, {
         ...updatedData,
         history: [...(recipe.history || []), historyEntry]
       });
@@ -232,7 +244,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         changeDescription: 'Rollback point: Snapshot created before restoring.',
         snapshot: leanSnapshot
       };
-      const updated = await saltBackend.updateRecipe(recipe.id, {
+      const updated = await recipesBackend.updateRecipe(recipe.id, {
         ...entry.snapshot,
         history: [...(recipe.history || []), safetyEntry]
       });
@@ -250,8 +262,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const handleRegenerateImage = async () => {
     setIsRegeneratingImage(true);
     try {
-      const imageData = await saltBackend.generateRecipeImage(recipe.title, recipe.description);
-      const updated = await saltBackend.updateRecipe(recipe.id, {}, imageData);
+      const imageData = await recipesBackend.generateRecipeImage(recipe.title, recipe.description);
+      const updated = await recipesBackend.updateRecipe(recipe.id, {}, imageData);
       setRecipe(updated);
       
       // Delay the parent refresh to avoid race condition with Firestore cache
@@ -269,7 +281,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const handleImageUpdate = async (imageData: string) => {
     setIsRegeneratingImage(true);
     try {
-      const updated = await saltBackend.updateRecipe(recipe.id, {}, imageData);
+      const updated = await recipesBackend.updateRecipe(recipe.id, {}, imageData);
       setRecipe(updated);
       setShowImageEditor(false);
       
@@ -308,7 +320,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
     
     setIsServingsChanging(true);
     try {
-      const updated = await saltBackend.updateRecipe(recipe.id, {
+      const updated = await recipesBackend.updateRecipe(recipe.id, {
         servings: newServings,
         ingredients: scaledIngredients
       });
@@ -342,7 +354,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
       // Create history entry
       const historyEntry = createHistoryEntry(recipe, editSummary, currentUser.displayName);
 
-      const updated = await saltBackend.updateRecipe(recipe.id, {
+      const updated = await recipesBackend.updateRecipe(recipe.id, {
         ...editedRecipe,
         history: [...(recipe.history || []), historyEntry]
       });
@@ -360,7 +372,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
 
   const handleDeleteRecipe = async () => {
     try {
-      await saltBackend.deleteRecipe(recipe.id);
+      await recipesBackend.deleteRecipe(recipe.id);
       onRefresh();
       onClose();
     } catch (err) {
@@ -384,7 +396,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         updates.categoryIds = recipe.categoryIds || [];
       }
 
-      const updated = await saltBackend.updateRecipe(recipe.id, updates);
+      const updated = await recipesBackend.updateRecipe(recipe.id, updates);
       setRecipe(updated);
       setShowRepairModal(false);
       onRefresh();
@@ -409,7 +421,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
       setRecipe({ ...recipe, categoryIds: updatedCategoryIds });
       // Persist in background
       try {
-        const updated = await saltBackend.updateRecipe(recipe.id, { categoryIds: updatedCategoryIds });
+        const updated = await recipesBackend.updateRecipe(recipe.id, { categoryIds: updatedCategoryIds });
         setRecipe(updated);
         onRefresh();
       } catch (err) {
@@ -440,7 +452,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         setRecipe({ ...recipe, categoryIds: updatedCategoryIds });
         // Persist in background
         try {
-          const updated = await saltBackend.updateRecipe(recipe.id, { categoryIds: updatedCategoryIds });
+          const updated = await recipesBackend.updateRecipe(recipe.id, { categoryIds: updatedCategoryIds });
           setRecipe(updated);
           onRefresh();
         } catch (err) {

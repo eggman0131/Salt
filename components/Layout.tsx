@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from './UI';
-import { getActiveBackendMode, saltBackend } from '../backend/api';
+import { getActiveBackendMode } from '../shared/backend/system-backend';
+import { kitchenDataBackend } from '../modules/kitchen-data';
 
 interface NavItem {
   label: string;
@@ -49,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
 
   const loadSuggestionsCount = async () => {
     try {
-      const pending = await saltBackend.getPendingCategories();
+      const pending = await kitchenDataBackend.getPendingCategories();
       setSuggestionsCount(pending.length);
     } catch (err) {
       console.error('Failed to load suggestions count:', err);

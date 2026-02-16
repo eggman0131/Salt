@@ -19,13 +19,13 @@ import {
   Aisle,
   KitchenSettings,
 } from '../../../types/contract';
-import { db, auth, storage, functions } from '../../../backend/firebase';
-import { debugLogger } from '../../../backend/debug-logger';
+import { db, auth, storage, functions } from '../../../shared/backend/firebase';
+import { debugLogger } from '../../../shared/backend/debug-logger';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
-import { SYSTEM_CORE } from '../../../backend/prompts';
+import { SYSTEM_CORE } from '../../../shared/backend/prompts';
 
 export class FirebaseRecipesBackend extends BaseRecipesBackend {
   private currentIdToken: string | null = null;

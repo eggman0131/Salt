@@ -9,9 +9,11 @@
 Salt follows a strict hierarchy to ensure data integrity:
 
 1. **The Law** (`types/contract.ts`) - Immutable data schema, the single source of truth
-2. **The Soul** (`shared/backend/prompts.ts`) - The Head Chef's voice and culinary filters
-3. **The Brain** (`shared/backend/base-backend.ts`) - Domain logic and AI synthesis engine
-4. **The Hands** (`shared/backend/firebase-backend.ts`) - The persistence layer
+2. **The Soul** (`backend/prompts.ts`) - The Head Chef's voice and culinary filters
+3. **The Brain** (`modules/*/backend/base-*-backend.ts`) - Domain logic and AI synthesis per module
+4. **The Hands** (`modules/*/backend/firebase-*-backend.ts`) - The persistence layer per module
+
+**System services** (`shared/backend/system-backend.ts`) - Auth, user access, settings, import/export
 
 **Hierarchy Rule:** Never modify "The Brain" during "The Hands" migration. The Contract is the law — any logic that bypasses Zod validation is a system failure.
 

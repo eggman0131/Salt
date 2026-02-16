@@ -1,7 +1,6 @@
-
 /**
  * !!! PROTECTION LOCK !!!
- * FILE: backend/prompts.ts
+ * FILE: shared/backend/prompts.ts
  * ROLE: The Soul (AI Persona & Identity)
  * 
  * DO NOT MODIFY THIS FILE WITHOUT EXPLICIT USER CONSENT.

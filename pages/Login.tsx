@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button, Input, Card, Label } from '../components/UI';
-import { saltBackend } from '../backend/api';
+import { systemBackend } from '../shared/backend/system-backend';
 import { User } from '../types/contract';
 
 interface LoginProps {
@@ -23,11 +23,11 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 800));
       // Sends a passwordless sign-in link or performs instant simulated login
-      await saltBackend.login(email);
+      await systemBackend.login(email);
       
       // If we are still here, we might be in simulation mode.
       // Check if we have a user now.
-      const user = await saltBackend.getCurrentUser();
+      const user = await systemBackend.getCurrentUser();
       if (user) {
         onLoginSuccess(user);
         return;

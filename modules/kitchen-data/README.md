@@ -236,7 +236,7 @@ npm run parity
 
 This module was extracted from the monolithic backend on [date]:
 - 6 components migrated from `components/`
-- 21 backend methods extracted from `backend/firebase-backend.ts` and `modules/shopping/backend/`
+- 21 backend methods extracted from the retired monolith backend and `modules/shopping/backend/`
 - Units, Aisles, and Canonical Items were moved from shopping backend (architectural correction)
 - Categories were extracted from monolithic backend
 - AI categorization logic preserved in base backend
