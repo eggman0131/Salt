@@ -13,7 +13,7 @@ import {
   RecipeCategory,
   Recipe,
 } from '../../../types/contract';
-import { db, auth, functions } from '../../../backend/firebase';
+import { db, auth, functions } from '../../../shared/backend/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";

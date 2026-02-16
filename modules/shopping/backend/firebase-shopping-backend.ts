@@ -15,7 +15,7 @@ import {
   Recipe,
   RecipeIngredient,
 } from '../../../types/contract';
-import { db, auth, functions } from '../../../backend/firebase';
+import { db, auth, functions } from '../../../shared/backend/firebase';
 import { kitchenDataBackend } from '../../kitchen-data';
 import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';

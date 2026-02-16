@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Recipe } from '../types/contract';
 import { Button, Card, Input } from './UI';
-import { saltBackend } from '../backend/api';
+import { recipesBackend } from '../modules/recipes';
+import { shoppingBackend } from '../modules/shopping';
 
 interface ShoppingListGeneratorProps {
   onListCreated?: () => void;
@@ -18,7 +19,7 @@ export const ShoppingListGenerator: React.FC<ShoppingListGeneratorProps> = ({ on
   const loadRecipes = async () => {
     setIsLoading(true);
     try {
-      const data = await saltBackend.getRecipes();
+      const data = await recipesBackend.getRecipes();
       setRecipes(data.sort((a, b) => a.title.localeCompare(b.title)));
     } catch (err) {
       console.error('Failed to load recipes:', err);
@@ -52,7 +53,7 @@ export const ShoppingListGenerator: React.FC<ShoppingListGeneratorProps> = ({ on
 
     setIsGenerating(true);
     try {
-      await saltBackend.generateShoppingList(selectedRecipeIds, listName.trim());
+      await shoppingBackend.generateShoppingList(selectedRecipeIds, listName.trim());
       alert(`Shopping list "${listName}" created successfully!`);
       setSelectedRecipeIds([]);
       setListName('');

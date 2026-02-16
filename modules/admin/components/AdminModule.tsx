@@ -3,9 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UsersModule } from '../../../components/UsersModule';
 import { Card, Button, Label } from '../../../components/UI';
 import { User, KitchenSettings } from '../../../types/contract';
-import { getActiveBackendMode } from '../../../backend/api';
+import { getActiveBackendMode } from '../../../shared/backend/system-backend';
 import { plannerBackend } from '../../planner';
-import { debugLogger } from '../../../backend/debug-logger';
+import { debugLogger } from '../../../shared/backend/debug-logger';
 
 interface AdminModuleProps {
   users: User[];

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CanonicalItem, Unit, Aisle, Recipe } from '../../../types/contract';
 import { Button, Card, Input, Label } from '../../../components/UI';
 import { kitchenDataBackend } from '../backend';
-import { saltBackend } from '../../../backend/api';
+import { recipesBackend } from '../../recipes';
 
 interface ItemsManagementProps {
   onRefresh?: () => void;
@@ -119,7 +119,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     setRecipesUsingItem([]);
     setIsLoadingDeleteRecipes(true);
     try {
-      const recipes = await saltBackend.getRecipes();
+      const recipes = await recipesBackend.getRecipes();
       const matched = recipes.filter(recipe =>
         recipe.ingredients?.some(ing => ing.canonicalItemId === item.id)
       );

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Input, Label } from '../../../components/UI';
 import { RecipeCategory } from '../../../types/contract';
 import { kitchenDataBackend } from '../backend';
-import { saltBackend } from '../../../backend/api';
+import { recipesBackend } from '../../recipes';
 
 interface CategoryManagementProps {
   onRefresh: () => void;
@@ -36,7 +36,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
       const [cats, pending, recipes] = await Promise.all([
         kitchenDataBackend.getCategories(),
         kitchenDataBackend.getPendingCategories(),
-        saltBackend.getRecipes()
+        recipesBackend.getRecipes()
       ]);
       
       // Filter to only approved categories for the list

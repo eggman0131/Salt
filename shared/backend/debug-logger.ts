@@ -1,5 +1,5 @@
 /**
- * Debug Logger - Centralized logging system
+ * Debug Logger - Centralised logging system
  * 
  * Can be enabled/disabled via the Admin interface.
  * When enabled, logs are output to console with contextual prefixes.

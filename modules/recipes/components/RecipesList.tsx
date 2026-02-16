@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Button, Input, Label } from '../../../components/UI';
 import { Recipe, RecipeCategory } from '../../../types/contract';
-import { saltBackend } from '../../../backend/api';
+import { recipesBackend } from '../backend';
+import { kitchenDataBackend } from '../../kitchen-data';
 
 const RemoteImage: React.FC<{ path?: string; className?: string; alt?: string }> = ({ path, className, alt }) => {
   const [src, setSrc] = useState<string>('');
@@ -10,7 +11,7 @@ const RemoteImage: React.FC<{ path?: string; className?: string; alt?: string }>
   useEffect(() => {
     if (path) {
       setIsLoading(true);
-      saltBackend.resolveImagePath(path)
+      recipesBackend.resolveImagePath(path)
         .then(setSrc)
         .catch(() => setSrc(''))
         .finally(() => setIsLoading(false));
@@ -61,7 +62,7 @@ export const RecipesList: React.FC<RecipesListProps> = ({ recipes, onSelectRecip
 
   useEffect(() => {
     // Load categories on mount
-    saltBackend.getCategories().then(cats => setCategories(cats)).catch(err => console.error('Failed to load categories:', err));
+    kitchenDataBackend.getCategories().then(cats => setCategories(cats)).catch(err => console.error('Failed to load categories:', err));
   }, []);
 
   const toggleCategoryFilter = (categoryId: string) => {

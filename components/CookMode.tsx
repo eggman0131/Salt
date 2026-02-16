@@ -19,13 +19,16 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, inventory, onClose }
   const instructions = recipe.instructions || [];
   const progress = currentStep === 0 ? 0 : Math.round(((currentStep) / instructions.length) * 100);
 
+  const formatIngredient = (ing: Recipe['ingredients'][number]) =>
+    typeof ing === 'string' ? ing : (ing.raw || ing.ingredientName);
+
   const contextualIngredients = useMemo(() => {
     if (currentStep === 0) return [];
     const stepData = recipe.stepIngredients?.[currentStep - 1];
     if (!Array.isArray(stepData)) return [];
     
     return stepData
-      .map(idx => ({ name: ingredients[idx], index: idx }))
+      .map(idx => ({ name: formatIngredient(ingredients[idx]), index: idx }))
       .filter(item => !!item.name);
   }, [currentStep, recipe.stepIngredients, ingredients]);
 
@@ -158,7 +161,7 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, inventory, onClose }
                     className="w-5 h-5 text-emerald-600 rounded"
                   />
                   <span className={`text-sm font-medium ${isPrepared ? 'text-emerald-700' : 'text-gray-900'}`}>
-                    {ing}
+                    {formatIngredient(ing)}
                   </span>
                 </label>
               );

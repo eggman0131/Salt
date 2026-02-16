@@ -7,7 +7,7 @@
 
 import { BasePlannerBackend } from './base-planner-backend';
 import { Plan, KitchenSettings } from '../../../types/contract';
-import { db, auth } from '../../../backend/firebase';
+import { db, auth } from '../../../shared/backend/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, orderBy, runTransaction } from 'firebase/firestore';
 
 const TEMPLATE_ID = 'plan-template';

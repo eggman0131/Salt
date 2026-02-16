@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Button, Input, Label } from './UI';
 import { User } from '../types/contract';
-import { saltBackend } from '../backend/api';
+import { systemBackend } from '../shared/backend/system-backend';
 
 interface UsersModuleProps {
   users: User[];
@@ -28,7 +28,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
     let mounted = true;
     (async () => {
       try {
-        const settings = await saltBackend.getKitchenSettings();
+        const settings = await systemBackend.getKitchenSettings();
         if (mounted && settings?.userOrder && Array.isArray(settings.userOrder)) {
           setUserOrder(settings.userOrder as string[]);
           return;
@@ -57,9 +57,9 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
       // Persist backend-wide as kitchen setting (merge with existing directives)
       (async () => {
         try {
-          const current = await saltBackend.getKitchenSettings();
+          const current = await systemBackend.getKitchenSettings();
           const merged = { ...current, userOrder: order } as any;
-          await saltBackend.updateKitchenSettings(merged);
+          await systemBackend.updateKitchenSettings(merged);
         } catch (e) {
           console.error('Failed to persist user order to backend', e);
         }
@@ -151,7 +151,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email) return;
-    await saltBackend.createUser({ displayName: name, email });
+    await systemBackend.createUser({ displayName: name, email });
     setName('');
     setEmail('');
     onRefresh();
@@ -159,7 +159,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) =>
 
   const handleDelete = async (id: string) => {
     if (activeConfirmId === id) {
-      await saltBackend.deleteUser(id);
+      await systemBackend.deleteUser(id);
       setActiveConfirmId(null);
       onRefresh();
     } else {
