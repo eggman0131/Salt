@@ -4,7 +4,7 @@
  * Contract Changelog Gate
  *
  * Enforces that any modification to types/contract.ts is explicitly
- * documented in CONTRACT_CHANGELOG.md.
+ * documented in docs/contract-gate/CHANGELOG.md.
  *
  * Exit code:
  *   0 = Contract unchanged, or changed with changelog updated
@@ -18,7 +18,7 @@ import { execSync } from 'child_process';
 
 const CURRENT_DIR = process.cwd();
 const CONTRACT_PATH = path.join(CURRENT_DIR, 'types/contract.ts');
-const CHANGELOG_PATH = path.join(CURRENT_DIR, 'CONTRACT_CHANGELOG.md');
+const CHANGELOG_PATH = path.join(CURRENT_DIR, 'docs/contract-gate/CHANGELOG.md');
 const SNAPSHOT_PATH = path.join(CURRENT_DIR, 'scripts/contract-snapshot.mjs');
 
 /**
@@ -85,14 +85,14 @@ async function loadSnapshot() {
 }
 
 /**
- * Check if CONTRACT_CHANGELOG.md was modified in the current working changes.
+ * Check if docs/contract-gate/CHANGELOG.md was modified in the current working changes.
  * Only returns true if the file shows actual modifications (not just creation).
  */
 function hasChangelogBeenModified() {
   try {
-    // Check if CONTRACT_CHANGELOG.md has any modifications
+    // Check if docs/contract-gate/CHANGELOG.md has any modifications
     const diffStatus = execSync(
-      'git diff --name-only HEAD -- CONTRACT_CHANGELOG.md; git diff --cached --name-only -- CONTRACT_CHANGELOG.md',
+      'git diff --name-only HEAD -- docs/contract-gate/CHANGELOG.md; git diff --cached --name-only -- docs/contract-gate/CHANGELOG.md',
       {
         cwd: CURRENT_DIR,
         encoding: 'utf8',
@@ -105,7 +105,7 @@ function hasChangelogBeenModified() {
     }
 
     // Also check uncommitted modifications
-    const status = execSync('git status --porcelain -- CONTRACT_CHANGELOG.md', {
+    const status = execSync('git status --porcelain -- docs/contract-gate/CHANGELOG.md', {
       cwd: CURRENT_DIR,
       encoding: 'utf8',
     }).trim();
@@ -176,13 +176,13 @@ async function runGate() {
 
   if (!changelogModified) {
     console.error(
-      '❌ GATE FAILURE: Contract changed but CONTRACT_CHANGELOG.md was not updated!\n' +
+      '❌ GATE FAILURE: Contract changed but docs/contract-gate/CHANGELOG.md was not updated!\n' +
       'Rules:\n' +
       '  1. Any change to types/contract.ts requires a changelog entry.\n' +
       '  2. Document the change, its impact, and rationale.\n' +
-      '  3. Update CONTRACT_CHANGELOG.md and commit together with your changes.\n\n' +
+      '  3. Update docs/contract-gate/CHANGELOG.md and commit together with your changes.\n\n' +
       'To acknowledge and document this change:\n' +
-      '  1. Edit CONTRACT_CHANGELOG.md\n' +
+      '  1. Edit docs/contract-gate/CHANGELOG.md\n' +
       '  2. Add an entry under the "Entries" section\n' +
       '  3. Commit the changelog update\n\n' +
       'To regenerate the snapshot after documenting:\n' +
