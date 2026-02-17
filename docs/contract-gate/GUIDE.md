@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Contract Changelog Gate** is a constitutional enforcement mechanism that prevents any modification to `types/contract.ts` (The Law) unless the change is explicitly documented in `CONTRACT_CHANGELOG.md`.
+The **Contract Changelog Gate** is a constitutional enforcement mechanism that prevents any modification to `types/contract.ts` (The Law) unless the change is explicitly documented in `docs/contract-gate/CHANGELOG.md`.
 
 This ensures:
 - **No silent schema drift** — every change is intentional and logged
@@ -17,7 +17,7 @@ This ensures:
 When you need to modify `types/contract.ts`:
 
 1. **Make your change** to `types/contract.ts`
-2. **Document it** in `CONTRACT_CHANGELOG.md`
+2. **Document it** in `docs/contract-gate/CHANGELOG.md`
 3. **Run the gate** to verify: `npm run check-contract`
 4. **Update the snapshot** intentionally: `npm run update-contract-snapshot`
 5. **Commit everything together**
@@ -42,7 +42,7 @@ Checksum    Checksum
            NO
            │
            ▼
-CONTRACT_CHANGELOG.md
+docs/contract-gate/CHANGELOG.md
     Modified?
            │
       ┌────┴────┐
@@ -88,11 +88,11 @@ Snapshot checksum: 78ae8fc6
 
 ⚠️  Contract has changed.
 
-❌ GATE FAILURE: Contract changed but CONTRACT_CHANGELOG.md was not updated!
+❌ GATE FAILURE: Contract changed but docs/contract-gate/CHANGELOG.md was not updated!
 Rules:
   1. Any change to types/contract.ts requires a changelog entry.
   2. Document the change, its impact, and rationale.
-  3. Update CONTRACT_CHANGELOG.md and commit together with your changes.
+  3. Update docs/contract-gate/CHANGELOG.md and commit together with your changes.
 ```
 
 ### 📸 Update Contract Snapshot
@@ -104,7 +104,7 @@ npm run update-contract-snapshot
 **Purpose:** Regenerates the snapshot after documenting your changes.
 
 **When to use:**
-- Once you've documented your change in `CONTRACT_CHANGELOG.md`
+- Once you've documented your change in `docs/contract-gate/CHANGELOG.md`
 - Before committing
 - Only intentionally (not automatic)
 
@@ -134,7 +134,7 @@ vim types/contract.ts
 npm exec -- grep --quiet "certificationLevel" types/contract.ts && echo "✅ Change verified"
 
 # 3. Document it
-vim CONTRACT_CHANGELOG.md
+vim docs/contract-gate/CHANGELOG.md
 # Add under "## Entries":
 # ### 2026-02-16 - Add Recipe Certification
 # **Impact:** Recipe module, archive compatibility
@@ -152,7 +152,7 @@ npm run update-contract-snapshot
 # Output: Checksum: <new hash>, Ready to commit! ✅
 
 # 6. Commit everything together
-git add types/contract.ts CONTRACT_CHANGELOG.md scripts/contract-snapshot.mjs
+git add types/contract.ts docs/contract-gate/CHANGELOG.md scripts/contract-snapshot.mjs
 git commit -m "feat: add recipe certification tracking"
 ```
 
@@ -213,7 +213,7 @@ This ensures every PR maintains the constitutional discipline.
 ### Q: What happens if I accidentally modify contract.ts without updating the changelog?
 
 **A:** The gate fails and prevents the commit. You must:
-1. Edit `CONTRACT_CHANGELOG.md` and add your change entry
+1. Edit `docs/contract-gate/CHANGELOG.md` and add your change entry
 2. Run `npm run update-contract-snapshot`
 3. Commit both files together
 
@@ -252,7 +252,7 @@ npm run check-contract
 ## Files
 
 - `types/contract.ts` — The Law (immutable data schema)
-- `CONTRACT_CHANGELOG.md` — Change documentation (required for gate to pass)
+- `docs/contract-gate/CHANGELOG.md` — Change documentation (required for gate to pass)
 - `scripts/contract-snapshot.mjs` — Snapshot for change detection (auto-generated)
 - `scripts/check-contract.mjs` — Gate validation script
 - `scripts/update-contract-snapshot.mjs` — Snapshot update script
