@@ -101,11 +101,13 @@ const VALID_EQUIPMENT_CANDIDATES: EquipmentCandidate[] = [
     brand: 'KitchenAid',
     modelName: 'KSM150',
     description: 'Stand mixer with 5-quart capacity',
+    category: 'Complex Appliance',
   },
   {
     brand: 'Cuisinart',
     modelName: 'DLC-2007N',
     description: 'Food processor, 14-cup capacity',
+    category: 'Complex Appliance',
   },
 ];
 
@@ -188,8 +190,9 @@ describe('Inventory Backend - Domain Logic', () => {
       const results = backend.parseEquipmentDetails(response);
 
       expect(results.name).toBe('KitchenAid Professional Stand Mixer');
-      expect(results.category).toBe('Mixer');
-      expect(results.features).toHaveLength(3);
+      expect(results.brand).toBe('KitchenAid');
+      expect(results.modelName).toBe('KSM150');
+      expect(results.description).toContain('mixer');
     });
 
     it('should extract details from text with preamble', () => {
@@ -207,7 +210,7 @@ describe('Inventory Backend - Domain Logic', () => {
       const results = backend.parseEquipmentDetails(response);
 
       expect(results.name).toBe('KitchenAid Stand Mixer');
-      expect(results.powerUsage).toBe('500 watts');
+      expect(results.brand).toBe('KitchenAid');
     });
 
     it('should handle empty object', () => {
@@ -484,6 +487,7 @@ describe('Inventory Backend - AI Response Handling', () => {
         name: 'KitchenAid Stand Mixer',
         brand: 'KitchenAid',
         modelName: 'KSM150',
+        description: 'Heavy-duty stand mixer with variable speed',
         category: 'Mixer',
         features: ['Heavy-duty', 'Variable speed'],
         powerUsage: '500W',
@@ -493,19 +497,20 @@ describe('Inventory Backend - AI Response Handling', () => {
       const result = backend.parseEquipmentDetails(response);
 
       expect(result.name).toBe('KitchenAid Stand Mixer');
-      expect(result.features).toHaveLength(2);
+      expect(result.brand).toBe('KitchenAid');
+      expect(result.description).toContain('mixer');
     });
 
     it('should handle partial equipment details', () => {
       const response = JSON.stringify({
-        name: 'Basic Mixer',
-        quantity: 1
+        name: 'Cuisinart Food Processor',
+        brand: 'Cuisinart',
       });
 
       const result = backend.parseEquipmentDetails(response);
 
-      expect(result.name).toBe('Basic Mixer');
-      expect(result.quantity).toBe(1);
+      expect(result.name).toBe('Cuisinart Food Processor');
+      expect(result.brand).toBe('Cuisinart');
     });
   });
 
@@ -673,7 +678,8 @@ describe('Inventory Backend - Integration', () => {
     const details = backend.parseEquipmentDetails(detailsResponse);
 
     expect(details.name).toBe('KitchenAid Stand Mixer KSM150');
-    expect(details.features).toHaveLength(2);
+    expect(details.brand).toBe('KitchenAid');
+    expect(details.modelName).toBe('KSM150');
   });
 
   it('should complete accessory validation workflow', () => {
