@@ -29,11 +29,13 @@ const RECIPE_CATEGORIES_FIXTURE: RecipeCategory[] = [
   {
     id: 'cat-1',
     name: 'Starter',
+    isApproved: true,
     createdAt: '2024-01-01T00:00:00Z',
   },
   {
     id: 'cat-2',
     name: 'Main Course',
+    isApproved: true,
     createdAt: '2024-01-01T00:00:00Z',
   },
 ];
