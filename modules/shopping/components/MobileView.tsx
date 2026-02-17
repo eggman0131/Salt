@@ -141,7 +141,7 @@ export const ShoppingListMobileView: React.FC<MobileViewProps> = ({
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 flex-1">
                     <svg
-                      className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
+                      className={`w-5 h-5 text-gray-400 transition-transform shrink-0 ${
                         collapsedAisles[aisleName] ? 'rotate-90' : ''
                       }`}
                       fill="none"
@@ -155,7 +155,7 @@ export const ShoppingListMobileView: React.FC<MobileViewProps> = ({
                     </h4>
                   </div>
                   {itemsByAisle[aisleName].some(item => !item.checked) && (
-                    <span className="bg-orange-600 text-white text-xs font-bold px-2.5 py-1 rounded-full min-w-fit ml-auto flex-shrink-0">
+                    <span className="bg-orange-600 text-white text-xs font-bold px-2.5 py-1 rounded-full min-w-fit ml-auto shrink-0">
                       {itemsByAisle[aisleName].filter(item => !item.checked).length}
                     </span>
                   )}
@@ -190,7 +190,7 @@ export const ShoppingListMobileView: React.FC<MobileViewProps> = ({
                           type="checkbox"
                           checked={item.checked}
                           onChange={() => onToggleChecked(item)}
-                          className="w-5 h-5 mt-1 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer flex-shrink-0"
+                          className="w-5 h-5 mt-1 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer shrink-0"
                         />
                         <div className="flex-1 min-w-0">
                           {editingItems[item.id] ? (
@@ -306,13 +306,13 @@ export const ShoppingListMobileView: React.FC<MobileViewProps> = ({
                                 onClick={() => startEditItem(item)}
                                 className="flex items-baseline gap-2 cursor-pointer"
                               >
-                                <h5 className={`font-semibold text-gray-900 break-words flex-1 ${item.checked ? 'line-through' : ''}`}>
+                                <h5 className={`font-semibold text-gray-900 wrap-break-word flex-1 ${item.checked ? 'line-through' : ''}`}>
                                   {item.name}
                                 </h5>
-                                <span className="text-sm text-gray-600 whitespace-nowrap flex-shrink-0">
+                                <span className="text-sm text-gray-600 whitespace-nowrap shrink-0">
                                   {item.quantity}
                                 </span>
-                                <span className="text-sm text-gray-600 whitespace-nowrap flex-shrink-0">
+                                <span className="text-sm text-gray-600 whitespace-nowrap shrink-0">
                                   {item.unit}
                                 </span>
                               </div>
@@ -330,7 +330,7 @@ export const ShoppingListMobileView: React.FC<MobileViewProps> = ({
                               <span>{item.note}</span>
                               <button
                                 onClick={() => setEditingNotes({ ...editingNotes, [item.id]: item.note || '' })}
-                                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                                className="text-gray-400 hover:text-gray-600 shrink-0"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
@@ -348,7 +348,7 @@ export const ShoppingListMobileView: React.FC<MobileViewProps> = ({
                               />
                               <button
                                 onClick={() => onUpdateNotes(item.id)}
-                                className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors flex-shrink-0"
+                                className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors shrink-0"
                                 title="Save note"
                               >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -361,7 +361,7 @@ export const ShoppingListMobileView: React.FC<MobileViewProps> = ({
                                   delete newNotes[item.id];
                                   setEditingNotes(newNotes);
                                 }}
-                                className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors flex-shrink-0"
+                                className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors shrink-0"
                                 title="Cancel"
                               >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -388,7 +388,7 @@ export const ShoppingListMobileView: React.FC<MobileViewProps> = ({
                           <div className="flex gap-2">
                             <Button
                               onClick={() => onDeleteItem(item)}
-                              className="bg-white !text-red-700 hover:bg-red-50 hover:!text-red-800 px-3"
+                              className="bg-white text-red-700! hover:bg-red-50 hover:text-red-800! px-3"
                             >
                               Delete
                             </Button>

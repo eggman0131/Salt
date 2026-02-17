@@ -475,7 +475,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
 
   return (
     <div 
-      className="fixed inset-0 md:inset-x-0 md:top-16 md:bottom-0 bg-black/40 z-[300] flex md:items-center md:justify-center md:px-4 md:py-6" 
+      className="fixed inset-0 md:inset-x-0 md:top-16 md:bottom-0 bg-black/40 z-300 flex md:items-center md:justify-center md:px-4 md:py-6" 
       onClick={onClose}
       onWheel={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
       onTouchMove={e => { if (e.target === e.currentTarget) e.preventDefault(); }}
@@ -699,7 +699,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
 
         {/* Progress Bar */}
         {activeTab === 'cook' && (
-          <div className="h-1 bg-gray-100 w-full relative overflow-hidden sticky top-0 z-20">
+          <div className="h-1 bg-gray-100 w-full overflow-hidden sticky top-0 z-20">
             <div className="h-full bg-orange-600 transition-all duration-500" style={{ width: `${(recipe.instructions?.length || 0) > 0 ? 100 : 0}%` }} />
           </div>
         )}
@@ -707,7 +707,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-gray-50 min-h-0">
           {activeTab === 'detail' && (
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-[68px] md:pb-10 min-h-0">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-17 md:pb-10 min-h-0">
               <div className="w-full mx-auto space-y-6">
                 {/* Heading + CTA */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -796,7 +796,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
                         <ul className="space-y-2">
                           {recipe.equipmentNeeded.map((eq, idx) => (
                             <li key={idx} className="text-base text-gray-700 flex items-start gap-2">
-                              <span className="mt-2 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
+                              <span className="mt-2 w-2 h-2 rounded-full bg-orange-500 shrink-0" />
                               {eq}
                             </li>
                           ))}
