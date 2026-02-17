@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Recipe, Equipment } from '../types/contract';
+import { Recipe, Equipment } from '../../../types/contract';
 
 interface CookModeProps {
   recipe: Recipe;

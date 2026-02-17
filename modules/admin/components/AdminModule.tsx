@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { UsersModule } from '../../../components/UsersModule';
+import { UsersModule } from './UsersModule';
 import { Card, Button, Label } from '../../../components/UI';
 import { User, KitchenSettings } from '../../../types/contract';
 import { getActiveBackendMode } from '../../../shared/backend/system-backend';

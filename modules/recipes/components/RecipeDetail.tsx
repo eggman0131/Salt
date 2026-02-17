@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, Button, Input, Label, ErrorBoundary } from '../../../components/UI';
 import { ImageEditor } from './ImageEditor';
-import { CookMode } from '../../../components/CookMode';
+import { CookMode } from './CookMode';
 import { Recipe, Equipment, RecipeHistoryEntry, User, RecipeCategory, RecipeSchema } from '../../../types/contract';
 import { recipesBackend } from '../backend';
 import { kitchenDataBackend } from '../../kitchen-data';
