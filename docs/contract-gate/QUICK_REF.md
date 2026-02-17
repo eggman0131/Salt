@@ -10,7 +10,7 @@ vim types/contract.ts
 # Add, remove, or modify schemas/types
 
 # 2️⃣ Document immediately
-vim CONTRACT_CHANGELOG.md
+vim docs/contract-gate/CHANGELOG.md
 # Add entry under "## Entries" following the template:
 #
 # ### 2026-02-16 - [Brief Title]
@@ -29,7 +29,7 @@ npm run update-contract-snapshot
 # Should show: ✅ Ready to commit!
 
 # 5️⃣ Commit everything together
-git add types/contract.ts CONTRACT_CHANGELOG.md scripts/contract-snapshot.mjs
+git add types/contract.ts docs/contract-gate/CHANGELOG.md scripts/contract-snapshot.mjs
 git commit -m "feat: [description]"
 ```
 
@@ -57,7 +57,7 @@ Run this after you've added your changelog entry, before committing.
 **Solution:**
 ```bash
 # 1. Edit the changelog
-vim CONTRACT_CHANGELOG.md
+vim docs/contract-gate/CHANGELOG.md
 
 # 2. Add your entry following the template
 
@@ -162,7 +162,7 @@ Add this step to your workflow to prevent PRs that modify the contract without d
 | File | Action |
 |------|--------|
 | `types/contract.ts` | Edit directly |
-| `CONTRACT_CHANGELOG.md` | Add entries (never delete old ones) |
+| `docs/contract-gate/CHANGELOG.md` | Add entries (never delete old ones) |
 | `scripts/contract-snapshot.mjs` | Never edit manually |
 
 ## Never
@@ -181,16 +181,16 @@ Add this step to your workflow to prevent PRs that modify the contract without d
 
 ## Documentation
 
-- **[README_CONTRACT_GATE.md](./README_CONTRACT_GATE.md)** — Quick start & overview
-- **[GATE_GUIDE.md](./GATE_GUIDE.md)** — Complete developer guide
-- **[CONTRACT_GATE_IMPLEMENTATION.md](./CONTRACT_GATE_IMPLEMENTATION.md)** — Technical details
+- **[README.md](./README.md)** — Quick start & overview
+- **[GUIDE.md](./GUIDE.md)** — Complete developer guide
+- **[IMPLEMENTATION.md](./IMPLEMENTATION.md)** — Technical details
 
 ## Support
 
 The gate provides clear error messages. If it fails:
 
 1. Read the error message (it tells you exactly what to do)
-2. Edit `CONTRACT_CHANGELOG.md` 
+2. Edit `docs/contract-gate/CHANGELOG.md` 
 3. Run `npm run update-contract-snapshot`
 4. Try `npm run check-contract` again
 

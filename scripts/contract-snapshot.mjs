@@ -2,7 +2,7 @@
  * Contract Snapshot for Verification Gate
  *
  * This snapshot is used by the contract changelog gate to detect changes.
- * It is automatically regenerated when CONTRACT_CHANGELOG.md is modified.
+ * It is automatically regenerated when docs/contract-gate/CHANGELOG.md is modified.
  *
  * DO NOT EDIT MANUALLY. Use: npm run update-contract-snapshot
  */
