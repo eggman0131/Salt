@@ -8,10 +8,12 @@
       "ES2022",
       "DOM",
       "DOM.Iterable"
-    ],
+      ],
+    "baseUrl": ".",
     "skipLibCheck": true,
     "types": [
-      "node"
+      "node",
+      "tailwindcss"
     ],
     "moduleResolution": "bundler",
     "isolatedModules": true,
