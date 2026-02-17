@@ -225,7 +225,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
   return (
     <div className="h-[calc(100vh-120px)] md:h-[calc(100vh-160px)] flex flex-col relative animate-in fade-in duration-500 overflow-hidden bg-gray-50">
       {isBusy && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-100 flex items-center justify-center p-6">
           <Card className="w-full max-w-md p-8 bg-white border border-gray-200 shadow-md space-y-6 text-center animate-in zoom-in-95 duration-300">
             <div className="flex justify-center">
               <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />

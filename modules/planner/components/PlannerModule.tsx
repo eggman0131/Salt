@@ -278,7 +278,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     <div className="flex flex-col w-full max-w-full min-w-0 box-border animate-in fade-in duration-500 overflow-hidden">
       <div className="bg-[#fcfcfc] pb-3 w-full min-w-0 box-border border-b border-gray-100 mb-2">
         <div className="flex items-center justify-between gap-2 px-0.5">
-          <div className="flex-1 max-w-[150px] min-w-0">
+          <div className="flex-1 max-w-37.5 min-w-0">
             {isTemplateMode ? (
               <div className="h-10 px-4 flex items-center bg-orange-50 text-orange-700 rounded-xl border border-orange-100 text-[10px] font-black uppercase tracking-widest shadow-sm">
                 Master Template
@@ -337,7 +337,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
                 <button 
                   key={idx} 
                   onClick={() => setActiveDayIdx(idx)} 
-                  className={`flex flex-col items-center justify-center min-w-[50px] flex-1 h-14 rounded-xl transition-all border snap-center shrink-0 ${
+                  className={`flex flex-col items-center justify-center min-w-12.5 flex-1 h-14 rounded-xl transition-all border snap-center shrink-0 ${
                     isSelected 
                       ? 'bg-orange-600 border-orange-600 text-white shadow-md' 
                       : isToday 

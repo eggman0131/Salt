@@ -159,7 +159,7 @@ export const ShoppingListDesktopView: React.FC<DesktopViewProps> = ({
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <svg
-                      className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
+                      className={`w-5 h-5 text-gray-400 transition-transform shrink-0 ${
                         collapsedAisles[aisleName] ? 'rotate-90' : ''
                       }`}
                       fill="none"
@@ -195,7 +195,7 @@ export const ShoppingListDesktopView: React.FC<DesktopViewProps> = ({
                           type="checkbox"
                           checked={item.checked}
                           onChange={() => onToggleChecked(item)}
-                          className="w-5 h-5 mt-1 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer flex-shrink-0"
+                          className="w-5 h-5 mt-1 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer shrink-0"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-4">
@@ -291,13 +291,13 @@ export const ShoppingListDesktopView: React.FC<DesktopViewProps> = ({
                               ) : (
                                 <div>
                                   <div className="flex items-baseline gap-2">
-                                    <h5 className={`font-semibold text-gray-900 break-words flex-1 ${item.checked ? 'line-through' : ''}`}>
+                                    <h5 className={`font-semibold text-gray-900 wrap-break-word flex-1 ${item.checked ? 'line-through' : ''}`}>
                                       {item.name}
                                     </h5>
-                                    <span className="text-sm text-gray-600 whitespace-nowrap flex-shrink-0">
+                                    <span className="text-sm text-gray-600 whitespace-nowrap shrink-0">
                                       {item.quantity}
                                     </span>
-                                    <span className="text-sm text-gray-600 whitespace-nowrap flex-shrink-0">
+                                    <span className="text-sm text-gray-600 whitespace-nowrap shrink-0">
                                       {item.unit}
                                     </span>
                                   </div>
@@ -309,7 +309,7 @@ export const ShoppingListDesktopView: React.FC<DesktopViewProps> = ({
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-start gap-2 flex-shrink-0">
+                            <div className="flex items-start gap-2 shrink-0">
                               {editingItems[item.id] ? (
                                 <>
                                   <Button
@@ -366,7 +366,7 @@ export const ShoppingListDesktopView: React.FC<DesktopViewProps> = ({
                               <span>{item.note}</span>
                               <button
                                 onClick={() => setEditingNotes({ ...editingNotes, [item.id]: item.note || '' })}
-                                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                                className="text-gray-400 hover:text-gray-600 shrink-0"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
@@ -384,7 +384,7 @@ export const ShoppingListDesktopView: React.FC<DesktopViewProps> = ({
                               />
                               <button
                                 onClick={() => onUpdateNotes(item.id)}
-                                className="px-3 flex-shrink-0 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition"
+                                className="px-3 shrink-0 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition"
                               >
                                 Save
                               </button>
@@ -394,7 +394,7 @@ export const ShoppingListDesktopView: React.FC<DesktopViewProps> = ({
                                   delete newNotes[item.id];
                                   setEditingNotes(newNotes);
                                 }}
-                                className="px-3 flex-shrink-0 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition"
+                                className="px-3 shrink-0 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition"
                               >
                                 Cancel
                               </button>

@@ -100,7 +100,7 @@ export const ShoppingListModals: React.FC<ShoppingListModalsProps> = ({
     <>
       {/* List Selector Modal */}
       {showListSelector && (
-        <div className="fixed inset-0 bg-black/50 z-[400] flex items-center justify-center p-4" onClick={onCloseListSelector}>
+        <div className="fixed inset-0 bg-black/50 z-400 flex items-center justify-center p-4" onClick={onCloseListSelector}>
           <div 
             className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"
             onClick={e => e.stopPropagation()}
@@ -143,7 +143,7 @@ export const ShoppingListModals: React.FC<ShoppingListModalsProps> = ({
 
       {/* New List Modal */}
       {showNewListModal && (
-        <div className="fixed inset-0 bg-black/50 z-[400] flex items-center justify-center p-4" onClick={onCloseNewListModal}>
+        <div className="fixed inset-0 bg-black/50 z-400 flex items-center justify-center p-4" onClick={onCloseNewListModal}>
           <div 
             className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
             onClick={e => e.stopPropagation()}
@@ -180,7 +180,7 @@ export const ShoppingListModals: React.FC<ShoppingListModalsProps> = ({
 
       {/* Add Items Modal */}
       {showAddItemsModal && (
-        <div className="fixed inset-0 bg-black/50 z-[400] flex items-center justify-center p-4" onClick={onCloseAddItemsModal}>
+        <div className="fixed inset-0 bg-black/50 z-400 flex items-center justify-center p-4" onClick={onCloseAddItemsModal}>
           <div 
             className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
             onClick={e => e.stopPropagation()}
@@ -318,7 +318,7 @@ export const ShoppingListModals: React.FC<ShoppingListModalsProps> = ({
 
       {/* Delete List Confirmation Modal */}
       {showDeleteConfirmModal && selectedList && (
-        <div className="fixed inset-0 bg-black/50 z-[400] flex items-center justify-center p-4" onClick={onCloseDeleteConfirm}>
+        <div className="fixed inset-0 bg-black/50 z-400 flex items-center justify-center p-4" onClick={onCloseDeleteConfirm}>
           <div 
             className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
             onClick={e => e.stopPropagation()}
@@ -347,7 +347,7 @@ export const ShoppingListModals: React.FC<ShoppingListModalsProps> = ({
 
       {/* Delete Item Confirmation Modal */}
       {showDeleteItemConfirm && itemToDelete && (
-        <div className="fixed inset-0 bg-black/50 z-[400] flex items-center justify-center p-4" onClick={onCloseDeleteItemConfirm}>
+        <div className="fixed inset-0 bg-black/50 z-400 flex items-center justify-center p-4" onClick={onCloseDeleteItemConfirm}>
           <div 
             className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
             onClick={e => e.stopPropagation()}
@@ -376,7 +376,7 @@ export const ShoppingListModals: React.FC<ShoppingListModalsProps> = ({
 
       {/* Remove Checked Items Confirmation Modal */}
       {showRemoveCheckedConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-[400] flex items-center justify-center p-4" onClick={onCloseRemoveCheckedConfirm}>
+        <div className="fixed inset-0 bg-black/50 z-400 flex items-center justify-center p-4" onClick={onCloseRemoveCheckedConfirm}>
           <div 
             className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
             onClick={e => e.stopPropagation()}
