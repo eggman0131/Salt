@@ -57,7 +57,7 @@ Salt is manifest-based. Use the **Export Backup** feature in the Admin panel to 
 
 ## 📚 Documentation & Guidelines
 
-**System-wide principles:** See [guidelines.md](./guidelines.md) for language (British English), units (Metric), architectural hierarchy, and non-negotiable rules.
+**System-wide principles:** See [.github/copilot-instructions.md](./.github/copilot-instructions.md) for language (British English), units (Metric), architectural hierarchy, and non-negotiable rules.
 
 **Modules:** Each module documents its scope and rules in its own README:
 - [modules/recipes/README.md](./modules/recipes/README.md)
@@ -70,7 +70,8 @@ Salt is manifest-based. Use the **Export Backup** feature in the Admin panel to 
 
 **Project notes:**
 - [MODULES_MIGRATION_COMPLETE.md](./MODULES_MIGRATION_COMPLETE.md) — migration status
-- [TESTING.md](./TESTING.md) — testing guidance
+- [docs/TESTING.md](./docs/TESTING.md) — testing guidance
+- [docs/contract-gate/](./docs/contract-gate/) — contract gate documentation
 
 ---
 **v0.1.0-alpha** | Professional Culinary Orchestrator

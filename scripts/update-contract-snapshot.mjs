@@ -4,11 +4,11 @@
  * Update Contract Snapshot
  *
  * Regenerates the contract snapshot after contract changes have been
- * documented in CONTRACT_CHANGELOG.md.
+ * documented in docs/contract-gate/CHANGELOG.md.
  *
  * Usage: npm run update-contract-snapshot
  *
- * This must be run AFTER modifying CONTRACT_CHANGELOG.md.
+ * This must be run AFTER modifying docs/contract-gate/CHANGELOG.md.
  */
 
 import fs from 'fs/promises';
@@ -78,7 +78,7 @@ async function updateSnapshot() {
     ' * Contract Snapshot for Verification Gate',
     ' *',
     ' * This snapshot is used by the contract changelog gate to detect changes.',
-    ' * It is automatically regenerated when CONTRACT_CHANGELOG.md is modified.',
+    ' * It is automatically regenerated when docs/contract-gate/CHANGELOG.md is modified.',
     ' *',
     ' * DO NOT EDIT MANUALLY. Use: npm run update-contract-snapshot',
     ' */',
