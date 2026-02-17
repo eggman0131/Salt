@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, Button, Input, Label } from './UI';
-import { User } from '../types/contract';
-import { systemBackend } from '../shared/backend/system-backend';
+import { Card, Button, Input, Label } from '../../../components/UI';
+import { User } from '../../../types/contract';
+import { systemBackend } from '../../../shared/backend/system-backend';
 
 interface UsersModuleProps {
   users: User[];
