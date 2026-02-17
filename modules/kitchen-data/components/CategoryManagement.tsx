@@ -282,7 +282,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onRefres
                       </div>
                       {category.confidence !== undefined && (
                         <div className="shrink-0">
-                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-linear-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-full">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-linear-to-rrom-orange-50 to-orange-100 border border-orange-200 rounded-full">
                             <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 111.414 1.414L7.414 9l3.293 3.293a1 1 0 01-1.414 1.414l-4-4z" clipRule="evenodd"/>
                             </svg>
