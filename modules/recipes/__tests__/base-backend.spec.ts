@@ -253,6 +253,7 @@ const CANONICAL_ITEMS_FIXTURE: CanonicalItem[] = [
     isStaple: false,
     synonyms: ['tomatoes', 'tomatoe'],
     metadata: { season: 'summer' },
+    createdAt: '2026-01-01T00:00:00Z',
   },
   {
     id: 'item-onion',
@@ -263,6 +264,7 @@ const CANONICAL_ITEMS_FIXTURE: CanonicalItem[] = [
     isStaple: true,
     synonyms: ['onions', 'red onion', 'white onion'],
     metadata: { types: ['red', 'white', 'yellow'] },
+    createdAt: '2026-01-01T00:00:00Z',
   },
   {
     id: 'item-garlic',
@@ -273,24 +275,45 @@ const CANONICAL_ITEMS_FIXTURE: CanonicalItem[] = [
     isStaple: true,
     synonyms: ['garlic clove', 'cloves garlic'],
     metadata: {},
+    createdAt: '2026-01-01T00:00:00Z',
   },
 ];
 
 const UNITS_FIXTURE: Unit[] = [
-  { id: 'unit-g', name: 'g', sortOrder: 1 },
-  { id: 'unit-kg', name: 'kg', sortOrder: 2 },
-  { id: 'unit-ml', name: 'ml', sortOrder: 3 },
-  { id: 'unit-tbsp', name: 'tbsp', sortOrder: 4 },
+  { id: 'unit-g', name: 'g', sortOrder: 1, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'unit-kg', name: 'kg', sortOrder: 2, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'unit-ml', name: 'ml', sortOrder: 3, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'unit-tbsp', name: 'tbsp', sortOrder: 4, createdAt: '2026-01-01T00:00:00Z' },
 ];
 
 const AISLES_FIXTURE: Aisle[] = [
-  { id: 'aisle-produce', name: 'Produce', sortOrder: 1 },
-  { id: 'aisle-pantry', name: 'Pantry', sortOrder: 2 },
+  { id: 'aisle-produce', name: 'Produce', sortOrder: 1, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'aisle-pantry', name: 'Pantry', sortOrder: 2, createdAt: '2026-01-01T00:00:00Z' },
 ];
 
 const EQUIPMENT_FIXTURE: Equipment[] = [
-  { id: 'eq-frying-pan', name: 'Frying Pan', quantity: 1 },
-  { id: 'eq-pot', name: 'Pot', quantity: 2 },
+  { 
+    id: 'eq-frying-pan', 
+    name: 'Frying Pan',
+    brand: 'Test Brand',
+    modelName: 'Test Model',
+    description: 'Test frying pan',
+    type: 'Cookware',
+    class: 'Essential',
+    accessories: [],
+    status: 'Available' as const,
+  },
+  { 
+    id: 'eq-pot', 
+    name: 'Pot',
+    brand: 'Test Brand',
+    modelName: 'Test Model',
+    description: 'Test pot',
+    type: 'Cookware',
+    class: 'Essential',
+    accessories: [],
+    status: 'Available' as const,
+  },
 ];
 
 // ============================================================================
