@@ -50,7 +50,13 @@ class TestShoppingBackend implements IShoppingBackend {
   ): Promise<GenerateContentResponse> {
     const key = JSON.stringify(params.contents);
     const response = this.geminiResponses.get(key) || '[]';
-    return { text: response };
+    return { 
+      text: response,
+      data: response,
+      functionCalls: [],
+      executableCode: '',
+      codeExecutionResult: '',
+    };
   }
 
   protected callGenerateContentStream(): Promise<AsyncIterable<GenerateContentResponse>> {
@@ -59,6 +65,15 @@ class TestShoppingBackend implements IShoppingBackend {
 
   protected async getSystemInstruction(customContext?: string): Promise<string> {
     return customContext || this.systemInstruction;
+  }
+
+  // Make these methods public for testing
+  async getSystemInstructionPublic(customContext?: string): Promise<string> {
+    return this.getSystemInstruction(customContext);
+  }
+
+  async callGenerateContentPublic(params: GenerateContentParameters): Promise<GenerateContentResponse> {
+    return this.callGenerateContent(params);
   }
 
   // ========== SETUP HELPERS ==========
@@ -608,14 +623,14 @@ describe('Shopping Backend - AI Prompt Assembly', () => {
 
   it('should request system instruction with custom context', async () => {
     const customContext = 'You are resolving food items';
-    const instruction = await backend.getSystemInstruction(customContext);
+    const instruction = await backend.getSystemInstructionPublic(customContext);
 
     expect(instruction).toContain('resolving food items');
   });
 
   it('should use default system instruction when no context provided', async () => {
     backend.setMockSystemInstruction('Default Chef Instructions');
-    const instruction = await backend.getSystemInstruction();
+    const instruction = await backend.getSystemInstructionPublic();
 
     expect(instruction).toBe('Default Chef Instructions');
   });
@@ -631,11 +646,11 @@ describe('Shopping Backend - AI Prompt Assembly', () => {
     ]);
 
     // Test that system instructions and response structure are correct
-    const instruction = await backend.getSystemInstruction('You are resolving food items');
+    const instruction = await backend.getSystemInstructionPublic('You are resolving food items');
     expect(instruction).toBe('You are resolving food items');
 
     // Test that response can be called (doesn't need to return the mock since we're not storing it)
-    const response = await backend.callGenerateContent({
+    const response = await backend.callGenerateContentPublic({
       model: 'gemini-3-flash-preview',
       contents: [{ role: 'user', parts: [{ text: 'test-prompt' }] }],
       config: {
