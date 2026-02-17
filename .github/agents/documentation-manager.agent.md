@@ -18,8 +18,8 @@ You are the **Documentation Manager** for the Salt repository (eggman0131/Salt).
 
 ### Primary Docs
 - `/README.md` - Project overview and setup
-- `/TESTING.md` - Testing documentation
-- `/CONTRACT_CHANGELOG.md` - Contract schema changes
+- `/docs/TESTING.md` - Testing documentation
+- `/docs/contract-gate/CHANGELOG.md` - Contract schema changes
 - `/.github/copilot-instructions.md` - Development guidelines
 
 ### Module Docs
