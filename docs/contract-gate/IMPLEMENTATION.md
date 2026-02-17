@@ -14,7 +14,7 @@ The Contract Changelog Gate has been fully implemented to enforce constitutional
   - Extracts all exported schemas and types from `types/contract.ts`
   - Computes a stable checksum of the exports
   - Compares with snapshot (`contract-snapshot.mjs`)
-  - If changed: checks if `CONTRACT_CHANGELOG.md` was modified
+  - If changed: checks if `docs/contract-gate/CHANGELOG.md` was modified
   - Fails if changed but NOT documented
 
 **Usage:**
@@ -46,14 +46,14 @@ npm run update-contract-snapshot
 - Auto-generated, never hand-edited
 - Captures schema and type exports
 
-#### `CONTRACT_CHANGELOG.md` (1.0 KB)
+#### `docs/contract-gate/CHANGELOG.md` (1.0 KB)
 - Central log of all contract changes
 - Required format with Impact, Changes, Rationale, Migration sections
 - Enforces intentional, documented modifications
 
 ### 3. **Documentation & Guides**
 
-#### `GATE_GUIDE.md` (8.6 KB)
+#### `GUIDE.md` (8.6 KB)
 Comprehensive guide covering:
 - How the gate works (with diagrams)
 - Command reference (`check-contract`, `update-contract-snapshot`)
@@ -78,7 +78,7 @@ Added to `package.json`:
 ```
 1. Modify types/contract.ts
    ↓
-2. Document in CONTRACT_CHANGELOG.md
+2. Document in docs/contract-gate/CHANGELOG.md
    ↓
 3. npm run check-contract
    ├── If unchanged: ✅ PASS
@@ -102,7 +102,7 @@ The gate performs a **two-level check:**
    - If different: proceed to check 2
 
 2. **Changelog Detection**
-   - If contract changed, check if `CONTRACT_CHANGELOG.md` was modified
+   - If contract changed, check if `docs/contract-gate/CHANGELOG.md` was modified
    - Uses `git diff` and `git status` to detect modifications
    - Modified: ✅ change is documented
    - Not modified: ❌ FAIL with clear error message
@@ -128,11 +128,11 @@ Snapshot checksum: 78ae8fc6
 
 ⚠️  Contract has changed.
 
-❌ GATE FAILURE: Contract changed but CONTRACT_CHANGELOG.md was not updated!
+❌ GATE FAILURE: Contract changed but docs/contract-gate/CHANGELOG.md was not updated!
 Rules:
   1. Any change to types/contract.ts requires a changelog entry.
   2. Document the change, its impact, and rationale.
-  3. Update CONTRACT_CHANGELOG.md and commit together with your changes.
+  3. Update docs/contract-gate/CHANGELOG.md and commit together with your changes.
 ```
 
 ## Features
@@ -185,13 +185,13 @@ Tests:       90 passed
 2. **If gate fails:**
    ```bash
    # Edit the changelog
-   vim CONTRACT_CHANGELOG.md
+   vim docs/contract-gate/CHANGELOG.md
    
    # Update snapshot
    npm run update-contract-snapshot
    
    # Commit everything
-   git add types/contract.ts CONTRACT_CHANGELOG.md scripts/contract-snapshot.mjs
+   git add types/contract.ts docs/contract-gate/CHANGELOG.md scripts/contract-snapshot.mjs
    git commit -m "feat: document contract change"
    ```
 
@@ -209,8 +209,8 @@ This ensures every PR maintains the gate.
 
 | File | Size | Purpose |
 |------|------|---------|
-| `CONTRACT_CHANGELOG.md` | 1.0 KB | Change log (required) |
-| `GATE_GUIDE.md` | 8.6 KB | Complete documentation |
+| `docs/contract-gate/CHANGELOG.md` | 1.0 KB | Change log (required) |
+| `GUIDE.md` | 8.6 KB | Complete documentation |
 | `scripts/check-contract.mjs` | 5.9 KB | Gate validation script |
 | `scripts/update-contract-snapshot.mjs` | 3.3 KB | Snapshot regeneration |
 | `scripts/contract-snapshot.mjs` | 1.5 KB | Current snapshot |
@@ -260,7 +260,7 @@ This ensures every PR maintains the gate.
 
 ## Support & Troubleshooting
 
-See `GATE_GUIDE.md` for:
+See `GUIDE.md` for:
 - Detailed workflow examples
 - FAQ and troubleshooting
 - CI/CD integration
