@@ -169,7 +169,7 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, inventory, onClose }
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 flex flex-col pb-[110px] md:pb-6 min-h-0">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 flex flex-col pb-27.5 md:pb-6 min-h-0">
 
           {contextualIngredients.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -181,7 +181,7 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, inventory, onClose }
             </div>
           )}
 
-          <div className="flex-1 bg-white rounded-lg p-6 flex items-start justify-center border border-gray-200 min-h-[220px] shadow-sm overflow-hidden">
+          <div className="flex-1 bg-white rounded-lg p-6 flex items-start justify-center border border-gray-200 min-h-55 shadow-sm overflow-hidden">
             <div className="w-full max-h-full overflow-y-auto">
               <p className="text-lg md:text-xl font-semibold text-gray-900 leading-relaxed text-center">
                 {instructions[currentStep - 1]}
@@ -193,7 +193,7 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, inventory, onClose }
             <div className="space-y-2">
               {currentStepAlerts.map((w, i) => (
                 <div key={i} className="bg-red-50 border border-red-200 rounded-xl p-3 flex gap-2">
-                  <span className="text-lg flex-shrink-0">⚠️</span>
+                  <span className="text-lg shrink-0">⚠️</span>
                   <p className="text-sm text-red-800 font-medium leading-relaxed">{w}</p>
                 </div>
               ))}
