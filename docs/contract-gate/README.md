@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Contract Changelog Gate** is now fully operational. It enforces constitutional discipline by preventing any modification to `types/contract.ts` without explicit documentation in `CONTRACT_CHANGELOG.md`.
+The **Contract Changelog Gate** is now fully operational. It enforces constitutional discipline by preventing any modification to `types/contract.ts` without explicit documentation in `docs/contract-gate/CHANGELOG.md`.
 
 ## Quick Start
 
@@ -13,7 +13,7 @@ The **Contract Changelog Gate** is now fully operational. It enforces constituti
 vim types/contract.ts
 
 # 2. Document it immediately
-vim CONTRACT_CHANGELOG.md
+vim docs/contract-gate/CHANGELOG.md
 # Add an entry under "## Entries" following the template
 
 # 3. Check the gate
@@ -25,7 +25,7 @@ npm run update-contract-snapshot
 # Should show: ✅ Ready to commit!
 
 # 5. Commit everything together
-git add types/contract.ts CONTRACT_CHANGELOG.md scripts/contract-snapshot.mjs
+git add types/contract.ts docs/contract-gate/CHANGELOG.md scripts/contract-snapshot.mjs
 git commit -m "feat: [description of change]"
 ```
 
@@ -54,9 +54,9 @@ This prevents any PR that modifies the contract without documentation.
 
 | File | Purpose |
 |------|---------|
-| `CONTRACT_CHANGELOG.md` | Central log of all contract modifications |
+| `docs/contract-gate/CHANGELOG.md` | Central log of all contract modifications |
 | `GATE_GUIDE.md` | Complete developer guide (workflow, examples, troubleshooting) |
-| `CONTRACT_GATE_IMPLEMENTATION.md` | Implementation details and design decisions |
+| `IMPLEMENTATION.md` | Implementation details and design decisions |
 
 ### 3. NPM Commands
 
@@ -149,14 +149,14 @@ All entries must follow this format:
 If you modify the contract without updating the changelog, you'll see:
 
 ```
-❌ GATE FAILURE: Contract changed but CONTRACT_CHANGELOG.md was not updated!
+❌ GATE FAILURE: Contract changed but docs/contract-gate/CHANGELOG.md was not updated!
 Rules:
   1. Any change to types/contract.ts requires a changelog entry.
   2. Document the change, its impact, and rationale.
-  3. Update CONTRACT_CHANGELOG.md and commit together with your changes.
+  3. Update docs/contract-gate/CHANGELOG.md and commit together with your changes.
 
 To acknowledge and document this change:
-  1. Edit CONTRACT_CHANGELOG.md
+  1. Edit docs/contract-gate/CHANGELOG.md
   2. Add an entry under the "Entries" section
   3. Commit the changelog update
 
@@ -176,7 +176,7 @@ To regenerate the snapshot after documenting:
 
 3. **All three files commit together**
    - `types/contract.ts`
-   - `CONTRACT_CHANGELOG.md`
+   - `docs/contract-gate/CHANGELOG.md`
    - `scripts/contract-snapshot.mjs`
 
 4. **Snapshot is auto-generated, never hand-edited**
@@ -217,7 +217,7 @@ on:
   pull_request:
     paths:
       - 'types/contract.ts'
-      - 'CONTRACT_CHANGELOG.md'
+      - 'docs/contract-gate/CHANGELOG.md'
 
 jobs:
   check-contract:
@@ -287,7 +287,7 @@ Developer commits contract changes
 ## FAQ
 
 **Q: What if I modify the contract but forget the changelog?**
-A: Gate fails. Edit `CONTRACT_CHANGELOG.md`, run `npm run update-contract-snapshot`, then commit again.
+A: Gate fails. Edit `docs/contract-gate/CHANGELOG.md`, run `npm run update-contract-snapshot`, then commit again.
 
 **Q: Can I modify the snapshot manually?**
 A: No. The snapshot is sacred. Always use `npm run update-contract-snapshot`.
@@ -312,10 +312,10 @@ A: Add a new changelog entry documenting the reversion, then update the snapshot
 - `scripts/contract-snapshot.mjs` (1.5 KB) — Current snapshot
 
 ### Documentation
-- `CONTRACT_CHANGELOG.md` (1.0 KB) — Change log
+- `docs/contract-gate/CHANGELOG.md` (1.0 KB) — Change log
 - `GATE_GUIDE.md` (8.6 KB) — Developer guide with examples and troubleshooting
-- `CONTRACT_GATE_IMPLEMENTATION.md` (6.5 KB) — Implementation details
-- `README_CONTRACT_GATE.md` (this file) — Quick reference
+- `IMPLEMENTATION.md` (6.5 KB) — Implementation details
+- `README.md` (this file) — Quick reference
 
 ### Configuration
 - `package.json` — Added npm scripts (no other changes)
@@ -339,7 +339,7 @@ A: Add a new changelog entry documenting the reversion, then update the snapshot
 Before merging any contract change:
 
 - [ ] Contract modification made to `types/contract.ts`
-- [ ] Changelog entry added to `CONTRACT_CHANGELOG.md`
+- [ ] Changelog entry added to `docs/contract-gate/CHANGELOG.md`
 - [ ] Entry follows the template (Impact, Changes, Rationale, Migration)
 - [ ] `npm run check-contract` passes
 - [ ] `npm run update-contract-snapshot` completed
@@ -350,7 +350,7 @@ Before merging any contract change:
 
 For detailed guidance, see:
 - **[GATE_GUIDE.md](./GATE_GUIDE.md)** — Complete developer guide
-- **[CONTRACT_GATE_IMPLEMENTATION.md](./CONTRACT_GATE_IMPLEMENTATION.md)** — Implementation details
+- **[IMPLEMENTATION.md](./IMPLEMENTATION.md)** — Implementation details
 
 For quick reference:
 ```bash
