@@ -1,18 +1,63 @@
+/**
+ * Salt Design System Styles
+ * 
+ * AI INSTRUCTION:
+ * This file defines all design tokens for the application.
+ * To change the app-wide look:
+ * 1. Modify color values in :root (light) and .dark (dark mode)
+ * 2. Adjust spacing, radius, shadows, or animation tokens
+ * 3. Changes propagate automatically via CSS custom properties
+ * 
+ * LAYERS:
+ * - @theme: Design tokens (colors, spacing, radii, shadows, animations)
+ * - :root: Light mode color values (OKLCH color space)
+ * - .dark: Dark mode color values
+ * 
+ * DO NOT:
+ * - Add component-specific styles here (use Tailwind utilities in components)
+ * - Hardcode colors anywhere else (always use tokens)
+ * - Override Tailwind defaults without understanding impact
+ * 
+ * TO TWEAK THE ENTIRE APP:
+ * - Change primary hue (currently 253 = blue): --primary: oklch(L C H)
+ * - Adjust spacing scale: --space-* tokens
+ * - Modify corner roundness: --radius base value
+ * - Update shadows: --shadow-sm/md/lg values
+ * - Change animation speed: --duration-* tokens
+ */
+
 /* Tailwind entry - processed by PostCSS/Tailwind in build */
 
-@plugin "tailwindcss-animate";
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
 @source "../components/**/*.tsx";
 @source "../pages/**/*.tsx";
+@source "../modules/**/*.tsx";
+@source "../shared/**/*.tsx";
 @source "../App.tsx";
 @source "../index.html";
 
-/* Add any project-level overrides below if required. The app still contains some inline styles in index.html. */
-
+/**
+ * DESIGN TOKENS
+ * 
+ * AI: All tokens are exposed as CSS custom properties
+ * Use these via Tailwind utilities: rounded-lg, shadow-md, etc.
+ * 
+ * TO TWEAK APP-WIDE:
+ * - Roundness: Change --radius base value (currently 0.625rem = 10px)
+ * - Animation speed: Adjust --duration-* values
+ * - Shadows: Modify --shadow-* values for depth
+ * - Easing: Change --ease-spring for different bounce feel
+ */
 @theme inline {
 
+    /* ========================================
+       BORDER RADIUS TOKENS
+       Base: --radius (defined in :root)
+       Derived: Subtract or add from base
+       ======================================== */
     --radius-sm: calc(var(--radius) - 4px);
 
     --radius-md: calc(var(--radius) - 2px);
@@ -27,6 +72,43 @@
 
     --radius-4xl: calc(var(--radius) + 16px);
 
+    /* ========================================
+       ANIMATION & TRANSITION TOKENS
+       Spring: Bouncy, playful (default)
+       In-out: Smooth, natural
+       ======================================== */
+    --duration-fast: 100ms;
+    --duration-normal: 200ms;
+    --duration-slow: 300ms;
+    --ease-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ========================================
+       SHADOW TOKENS
+       Subtle, consistent depth
+       Same for light and dark mode
+       ======================================== */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+    /* ========================================
+       TYPOGRAPHY TOKENS
+       Line heights and font stacks
+       ======================================== */
+    --leading-tight: 1.25;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.625;
+
+    --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+
+    /* ========================================
+       COLOR TOKEN ALIASES
+       Map semantic names to base tokens
+       These enable Tailwind utilities like:
+       bg-primary, text-muted-foreground, etc.
+       ======================================== */
     --color-background: var(--background);
 
     --color-foreground: var(--foreground);
@@ -90,134 +172,205 @@
     --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/**
+ * LIGHT MODE COLOR PALETTE
+ * 
+ * AI: This is the primary color scheme for Salt
+ * All values use OKLCH color space (perceptually uniform)
+ * Format: oklch(Lightness Chroma Hue)
+ * 
+ * TO CHANGE APP COLORS:
+ * 1. Primary (brand): Change hue (253 = blue, 142 = green, 25 = red, 200 = teal)
+ * 2. Lightness: 0-1 (0 = black, 1 = white)
+ * 3. Chroma: 0-0.4 (color saturation)
+ * 4. Hue: 0-360 (color wheel position)
+ * 
+ * CURRENT PALETTE:
+ * - Primary: Blue (253°) - Brand color
+ * - Secondary: Teal (200°) - Alternative actions
+ * - Accent: Green (142°) - Success states
+ * - Destructive: Red (25°) - Errors, deletions
+ */
 :root {
 
+    /* Base radius for all rounded corners */
     --radius: 0.625rem;
 
-    --background: oklch(1 0 0);
+    /* ========================================
+       BACKGROUND & FOREGROUND
+       Base colors for page and text
+       ======================================== */
+    --background: oklch(0.98 0 0);
 
-    --foreground: oklch(0.145 0 0);
+    --foreground: oklch(0.1 0 0);
 
+    /* ========================================
+       CARD & POPOVER
+       Containers and overlays
+       ======================================== */
     --card: oklch(1 0 0);
 
-    --card-foreground: oklch(0.145 0 0);
+    --card-foreground: oklch(0.1 0 0);
 
     --popover: oklch(1 0 0);
 
-    --popover-foreground: oklch(0.145 0 0);
+    --popover-foreground: oklch(0.1 0 0);
 
-    --primary: oklch(0.205 0 0);
+    /* ========================================
+       INTERACTIVE COLORS
+       Primary: Brand blue (buttons, links)
+       Secondary: Teal (alternative actions)
+       ======================================== */
+    --primary: oklch(0.52 0.16 253);
 
-    --primary-foreground: oklch(0.985 0 0);
+    --primary-foreground: oklch(0.98 0 0);
 
-    --secondary: oklch(0.97 0 0);
+    --secondary: oklch(0.60 0.13 200);
 
-    --secondary-foreground: oklch(0.205 0 0);
+    --secondary-foreground: oklch(0.98 0 0);
 
-    --muted: oklch(0.97 0 0);
+    /* ========================================
+       SEMANTIC COLORS
+       Muted: Disabled/inactive states
+       Accent: Success/positive states
+       Destructive: Errors/deletions
+       ======================================== */
+    --muted: oklch(0.92 0 0);
 
-    --muted-foreground: oklch(0.556 0 0);
+    --muted-foreground: oklch(0.45 0 0);
 
-    --accent: oklch(0.97 0 0);
+    --accent: oklch(0.55 0.15 142);
 
-    --accent-foreground: oklch(0.205 0 0);
+    --accent-foreground: oklch(0.98 0 0);
 
-    --destructive: oklch(0.577 0.245 27.325);
+    --destructive: oklch(0.54 0.16 25);
 
-    --border: oklch(0.922 0 0);
+    /* ========================================
+       STRUCTURE
+       Borders, inputs, focus rings
+       ======================================== */
+    --border: oklch(0.92 0 0);
 
-    --input: oklch(0.922 0 0);
+    --input: oklch(0.97 0 0);
 
-    --ring: oklch(0.708 0 0);
+    --ring: oklch(0.52 0.16 253);
 
-    --chart-1: oklch(0.646 0.222 41.116);
+    /* ========================================
+       CHART COLORS
+       Data visualization palette
+       ======================================== */
+    --chart-1: oklch(0.55 0.15 142);
 
-    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-2: oklch(0.52 0.16 253);
 
-    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-3: oklch(0.62 0.12 258);
 
-    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-4: oklch(0.54 0.16 25);
 
-    --chart-5: oklch(0.769 0.188 70.08);
+    --chart-5: oklch(0.65 0.14 270);
 
-    --sidebar: oklch(0.985 0 0);
+    /* ========================================
+       SIDEBAR
+       Navigation sidebar palette
+       ======================================== */
+    --sidebar: oklch(0.97 0.02 250);
 
-    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-foreground: oklch(0.1 0 0);
 
-    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary: oklch(0.52 0.16 253);
 
-    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-primary-foreground: oklch(0.98 0 0);
 
-    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent: oklch(0.55 0.15 142);
 
-    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-accent-foreground: oklch(0.98 0 0);
 
-    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-border: oklch(0.92 0 0);
 
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar-ring: oklch(0.52 0.16 253);
 }
 
+/**
+ * DARK MODE COLOR PALETTE
+ * 
+ * AI: Alternative color scheme (light becomes dark, dark becomes light)
+ * Applied when .dark class is on document root
+ * Managed by ThemeProvider component
+ * 
+ * STRATEGY:
+ * - Same semantic meaning as light mode
+ * - Inverted luminance (backgrounds dark, text light)
+ * - Slightly reduced chroma to prevent oversaturation
+ * 
+ * TO ADJUST:
+ * - Match hues with light mode for consistency
+ * - Adjust lightness for contrast
+ * - Reduce chroma if colors feel too vibrant
+ */
 .dark {
 
-    --background: oklch(0.145 0 0);
+    /* ========================================
+       BACKGROUND & FOREGROUND (INVERTED)
+       ======================================== */
+    --background: oklch(0.12 0 0);
 
-    --foreground: oklch(0.985 0 0);
+    --foreground: oklch(0.96 0 0);
 
-    --card: oklch(0.205 0 0);
+    --card: oklch(0.16 0.02 250);
 
-    --card-foreground: oklch(0.985 0 0);
+    --card-foreground: oklch(0.96 0 0);
 
-    --popover: oklch(0.205 0 0);
+    --popover: oklch(0.16 0.02 250);
 
-    --popover-foreground: oklch(0.985 0 0);
+    --popover-foreground: oklch(0.96 0 0);
 
-    --primary: oklch(0.922 0 0);
+    --primary: oklch(0.75 0.13 253);
 
-    --primary-foreground: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.12 0 0);
 
-    --secondary: oklch(0.269 0 0);
+    --secondary: oklch(0.75 0.11 200);
 
-    --secondary-foreground: oklch(0.985 0 0);
+    --secondary-foreground: oklch(0.12 0 0);
 
-    --muted: oklch(0.269 0 0);
+    --muted: oklch(0.28 0 0);
 
-    --muted-foreground: oklch(0.708 0 0);
+    --muted-foreground: oklch(0.7 0 0);
 
-    --accent: oklch(0.269 0 0);
+    --accent: oklch(0.72 0.12 142);
 
-    --accent-foreground: oklch(0.985 0 0);
+    --accent-foreground: oklch(0.12 0 0);
 
-    --destructive: oklch(0.704 0.191 22.216);
+    --destructive: oklch(0.72 0.14 25);
 
-    --border: oklch(1 0 0 / 10%);
+    --border: oklch(0.25 0 0);
 
-    --input: oklch(1 0 0 / 15%);
+    --input: oklch(0.2 0.02 250);
 
-    --ring: oklch(0.556 0 0);
+    --ring: oklch(0.75 0.13 253);
 
-    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-1: oklch(0.72 0.12 142);
 
-    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-2: oklch(0.75 0.13 253);
 
-    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-3: oklch(0.68 0.11 258);
 
-    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-4: oklch(0.72 0.14 25);
 
-    --chart-5: oklch(0.645 0.246 16.439);
+    --chart-5: oklch(0.75 0.12 270);
 
-    --sidebar: oklch(0.205 0 0);
+    --sidebar: oklch(0.15 0.01 250);
 
-    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.96 0 0);
 
-    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary: oklch(0.75 0.13 253);
 
-    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-primary-foreground: oklch(0.12 0 0);
 
-    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent: oklch(0.72 0.12 142);
 
-    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-accent-foreground: oklch(0.12 0 0);
 
-    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-border: oklch(0.25 0 0);
 
-    --sidebar-ring: oklch(0.556 0 0);
+    --sidebar-ring: oklch(0.75 0.13 253);
 }
