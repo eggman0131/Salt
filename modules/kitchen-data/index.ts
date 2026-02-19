@@ -9,10 +9,5 @@
 export { kitchenDataBackend, getKitchenDataBackend } from './backend';
 export type { IKitchenDataBackend } from './backend';
 
-// Re-export components
+// Re-export main module component
 export { KitchenDataModule } from './components/KitchenDataModule';
-export { CategoryManagement } from './components/CategoryManagement';
-export { ItemsManagement } from './components/ItemsManagement';
-export { UnitsManagement } from './components/UnitsManagement';
-export { AislesManagement } from './components/AislesManagement';
-export { UnitsAndAislesManagement } from './components/UnitsAndAislesManagement';
