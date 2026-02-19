@@ -37,6 +37,8 @@ The colour palette uses semantic naming for cognitive clarity.
 
 - `--color-accent` — Positive/success states (green)
 - `--color-accent-foreground` — Text on accent
+- `--color-warning` — Attention/pending states (amber)
+- `--color-warning-foreground` — Text on warning
 - `--color-destructive` — Destructive/error states (red)
 - `--color-muted` — Disabled, inactive states
 - `--color-muted-foreground` — Text on muted

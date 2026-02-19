@@ -254,7 +254,6 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
     <>
       <CardHeader>
         <div className="space-y-1">
-          <p className="text-xs font-semibold text-primary uppercase tracking-wide">Access Control</p>
           <CardTitle className="text-xl md:text-2xl">Authorised Users</CardTitle>
           <p className="text-sm text-muted-foreground">
             {users.length} {users.length === 1 ? 'user' : 'users'} with full access
@@ -270,6 +269,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
               <Label htmlFor="user-name">Full Name</Label>
               <Input 
                 id="user-name"
+                className="pl-3"
                 placeholder="e.g. John Doe" 
                 value={name} 
                 onChange={(e) => setName(e.target.value)}
@@ -280,6 +280,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
               <Input 
                 id="user-email"
                 type="email"
+                className="pl-3"
                 placeholder="john@example.com" 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)}
@@ -343,6 +344,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
                 <Label htmlFor="edit-name">Display Name</Label>
                 <Input 
                   id="edit-name"
+                  className="pl-3"
                   placeholder="Full Name" 
                   value={editName} 
                   onChange={(e) => setEditName(e.target.value)}

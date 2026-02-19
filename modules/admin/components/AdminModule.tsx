@@ -97,8 +97,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           <Card>
             <CardHeader>
               <div className="space-y-1">
-                <p className="text-xs font-semibold text-primary uppercase tracking-wide">Infrastructure</p>
                 <CardTitle className="text-xl md:text-2xl">System State</CardTitle>
+                <p className="text-sm text-muted-foreground">Current environment and sync status</p>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -162,15 +162,11 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           <Card>
             <CardHeader>
               <div className="space-y-1">
-                <p className="text-xs font-semibold text-primary uppercase tracking-wide">Developer Tools</p>
                 <CardTitle className="text-xl md:text-2xl">Debug Logging</CardTitle>
+                <p className="text-sm text-muted-foreground">Control backend console logging for development and troubleshooting</p>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Control backend console logging for development and troubleshooting.
-              </p>
-              
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <Label htmlFor="debug-mode" className="text-sm font-semibold">
@@ -194,8 +190,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold text-primary uppercase tracking-wide">Configuration</p>
                   <CardTitle className="text-xl md:text-2xl">Kitchen Directives</CardTitle>
+                  <p className="text-sm text-muted-foreground">System prompts and kitchen guidelines</p>
                 </div>
                 {saveStatus !== 'idle' && (
                   <Badge 

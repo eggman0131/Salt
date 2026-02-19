@@ -134,17 +134,10 @@ describe('Kitchen Data Module Exports', () => {
   it('should export management subcomponents', async () => {
     const kitchenDataModule = await import('../kitchen-data');
     
-    expect(kitchenDataModule.CategoryManagement).toBeDefined();
-    expect(kitchenDataModule.ItemsManagement).toBeDefined();
-    expect(kitchenDataModule.UnitsManagement).toBeDefined();
-    expect(kitchenDataModule.AislesManagement).toBeDefined();
-    expect(kitchenDataModule.UnitsAndAislesManagement).toBeDefined();
-    
-    expect(typeof kitchenDataModule.CategoryManagement).toBe('function');
-    expect(typeof kitchenDataModule.ItemsManagement).toBe('function');
-    expect(typeof kitchenDataModule.UnitsManagement).toBe('function');
-    expect(typeof kitchenDataModule.AislesManagement).toBe('function');
-    expect(typeof kitchenDataModule.UnitsAndAislesManagement).toBe('function');
+    // After from-scratch rebuild, only main module is exported
+    // Sub-components are internal implementation details
+    expect(kitchenDataModule.KitchenDataModule).toBeDefined();
+    expect(typeof kitchenDataModule.KitchenDataModule).toBe('function');
   });
 
   it('should have all expected exports', async () => {
@@ -155,11 +148,6 @@ describe('Kitchen Data Module Exports', () => {
       'kitchenDataBackend',
       'getKitchenDataBackend',
       'KitchenDataModule',
-      'CategoryManagement',
-      'ItemsManagement',
-      'UnitsManagement',
-      'AislesManagement',
-      'UnitsAndAislesManagement',
     ];
     
     expectedExports.forEach(exp => {
