@@ -35,6 +35,9 @@ if [ "${STATUS}" != "200" ]; then
   exit 1
 fi
 
+echo "Creating test auth user..."
+node scripts/create-auth-user.mjs
+
 node scripts/import-test-data.mjs
 
 echo "Import complete. Emulators are still running."
