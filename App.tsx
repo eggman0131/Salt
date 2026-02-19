@@ -6,6 +6,7 @@ import { DashboardLayout } from './components/Layout';
 import { Card, Button } from './components/UI';
 import { User, Recipe, Equipment, Plan } from './types/contract';
 import { systemBackend } from './shared/backend/system-backend';
+import { ensureEmulatorAuth } from './shared/backend/auth-emulator';
 
 // Feature Modules
 import { InventoryModule } from './modules/inventory';
@@ -83,6 +84,9 @@ const App: React.FC = () => {
   // Check auth on mount
   useEffect(() => {
     const checkAuth = async () => {
+      // Emulator auto-auth (no-op in production)
+      await ensureEmulatorAuth();
+
       try {
         // 1. Check for Redirect Result (Firebase Redirect Flow)
         const redirectUser = await systemBackend.handleRedirectResult();
