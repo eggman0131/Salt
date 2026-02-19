@@ -17,6 +17,7 @@ import plugin from 'tailwindcss/plugin';
  */
 
 export default {
+  darkMode: 'class',
   content: [
     './index.html',
     './App.tsx',

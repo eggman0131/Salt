@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Button } from './UI';
 import { getActiveBackendMode } from '../shared/backend/system-backend';
 import { kitchenDataBackend } from '../modules/kitchen-data';
+import { useTheme } from '../shared/providers/ThemeProvider';
+import { Moon, Sun } from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -22,6 +24,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClose, user, onLogout, suggestionsCountRef }) => {
   const mode = getActiveBackendMode();
+  const { theme, toggleTheme } = useTheme();
   const [suggestionsCount, setSuggestionsCount] = useState(0);
 
   // Initial load
@@ -102,18 +105,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
   return (
     <>
       <div 
-        className={`fixed inset-0 bg-black/30 backdrop-blur-sm z-[100] transition-opacity duration-300 lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/30 backdrop-blur-sm z-100 transition-opacity duration-300 lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
       
-      <div className={`fixed inset-y-0 left-0 z-[110] w-[280px] bg-white border-r border-gray-200 transform transition-transform duration-300 ease-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col shadow-xl lg:shadow-none`}>
-        <div className="p-4 pb-8 flex justify-between items-center border-b border-gray-100">
+      <div className={`fixed inset-y-0 left-0 z-[110] w-[280px] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transform transition-transform duration-300 ease-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col shadow-xl lg:shadow-none`}>
+        <div className="p-4 pb-8 flex justify-between items-center border-b border-gray-100 dark:border-gray-800">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-gray-900">SALT</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">SALT</h1>
           </div>
           <button 
             onClick={onClose} 
-            className="lg:hidden w-10 h-10 flex items-center justify-center rounded-md bg-gray-100 text-gray-500 hover:text-gray-900"
+            className="lg:hidden w-10 h-10 flex items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             aria-label="Close menu"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -130,11 +133,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
               }}
               className={`w-full flex items-center gap-3 px-4 h-11 rounded-md text-sm font-semibold transition-all border ${
                 activeTab === item.id 
-                  ? 'bg-orange-50 text-orange-700 border-orange-100 shadow-sm' 
-                  : 'text-gray-600 border-transparent hover:bg-gray-100 hover:text-gray-900'
+                  ? 'bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400 border-orange-100 dark:border-orange-900 shadow-sm' 
+                  : 'text-gray-600 dark:text-gray-400 border-transparent hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              <span className={activeTab === item.id ? 'text-orange-600' : 'text-gray-400'}>{item.icon}</span>
+              <span className={activeTab === item.id ? 'text-orange-600 dark:text-orange-500' : 'text-gray-400 dark:text-gray-600'}>{item.icon}</span>
               <span className="flex-1 text-left">{item.label}</span>
               {item.id === 'kitchendata' && suggestionsCount > 0 && (
                 <div className="w-6 h-6 flex items-center justify-center bg-red-600 text-white rounded-full text-xs font-bold shrink-0">
@@ -145,20 +148,27 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, onClo
           ))}
         </nav>
         
-        <div className="p-4 space-y-4 border-t border-gray-100">
-          <div className="px-4 py-3 rounded-md bg-gray-50 border border-gray-200 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gray-900 flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
+        <div className="p-4 space-y-4 border-t border-gray-100 dark:border-gray-800">
+          <div className="px-4 py-3 rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gray-900 dark:bg-gray-100 flex items-center justify-center text-white dark:text-gray-900 text-xs font-bold shadow-sm shrink-0">
               {user.displayName ? user.displayName[0] : '?'}
             </div>
-            <div className="min-w-0">
-              <span className="text-sm font-semibold text-gray-900 block truncate leading-tight">{user.displayName}</span>
-              <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">{mode}</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-semibold text-gray-900 dark:text-white block truncate leading-tight">{user.displayName}</span>
+              <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{mode}</span>
             </div>
+            <button
+              onClick={toggleTheme}
+              className="w-9 h-9 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors shadow-sm shrink-0"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
           </div>
           
           <button 
             onClick={onLogout}
-            className="w-full h-11 flex items-center justify-center gap-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+            className="w-full h-11 flex items-center justify-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
             Sign Out
@@ -175,18 +185,18 @@ interface TopNavProps {
 }
 
 const TopNav: React.FC<TopNavProps> = ({ title, onMenuClick }) => (
-  <header className="fixed top-0 left-0 lg:left-[280px] right-0 h-16 md:h-20 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-4 md:px-8 z-[200]">
+  <header className="fixed top-0 left-0 lg:left-70 right-0 h-16 md:h-20 bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 md:px-8 z-200">
     <div className="flex items-center gap-4">
       <button 
         onClick={onMenuClick}
-        className="lg:hidden w-10 h-10 flex items-center justify-center -ml-2 text-gray-500 hover:text-gray-900 transition-colors"
+        className="lg:hidden w-10 h-10 flex items-center justify-center -ml-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
         aria-label="Open menu"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 7h16M4 12h16m-16 5h16"/></svg>
       </button>
       
       <div>
-        <h2 className="text-xl md:text-2xl font-semibold text-gray-900 tracking-tight">{title}</h2>
+        <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">{title}</h2>
       </div>
     </div>
   </header>
@@ -219,7 +229,7 @@ export const DashboardLayout: React.FC<LayoutProps> = ({ children, activeTab, on
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex">
       <Sidebar 
         activeTab={activeTab} 
         onTabChange={onTabChange} 
@@ -229,12 +239,12 @@ export const DashboardLayout: React.FC<LayoutProps> = ({ children, activeTab, on
         onLogout={onLogout}
         suggestionsCountRef={suggestionsCountRef}
       />
-      <div className="flex-1 lg:ml-[280px] flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-70 flex flex-col min-w-0">
         <TopNav 
           title={getActiveTitle()} 
           onMenuClick={() => setIsSidebarOpen(true)}
         />
-        <main className="px-3 pt-16 md:pt-24 pb-6 md:pb-12 md:px-8">
+        <main className="px-3 pt-20 md:pt-24 pb-6 md:pb-12 md:px-8">
           <div className="max-w-6xl mx-auto min-w-0">
             {children}
           </div>
