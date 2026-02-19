@@ -1,0 +1,4283 @@
+{
+  "inventory": [
+    {
+      "createdBy": "user-1",
+      "accessories": [
+        {
+          "description": "Removable high-density cordierite stone designed for optimal base charring and heat retention.",
+          "id": "acc-qmgfc",
+          "name": "Pizza Stone",
+          "owned": true,
+          "type": "standard"
+        },
+        {
+          "name": "Pizza Peel",
+          "description": "Stainless steel peel designed for precise launching and retrieval of artisan pizzas.",
+          "id": "acc-vq572",
+          "owned": true,
+          "type": "standard"
+        },
+        {
+          "description": "Carbon steel pan optimized for pan-style pizzas and high-temperature roasting.",
+          "id": "acc-pdxe9",
+          "owned": true,
+          "type": "standard",
+          "name": "Deep Dish Pan"
+        }
+      ],
+      "id": "eq-040qd67ku",
+      "name": "Sage The Smart Oven Pizzaiolo",
+      "status": "Available",
+      "description": "High-performance countertop oven reaching 400°C to cook authentic Neapolitan style pizza in 2 minutes.",
+      "brand": "Sage",
+      "createdAt": "2026-01-24T14:38:49.102Z",
+      "modelName": "The Smart Oven Pizzaiolo",
+      "class": "Countertop Cooking Appliance",
+      "type": "Indoor Pizza Oven"
+    },
+    {
+      "createdAt": "2026-01-19T14:02:10.680Z",
+      "description": "This premium kitchen bundle features the renowned Vogue Tri-Wall 20cm saucier paired with a matching heavy-duty stainless steel lid. The multi-clad construction ensures rapid and uniform heating throughout the pan's surface, while the included lid helps retain moisture and heat for more efficient cooking. This variant is specifically designed for professional chefs who require consistent results for complex reductions. The set includes the 200mm pan and a tight-fitting lid, both featuring durable riveted handles and a polished finish that resists tarnishing in commercial settings.",
+      "upi": "Vogue-TriWall-Saucier-20cm",
+      "features": "Construction: 3-Ply Tri-Wall (Stainless Steel / Aluminium / Stainless Steel). Diameter: 200mm. Thermal Capability: Rapid, even heat distribution via aluminium core. Compatibility: Induction, Gas, Electric, Ceramic hobs. Oven Safe: Yes. Geometry: Curved sides for whisking efficiency.",
+      "type": "Saucepan",
+      "class": "Cookware",
+      "uses": "Reducing sauces, preparing custards and risottos, whisking emulsions, poaching.",
+      "brand": "Vogue",
+      "status": "Available",
+      "modelName": "Tri-Wall Saucier with Lid",
+      "accessories": [
+        {
+          "name": "Matching Lid",
+          "type": "standard",
+          "description": "Stainless steel lid sized for 200mm vessel to retain heat and moisture.",
+          "id": "acc-ofmfo",
+          "owned": true
+        }
+      ],
+      "name": "Vogue Tri-Wall Saucier with Lid",
+      "id": "eq-0n9ttqy3d",
+      "createdBy": "user-1"
+    },
+    {
+      "type": "Vacuum Sealer",
+      "class": "Countertop Food Sealing System",
+      "description": "A high-performance vacuum sealer featuring integrated roll storage, a built-in bag cutter, and a pulse function for delicate items.",
+      "id": "eq-13a7sblct",
+      "createdAt": "2026-01-24T15:08:18.831Z",
+      "modelName": "FFS005X",
+      "name": "FoodSaver FFS005X",
+      "brand": "FoodSaver",
+      "createdBy": "user-1",
+      "accessories": [
+        {
+          "description": "Multi-layer material roll for bespoke bag sizing.",
+          "id": "acc-o47jo",
+          "owned": true,
+          "name": "Vacuum Seal Roll (28cm x 3.04m)",
+          "type": "standard"
+        },
+        {
+          "type": "standard",
+          "name": "Small Vacuum Seal Bags (0.94L)",
+          "id": "acc-bml3w",
+          "owned": true,
+          "description": "Five pre-cut bags for individual portions."
+        },
+        {
+          "name": "Large Vacuum Seal Bags (3.78L)",
+          "description": "Five high-capacity bags for bulk storage or sous-vide.",
+          "type": "standard",
+          "id": "acc-38f5o",
+          "owned": true
+        },
+        {
+          "owned": true,
+          "name": "Accessory Hose",
+          "id": "acc-wz7jm",
+          "description": "Connector for use with canisters, bottle stoppers, and marinators.",
+          "type": "standard"
+        },
+        {
+          "description": "Hardware for extracting air from wine or oil bottles to maintain freshness.",
+          "type": "optional",
+          "owned": false,
+          "id": "acc-ri3dv",
+          "name": "Vacuum Bottle Stoppers"
+        },
+        {
+          "name": "Quick Marinator",
+          "type": "optional",
+          "id": "acc-4l8g2",
+          "description": "Specialised container designed to infuse flavours into proteins within minutes under vacuum.",
+          "owned": true
+        }
+      ],
+      "status": "Available"
+    },
+    {
+      "id": "eq-1bf6gd1th",
+      "accessories": [
+        {
+          "owned": true,
+          "name": "Handyrack",
+          "type": "standard",
+          "description": "Innovative adjustable roasting tray that attaches to the main oven door for easy basting and safe access.",
+          "id": "acc-1b0sp"
+        },
+        {
+          "type": "standard",
+          "description": "Smooth-action telescopic grill rack system allowing for safe checking of food without reaching into the heat.",
+          "owned": true,
+          "id": "acc-htf5w",
+          "name": "Glide-out Grill"
+        },
+        {
+          "type": "standard",
+          "owned": true,
+          "name": "Wok Cradle",
+          "id": "acc-gr03m",
+          "description": "Robust cast iron support designed to stabilise large, round-bottomed pans over the multi-ring burner."
+        },
+        {
+          "type": "standard",
+          "owned": false,
+          "name": "Cast Aluminium Griddle",
+          "id": "acc-ov13c",
+          "description": "Sit-on griddle plate providing a flat surface for searing meats or delicate cooking of vegetables."
+        },
+        {
+          "name": "Matching Splashback",
+          "description": "Coordinated stainless steel panel designed to protect rear walls from grease and heat.",
+          "owned": false,
+          "type": "optional",
+          "id": "acc-ama6l"
+        }
+      ],
+      "status": "Available",
+      "brand": "Rangemaster",
+      "name": "Rangemaster Toledo 110 Dual Fuel",
+      "type": "Dual Fuel Range Cooker",
+      "createdAt": "2026-01-24T10:24:06.455Z",
+      "createdBy": "user-1",
+      "modelName": "Toledo 110 Dual Fuel",
+      "description": "A high-performance 110cm range cooker featuring two electric ovens, a separate glide-out grill, and a five-burner gas hob with a warming zone.",
+      "class": "Large Appliance"
+    },
+    {
+      "accessories": [
+        {
+          "type": "standard",
+          "name": "Removable Non-Stick Grill Plates",
+          "owned": true,
+          "description": "Pair of die-cast aluminium plates with corrugated surfaces designed for optimal heat distribution and fat drainage.",
+          "id": "acc-lkc7k"
+        },
+        {
+          "id": "acc-7e8ky",
+          "owned": true,
+          "type": "standard",
+          "name": "Integrated Drip Tray",
+          "description": "Slide-out collection tray positioned to capture excess oil and grease for healthier cooking and easy maintenance."
+        },
+        {
+          "owned": false,
+          "type": "standard",
+          "description": "Specialised tool designed to fit the plate grooves for efficient removal of food residue without damaging the coating.",
+          "name": "Cleaning Scraper",
+          "id": "acc-514e2"
+        },
+        {
+          "type": "optional",
+          "description": "Alternative non-stick plates designed for Belgian-style waffle preparation.",
+          "id": "acc-v7696",
+          "owned": true,
+          "name": "Interchangeable Waffle Plates"
+        }
+      ],
+      "class": "Countertop Cooking Appliance",
+      "createdBy": "user-1",
+      "id": "eq-1muei5bsl",
+      "modelName": "2000W 3-in-1 Contact Grill",
+      "createdAt": "2026-01-24T15:03:02.412Z",
+      "name": "AMZCHEF 2000W 3-in-1 Contact Grill",
+      "description": "A versatile indoor electric grill featuring a 180-degree flat opening for griddle use and an adjustable height lock for panini pressing.",
+      "status": "Available",
+      "type": "Electric Contact Grill",
+      "brand": "AMZCHEF"
+    },
+    {
+      "description": "This essential three-piece set provides a comprehensive solution for professional stovetop requirements, featuring the 16cm, 18cm, and 20cm Vista draining saucepans. Each unit in this variant is constructed from mirror-polished stainless steel and incorporates the signature double-sided draining lid system, eliminating the need for separate colanders. The set includes three saucepans with matching vented glass lids, all featuring thermic bases for even heat distribution. This specific bundle is ideal for kitchens requiring versatile sizing while maintaining the specific technical advantages of the Vista draining range across multiple burner stations.",
+      "uses": "Boiling vegetables, reducing sauces, heating liquids, draining pasta or potatoes directly from the pan without a colander, simmering soups.",
+      "upi": "J304",
+      "id": "eq-2ii683zc5",
+      "type": "Saucepan",
+      "createdBy": "user-1",
+      "class": "Cookware",
+      "modelName": "Vista 3 Piece Draining Saucepan Set",
+      "name": "Judge Vista 3 Piece Draining Saucepan Set",
+      "createdAt": "2026-01-19T15:07:29.720Z",
+      "accessories": [
+        {
+          "owned": true,
+          "description": "Vented glass lid with perforated rim for draining.",
+          "id": "acc-slauc",
+          "type": "standard",
+          "name": "16cm Draining Lid"
+        },
+        {
+          "id": "acc-v2q01",
+          "type": "standard",
+          "owned": true,
+          "name": "18cm Draining Lid",
+          "description": "Vented glass lid with perforated rim for draining."
+        },
+        {
+          "id": "acc-ebpe3",
+          "type": "standard",
+          "name": "20cm Draining Lid",
+          "owned": true,
+          "description": "Vented glass lid with perforated rim for draining."
+        }
+      ],
+      "brand": "Judge",
+      "features": "Material: High-grade stainless steel body with thick hot-forged base; Thermal Distribution: Uniform heat conduction suitable for gas, halogen, ceramic, solid plate, and induction hobs; Lid Construction: Shatter-proof vented glass with stainless steel rim featuring dual-sided draining perforations (variable gauge); Handle Specs: Phenolic low-thermal conductivity handles; Capacity: 16cm, 18cm, and 20cm diameters with internal capacity markings.",
+      "status": "Available"
+    },
+    {
+      "status": "Available",
+      "type": "Pressure Cooker",
+      "name": "Kuhn Rikon Duromatic Inox Side Grip 6L/24cm",
+      "createdBy": "user-1",
+      "class": "Culinary Equipment",
+      "description": "A premium Swiss-made stainless steel pressure cooker featuring two side handles for stable lifting and compact storage.",
+      "createdAt": "2026-01-24T14:30:43.612Z",
+      "modelName": "Duromatic Inox Side Grip 6L/24cm",
+      "accessories": [
+        {
+          "owned": true,
+          "description": "Stainless steel tripod stand used to keep food containers or steamer baskets above the water level.",
+          "name": "Internal Trivet",
+          "type": "standard",
+          "id": "acc-y6t94"
+        },
+        {
+          "description": "Comprehensive manual including cooking times and maintenance procedures for the spring-loaded valve system.",
+          "type": "standard",
+          "name": "Operating Instructions",
+          "id": "acc-ntplq",
+          "owned": true
+        },
+        {
+          "name": "Perforated Steamer Basket",
+          "type": "optional",
+          "description": "High-grade stainless steel insert for efficient nutrient retention during vegetable and fish preparation.",
+          "id": "acc-e30rv",
+          "owned": false
+        },
+        {
+          "id": "acc-dz5qb",
+          "owned": false,
+          "type": "optional",
+          "name": "Replacement Silicone Gasket",
+          "description": "Specific 24cm diameter high-grade silicone sealing ring for maintaining pressure integrity."
+        }
+      ],
+      "brand": "Kuhn Rikon",
+      "id": "eq-38zrbr0x8"
+    },
+    {
+      "id": "eq-3gizee0o3",
+      "createdBy": "daniel@salt.uk",
+      "uses": "Spatchcocking whole chickens; Jointing poultry; Removing backbones; Portioning game birds",
+      "upi": "7.6394",
+      "features": "Forged stainless steel; Chrome-plated finish; Internal return spring; Safety locking latch; Bone-cutting notch; 250mm overall length",
+      "brand": "Victorinox",
+      "modelName": "Poultry Shears (7.6394)",
+      "class": "Preparation Tools",
+      "description": "Professional-grade forged poultry shears engineered for the precise breakdown of whole birds and game. The chrome-plated stainless steel construction ensures durability and hygiene during heavy preparation tasks. Featuring an internal spring and curved blades, they provide the necessary leverage for cutting through bone and cartilage with minimal effort.",
+      "name": "Victorinox Poultry Shears (7.6394)",
+      "accessories": [],
+      "type": "Poultry Shears",
+      "status": "Available",
+      "createdAt": "2026-02-09T20:14:53.952Z"
+    },
+    {
+      "createdBy": "user-1",
+      "accessories": [
+        {
+          "owned": true,
+          "description": "High-grade 20cm immersion shaft with integrated blade guard, designed for heat resistance and easy removal for cleaning.",
+          "name": "Detachable Stainless Steel Blending Shaft",
+          "type": "standard",
+          "id": "acc-897oj"
+        },
+        {
+          "id": "acc-56ca9",
+          "description": "Fixed stainless steel S-blade optimized for high-speed pureeing, crushing, and smooth emulsification.",
+          "type": "standard",
+          "name": "Multi-Purpose Cutting Blade",
+          "owned": true
+        },
+        {
+          "id": "acc-bfx3m",
+          "type": "optional",
+          "description": "800ml capacity graduated measuring jug with non-slip base for stable operation during high-speed blending.",
+          "name": "BPA-Free Blending Beaker",
+          "owned": false
+        },
+        {
+          "id": "acc-05gvc",
+          "type": "optional",
+          "owned": false,
+          "description": "Stainless steel whisk gear box and wire frame for aerating egg whites, creams, and light batters.",
+          "name": "Balloon Whisk Attachment"
+        }
+      ],
+      "id": "eq-3jq2f1hg5",
+      "name": "KitchenCraft KCBLENDERSS",
+      "description": "A stainless steel pastry blender featuring five sturdy blades and a contoured handle for efficient mixing of fats into dry ingredients.",
+      "status": "Available",
+      "brand": "KitchenCraft",
+      "modelName": "KCBLENDERSS",
+      "createdAt": "2026-01-24T14:41:47.270Z",
+      "class": "Utensil",
+      "type": "Pastry Blender"
+    },
+    {
+      "createdBy": "user-1",
+      "id": "eq-3zlr1m5nu",
+      "modelName": "D3 Stainless 3-Ply Bonded Fry Pan with Lid, 10-Inch",
+      "status": "Available",
+      "accessories": [
+        {
+          "type": "standard",
+          "owned": true,
+          "description": "10-inch diameter vessel, 3-ply bonded stainless steel with aluminum core.",
+          "id": "acc-adf05",
+          "name": "Main Pan Body"
+        },
+        {
+          "description": "Stainless steel fitted cover to retain moisture and heat.",
+          "type": "standard",
+          "owned": true,
+          "id": "acc-z3ykn",
+          "name": "Lid"
+        }
+      ],
+      "features": "3-ply bonded construction (steel/aluminum/steel), warp-resistant base, highly polished starburst finish, superior thermal conductivity, induction compatible.",
+      "brand": "All-Clad",
+      "name": "All-Clad D3 Stainless 3-Ply Bonded Fry Pan with Lid, 10-Inch",
+      "upi": "D3-FP-10-LID",
+      "uses": "Searing, browning, pan-frying, sautéing, oven finishing.",
+      "class": "Cookware",
+      "createdAt": "2026-01-19T11:13:10.629Z",
+      "description": "The All-Clad D3 Stainless 10-Inch Fry Pan with Lid is a cornerstone of professional UK kitchens, featuring a classic tri-ply construction with a responsive aluminium core bonded between two layers of durable stainless steel. This specific variant includes a precision-fit stainless steel lid, which is not standard on the base fry pan models. The lid allows for moisture retention and versatile cooking techniques like poaching or finishing. Its flared edges facilitate drip-free pouring, while the riveted handle ensures a secure, heat-resistant grip during high-heat searing and pan-frying.",
+      "type": "Frying Pan"
+    },
+    {
+      "accessories": [
+        {
+          "id": "acc-618s0",
+          "description": "Sturdy stainless steel hook designed to secure the strainer onto the rim of pots or bowls for stable, hands-free operation.",
+          "name": "Integrated Bowl Hook",
+          "type": "standard",
+          "owned": true
+        },
+        {
+          "name": "Reinforced Handle",
+          "type": "standard",
+          "id": "acc-2qxpo",
+          "owned": true,
+          "description": "Long-reach ergonomic handle with a hanging loop, designed for safety and ease of use in high-volume professional environments."
+        },
+        {
+          "description": "External stainless steel wire frame providing structural support and protection for the fine mesh cone against mechanical damage.",
+          "name": "Protective Wire Cage",
+          "type": "standard",
+          "owned": true,
+          "id": "acc-55uh0"
+        },
+        {
+          "id": "acc-kzaeb",
+          "name": "Replacement Mesh Kit",
+          "type": "optional",
+          "description": "Service kit containing replacement fine mesh inserts for maintenance of high-use units.",
+          "owned": false
+        }
+      ],
+      "id": "eq-4gx8qswwn",
+      "type": "Sieve",
+      "modelName": "8\" Bouillon Strainer (Fine Mesh)",
+      "description": "Professional 20cm stainless steel conical strainer featuring a fine mesh for refining stocks, sauces, and soups.",
+      "createdBy": "user-1",
+      "createdAt": "2026-01-24T14:12:09.176Z",
+      "status": "Available",
+      "class": "Professional Kitchenware",
+      "brand": "Samuel Groves",
+      "name": "Samuel Groves 8\" Bouillon Strainer (Fine Mesh)"
+    },
+    {
+      "uses": "Deep frying chips, fish, doughnuts, tempura, and breaded items with precise temperature control and clean oil management.",
+      "accessories": [
+        {
+          "id": "acc-mzugw",
+          "owned": true,
+          "type": "standard",
+          "name": "Frying Basket",
+          "description": "Wire mesh basket with cool-touch handle for submerging and retrieving food."
+        },
+        {
+          "type": "standard",
+          "owned": true,
+          "name": "Oil Storage Box",
+          "id": "acc-cg54w",
+          "description": "Integrated container for storing filtered oil beneath the frying unit."
+        },
+        {
+          "description": "Lid featuring a permanent metallic filter and viewing window for monitoring cooking progress.",
+          "type": "standard",
+          "id": "acc-f6u4u",
+          "owned": true,
+          "name": "Lid with Viewing Window"
+        }
+      ],
+      "description": "This Tefal OleoClean Pro FR804040 is a semi-professional deep fryer featuring a unique worldwide patented automatic oil filtration system. Once your cooking is complete and the oil has cooled, the device automatically drains and filters the oil into a storage box below for reuse. This specific 3.5L variant includes a large brushed stainless steel frying basket, a permanent metallic filter within the lid, and an adjustable thermostat. The viewing window allows for easy monitoring, while the fully dismantlable parts ensure hassle-free cleaning in a dishwasher.",
+      "modelName": "OleoClean Pro FR804040",
+      "brand": "Tefal",
+      "createdAt": "2026-01-19T14:37:34.221Z",
+      "status": "Available",
+      "name": "Tefal OleoClean Pro FR804040",
+      "features": "2300W power rating for rapid heat-up; 3.5L oil capacity; 1.2kg food capacity; Patented automatic oil filtration system; Adjustable thermostat (150°C to 190°C); Digital timer; Immersed heating element technology; Cool zone technology to prevent food debris burning.",
+      "type": "Deep Fat Fryer",
+      "upi": "FR804040",
+      "id": "eq-4wogc441c",
+      "createdBy": "user-1",
+      "class": "Worktop Appliance"
+    },
+    {
+      "features": "Material: 99% Iron / Carbon Steel (mineral material). Gauge: 3mm thick skirt for uniform heat diffusion. Thermal Compatibility: High-temperature searing, grill, and oven safe (flash cooking only due to coated handle). Heat Source: All hobs including induction. Handle: Triple-riveted steel strip handle with ergonomic French curve.",
+      "status": "Available",
+      "name": "De Buyer Mineral B Carbon Steel Frying Pan 28cm",
+      "description": "This authentic De Buyer Mineral B 28cm frying pan is a premium French-made kitchen essential finished with protective organic beeswax. This specific variant features the iconic signature riveted handle with a comfortable ergonomic grip and the hallmark 'B' logo. Included in this package is the heavy-duty carbon steel pan itself, pre-treated to resist oxidation during transport. It is designed for high-heat searing and requires seasoning to develop a natural non-stick patina. This model is compatible with all hobs, including induction, making it a versatile choice for professional chefs.",
+      "upi": "de-buyer-mineral-b-frying-pan-28cm",
+      "accessories": [
+        {
+          "name": "Beeswax Finish",
+          "description": "Protective organic coating (to be removed before first use).",
+          "type": "standard",
+          "id": "acc-9p2up",
+          "owned": false
+        }
+      ],
+      "modelName": "Mineral B Carbon Steel Frying Pan 28cm",
+      "brand": "De Buyer",
+      "id": "eq-5k8c8ijaq",
+      "type": "Frying Pan",
+      "class": "Cookware",
+      "createdAt": "2026-01-19T14:45:32.857Z",
+      "uses": "High-heat searing of steaks, caramelising vegetables, Maillard reaction development, grilling fish, crepe making, and omelettes (once seasoned).",
+      "createdBy": "user-1"
+    },
+    {
+      "type": "Sauté Pan",
+      "brand": "Le Creuset",
+      "features": "Tri-ply construction (18/10 interior, aluminium core, 18/0 exterior), 360° pouring rim, capacity markings, helper handle.",
+      "upi": "96100928000000",
+      "accessories": [
+        {
+          "name": "Stainless Steel Lid",
+          "id": "acc-yffcb",
+          "type": "standard",
+          "owned": true,
+          "description": "Close-fitting 28cm lid to retain heat and moisture."
+        },
+        {
+          "name": "Helper Handle",
+          "type": "standard",
+          "id": "acc-9cvpy",
+          "description": "Integrated stainless steel handle for stability during lifting.",
+          "owned": true
+        },
+        {
+          "id": "acc-of5zi",
+          "owned": false,
+          "name": "Splatter Guard",
+          "description": "Stainless steel mesh guard to contain oil projection.",
+          "type": "optional"
+        }
+      ],
+      "status": "Available",
+      "modelName": "3-Ply Stainless Steel Sauteuse",
+      "createdAt": "2026-01-19T11:15:28.021Z",
+      "uses": "Sautéing, reducing sauces, poaching, simmering risottos, searing.",
+      "id": "eq-6ni68orab",
+      "createdBy": "user-1",
+      "name": "Le Creuset 3-Ply Stainless Steel Sauteuse",
+      "class": "Cookware",
+      "description": "This professional 28cm Sauteuse from Le Creuset’s 3-ply range is a versatile kitchen essential, featuring a multi-layered construction that ensures rapid, uniform heat distribution from base to rim. This specific 5.7-litre variant is distinguished by its generous capacity and dual stainless-steel side handles, making it ideal for batch cooking and seamless hob-to-table serving. Included in this package is the precision-fit stainless steel lid, which locks in moisture and nutrients during slow braising. Unlike smaller models, this 28cm version comfortably caters to large family meals of 6-8 portions."
+    },
+    {
+      "uses": "Boiling stocks and broths, steaming vegetables or fish, cooking pasta, blanching large quantities of ingredients.",
+      "id": "eq-7diqj6c16",
+      "createdAt": "2026-01-19T14:51:56.890Z",
+      "class": "Cookware",
+      "accessories": [
+        {
+          "id": "acc-u9vcv",
+          "name": "24cm Stockpot Base",
+          "owned": true,
+          "description": "Main stainless steel vessel for boiling and simmering.",
+          "type": "standard"
+        },
+        {
+          "id": "acc-yd4np",
+          "owned": true,
+          "name": "Multi-Steamer Insert",
+          "type": "standard",
+          "description": "Perforated stainless steel insert that fits atop the stockpot for steaming."
+        },
+        {
+          "description": "See-through lid with steam vent, fits both the stockpot and steamer insert.",
+          "id": "acc-th226",
+          "owned": true,
+          "name": "Toughened Glass Lid",
+          "type": "standard"
+        }
+      ],
+      "createdBy": "user-1",
+      "name": "Prestige Made to Last Stainless Steel Stockpot & Steamer Set 24cm",
+      "type": "Stockpot",
+      "brand": "Prestige",
+      "modelName": "Made to Last Stainless Steel Stockpot & Steamer Set 24cm",
+      "features": "Construction: Stainless steel body with induction-suitable friction-bonded base. Capacity: High-volume cylindrical profile. Thermal Tolerance: Oven safe up to 180°C (350°F/Gas Mark 4). Lid: Toughened glass with steam vent and stainless steel rim. Handles: Securely riveted stainless steel side handles.",
+      "description": "This professional-grade set features a robust 24cm stockpot crafted from high-quality stainless steel, designed for durability and longevity in busy kitchens. Included in this specific variant is the 24cm stockpot, a perfectly fitting 24cm steamer insert, and a toughened glass lid, allowing for versatile cooking methods from boiling to healthy steaming. The set boasts a thick encapsulated base for even heat distribution and is fully compatible with all hobs, including induction. Riveted stainless steel handles ensure a secure, comfortable grip for safe handling.",
+      "status": "Available",
+      "upi": "PRESTIGE-MTL-STOCKPOT-STEAMER-24"
+    },
+    {
+      "status": "Available",
+      "type": "Electric Induction Milk Frother",
+      "name": "Maestri House 12-in-1 Variable Temperature Milk Frother",
+      "createdBy": "user-1",
+      "class": "High-End Domestic",
+      "description": "Electric 600ml milk frother featuring touch controls for 12 preset programs, adjustable temperature settings, and multiple foam density options.",
+      "createdAt": "2026-01-24T14:47:04.985Z",
+      "modelName": "12-in-1 Variable Temperature Milk Frother",
+      "accessories": [
+        {
+          "description": "Precision-engineered whisk for generating four distinct foam densities.",
+          "id": "acc-23x5y",
+          "owned": true,
+          "type": "standard",
+          "name": "Magnetic Frothing Whisk"
+        },
+        {
+          "name": "Heating Disc",
+          "owned": true,
+          "type": "standard",
+          "id": "acc-51ri9",
+          "description": "Interchangeable whisk for heating milk with minimal aeration."
+        },
+        {
+          "description": "Dishwasher-safe 304-grade steel jug with a 600ml heating capacity.",
+          "name": "Detachable Stainless Steel Jug",
+          "id": "acc-9z88p",
+          "owned": true,
+          "type": "standard"
+        },
+        {
+          "description": "Secure lid with silicone gasket for monitoring froth development.",
+          "owned": true,
+          "type": "standard",
+          "name": "BPA-Free Transparent Lid",
+          "id": "acc-2tf7u"
+        }
+      ],
+      "id": "eq-8m3fxzkvy",
+      "brand": "Maestri House"
+    },
+    {
+      "modelName": "CI100UK",
+      "class": "Handheld Kitchen Appliance",
+      "createdBy": "user-1",
+      "description": "A versatile 850W 3-in-1 kitchen system that functions as a hand blender, hand mixer, and compact food chopper using a single interchangeable powerbase.",
+      "createdAt": "2026-01-24T14:28:06.189Z",
+      "brand": "Ninja",
+      "type": "3-in-1 Food Preparation System",
+      "status": "Available",
+      "name": "Ninja CI100UK",
+      "id": "eq-8m9o73jzo",
+      "accessories": [
+        {
+          "id": "acc-mlqhz",
+          "description": "The central motor unit featuring Smart Torque technology that automatically adjusts power based on the attachment used.",
+          "name": "850W Powerbase",
+          "owned": true,
+          "type": "standard"
+        },
+        {
+          "description": "Stainless steel immersion wand designed for blending soups, sauces, and smoothies directly in the pot.",
+          "owned": true,
+          "type": "standard",
+          "id": "acc-i15hj",
+          "name": "Hand Blender Attachment"
+        },
+        {
+          "description": "Dedicated mixing head that converts the Powerbase into a powerful hand mixer.",
+          "name": "Hand Mixer Attachment",
+          "owned": true,
+          "id": "acc-ajy4a",
+          "type": "standard"
+        },
+        {
+          "description": "Twin beaters engineered for aerating mixtures and blending cake batters.",
+          "owned": true,
+          "name": "Stainless Steel Beaters",
+          "type": "standard",
+          "id": "acc-w740c"
+        },
+        {
+          "owned": true,
+          "name": "700ml Chopper Bowl",
+          "id": "acc-3c8uv",
+          "type": "standard",
+          "description": "BPA-free processing bowl with non-slip base for precise chopping of vegetables, nuts, and herbs."
+        },
+        {
+          "type": "standard",
+          "owned": true,
+          "id": "acc-8ceqc",
+          "name": "Chopper Blade Assembly",
+          "description": "Precision-engineered stainless steel blades for consistent results within the chopper bowl."
+        },
+        {
+          "type": "standard",
+          "name": "Chopper Storage Lid",
+          "owned": true,
+          "description": "Airtight lid designed to keep processed ingredients fresh inside the chopper bowl.",
+          "id": "acc-9rvj8"
+        }
+      ]
+    },
+    {
+      "brand": "De Buyer",
+      "type": "Frying Pan",
+      "description": "The De Buyer Mineral B Carbon Steel Frying Pan, 24cm variant, is a premium choice for professional kitchens requiring high-heat searing and caramelisation. This specific model features a signature organic beeswax finish, which protects against oxidation and facilitates the seasoning process. It includes a heavy-duty carbon steel body, an ergonomic riveted steel handle for durability, and is compatible with all hobs, including induction. This variant is designed without chemical coatings, ensuring a natural non-stick surface develops over time with proper maintenance and oil seasoning.",
+      "accessories": [
+        {
+          "id": "acc-fz2g2",
+          "type": "standard",
+          "owned": true,
+          "name": "Pan Body",
+          "description": "24cm carbon steel vessel with beeswax coating"
+        }
+      ],
+      "modelName": "Mineral B Carbon Steel Frying Pan 24cm",
+      "name": "De Buyer Mineral B Carbon Steel Frying Pan 24cm",
+      "createdAt": "2026-01-19T14:43:18.680Z",
+      "status": "Available",
+      "uses": "Searing steaks, frying eggs (once seasoned), browning vegetables, Maillard reaction development, grilling meats.",
+      "upi": "3011245610241",
+      "createdBy": "user-1",
+      "class": "Cookware",
+      "id": "eq-bcprpwg8n",
+      "features": "Material: White carbon steel (99% iron); Thickness: 2.5mm; Handle: Riveted French-style ergonomic steel strip handle; Thermal Conductivity: High responsiveness to heat changes; Heat Source Compatibility: All hobs including induction; Oven Safe: Flash oven use (up to 200°C for 10 minutes max)."
+    },
+    {
+      "status": "Available",
+      "features": "Temperature range: 21–90°C; Power output: 200W; Anodised aluminium base plate; Calibrated specifically for consistent low-temperature stability; Accommodates up to an 8L stock pot or two 1kg bannetons.",
+      "accessories": [
+        {
+          "description": "Stainless steel tray for maintaining humidity during proving.",
+          "type": "standard",
+          "name": "Water Tray",
+          "owned": true,
+          "id": "acc-yc7va"
+        },
+        {
+          "type": "standard",
+          "owned": true,
+          "name": "Proving Rack",
+          "id": "acc-xx0f6",
+          "description": "Wire rack to elevate containers above the heating plate."
+        }
+      ],
+      "uses": "Proving yeast doughs (sourdough, sweet buns); Making yoghurt; Melting chocolate; Slow cooking stews and casseroles; Making black garlic; Culturing soft cheeses.",
+      "brand": "Brod & Taylor",
+      "description": "This award-winning appliance is an essential for professional UK bakers, providing a stable, humid environment for perfect dough rising. This specific variant features a dual-mode function, operating as both a precise bread proofer with settings from 21-49°C and a slow cooker reaching up to 90°C using your own Dutch oven. The package includes the collapsible proofer unit, a stainless steel wire rack, an aluminum water tray for humidity control, a detachable UK power cord, and an instruction manual. Its ingenious folding design collapses into a slim profile for efficient kitchen storage.",
+      "name": "Brod & Taylor Folding Proofer & Slow Cooker (FP-205)",
+      "upi": "FP-205",
+      "createdBy": "user-1",
+      "type": "Proofer / Slow Cooker",
+      "class": "Worktop Appliance",
+      "modelName": "Folding Proofer & Slow Cooker (FP-205)",
+      "id": "eq-bgd48azfl",
+      "createdAt": "2026-01-19T14:04:48.238Z"
+    },
+    {
+      "brand": "Kwasyo",
+      "status": "Available",
+      "createdBy": "user-1",
+      "id": "eq-cbsnwqssz",
+      "description": "Premium stainless steel dehydrator with digital touch controls, 24-hour timer, and adjustable temperature from 30-90°C.",
+      "modelName": "6-Tray Digital Food Dehydrator (400W)",
+      "name": "Kwasyo 6-Tray Digital Food Dehydrator (400W)",
+      "class": "Culinary Equipment",
+      "createdAt": "2026-01-24T14:36:16.453Z",
+      "accessories": [
+        {
+          "name": "Stainless Steel Mesh Trays",
+          "type": "standard",
+          "description": "Set of six dishwasher-safe 304-grade steel trays for even heat distribution.",
+          "id": "acc-pa0lu",
+          "owned": true
+        },
+        {
+          "type": "standard",
+          "name": "Drip Tray",
+          "id": "acc-h1zhk",
+          "description": "Base-level collection tray to facilitate easy cleaning of residues.",
+          "owned": true
+        },
+        {
+          "type": "standard",
+          "name": "Fruit Leather Sheet",
+          "id": "acc-dgxj4",
+          "owned": false,
+          "description": "Silicone-based solid sheet for processing purees and liquid-heavy ingredients."
+        },
+        {
+          "owned": true,
+          "description": "Fine-grid liner designed to prevent small items like herbs from falling through trays.",
+          "type": "standard",
+          "name": "Mesh Sheet",
+          "id": "acc-psl9c"
+        }
+      ],
+      "type": "Food Dehydrator"
+    },
+    {
+      "createdBy": "user-1",
+      "id": "eq-cms02gf7w",
+      "accessories": [
+        {
+          "description": "High-density ceramic press designed to compress terrine layers and eliminate air pockets.",
+          "name": "Weighted Press",
+          "owned": true,
+          "type": "standard",
+          "id": "acc-z0c3u"
+        },
+        {
+          "description": "Precision-fit lid with steam vent and traditional knob handle.",
+          "id": "acc-1bk9l",
+          "type": "standard",
+          "name": "Matching Lid",
+          "owned": true
+        }
+      ],
+      "name": "Le Creuset Stoneware Heritage Foie Gras Terrine with Press, 0.6L Volcanic",
+      "status": "Available",
+      "description": "Classic stoneware terrine with matching weighted press for creating professional-grade terrines and pâtés, finished in signature Volcanic orange.",
+      "brand": "Le Creuset",
+      "createdAt": "2026-01-24T14:23:41.666Z",
+      "modelName": "Stoneware Heritage Foie Gras Terrine with Press, 0.6L Volcanic",
+      "class": "Heritage Stoneware",
+      "type": "Terrine Dish"
+    },
+    {
+      "modelName": "Stainless Clad Frying Pan, 8-Inch",
+      "features": "5-ply stainless clad construction (multiple layers of metal for even heating); Induction compatible base; Oven safe thermal resistance up to 430°C; 8-inch cooking diameter; Stay-cool handle design to minimise heat transfer.",
+      "class": "Cookware",
+      "upi": "made-in-frying-pan-8-inch-ss",
+      "uses": "Searing proteins; frying eggs; sautéing small batches of vegetables; browning butter; finishing dishes in the oven.",
+      "brand": "Made In",
+      "id": "eq-d925c7ewy",
+      "createdBy": "user-1",
+      "type": "Frying Pan",
+      "status": "Available",
+      "accessories": [
+        {
+          "owned": true,
+          "name": "Pan Body",
+          "description": "8-inch 5-ply stainless clad vessel.",
+          "id": "acc-ljxiz",
+          "type": "standard"
+        }
+      ],
+      "description": "This professional-grade 8-inch frying pan from Made In features a premium 5-ply construction for superior heat distribution. Handcrafted in Italy, this specific variant includes a stay-cool handle and a high-wall design optimized for searing and sauteing smaller portions. The 5-ply material consists of multiple layers of stainless steel and aluminum, ensuring no hot spots and excellent responsiveness. It is induction-compatible and oven-safe up to 430 degrees Celsius, making it a versatile tool for demanding UK commercial kitchens or serious home cooks seeking technical excellence.",
+      "name": "Made In Stainless Clad Frying Pan, 8-Inch",
+      "createdAt": "2026-01-19T13:56:41.174Z"
+    },
+    {
+      "accessories": [
+        {
+          "name": "Multi-purpose Blade",
+          "type": "standard",
+          "id": "acc-4s81bsjrl",
+          "description": "The primary tool for mincing, chopping, and pureeing heavy ingredients or frozen fruit.",
+          "owned": true
+        },
+        {
+          "id": "acc-10sn83p6m",
+          "description": "Used for emulsifying and blending thick liquids, such as mayonnaise or pancake batter.",
+          "type": "standard",
+          "name": "Whisk Blade",
+          "owned": true
+        },
+        {
+          "owned": true,
+          "type": "standard",
+          "description": "A flat disc designed for whisking egg whites, whipping cream, and creating light, airy foams.",
+          "name": "Beater Blade",
+          "id": "acc-xjhcgrvpy"
+        },
+        {
+          "id": "acc-uly2o6eb0",
+          "name": "Processor",
+          "owned": true,
+          "type": "standard",
+          "description": "A dedicated grinding chamber for processing dry spices, nuts, and chocolate into fine powders."
+        },
+        {
+          "owned": true,
+          "name": "1000ml Jug",
+          "description": "A high-sided vessel calibrated in millilitres, optimized for splash-free blending and measuring.",
+          "type": "standard",
+          "id": "acc-nvazkfaog"
+        },
+        {
+          "name": "Slicesy Attachment",
+          "type": "optional",
+          "id": "acc-g33oa5hpq",
+          "owned": false,
+          "description": "A mechanical accessory that converts the unit into a miniature food processor for grating and slicing vegetables."
+        },
+        {
+          "name": "Powder Disc",
+          "type": "optional",
+          "owned": false,
+          "description": "An insert for the processor that ensures the finest possible grind for herbs and spices.",
+          "id": "acc-avfsd9ipp"
+        }
+      ],
+      "type": "Immersion Blender",
+      "modelName": "Swissline M200 Red",
+      "name": "Bamix Swissline M200 Red",
+      "createdAt": "2026-01-24T10:25:23.481Z",
+      "features": "200W heavy-duty AC motor; Dual speed settings of 12,000 and 17,000 RPM; Double insulation for safety; Waterproof switch membrane; Stainless steel driveshaft suitable for high-temperature service",
+      "brand": "Bamix",
+      "id": "eq-fm1tuzvt0",
+      "uses": "Emulsifying dressings, aerating foams and meringues, pureeing soups, crushing ice, whisking cream, and processing dry spices.",
+      "upi": "BAMIX-M200-RED-SL",
+      "class": "Worktop Appliance",
+      "createdBy": "user-1",
+      "description": "A high-torque professional immersion blender engineered with a heavy-duty AC motor for exceptional stability and longevity in the kitchen. This equipment is designed for precision emulsification, aeration, and heavy blending tasks directly within the pan or beaker.",
+      "status": "Available"
+    },
+    {
+      "type": "Gravy Separator",
+      "createdAt": "2026-01-24T14:16:25.772Z",
+      "class": "Culinary Preparation Tools",
+      "modelName": "Good Grips Good Gravy Fat Separator 1L",
+      "createdBy": "user-1",
+      "accessories": [
+        {
+          "description": "High-heat plastic mesh lid designed to catch herbs and food solids during initial pouring.",
+          "id": "acc-xznit",
+          "owned": true,
+          "type": "standard",
+          "name": "Removable Lid Strainer"
+        },
+        {
+          "name": "Integrated Silicone Valve",
+          "owned": true,
+          "type": "standard",
+          "description": "Drip-free shut-off valve located at the base to control liquid release via handle trigger.",
+          "id": "acc-o68se"
+        }
+      ],
+      "brand": "OXO",
+      "status": "Available",
+      "description": "A large capacity gravy separator with a built-in strainer and a trigger-controlled release at the bottom for mess-free pouring.",
+      "name": "OXO Good Grips Good Gravy Fat Separator 1L",
+      "id": "eq-ft1f4bus5"
+    },
+    {
+      "class": "Worktop Appliance",
+      "type": "Microwave",
+      "modelName": "HMT75M461B",
+      "createdAt": "2026-01-24T15:23:01.056Z",
+      "name": "Bosch HMT75M461B",
+      "brand": "Bosch",
+      "id": "eq-hh3tkkbzj",
+      "accessories": [
+        {
+          "name": "Glass turntable",
+          "owned": true,
+          "id": "acc-wh9kd",
+          "description": "Removable 24.5cm glass plate ensuring even microwave distribution during operation.",
+          "type": "standard"
+        },
+        {
+          "owned": true,
+          "id": "acc-cdp0j",
+          "name": "Turntable roller ring",
+          "type": "standard",
+          "description": "Support component enabling smooth rotation of the glass turntable within the cavity."
+        },
+        {
+          "type": "standard",
+          "owned": true,
+          "description": "A factory-fitted frame allowing for seamless installation into standard kitchen cabinetry.",
+          "id": "acc-wyiwo",
+          "name": "Integrated trim kit"
+        }
+      ],
+      "createdBy": "user-1",
+      "description": "Serie 2 freestanding microwave oven in black finish with 800W power and 17 litre capacity.",
+      "status": "Available"
+    },
+    {
+      "createdAt": "2026-01-24T14:14:58.408Z",
+      "class": "Cookware",
+      "name": "Vogue Cast Iron Pate Terrine Mould Black 1.3L",
+      "id": "eq-hjt8hn0xh",
+      "accessories": [
+        {
+          "id": "acc-fxkej",
+          "type": "standard",
+          "name": "Cast Iron Lid",
+          "owned": true,
+          "description": "Tight-fitting lid with integrated handle to seal in moisture and flavours during the cooking process."
+        },
+        {
+          "id": "acc-orrbd",
+          "name": "Internal Press",
+          "type": "optional",
+          "owned": false,
+          "description": "Weighted plate designed to sit inside the mould for compressing terrines during chilling."
+        }
+      ],
+      "createdBy": "user-1",
+      "description": "A professional-grade black enamelled cast iron mould featuring a 1.3 litre capacity for consistent heat distribution during terrine preparation.",
+      "brand": "Vogue",
+      "status": "Available",
+      "type": "Terrine Mould",
+      "modelName": "Cast Iron Pate Terrine Mould Black 1.3L"
+    },
+    {
+      "createdAt": "2026-01-19T14:41:53.979Z",
+      "createdBy": "user-1",
+      "status": "Available",
+      "accessories": [
+        {
+          "owned": false,
+          "id": "acc-orgr5",
+          "type": "standard",
+          "description": "Protective layer against oxidation (must be removed prior to seasoning)",
+          "name": "Beeswax Coating"
+        }
+      ],
+      "name": "De Buyer Mineral B Carbon Steel Frying Pan",
+      "uses": "Searing steaks, frying eggs, caramelising onions, sautéing vegetables, omelettes.",
+      "brand": "De Buyer",
+      "upi": "mineral-b-fry-20",
+      "type": "Frying Pan",
+      "features": "Material: White carbon steel (99% iron, 1% carbon). Thickness: 2.5mm for consistent heat retention. Diameter: 20cm (base approx 14cm). Handle connection: Triple-riveted steel strip, oven safe for short periods (10 mins at 200°C).  Compatibility: All hobs including induction.",
+      "modelName": "Mineral B Carbon Steel Frying Pan",
+      "class": "Cookware",
+      "description": "The Mineral B 20cm pan is an iconic technical cookware choice for professional chefs seeking natural performance. This variant is uniquely coated with a protective organic beeswax finish, which prevents oxidation and initiates the seasoning process. Its 2.5mm thick carbon steel body ensures exceptional heat retention for searing and browning, while the signature French-curved riveted handle provides ergonomic control. Induction-compatible and PFOA-free, this pan develops a natural non-stick patina with use, making it ideal for individual portions and side dishes in a demanding kitchen.",
+      "id": "eq-hxe948gtd"
+    },
+    {
+      "modelName": "The Super Q - Brushed Stainless Steel",
+      "createdAt": "2026-01-24T14:38:10.930Z",
+      "accessories": [
+        {
+          "owned": true,
+          "id": "acc-0sw1l",
+          "name": "2.0L BPA-Free Copolyester Jug",
+          "description": "Large capacity impact-resistant jug designed for high-velocity blending and heat resistance.",
+          "type": "standard"
+        },
+        {
+          "id": "acc-8ejti",
+          "type": "standard",
+          "owned": true,
+          "description": "Includes a travel lid for blending and drinking from the same vessel.",
+          "name": "700ml Personal Blender Cup"
+        },
+        {
+          "id": "acc-04zp8",
+          "name": "Tamper",
+          "type": "standard",
+          "description": "Essential tool for pushing thick ingredients down into the blades without contact.",
+          "owned": true
+        },
+        {
+          "owned": true,
+          "name": "Scraper Spatula",
+          "description": "Custom-designed spatula to retrieve every last drop from the jug base.",
+          "type": "standard",
+          "id": "acc-4nz29"
+        },
+        {
+          "description": "Compatible vacuum pump used to remove air before blending for smoother textures and brighter colours.",
+          "owned": false,
+          "type": "optional",
+          "name": "Vac Q Vacuum Pump",
+          "id": "acc-1f585"
+        }
+      ],
+      "class": "Worktop Appliance",
+      "status": "Available",
+      "name": "Sage The Super Q - Brushed Stainless Steel",
+      "description": "A high-performance commercial grade blender with a 2400W motor and 12 speed settings designed for home kitchens.",
+      "brand": "Sage",
+      "createdBy": "user-1",
+      "id": "eq-isfmomtol",
+      "type": "High-Performance Blender"
+    },
+    {
+      "createdBy": "user-1",
+      "status": "Available",
+      "name": "LiveFresh 4.7 Litre Micro-Perforated Colander",
+      "createdAt": "2026-01-24T15:05:58.754Z",
+      "type": "Strainer",
+      "description": "A heavy-duty stainless steel colander featuring a micro-perforated mesh design and a sturdy pedestal base for quick draining.",
+      "modelName": "4.7 Litre Micro-Perforated Colander",
+      "brand": "LiveFresh",
+      "class": "Professional Cookware",
+      "id": "eq-jdqx6b53t",
+      "accessories": [
+        {
+          "type": "standard",
+          "owned": true,
+          "name": "Reinforced Pedestal Base",
+          "id": "acc-y68ux",
+          "description": "Elevated base providing stability and preventing back-flow of drained water."
+        },
+        {
+          "name": "Dual Riveted Handles",
+          "owned": true,
+          "type": "standard",
+          "description": "Large, ergonomically designed handles for secure grip and safe transport of hot contents.",
+          "id": "acc-j44nj"
+        },
+        {
+          "id": "acc-uf757",
+          "description": "Stainless steel collection plate designed to sit beneath the colander to catch excess moisture.",
+          "name": "Custom Fit Drip Tray",
+          "owned": false,
+          "type": "optional"
+        }
+      ]
+    },
+    {
+      "id": "eq-kgz4hxvwv",
+      "class": "Culinary Preparation",
+      "name": "Navaris 19cm Stainless Steel Food Mill",
+      "accessories": [
+        {
+          "description": "Interchangeable disc with 2mm perforations designed for smooth purees, coulis, and fine sauces.",
+          "id": "acc-pv3uz",
+          "name": "Fine Milling Disc",
+          "owned": true,
+          "type": "standard"
+        },
+        {
+          "owned": true,
+          "name": "Medium Milling Disc",
+          "type": "standard",
+          "description": "Interchangeable disc with 3mm perforations ideal for vegetable soups and thicker tomato sauces.",
+          "id": "acc-m6me1"
+        },
+        {
+          "type": "standard",
+          "owned": true,
+          "id": "acc-ntt9c",
+          "name": "Coarse Milling Disc",
+          "description": "Interchangeable disc with 7mm perforations suitable for chunky mashes, applesauce, and rustic textures."
+        },
+        {
+          "owned": true,
+          "description": "Spring-loaded manual crank mechanism with integrated scraper blade for consistent pressure.",
+          "type": "standard",
+          "id": "acc-kb6k9",
+          "name": "Stainless Steel Handle and Blade Assembly"
+        }
+      ],
+      "status": "Available",
+      "description": "Manual rotary sieve with fine grinding disc for smooth purees and baby food.",
+      "modelName": "19cm Stainless Steel Food Mill",
+      "createdBy": "user-1",
+      "createdAt": "2026-01-24T14:20:28.841Z",
+      "type": "Manual Food Mill",
+      "brand": "Navaris"
+    },
+    {
+      "status": "Available",
+      "description": "This Lodge 4.73 Litre (5 Quart) Double Dutch Oven is a versatile piece of technical cookware essential for any professional kitchen. This specific variant includes a deep cast iron base and a multi-functional lid that doubles as a 10.25-inch skillet, providing two cooking vessels in one compact unit. Pre-seasoned with 100% natural vegetable oil, it offers unparalleled heat retention and even heating. Perfect for searing, sautéing, or baking artisan bread, this heavy-duty set is induction compatible and designed to withstand rigorous commercial use.",
+      "id": "eq-mmwzhus1d",
+      "uses": "Slow cooking stews and braises, baking sourdough bread, roasting meats, deep frying, searing steaks (using lid-skillet), campfire cooking.",
+      "type": "Casserole / Dutch Oven",
+      "createdAt": "2026-01-19T13:59:50.704Z",
+      "upi": "L8DD3",
+      "modelName": "L8DD3 Cast Iron Double Dutch Oven",
+      "features": "Material: Pre-seasoned Cast Iron. Capacity: 4.73 Litres. Diameter: 26.35 cm. Depth: 11.43 cm. Weight: 5.61 kg. Thermal Properties: High heat retention and even distribution. Compatibility: Induction, gas, electric, ceramic hobs, oven, and open fire safe. Lid Function: Reversible lid doubles as a 26.35 cm skillet/frying pan.",
+      "createdBy": "user-1",
+      "name": "Lodge L8DD3 Cast Iron Double Dutch Oven",
+      "class": "Cookware",
+      "brand": "Lodge",
+      "accessories": [
+        {
+          "owned": true,
+          "description": "Dual-function lid that converts into a 26.35cm cast iron skillet.",
+          "id": "acc-iaun6",
+          "type": "standard",
+          "name": "Skillet Lid"
+        }
+      ]
+    },
+    {
+      "type": "Casserole / Dutch Oven",
+      "upi": "21177200000430",
+      "features": "Enamelled Cast Iron Construction, 20cm Diameter, 2.4L Capacity, Matte Black Finish, Induction Compatible Base, Oven Safe to 260°C.",
+      "id": "eq-o6bjvt14z",
+      "createdBy": "user-1",
+      "createdAt": "2026-01-19T11:16:48.430Z",
+      "accessories": [
+        {
+          "description": "Precision-fitting lid with stabilizers to seal in moisture and flavour.",
+          "type": "standard",
+          "owned": true,
+          "id": "acc-lww7k",
+          "name": "Heavy Cast Iron Lid"
+        },
+        {
+          "description": "Heat-resistant ergonomic knob attached to lid.",
+          "id": "acc-qpuor",
+          "type": "standard",
+          "name": "Stainless Steel Knob",
+          "owned": true
+        }
+      ],
+      "status": "Available",
+      "brand": "Le Creuset",
+      "uses": "Slow cooking, braising, baking, searing, stewing.",
+      "name": "Le Creuset Signature Enamelled Cast Iron Round Casserole 20cm",
+      "description": "This 20cm Signature Round Casserole in Matte Black is the professional standard for high-performance slow cooking. This specific 2.4-litre variant distinguishes itself from the Classic range by featuring 45% larger handles for easier handling with oven mitts and an upgraded, toughened sand-coloured interior enamel that is more resistant to staining and dulling. The lid is fitted with a heat-resistant stainless steel knob, rated for temperatures up to 260°C. Perfect for side dishes or small main meals, it provides exceptional heat retention and is fully induction compatible.",
+      "class": "Cookware",
+      "modelName": "Signature Enamelled Cast Iron Round Casserole 20cm"
+    },
+    {
+      "name": "All-Clad D3 Stainless 3-Quart Universal Pan with Lid",
+      "class": "Cookware",
+      "description": "This professional-grade All-Clad D3 Stainless 3-Quart Universal Pan is a versatile powerhouse for any UK kitchen. This specific variant includes the essential 3-quart pan featuring tri-ply construction with an encapsulated aluminium core for even heat distribution. Included in the box is a precision-fitting stainless steel lid to lock in moisture and heat. Its high, rounded sides make it perfect for sautéing, searing, or simmering sauces. The riveted stainless steel handle ensures a secure grip, while the polished finish offers timeless aesthetic appeal and induction compatibility.",
+      "accessories": [
+        {
+          "description": "Flat stainless steel lid to retain heat and moisture.",
+          "id": "acc-q3w1y",
+          "name": "Stainless Steel Lid",
+          "type": "standard",
+          "owned": true
+        }
+      ],
+      "features": "3-ply bonded construction with aluminium core; 18/10 stainless steel interior cooking surface; induction compatible magnetic stainless steel exterior; thermal resistance up to 315°C (oven and grill); 2.8 Litre capacity; rounded sidewalls for efficient whisking and turning.",
+      "id": "eq-okduzk8fp",
+      "createdAt": "2026-01-19T13:58:11.228Z",
+      "type": "Sauté Pan",
+      "brand": "All-Clad",
+      "createdBy": "user-1",
+      "modelName": "D3 Stainless 3-Quart Universal Pan with Lid",
+      "status": "Available",
+      "uses": "Searing proteins; simmering sauces; reducing liquids; sautéing vegetables; preparing risottos.",
+      "upi": "allclad_d3_universal_pan_3qt"
+    },
+    {
+      "accessories": [
+        {
+          "description": "Detachable stainless steel mesh disc designed to filter out solids and sediment during liquid transfer.",
+          "name": "Removable Filter Strainer",
+          "owned": true,
+          "id": "acc-6zq5z",
+          "type": "standard"
+        },
+        {
+          "name": "Integrated Ergonomic Handle",
+          "id": "acc-5ilhv",
+          "type": "standard",
+          "description": "Fixed side handle providing stability during pouring and allowing for convenient wall-mounted storage.",
+          "owned": true
+        },
+        {
+          "name": "Cleaning Brush",
+          "owned": false,
+          "type": "optional",
+          "id": "acc-z3dki",
+          "description": "Cylindrical nylon-bristled brush specifically sized for sanitising the narrow discharge spout."
+        }
+      ],
+      "id": "eq-orkngqzsn",
+      "type": "Transfer Tool",
+      "status": "Available",
+      "brand": "HAUSPROFI",
+      "class": "Commercial Kitchen Smallwares",
+      "description": "A 15cm diameter kitchen funnel made of food-grade stainless steel, featuring a removable strainer and a side handle for stability.",
+      "name": "HAUSPROFI 15cm Stainless Steel Funnel",
+      "createdBy": "user-1",
+      "modelName": "15cm Stainless Steel Funnel",
+      "createdAt": "2026-01-24T14:39:54.361Z"
+    },
+    {
+      "brand": "Browin",
+      "type": "Ham Cooker",
+      "description": "This professional-grade Browin 313016 set is a comprehensive solution for home meat processing, featuring a 1.5kg capacity pressure ham maker integrated with a dedicated water jacket pot. The set specifically includes a high-quality stainless steel ham cooker, a matching four-litre pot, a lid with a thermometer port, and a specialised digital probe thermometer for precision monitoring. It is designed for poaching meats in a controlled environment, ensuring succulent results for hams, terrines, and roulades. The water jacket design prevents direct contact with heating elements for uniform temperature distribution throughout the vessel.",
+      "accessories": [
+        {
+          "description": "Cylindrical stainless steel chamber with pressure spring lid.",
+          "name": "Ham Cooker Vessel",
+          "owned": true,
+          "type": "standard",
+          "id": "acc-k2oti"
+        },
+        {
+          "description": "4L stainless steel stockpot sized specifically to house the ham cooker for water bath cooking.",
+          "name": "Water Jacket Pot",
+          "type": "standard",
+          "id": "acc-d6o3h",
+          "owned": true
+        },
+        {
+          "name": "Digital Thermometer",
+          "type": "standard",
+          "description": "Probe thermometer for monitoring core meat temperature.",
+          "id": "acc-m4qcg",
+          "owned": true
+        },
+        {
+          "name": "Ham Cooker Bags",
+          "id": "acc-i6h5x",
+          "owned": true,
+          "type": "standard",
+          "description": "Plastic liners to facilitate meat removal and cleaning."
+        }
+      ],
+      "modelName": "Pressure Ham Cooker Set 1.5kg (313016)",
+      "name": "Browin Pressure Ham Cooker Set 1.5kg (313016)",
+      "createdAt": "2026-01-19T15:12:33.919Z",
+      "status": "Available",
+      "upi": "313016",
+      "uses": "Curing and scalding homemade ham; Preparing luncheon meats and pressed terrines; Poaching rollades; Vegetarian blocks and vegan pates.",
+      "createdBy": "user-1",
+      "class": "Cookware",
+      "id": "eq-p2cv4y1yc",
+      "features": "1.5kg meat chamber capacity; 4L water jacket pot capacity for bain-marie style scalding; 18/10 stainless steel construction; Integrated pressure spring mechanism ensures consistent texture and binding; Flange-mounted lid with dedicated thermometer port; Compatible with electric, induction, and gas hobs; Includes digital probe thermometer for core temperature monitoring."
+    },
+    {
+      "accessories": [
+        {
+          "id": "acc-43aoy",
+          "owned": true,
+          "type": "standard",
+          "description": "3.5L double-walled stainless steel bowl for hot and cold preparations.",
+          "name": "Thermo Bowl"
+        },
+        {
+          "id": "acc-mmqgv",
+          "type": "standard",
+          "name": "Universal Blade",
+          "owned": true,
+          "description": "Heavy-duty stainless steel blade for chopping, blending, and kneading."
+        },
+        {
+          "id": "acc-wtrww",
+          "description": "Accessory for aerating egg whites, whipping cream, and mashing potatoes.",
+          "owned": true,
+          "name": "Whisk",
+          "type": "standard"
+        },
+        {
+          "description": "Internal stainless steel steaming tray for vegetables, fish, and meat.",
+          "id": "acc-8z0hu",
+          "type": "standard",
+          "name": "Steamer Basket",
+          "owned": true
+        },
+        {
+          "description": "Shatterproof glass lid with seal for monitoring cooking progress.",
+          "type": "standard",
+          "id": "acc-4oof5",
+          "owned": true,
+          "name": "Glass Lid"
+        },
+        {
+          "type": "standard",
+          "owned": true,
+          "description": "Set of 3 transparent bowls (Main, Midi, Mini) for cold processing tasks.",
+          "name": "Food Processor Bowls",
+          "id": "acc-3th0j"
+        },
+        {
+          "id": "acc-dro8t",
+          "type": "standard",
+          "owned": true,
+          "name": "Slicing and Grating Discs",
+          "description": "Stainless steel Sabatier discs (2mm and 4mm) for precision cutting."
+        },
+        {
+          "id": "acc-aq245",
+          "owned": false,
+          "description": "5.5L external steaming unit for increased capacity.",
+          "type": "optional",
+          "name": "XL Steamer"
+        },
+        {
+          "type": "optional",
+          "description": "Specialised tool for kneading heavy doughs.",
+          "owned": true,
+          "id": "acc-p5w6w",
+          "name": "Dough Hook"
+        },
+        {
+          "name": "Spiral Expert",
+          "description": "Kit for creating vegetable noodles and ribbons.",
+          "type": "optional",
+          "owned": false,
+          "id": "acc-sxcs0"
+        },
+        {
+          "id": "acc-u0sf5",
+          "name": "Extra Press XL",
+          "owned": false,
+          "type": "optional",
+          "description": "Juice extractor attachment for cold press juicing."
+        },
+        {
+          "name": "Cocotte",
+          "description": "The Cocotte is an optional slow-cooking accessory for the Magimix Cook Expert, featuring a high-quality cast-iron pot with a ceramic coating designed for simmering, stewing, and baking with even heat distribution.",
+          "type": "optional",
+          "owned": true,
+          "id": "acc-sd1w7"
+        }
+      ],
+      "brand": "Magimix",
+      "description": "The Magimix Cook Expert is an all-in-one multifunctional appliance designed for professional home kitchens. This standard variant features a 3.5-litre stainless steel Thermo bowl, distinct for its induction heating that reaches 160°C. Unlike the standalone food processor, this model includes the full food processor attachment with three BPA-free bowls (3.6L, 2.6L, and 1.2L) and four Sabatier grating and slicing discs. It effectively replaces a stand mixer, blender, and steamer, coming complete with a dedicated digital scale, a recipe book, and a two-tier internal steamer basket.",
+      "name": "Magimix Cook Expert",
+      "uses": "Cooking, steaming, blending, kneading, whisking, grating, slicing, chopping, emulsifying, slow cooking, sous-vide.",
+      "createdBy": "user-1",
+      "id": "eq-pft3vzith",
+      "features": "Induction heating system (1700W); 30°C to 160°C precise temperature control (1°C increments); 900W commercial-grade induction motor; 12 automatic programmes; Expert manual mode",
+      "status": "Available",
+      "modelName": "Cook Expert",
+      "upi": "18900",
+      "createdAt": "2026-01-19T10:58:01.390Z",
+      "class": "Worktop Appliance",
+      "type": "Cooking Food Processor"
+    },
+    {
+      "name": "ThermoPro Lightning (Black Edition)",
+      "id": "eq-q0r1tkdql",
+      "modelName": "Lightning (Black Edition)",
+      "brand": "ThermoPro",
+      "accessories": [
+        {
+          "owned": true,
+          "name": "CR2032 Lithium Battery",
+          "type": "standard",
+          "description": "3V coin cell battery providing high-capacity power for the digital display and backlight.",
+          "id": "acc-fn2yp"
+        },
+        {
+          "owned": true,
+          "id": "acc-amesm",
+          "type": "standard",
+          "name": "Integrated Magnetic Mount",
+          "description": "Internal high-strength magnets for convenient storage on metal kitchen surfaces."
+        },
+        {
+          "id": "acc-tp4ck",
+          "type": "standard",
+          "owned": true,
+          "description": "Technical guide covering calibration procedures, maintenance, and safe usage instructions.",
+          "name": "Operating Manual"
+        },
+        {
+          "type": "standard",
+          "description": "Specific tool provided for accessing the water-sealed battery compartment.",
+          "id": "acc-awjff",
+          "owned": true,
+          "name": "Precision Screwdriver"
+        },
+        {
+          "id": "acc-r35kd",
+          "type": "standard",
+          "description": "Document verifying the accuracy of the unit against traceable thermal standards.",
+          "owned": true,
+          "name": "Calibration Certificate"
+        }
+      ],
+      "type": "Instant-Read Digital Thermometer",
+      "class": "High-Performance Culinary Tool",
+      "status": "Available",
+      "createdBy": "user-1",
+      "description": "High-performance digital meat thermometer providing 1-second readings with a motion-sensing sleep and wake mode.",
+      "createdAt": "2026-01-24T14:17:57.092Z"
+    },
+    {
+      "createdBy": "user-1",
+      "brand": "COSORI",
+      "status": "Available",
+      "description": "5.0-Quart multi-functional rice cooker with 18-in-1 functions including slow cook, steam, and sauté features.",
+      "accessories": [
+        {
+          "description": "5.0-litre capacity pot with dual-layer non-stick coating for easy food release and cleaning.",
+          "type": "standard",
+          "id": "acc-y1rt3",
+          "owned": true,
+          "name": "Non-stick Inner Pot"
+        },
+        {
+          "description": "Food-grade steamer insert for preparing vegetables and proteins simultaneously with rice.",
+          "owned": true,
+          "name": "Steam Basket",
+          "type": "standard",
+          "id": "acc-9zsnn"
+        },
+        {
+          "owned": true,
+          "type": "standard",
+          "id": "acc-kbbkh",
+          "name": "Rice Paddle",
+          "description": "Heat-resistant plastic spatula designed to serve rice without scratching the inner pot surface."
+        },
+        {
+          "type": "standard",
+          "name": "Measuring Cup",
+          "id": "acc-ez099",
+          "description": "Standardised rice measuring cup for accurate grain-to-water ratios.",
+          "owned": true
+        },
+        {
+          "owned": true,
+          "id": "acc-rsz98",
+          "description": "Deep-welled spoon suitable for serving congee, soups, and stews.",
+          "name": "Soup Spoon",
+          "type": "standard"
+        }
+      ],
+      "class": "Small Domestic Appliance",
+      "id": "eq-rlt3eoppo",
+      "modelName": "CRC-R501-KUK",
+      "type": "Rice Cooker",
+      "name": "COSORI CRC-R501-KUK",
+      "createdAt": "2026-01-24T14:49:41.688Z"
+    },
+    {
+      "upi": "tefal-unlimited-on-28cm",
+      "class": "Cookware",
+      "id": "eq-s1dv4zna9",
+      "accessories": [],
+      "description": "This Tefal Unlimited On 28cm frying pan is engineered for professional-grade durability in a busy UK kitchen. It features the Titanium Anti-Scratch non-stick coating, which is six times stronger than standard Tefal coatings, allowing for the use of metal utensils without damage. This specific variant includes the Thermo-Signal heat indicator, which turns solid red when the pan reaches the ideal starting temperature. The Thermo-Fusion+ induction base ensures fast and even heat distribution across the entire surface for consistent searing and professional frying results.",
+      "modelName": "Unlimited On Frying Pan 28cm",
+      "type": "Frying Pan",
+      "createdBy": "user-1",
+      "brand": "Tefal",
+      "features": "Diameter: 28cm. Coating: Titanium Anti-Scratch non-stick reinforcement. Base Construction: Thermo-Fusion+ extra-large grid induction base for even thermal distribution. Thermal Indicator: Thermo-Signal turns solid red at optimal cooking temperature. Thermal Tolerance: Oven safe up to 175°C. Compatibility: Induction, Gas, Electric, Ceramic, Halogen.",
+      "status": "Available",
+      "name": "Tefal Unlimited On Frying Pan 28cm",
+      "uses": "Searing meat, frying eggs, sautéing vegetables, pancakes, omelettes, finishing dishes in the oven.",
+      "createdAt": "2026-01-19T14:35:16.082Z"
+    },
+    {
+      "createdBy": "user-1",
+      "uses": "Precision roasting; Steam-assisted baking; Bagless sous-vide; Dough proofing; Dehydrating; Reheating without loss of moisture",
+      "brand": "Anova Culinary",
+      "id": "eq-sqfof6810",
+      "class": "Worktop Appliance",
+      "createdAt": "2026-01-19T11:10:45.774Z",
+      "name": "Anova Culinary Precision Oven",
+      "upi": "ANOVA-PO-710",
+      "modelName": "Precision Oven",
+      "description": "A professional-grade countertop combi-oven designed to bring commercial steam technology into the domestic kitchen. This equipment provides precise control over temperature and humidity, allowing for consistent results across a variety of cooking methods from slow roasting to steam-injected bread baking.",
+      "type": "Combi-Steam Oven",
+      "features": "Temperature range from 25°C to 250°C; 100% steam capability with integrated 5-litre water tank; High-speed convection fan for even heat distribution; Wet and dry bulb temperature sensors; Top, bottom, and rear heating elements",
+      "accessories": [
+        {
+          "name": "Wire Rack",
+          "owned": true,
+          "description": "Stainless steel rack designed for optimal airflow and tray support during service.",
+          "type": "standard",
+          "id": "acc-w3w2oetwi"
+        },
+        {
+          "owned": true,
+          "type": "standard",
+          "name": "Sheet Pan",
+          "description": "Professional-grade enamel pan for roasting and baking applications.",
+          "id": "acc-gdmbz4uy9"
+        },
+        {
+          "id": "acc-pjkrm70ms",
+          "description": "Multi-point precision probe for monitoring internal temperatures of meat and fish.",
+          "owned": true,
+          "name": "Food Probe",
+          "type": "standard"
+        },
+        {
+          "description": "Stainless steel pan with drainage to allow maximum steam circulation for vegetables and seafood.",
+          "owned": false,
+          "id": "acc-73mvzerrx",
+          "name": "Perforated Pan",
+          "type": "optional"
+        },
+        {
+          "id": "acc-oo37pnu6h",
+          "name": "Baking Steel",
+          "description": "High-carbon steel plate for superior heat retention when baking pizza or sourdough.",
+          "owned": true,
+          "type": "optional"
+        }
+      ],
+      "status": "Available"
+    },
+    {
+      "createdAt": "2026-01-19T13:52:13.424Z",
+      "features": "Diameter: 20cm. Material: Aluminium base. Coating: Titanium Anti-Scratch non-stick (6x reinforcement). Thermal Indicator: Thermo-Signal technology (turns solid red at optimal searing temperature). Heat Source Compatibility: All hobs including induction (Thermo-Fusion+ base). Oven Safe: Up to 175°C.",
+      "uses": "Frying eggs, sautéing small portions of vegetables, searing single steaks, cooking omelettes.",
+      "type": "Frying Pan",
+      "createdBy": "user-1",
+      "description": "This professional-grade 20cm frying pan is a standout in the Tefal Unlimited On range, specifically designed for high-frequency use in UK kitchens. This variant includes a single 20cm pan featuring the premium Titanium Anti-Scratch non-stick coating, which is six times more durable than standard Tefal coatings. It incorporates the signature Thermo-Signal technology, where the central dot turns solid red at the optimal cooking temperature. The thick Thermo-Fusion+ induction base ensures rapid, even heat distribution across all hob types, making it ideal for precision searing of individual portions.",
+      "status": "Available",
+      "id": "eq-sz4bsnrzx",
+      "name": "Tefal Unlimited On Frying Pan 20cm",
+      "upi": "G2590243",
+      "modelName": "Unlimited On Frying Pan 20cm",
+      "class": "Cookware",
+      "accessories": [
+        {
+          "type": "standard",
+          "owned": true,
+          "name": "Pan Body",
+          "description": "20cm Aluminium vessel with non-stick coating.",
+          "id": "acc-co1i0"
+        }
+      ],
+      "brand": "Tefal"
+    },
+    {
+      "brand": "Benriner",
+      "type": "Mandoline Slicer",
+      "description": "A professional-grade Japanese mandoline with an expanded 95mm bed, designed for precision slicing of large vegetables such as aubergine and cabbage. Its razor-sharp stainless steel blade ensures consistent thickness for high-volume service prep.",
+      "accessories": [
+        {
+          "description": "Interchangeable tooth blade for delicate 1mm garnishes.",
+          "id": "acc-vo7nortko",
+          "owned": true,
+          "type": "standard",
+          "name": "Fine Julienne Blade"
+        },
+        {
+          "type": "standard",
+          "owned": true,
+          "id": "acc-ujce6h6us",
+          "name": "Medium Julienne Blade",
+          "description": "Interchangeable tooth blade for standard 3mm vegetable strips."
+        },
+        {
+          "owned": true,
+          "id": "acc-gqqexkb40",
+          "type": "standard",
+          "description": "Interchangeable tooth blade for 7mm thick-cut strips.",
+          "name": "Coarse Julienne Blade"
+        },
+        {
+          "description": "Safety tool to secure ingredients and protect the chef's hands during use.",
+          "type": "standard",
+          "owned": true,
+          "name": "Finger Guard",
+          "id": "acc-vyjaay6k6"
+        }
+      ],
+      "modelName": "BN-95W (Super Benriner Wide)",
+      "name": "Benriner BN-95W (Super Benriner Wide)",
+      "createdAt": "2026-02-09T20:36:14.821Z",
+      "status": "Available",
+      "upi": "BN-95W",
+      "uses": "Finely shredding cabbage; Slicing large vegetables for gratins; Creating uniform julienne for garnishes; Rapid vegetable prep",
+      "createdBy": "daniel@salt.uk",
+      "class": "Food Preparation Tool",
+      "id": "eq-uenz2rli5",
+      "features": "95mm cutting width; Manual thickness adjustment from 0.5mm to 8mm; Precision-ground stainless steel blades; Integrated safety guard rail; Non-slip rubber base for stability"
+    },
+    {
+      "name": "Judge Vista JJ84A",
+      "id": "eq-ujs3m4idf",
+      "modelName": "Vista JJ84A",
+      "type": "Fryer",
+      "brand": "Judge",
+      "accessories": [
+        {
+          "id": "acc-qlzri",
+          "name": "Vented Glass Lid",
+          "owned": true,
+          "type": "standard",
+          "description": "Vented tempered glass lid for monitoring cooking progress while preventing over-boiling."
+        },
+        {
+          "type": "standard",
+          "description": "Engraved internal capacity markings for precise liquid measurement without additional tools.",
+          "name": "Internal Measuring Scale",
+          "owned": true,
+          "id": "acc-ew10o"
+        }
+      ],
+      "class": "Cookware",
+      "status": "Available",
+      "description": "20cm mirror-polished stainless steel chip pan with a wire frying basket, featuring a thermic base for even heat distribution on all hobs.",
+      "createdBy": "user-1",
+      "createdAt": "2026-01-24T14:34:15.523Z"
+    },
+    {
+      "description": "The Mary Berry Special Edition of the Kenwood Chef Elite features a bespoke cream finish and exclusive branding not found on standard models. This variant includes a 4.6-litre polished stainless steel bowl and a high-performance 1200W motor designed for consistent results. Unlike the base KVC5100, this edition comes bundled with an exclusive Mary Berry recipe book and a specialised spatula for delicate folding. The package is completed with professional-grade stainless steel bowl tools, including the K-beater, power whisk, and spiral dough hook, ensuring comprehensive versatility for any professional kitchen or serious home bakery.",
+      "upi": "KVC5100S-MB-SE",
+      "modelName": "Chef Elite KVC5100S Mary Berry Special Edition",
+      "brand": "Kenwood",
+      "type": "Stand Mixer",
+      "status": "Available",
+      "class": "Worktop Appliance",
+      "uses": "Dough kneading, aeration of egg whites, emulsification, batter integration, heavy compound mixing.",
+      "id": "eq-velcxf06w",
+      "accessories": [
+        {
+          "description": "Polished stainless steel mixing vessel with graduated measurements and handles.",
+          "id": "acc-hl95p",
+          "owned": true,
+          "name": "4.6L Stainless Steel Bowl",
+          "type": "standard"
+        },
+        {
+          "type": "standard",
+          "owned": true,
+          "description": "Aluminium signature blade for standard compounding and batter integration.",
+          "id": "acc-h0g2f",
+          "name": "K-Beater"
+        },
+        {
+          "type": "standard",
+          "id": "acc-l04fr",
+          "name": "Power Whisk",
+          "owned": true,
+          "description": "Balloon shape wire assembly for high-speed aeration and emulsification."
+        },
+        {
+          "name": "Dough Hook",
+          "id": "acc-omr9n",
+          "owned": true,
+          "description": "Spiral geometry hook for heavy gluten development and kneading.",
+          "type": "standard"
+        },
+        {
+          "description": "Two-piece component with feed chute to prevent particulate ejection.",
+          "type": "standard",
+          "id": "acc-rdaom",
+          "owned": true,
+          "name": "Splashguard"
+        },
+        {
+          "owned": true,
+          "type": "standard",
+          "id": "acc-j786d",
+          "description": "Flexible tool for bowl scraping.",
+          "name": "Spatula"
+        },
+        {
+          "type": "optional",
+          "name": "Creaming Beater",
+          "owned": true,
+          "id": "acc-ly9p4",
+          "description": "Flexible winged beater for scraping bowl sides during creaming process."
+        },
+        {
+          "description": "Specialised paddle for gently incorporating heavy ingredients into aerated mixtures.",
+          "type": "optional",
+          "owned": false,
+          "name": "Folding Tool",
+          "id": "acc-aafej"
+        },
+        {
+          "type": "optional",
+          "id": "acc-jpnqe",
+          "owned": false,
+          "description": "High-speed outlet attachment for thermal shock resistant blending.",
+          "name": "ThermoResist Glass Blender"
+        },
+        {
+          "owned": true,
+          "name": "Food Mincer Attachment",
+          "description": "Slow-speed outlet can processing attachment.",
+          "type": "optional",
+          "id": "acc-ukiva"
+        }
+      ],
+      "features": "1200W Planetary Mix Action, Electronic Speed Control with Pulse/Fold, 3 Power Outlets (Slow, High Speed, Bowl), Die-Cast Aluminium Body, 4.6L Stainless Steel Bowl.",
+      "name": "Kenwood Chef Elite KVC5100S Mary Berry Special Edition",
+      "createdAt": "2026-01-19T11:01:39.358Z",
+      "createdBy": "user-1"
+    },
+    {
+      "createdAt": "2026-01-19T15:10:20.320Z",
+      "uses": "Searing meat and poultry, sautéing vegetables, reducing sauces, braising large cuts, preparing large-volume risottos or pasta dishes.",
+      "id": "eq-vvsvg43v7",
+      "status": "Available",
+      "brand": "Zinel",
+      "modelName": "Professional Stainless Steel Sauté Pan with Lid, 32cm",
+      "name": "Zinel Professional Stainless Steel Sauté Pan with Lid, 32cm",
+      "createdBy": "user-1",
+      "upi": "1015",
+      "features": "Diameter: 32cm; Capacity: 9.2 litres; Material: 18/10 Stainless Steel body with polished exterior; Base: Encapsulated aluminum core for thermal distribution; Hob Compatibility: Gas, Electric, Ceramic, Halogen, and Induction; Lid: Stainless steel for heat retention.",
+      "class": "Cookware",
+      "type": "Sauté Pan",
+      "accessories": [
+        {
+          "description": "Matching 32cm lid to retain heat and moisture.",
+          "name": "Stainless Steel Lid",
+          "owned": true,
+          "id": "acc-ojdbf",
+          "type": "standard"
+        }
+      ],
+      "description": "This professional-grade Zinel sauté pan is engineered for high-volume commercial kitchens and serious home enthusiasts. Featuring a substantial 32cm diameter and a massive 9.2-litre capacity, this specific variant includes a heavy-duty, tight-fitting stainless steel lid to lock in moisture and heat. Constructed from premium stainless steel with an encapsulated sandwich base, it ensures even heat distribution across all hob types, including induction. The design incorporates a long ergonomic handle and a helper handle for safe lifting of the large 1015 model when full."
+    },
+    {
+      "createdAt": "2026-02-06T09:56:36.963Z",
+      "features": "Temperature range from 30°C to 250°C; Precise control within 0.5°C; 397 possible cooking temperatures; Through-the-glass pan sensor; 2400W induction coil; Heavy-duty stainless steel housing; Dual-fan cooling system",
+      "uses": "Precision poaching, chocolate work, sugar boiling, shallow and deep frying, and maintaining stable emulsified sauces.",
+      "type": "Induction Hob",
+      "createdBy": "daniel@salt.uk",
+      "description": "A commercial-grade induction hob engineered for precise temperature management of both the pan base and the liquid within. This equipment allows for rigorous control over delicate culinary processes such as tempering chocolate, emulsifying sauces, and deep-frying at exact heat levels.",
+      "status": "Available",
+      "id": "eq-y6puv7fy7",
+      "name": "Sage The Control Freak",
+      "upi": "SCMC850BST4GUK1",
+      "modelName": "The Control Freak",
+      "class": "Worktop Appliance",
+      "accessories": [
+        {
+          "owned": true,
+          "description": "A high-precision thermometer used to monitor and regulate liquid temperatures directly.",
+          "type": "standard",
+          "id": "acc-pssbkhrkg",
+          "name": "External Probe"
+        },
+        {
+          "id": "acc-ovv67s360",
+          "type": "standard",
+          "name": "Probe Clip",
+          "description": "A stainless steel clip designed to secure the external probe to the rim of a saucepan or stockpot.",
+          "owned": true
+        }
+      ],
+      "brand": "Sage"
+    },
+    {
+      "upi": "5610.32",
+      "features": "Material: 99% Iron / 1% Carbon steel; Thickness: 3mm; Weight: 2.7kg; Finish: Organic beeswax (oxidation protection and seasoning aid); Handle: Riveted epoxy-coated steel with French curvature; Thermal Compatibility: Oven safe up to 200°C for 10 minutes (flash use only); Heat Sources: Induction, Gas, Electric, Ceramic; Performance: High thermal retention for Maillard reaction and caramelisation.",
+      "id": "eq-yry18n8jc",
+      "name": "De Buyer Mineral B Carbon Steel Frying Pan - 32cm",
+      "status": "Available",
+      "accessories": [],
+      "uses": "High-heat searing of steaks and chops, browning vegetables, grilling, and frying.",
+      "modelName": "Mineral B Carbon Steel Frying Pan - 32cm",
+      "description": "The De Buyer Mineral B 32cm Frying Pan is the definitive choice for professional high-heat cooking. This variant is uniquely finished with organic beeswax, which protects the carbon steel from oxidation and jumpstarts the seasoning process. Its heavy-duty 3mm thick construction ensures exceptional heat retention for perfect searing and caramelisation. Included in this variant is the iconic French-curved riveted handle and a signature bee-stamped cooking surface. As technical cookware, it requires initial seasoning but develops a superior, chemical-free non-stick patina that improves with every professional service.",
+      "createdBy": "user-1",
+      "class": "Cookware",
+      "brand": "De Buyer",
+      "createdAt": "2026-01-19T14:47:45.344Z",
+      "type": "Frying Pan"
+    }
+  ],
+  "recipes": [
+    {
+      "title": "Ultimate Bolognese Sauce",
+      "description": "A refined, professional-standard ragù using precision temperature control to emulsify fats and tenderise protein over a long, controlled simmer.",
+      "instructions": [
+        "Add the pancetta to the Ninja CI100UK food processor attachment and blend until finely chopped.",
+        "Place the Lodge L8DD3 Cast Iron Double Dutch Oven on the Sage The Control Freak. Set the pan temperature to 110°C. Add 30ml of the extra virgin olive oil and the blended pancetta. Let it sweat gently, then add the chopped onion, celery, and carrots.",
+        "Cook the soffritto at 110°C with the lid on for 10 minutes. Every 2 minutes, check and stir to prevent any colouration using a wooden spoon.",
+        "After 7 minutes, or once the vegetables are tender and glossy, add a splash of the wine, replace the lid, and finish the cooking time.",
+        "Drizzle in the remaining extra virgin olive oil and increase the Sage Control Freak pan temperature to 210°C. Add the minced beef and pork, using a wooden spoon to break up the meat thoroughly. Mix until well incorporated into the soffritto.",
+        "Once the meat has lost its raw red colour, pour in the remaining wine and mix well.",
+        "Let it simmer for 10 minutes then season with a generous amount of salt and pepper.",
+        "Stir in the tomato purée until evenly distributed, then add the passata and canned peeled tomatoes.",
+        "Cover with a lid. Insert the Sage Control Freak probe into the sauce. Set the probe temperature to 85°C–92°C with 'Slow' or 'Medium' intensity. Cook for 3 hours, stirring every 30 minutes to ensure nothing sticks to the base.",
+        "Remove the lid, stir the sauce well, and continue cooking uncovered at the same probe temperature (85°C–92°C) for 1 more hour.",
+        "Taste and adjust the salt and pepper as needed, scraping the bottom of the pot as you stir. Ensure the heat remains low.",
+        "For a silkier texture, stir in the full cream milk and cook for a final 5 minutes."
+      ],
+      "equipmentNeeded": [
+        "Ninja CI100UK food processor attachment",
+        "Sage The Control Freak induction hob",
+        "Lodge L8DD3 Cast Iron Double Dutch Oven",
+        "Wooden spoon",
+        "Precision temperature probe"
+      ],
+      "prepTime": "20 minutes",
+      "cookTime": "4 hours 20 minutes",
+      "totalTime": "4 hours 40 minutes",
+      "servings": "6",
+      "complexity": "Intermediate",
+      "stepIngredients": [
+        [
+          0
+        ],
+        [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        [
+          2,
+          3,
+          4
+        ],
+        [
+          5
+        ],
+        [
+          1,
+          6,
+          7
+        ],
+        [
+          5
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          10,
+          11,
+          12
+        ],
+        [],
+        [],
+        [
+          8,
+          9
+        ],
+        [
+          13
+        ]
+      ],
+      "stepAlerts": [
+        [],
+        [
+          0
+        ],
+        [],
+        [],
+        [
+          1
+        ],
+        [],
+        [],
+        [],
+        [
+          2
+        ],
+        [],
+        [],
+        []
+      ],
+      "workflowAdvice": {
+        "technicalWarnings": [
+          "Ensure the Control Freak is set to pan temperature for this stage to precisely soften the soffritto without browning.",
+          "The 210°C pan temperature is required for the Maillard reaction; work the meat quickly with the spoon to prevent large clumps.",
+          "Using the probe to maintain 85°C–92°C prevents the sauce from reaching a rolling boil, which would split the fats and toughen the meat."
+        ]
+      },
+      "source": "https://www.vincenzosplate.com/the-ultimate-bolognese-sauce-recipe/#wprm-recipe-container-24200",
+      "id": "rec-2usdkxbu5",
+      "imagePath": "recipes/rec-2usdkxbu5/image.jpg",
+      "createdAt": "2026-02-16T20:03:20.911Z",
+      "createdBy": "daniel@salt.uk",
+      "history": [
+        {
+          "timestamp": "2026-02-16T20:16:34.110Z",
+          "userName": "Test",
+          "changeDescription": "Set soffritto sweating temperature to 110°C.; Set meat browning temperature to 210°C.; Establish a simmer range of 85°C-92°C using the temperature probe.",
+          "snapshot": {
+            "title": "Ultimate Bolognese Sauce",
+            "description": "A traditional, slow-cooked Bolognese combining minced beef, pork, and pancetta with a classic soffritto and tomatoes, developed over four hours for deep flavour and a silky finish.",
+            "instructions": [
+              "Add pancetta to the Ninja CI100UK food processor attachment and blend until finely chopped.",
+              "In the Lodge L8DD3 Cast Iron Double Dutch Oven over low-medium heat (using the Sage The Control Freak), add 2 tablespoons of extra virgin olive oil and the blended pancetta. Let it sweat gently, then add the chopped onion, celery, and carrots.",
+              "Cook the soffritto with the lid on for about 10 minutes. Every 2 minutes, check and stir to prevent burning using a wooden spoon.",
+              "After about 7 minutes, or when all ingredients are tender and glossy, add a splash of the wine, close the lid again, and let it finish cooking.",
+              "Drizzle in a little more extra virgin olive oil, then add the minced beef and pork, using a wooden spoon to break up the meat really well, and mix it into the soffritto until well incorporated.",
+              "Once the meat turns grey, pour in the remaining wine and mix well.",
+              "Let it simmer for 10 minutes then season with a generous amount of salt and pepper.",
+              "Next, stir in the tomato purée and mix until it’s spread throughout the meat, then add the passata and canned peeled tomatoes.",
+              "Cover with a lid and cook on low heat for 3 hours. Every 30 minutes, check the sauce, give it a stir, and make sure nothing is sticking to the bottom.",
+              "After 3 hours, remove the lid, stir the sauce well and continue cooking uncovered for 1 more hour.",
+              "Add more salt and pepper to adjust the seasoning (after you taste it), and scrape the bottom of the pot as you stir. Keep the heat low.",
+              "If you want a silkier sauce, add a splash of full cream milk and let it cook for another 5 minutes. This step is optional, but highly recommended."
+            ],
+            "equipmentNeeded": [
+              "Ninja CI100UK (Food Processor attachment)",
+              "Lodge L8DD3 Cast Iron Double Dutch Oven",
+              "Sage The Control Freak",
+              "Wooden spoon"
+            ],
+            "prepTime": "10 minutes",
+            "cookTime": "4 hours 22 minutes",
+            "totalTime": "4 hours 32 minutes",
+            "servings": "6",
+            "complexity": "Intermediate",
+            "stepIngredients": [
+              [
+                2
+              ],
+              [
+                11,
+                2,
+                3,
+                4,
+                5
+              ],
+              [],
+              [
+                9
+              ],
+              [
+                11,
+                1,
+                0
+              ],
+              [
+                9
+              ],
+              [
+                12,
+                13
+              ],
+              [
+                7,
+                6,
+                8
+              ],
+              [],
+              [],
+              [
+                12,
+                13
+              ],
+              [
+                10
+              ]
+            ],
+            "stepAlerts": [
+              [],
+              [],
+              [
+                0
+              ],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [
+                1
+              ],
+              [
+                2
+              ],
+              [],
+              []
+            ],
+            "workflowAdvice": {
+              "technicalWarnings": [
+                "Ensure the lid is secure to keep moisture trapped; check every 2 minutes.",
+                "The slow cook is essential; monitor every 30 minutes to prevent catching on the base.",
+                "Reducing uncovered in the final hour is key for the correct thickness."
+              ]
+            },
+            "source": "https://www.vincenzosplate.com/the-ultimate-bolognese-sauce-recipe/#wprm-recipe-container-24200",
+            "id": "rec-2usdkxbu5",
+            "imagePath": "recipes/rec-2usdkxbu5/image.jpg",
+            "createdAt": "2026-02-16T20:03:20.911Z",
+            "createdBy": "daniel@salt.uk",
+            "categoryIds": [
+              "bQdb4b2b2cMzeejAuzw1",
+              "8gHtFK5slWAXys7Tw3k2",
+              "L8rkrjVM7ehqtX2PgbcQ"
+            ],
+            "ingredients": [
+              {
+                "id": "ring-rec-2usdkxbu5-0",
+                "raw": "500g minced pork",
+                "quantity": 500,
+                "unit": "g",
+                "ingredientName": "minced pork",
+                "canonicalItemId": "item-1771272270275-dys1dl01j"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-1",
+                "raw": "500g minced beef",
+                "quantity": 500,
+                "unit": "g",
+                "ingredientName": "minced beef",
+                "canonicalItemId": "item-1771272270338-adl55jicv"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-2",
+                "raw": "100g pancetta",
+                "quantity": 100,
+                "unit": "g",
+                "ingredientName": "pancetta",
+                "canonicalItemId": "item-1771272270359-wl5q56dcu"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-3",
+                "raw": "1 brown onion, chopped",
+                "quantity": 1,
+                "unit": "_item",
+                "ingredientName": "brown onion",
+                "preparation": "chopped",
+                "canonicalItemId": "item-1771272270373-sefnyvimz"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-4",
+                "raw": "2 celery sticks, chopped",
+                "quantity": 2,
+                "unit": "_item",
+                "ingredientName": "celery stick",
+                "preparation": "chopped",
+                "canonicalItemId": "item-1771272270383-5merbb19r"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-5",
+                "raw": "3 carrots, chopped",
+                "quantity": 3,
+                "unit": "_item",
+                "ingredientName": "carrot",
+                "preparation": "chopped",
+                "canonicalItemId": "item-1771272270396-ai5bl8b0c"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-6",
+                "raw": "700g Italian passata",
+                "quantity": 700,
+                "unit": "g",
+                "ingredientName": "italian passata",
+                "canonicalItemId": "item-1771272270409-is2fl1eqp"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-7",
+                "raw": "100g tomato purée",
+                "quantity": 100,
+                "unit": "g",
+                "ingredientName": "tomato purée",
+                "canonicalItemId": "item-1771272270422-kz2u3bya4"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-8",
+                "raw": "400g canned peeled plum tomatoes",
+                "quantity": 400,
+                "unit": "g",
+                "ingredientName": "canned peeled plum tomatoe",
+                "canonicalItemId": "item-1771272270436-2n3br6f6f"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-9",
+                "raw": "175ml wine (red or dry white)",
+                "quantity": 175,
+                "unit": "ml",
+                "ingredientName": "wine (red or dry white)",
+                "canonicalItemId": "item-1771272270448-ruhl7xcla"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-10",
+                "raw": "250ml full cream milk (optional)",
+                "quantity": 250,
+                "unit": "ml",
+                "ingredientName": "full cream milk (optional)",
+                "canonicalItemId": "item-1771272270461-6n4emkuym"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-11",
+                "raw": "Extra virgin olive oil",
+                "quantity": null,
+                "unit": null,
+                "ingredientName": "extra virgin olive oil",
+                "canonicalItemId": "item-1771257983402-so765oerw"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-12",
+                "raw": "Salt",
+                "quantity": null,
+                "unit": null,
+                "ingredientName": "salt",
+                "canonicalItemId": "item-1771272270474-cc6s0ajbk"
+              },
+              {
+                "id": "ring-rec-2usdkxbu5-13",
+                "raw": "Black pepper",
+                "quantity": null,
+                "unit": null,
+                "ingredientName": "black pepper",
+                "canonicalItemId": "item-1771272270486-h92os8b8j"
+              }
+            ]
+          }
+        }
+      ],
+      "categoryIds": [
+        "bQdb4b2b2cMzeejAuzw1",
+        "8gHtFK5slWAXys7Tw3k2",
+        "L8rkrjVM7ehqtX2PgbcQ",
+        "Czeoz5Rj9AdsODVj2H4T"
+      ],
+      "ingredients": [
+        {
+          "id": "ring-rec-2usdkxbu5-0",
+          "raw": "150g Pancetta",
+          "quantity": 150,
+          "unit": "g",
+          "ingredientName": "pancetta",
+          "canonicalItemId": "item-1771272270359-wl5q56dcu"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-1",
+          "raw": "45ml Extra virgin olive oil",
+          "quantity": 45,
+          "unit": "ml",
+          "ingredientName": "extra virgin olive oil",
+          "canonicalItemId": "item-1771257983402-so765oerw"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-2",
+          "raw": "1 Onion, finely chopped",
+          "quantity": 1,
+          "unit": "_item",
+          "ingredientName": "onion",
+          "preparation": "finely chopped",
+          "canonicalItemId": "item-1771272270373-sefnyvimz"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-3",
+          "raw": "2 Celery sticks, finely chopped",
+          "quantity": 2,
+          "unit": "_item",
+          "ingredientName": "celery stick",
+          "preparation": "finely chopped",
+          "canonicalItemId": "item-1771272270383-5merbb19r"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-4",
+          "raw": "2 Carrots, finely chopped",
+          "quantity": 2,
+          "unit": "_item",
+          "ingredientName": "carrot",
+          "preparation": "finely chopped",
+          "canonicalItemId": "item-1771272270396-ai5bl8b0c"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-5",
+          "raw": "200ml Dry white wine",
+          "quantity": 200,
+          "unit": "ml",
+          "ingredientName": "dry white wine",
+          "canonicalItemId": "item-1771272270448-ruhl7xcla"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-6",
+          "raw": "500g Minced beef",
+          "quantity": 500,
+          "unit": "g",
+          "ingredientName": "minced beef",
+          "canonicalItemId": "item-1771272270338-adl55jicv"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-7",
+          "raw": "500g Minced pork",
+          "quantity": 500,
+          "unit": "g",
+          "ingredientName": "minced pork",
+          "canonicalItemId": "item-1771272270275-dys1dl01j"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-8",
+          "raw": "Fine sea salt",
+          "quantity": null,
+          "unit": null,
+          "ingredientName": "fine sea salt",
+          "canonicalItemId": "item-1771257983337-knwzw22zv"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-9",
+          "raw": "Freshly ground black pepper",
+          "quantity": null,
+          "unit": null,
+          "ingredientName": "freshly ground black pepper",
+          "canonicalItemId": "item-1771258090105-h10tgh67s"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-10",
+          "raw": "60g Tomato purée",
+          "quantity": 60,
+          "unit": "g",
+          "ingredientName": "tomato purée",
+          "canonicalItemId": "item-1771272270422-kz2u3bya4"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-11",
+          "raw": "400ml Tomato passata",
+          "quantity": 400,
+          "unit": "ml",
+          "ingredientName": "tomato passata",
+          "canonicalItemId": "item-1771272270409-is2fl1eqp"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-12",
+          "raw": "400g Canned peeled plum tomatoes",
+          "quantity": 400,
+          "unit": "g",
+          "ingredientName": "canned peeled plum tomatoe",
+          "canonicalItemId": "item-1771272270436-2n3br6f6f"
+        },
+        {
+          "id": "ring-rec-2usdkxbu5-13",
+          "raw": "60ml Full cream milk",
+          "quantity": 60,
+          "unit": "ml",
+          "ingredientName": "full cream milk",
+          "canonicalItemId": "item-1771272270461-6n4emkuym"
+        }
+      ]
+    },
+    {
+      "source": "https://www.breville.com/inspiration/en-au/recipes/ovens-air-fryers-microwaves/essential-neapolitanstyle-pizza-dough",
+      "cookTime": "0 minutes",
+      "totalTime": "9 hours 15 minutes",
+      "description": "A classic high-hydration dough designed for a long cold-ferment, resulting in a superior crust texture and flavour.",
+      "servings": "4",
+      "stepAlerts": [
+        [],
+        [
+          0
+        ],
+        [],
+        [],
+        [
+          1
+        ],
+        []
+      ],
+      "createdAt": "2026-02-14T13:48:36.952Z",
+      "complexity": "Intermediate",
+      "prepTime": "15 minutes",
+      "instructions": [
+        "Place the flour, salt and yeast in the bowl of the Kenwood Chef Elite. Using the dough hook, mix to combine.",
+        "Add the water and knead on low speed for 5 minutes, or until the dough is smooth and elastic.",
+        "Transfer the dough to a large bowl. Cover with plastic wrap and allow to proof in a warm, draft-free place for 2 hours, or until doubled in size. If using the Anova Culinary Precision Oven, select the proof function, set to 30°C and proof for 1 hour.",
+        "Turn the dough onto a lightly floured benchtop and divide into 4 even pieces, approximately 240g each. Shape each piece into a smooth ball.",
+        "Sprinkle a proofing box or deep sided container with semolina. Place the dough balls in the box, leaving 10cm between them. Cover with plastic wrap and refrigerate for at least 6 hours or up to 5 days.",
+        "An hour before cooking in the Sage The Smart Oven Pizzaiolo, remove the dough from the refrigerator."
+      ],
+      "title": "Essential Neapolitan-Style Pizza Dough",
+      "stepIngredients": [
+        [
+          0,
+          1,
+          2
+        ],
+        [
+          3
+        ],
+        [],
+        [],
+        [
+          4
+        ],
+        []
+      ],
+      "id": "rec-4sbi3w3l0",
+      "imagePath": "recipes/rec-4sbi3w3l0/image-1771257908335.jpg",
+      "equipmentNeeded": [
+        "Kenwood Chef Elite KVC5100S",
+        "Anova Culinary Precision Oven",
+        "Sage The Smart Oven Pizzaiolo",
+        "Proofing box or deep container",
+        "Kitchen scales"
+      ],
+      "createdBy": "daniel@pendery.org",
+      "workflowAdvice": {
+        "technicalWarnings": [
+          "Ensure the dough is smooth and elastic before stopping the mixer.",
+          "Ensure significant spacing between balls to allow for expansion during the cold ferment."
+        ]
+      },
+      "ingredients": [
+        {
+          "id": "ring-rec-4sbi3w3l0-0",
+          "raw": "570g bread flour - plus extra for dusting",
+          "quantity": 570,
+          "unit": "g",
+          "ingredientName": "bread flour - plus extra for dusting",
+          "canonicalItemId": "item-1771257897817-5uy788yz0"
+        },
+        {
+          "id": "ring-rec-4sbi3w3l0-1",
+          "raw": "2 tsp Coarse salt",
+          "quantity": 2,
+          "unit": "tsp",
+          "ingredientName": "coarse salt",
+          "canonicalItemId": "item-1771257897834-0o06fq3b8"
+        },
+        {
+          "id": "ring-rec-4sbi3w3l0-2",
+          "raw": "1 tsp instant dried yeast",
+          "quantity": 1,
+          "unit": "tsp",
+          "ingredientName": "instant dried yeast",
+          "canonicalItemId": "item-1771257897848-o69o5lz08"
+        },
+        {
+          "id": "ring-rec-4sbi3w3l0-3",
+          "raw": "375ml cold water",
+          "quantity": 375,
+          "unit": "ml",
+          "ingredientName": "cold water",
+          "canonicalItemId": "item-1771257897890-lqqmljp68"
+        },
+        {
+          "id": "ring-rec-4sbi3w3l0-4",
+          "raw": "Semolina - to sprinkle",
+          "quantity": null,
+          "unit": null,
+          "ingredientName": "semolina - to sprinkle",
+          "canonicalItemId": "item-1771257897902-x9134ms7s"
+        }
+      ],
+      "categoryIds": [
+        "K1ozxSGFuMpCbaH86Cil",
+        "RIUGF1pmZmsE8A0Mhgd3"
+      ]
+    },
+    {
+      "id": "rec-czefpih2h",
+      "createdBy": "daniel@pendery.org",
+      "cookTime": "45 minutes",
+      "instructions": [
+        "Pulse the biscuits in the Magimix Cook Expert until they form a fine crumb. Melt the butter in a Judge Vista saucepan on the Control Freak set to 60°C. Combine the two, press firmly into the base of a lined 15cm or 18cm springform tin, and chill in the fridge for 20 minutes.",
+        "Fit the Kenwood Chef Elite with the K-beater. Combine the cream cheese and sugar, beating on the lowest speed until just smooth.",
+        "Add the eggs one at a time to the cream cheese mixture, followed by the lime zest, lime juice, and double cream. Mix on low speed until just combined.",
+        "Preheat the Anova Precision Oven to 120°C with 100% Steam.",
+        "Pour the filling over the chilled biscuit base. Place the tin on the wire rack in the centre of the oven. Bake until the internal temperature reaches 66°C as measured by the ThermoPro Lightning.",
+        "Turn off the oven and crack the door open. Let the cheesecake sit inside for 30 minutes to temper. Remove and allow to reach room temperature before chilling in the fridge for at least 6 hours, or overnight, for a final set."
+      ],
+      "equipmentNeeded": [
+        "Anova Precision Oven",
+        "Kenwood Chef Elite KVC5100S",
+        "Magimix Cook Expert",
+        "Sage The Control Freak",
+        "ThermoPro Lightning",
+        "Judge Vista Saucepan",
+        "15cm or 18cm Springform Tin"
+      ],
+      "prepTime": "25 minutes",
+      "workflowAdvice": {
+        "technicalWarnings": [
+          "Do not overwork the mixture; incorporating air will cause the cheesecake to rise and then crack during service.",
+          "The edges should be set but the centre must remain slightly wobbly at the 66°C pull-point."
+        ]
+      },
+      "description": "A sharp, vibrant citrus cheesecake utilizing 100% steam to achieve a silky, crack-free texture without the need for a traditional water bath.",
+      "imagePath": "recipes/rec-czefpih2h/image-1771258033237.jpg",
+      "stepAlerts": [
+        [],
+        [
+          0
+        ],
+        [],
+        [],
+        [
+          1
+        ],
+        []
+      ],
+      "complexity": "Intermediate",
+      "title": "Precision Baked Lime Cheesecake",
+      "createdAt": "2026-02-13T14:57:57.497Z",
+      "servings": "4",
+      "totalTime": "7 hours 10 minutes",
+      "stepIngredients": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          4,
+          5,
+          6,
+          7
+        ],
+        [],
+        [],
+        []
+      ],
+      "ingredients": [
+        {
+          "id": "ring-rec-czefpih2h-0",
+          "raw": "150g Digestive biscuits",
+          "quantity": 150,
+          "unit": "g",
+          "ingredientName": "digestive biscuit",
+          "canonicalItemId": "item-1771258066845-dqhb74yad"
+        },
+        {
+          "id": "ring-rec-czefpih2h-1",
+          "raw": "60g Unsalted butter",
+          "quantity": 60,
+          "unit": "g",
+          "ingredientName": "unsalted butter",
+          "canonicalItemId": "item-1771258066900-fh9aipcqe"
+        },
+        {
+          "id": "ring-rec-czefpih2h-2",
+          "raw": "450g Full-fat cream cheese, room temperature",
+          "quantity": 450,
+          "unit": "g",
+          "ingredientName": "full-fat cream cheese",
+          "preparation": "room temperature",
+          "canonicalItemId": "item-1771258066922-uiwxgvvul"
+        },
+        {
+          "id": "ring-rec-czefpih2h-3",
+          "raw": "120g Caster sugar",
+          "quantity": 120,
+          "unit": "g",
+          "ingredientName": "caster sugar",
+          "canonicalItemId": "item-1771258066939-9z3hkqve4"
+        },
+        {
+          "id": "ring-rec-czefpih2h-4",
+          "raw": "2 Large eggs",
+          "quantity": 2,
+          "unit": "_item",
+          "ingredientName": "egg",
+          "canonicalItemId": "item-1771258066957-qw00nhi9g"
+        },
+        {
+          "id": "ring-rec-czefpih2h-5",
+          "raw": "60ml Double cream",
+          "quantity": 60,
+          "unit": "ml",
+          "ingredientName": "double cream",
+          "canonicalItemId": "item-1771258066977-u2cw0we1v"
+        },
+        {
+          "id": "ring-rec-czefpih2h-6",
+          "raw": "Zest of 3 limes",
+          "quantity": null,
+          "unit": null,
+          "ingredientName": "zest of 3 lime",
+          "canonicalItemId": "item-1771258066997-ls2ll291k"
+        },
+        {
+          "id": "ring-rec-czefpih2h-7",
+          "raw": "45ml Fresh lime juice",
+          "quantity": 45,
+          "unit": "ml",
+          "ingredientName": "fresh lime juice",
+          "canonicalItemId": "item-1771258066997-ls2ll291k"
+        }
+      ],
+      "categoryIds": [
+        "zTp1knu3UTlWAezoDj1k"
+      ]
+    },
+    {
+      "equipmentNeeded": [
+        "Sage The Smart Oven Pizzaiolo",
+        "Bamix Swissline M200",
+        "ThermoPro Lightning (Black Edition)",
+        "Pizza Peel"
+      ],
+      "totalTime": "45 minutes",
+      "createdAt": "2026-02-14T10:46:46.704Z",
+      "servings": "3",
+      "history": [
+        {
+          "timestamp": "2026-02-14T10:50:15.892Z",
+          "snapshot": {
+            "servings": "3",
+            "ingredients": [
+              "3 x 250g Neapolitan pizza dough balls (pre-prepared)",
+              "400g San Marzano tomatoes (DOP preferred)",
+              "5g fine sea salt",
+              "300g mozzarella (Fior di Latte or low-moisture), drained",
+              "40g parmesan, finely grated",
+              "100g pepperoni (whole stick)",
+              "Extra virgin olive oil",
+              "Flour or semolina for dusting"
+            ],
+            "complexity": "Intermediate",
+            "title": "Neapolitan Pepperoni Pizza",
+            "id": "rec-hvx0of1rh",
+            "createdAt": "2026-02-14T10:46:46.704Z",
+            "prepTime": "20 minutes",
+            "cookTime": "6 minutes",
+            "totalTime": "26 minutes",
+            "instructions": [
+              "Prep the Sauce: Combine the San Marzano tomatoes and sea salt in a jug. Pulse with the Bamix multipurpose blade 3 to 4 times to maintain texture. Do not over-process into a purée.",
+              "Prep the Toppings: Use the Benriner mandoline to slice the pepperoni into 1.5mm rounds. Ensure the mozzarella is thoroughly drained and patted dry to prevent a soggy base.",
+              "Preheat the Oven: Set the Sage Pizzaiolo to 400°C on the 'Wood Fired' setting. Allow the stone deck to saturate for at least 20 minutes, confirming the temperature with the ThermoPro.",
+              "Stretch the Dough: Dust the work surface with flour or semolina. Working with one dough ball at a time, press from the centre outwards to create a 2cm rim (cornicione). Stretch gently to a 25–30cm diameter.",
+              "Dress the Pizza: Apply 60–80ml of the prepared sauce to the centre and spiral outwards. Add a third of the parmesan, followed by a third of the mozzarella and pepperoni.",
+              "Cook: Transfer the pizza to the peel and launch into the Pizzaiolo. Bake for 90 to 120 seconds until the crust shows leopard spotting and the cheese is bubbling.",
+              "Service and Recovery: Remove the pizza for service. Allow the oven 2 minutes to recover its deck temperature—monitored by the ThermoPro—before launching the next pizza."
+            ],
+            "stepIngredients": [
+              [
+                1,
+                2
+              ],
+              [
+                3,
+                5
+              ],
+              [],
+              [
+                0,
+                7
+              ],
+              [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              [],
+              []
+            ],
+            "description": "A professional three-serving Neapolitan service focusing on high-heat blistered crusts and precise topping preparation using the Sage Pizzaiolo.",
+            "stepAlerts": [
+              [
+                0
+              ],
+              [
+                1
+              ],
+              [
+                2
+              ],
+              [],
+              [],
+              [
+                3
+              ],
+              []
+            ],
+            "imagePath": "recipes/rec-hvx0of1rh/image.jpg",
+            "createdBy": "daniel@pendery.org",
+            "workflowAdvice": {
+              "technicalWarnings": [
+                "Do not over-blend the tomatoes; if they become aerated, the sauce will turn orange and lose its fresh character.",
+                "The mandoline blades are professional grade; always use the guard when slicing the pepperoni.",
+                "The stone deck must be fully saturated with heat to achieve the required base crispness.",
+                "Do not leave the oven unattended; at 400°C, the window between a perfect bake and a burnt crust is only a few seconds."
+              ]
+            },
+            "equipmentNeeded": [
+              "Sage The Smart Oven Pizzaiolo",
+              "Bamix Swissline M200 Red",
+              "Benriner BN-95W (Super Benriner Wide)",
+              "ThermoPro Lightning (Black Edition)"
+            ],
+            "categoryIds": [
+              "6XDvKSx8ipJ5NXZLen31",
+              "Yb01Z5SwShLWO99Qntw0"
+            ]
+          },
+          "changeDescription": "Updated pepperoni specification from whole stick to pre-sliced.; Adjusted assembly to place pepperoni on top of the mozzarella for better texture.; Strategic placement of thin pepperoni slices toward the centre of the pizza.",
+          "userName": "Daniel"
+        }
+      ],
+      "complexity": "Intermediate",
+      "instructions": [
+        "Prep the Sauce: Combine the San Marzano tomatoes and sea salt in a jug. Pulse with the Bamix multipurpose blade 3 to 4 times to maintain texture. Do not over-process into a purée.",
+        "Prep the Toppings: Ensure the mozzarella is thoroughly drained and patted dry to prevent a soggy base. Set aside the pre-sliced pepperoni.",
+        "Preheat the Oven: Set the Sage Pizzaiolo to 400°C on the 'Wood Fired' setting. Allow the stone deck to saturate for at least 20 minutes, confirming the temperature with the ThermoPro.",
+        "Stretch the Dough: Dust the work surface with flour or semolina. Working with one dough ball at a time, press from the centre outwards to create a 2cm rim (cornicione). Stretch gently to a 25–30cm diameter.",
+        "Dress the Pizza: Apply 60–80ml of the prepared sauce to the centre and spiral outwards. Add a third of the parmesan, followed by a third of the mozzarella. Place the pepperoni slices flat and non-overlapping on top of the cheese, positioning them slightly away from the edges.",
+        "Cook: Transfer the pizza to the peel and launch into the Pizzaiolo. Bake for 90 to 120 seconds until the crust shows leopard spotting and the cheese is bubbling.",
+        "Service and Recovery: Remove the pizza for service. Allow the oven 2 minutes to recover its deck temperature—monitored by the ThermoPro—before launching the next pizza."
+      ],
+      "stepIngredients": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          5
+        ],
+        [],
+        [
+          0,
+          7
+        ],
+        [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        [],
+        []
+      ],
+      "description": "A classic high-heat pizza featuring pre-sliced pepperoni arranged to render perfectly without charring in the intense heat of the Sage Pizzaiolo.",
+      "createdBy": "daniel@pendery.org",
+      "cookTime": "6 minutes",
+      "prepTime": "15 minutes",
+      "workflowAdvice": {
+        "technicalWarnings": [
+          "Over-processing the tomatoes will result in a watery sauce; keep pulses short to maintain pulp texture.",
+          "Ensure pepperoni slices do not overlap; this allows the fat to render properly and prevents the meat from steaming.",
+          "Monitor the stone temperature closely; launching a second pizza before the deck recovers will result in a pale, undercooked base."
+        ]
+      },
+      "imagePath": "recipes/rec-hvx0of1rh/image-1771257949753.jpg",
+      "stepAlerts": [
+        [
+          0
+        ],
+        [],
+        [],
+        [],
+        [
+          1
+        ],
+        [],
+        [
+          2
+        ]
+      ],
+      "title": "Neapolitan Pepperoni Pizza",
+      "id": "rec-hvx0of1rh",
+      "categoryIds": [
+        "K1ozxSGFuMpCbaH86Cil",
+        "RIUGF1pmZmsE8A0Mhgd3",
+        "bQdb4b2b2cMzeejAuzw1",
+        "L8rkrjVM7ehqtX2PgbcQ"
+      ],
+      "ingredients": [
+        {
+          "id": "ring-rec-hvx0of1rh-0",
+          "raw": "3 x 250g Neapolitan pizza dough balls (pre-prepared)",
+          "quantity": 3,
+          "unit": "_item",
+          "ingredientName": "x 250g neapolitan pizza dough balls (pre-prepared)",
+          "canonicalItemId": "item-1771257983313-4ozsw7t4y"
+        },
+        {
+          "id": "ring-rec-hvx0of1rh-1",
+          "raw": "400g San Marzano tomatoes (DOP preferred)",
+          "quantity": 400,
+          "unit": "g",
+          "ingredientName": "san marzano tomatoes (dop preferred)",
+          "canonicalItemId": "item-1771257983324-y3okxlw93"
+        },
+        {
+          "id": "ring-rec-hvx0of1rh-2",
+          "raw": "5g fine sea salt",
+          "quantity": 5,
+          "unit": "g",
+          "ingredientName": "fine sea salt",
+          "canonicalItemId": "item-1771257983337-knwzw22zv"
+        },
+        {
+          "id": "ring-rec-hvx0of1rh-3",
+          "raw": "300g mozzarella (Fior di Latte or low-moisture), drained",
+          "quantity": 300,
+          "unit": "g",
+          "ingredientName": "mozzarella (fior di latte or low-moisture)",
+          "preparation": "drained",
+          "canonicalItemId": "item-1771257983358-xi7ge1j2o"
+        },
+        {
+          "id": "ring-rec-hvx0of1rh-4",
+          "raw": "40g parmesan, finely grated",
+          "quantity": 40,
+          "unit": "g",
+          "ingredientName": "parmesan",
+          "preparation": "finely grated",
+          "canonicalItemId": "item-1771257983369-6ikdvrbq8"
+        },
+        {
+          "id": "ring-rec-hvx0of1rh-5",
+          "raw": "100g pre-sliced pepperoni",
+          "quantity": 100,
+          "unit": "g",
+          "ingredientName": "pre-sliced pepperoni",
+          "canonicalItemId": "item-1771257983392-zgbw7o02q"
+        },
+        {
+          "id": "ring-rec-hvx0of1rh-6",
+          "raw": "Extra virgin olive oil",
+          "quantity": null,
+          "unit": null,
+          "ingredientName": "extra virgin olive oil",
+          "canonicalItemId": "item-1771257983402-so765oerw"
+        },
+        {
+          "id": "ring-rec-hvx0of1rh-7",
+          "raw": "Flour or semolina for dusting",
+          "quantity": null,
+          "unit": null,
+          "ingredientName": "flour or semolina for dusting",
+          "canonicalItemId": "item-1771257983412-9nks5i2yx"
+        }
+      ]
+    },
+    {
+      "title": "Classic Precision Carbonara",
+      "cookTime": "15 minutes",
+      "stepIngredients": [
+        [
+          0,
+          6
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          3,
+          4
+        ],
+        [
+          1,
+          5
+        ],
+        [
+          0
+        ],
+        [
+          2,
+          3,
+          4
+        ],
+        [],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        [
+          0
+        ]
+      ],
+      "createdAt": "2026-02-13T20:31:45.871Z",
+      "prepTime": "15 minutes",
+      "description": "A Roman staple executed with technical accuracy, using the Sage Control Freak to maintain a perfect 55°C emulsion for a silky, stable sauce.",
+      "id": "rec-m8opp3elt",
+      "servings": "2",
+      "workflowAdvice": {
+        "technicalWarnings": [
+          "Ensure the Control Freak probe is active; 55°C is the critical threshold for a stable emulsion.",
+          "Agitation is key here; do not stop tossing the pasta until the sauce has fully emulsified and thickened."
+        ]
+      },
+      "createdBy": "daniel@pendery.org",
+      "stepAlerts": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [
+          0
+        ],
+        [],
+        [
+          1
+        ],
+        []
+      ],
+      "imagePath": "recipes/rec-m8opp3elt/image-1771258004239.jpg",
+      "totalTime": "30 minutes",
+      "instructions": [
+        "Fill the Judge Vista saucepan with water, add a generous pinch of salt, and bring to a rolling boil.",
+        "Place the guanciale into the cold De Buyer 28cm frying pan. Bring to a medium heat and render until the fat is transparent and the pork is crisp.",
+        "In a small bowl, whisk the egg yolks, whole egg, and grated Pecorino Romano together until a thick, uniform paste forms.",
+        "Add the crushed peppercorns to the frying pan with the guanciale for the final 30 seconds of rendering to toast the spice.",
+        "Boil the spaghetti until it is approximately 2 minutes away from being al dente.",
+        "Remove 60ml of the starchy pasta water and slowly whisk it into the egg and cheese mixture to temper the proteins.",
+        "Set the Sage Control Freak to 55°C and place the De Buyer pan onto the induction surface.",
+        "Use tongs to transfer the pasta directly from the water into the frying pan, allowing some residual moisture to carry over.",
+        "Pour the tempered egg mixture over the pasta. Toss and stir vigorously, allowing the Control Freak to maintain the precise heat required for the emulsion to thicken without scrambling.",
+        "Adjust the sauce consistency with a splash more pasta water if required until the strands are glossily coated; serve immediately on warmed plates."
+      ],
+      "complexity": "Intermediate",
+      "equipmentNeeded": [
+        "Sage Control Freak",
+        "De Buyer 28cm Frying Pan",
+        "Judge Vista Saucepan",
+        "Balloon Whisk",
+        "Kitchen Tongs",
+        "Fine Grater"
+      ],
+      "categoryIds": [
+        "L8rkrjVM7ehqtX2PgbcQ",
+        "bQdb4b2b2cMzeejAuzw1",
+        "8gHtFK5slWAXys7Tw3k2"
+      ],
+      "ingredients": [
+        {
+          "id": "ring-rec-m8opp3elt-0",
+          "raw": "200g Spaghetti",
+          "quantity": 200,
+          "unit": "g",
+          "ingredientName": "spaghetti",
+          "canonicalItemId": "item-1771258090027-cw4xdygm0"
+        },
+        {
+          "id": "ring-rec-m8opp3elt-1",
+          "raw": "100g Guanciale, sliced into matchsticks",
+          "quantity": 100,
+          "unit": "g",
+          "ingredientName": "guanciale",
+          "preparation": "sliced into matchsticks",
+          "canonicalItemId": "item-1771258090079-vrt42jcs9"
+        },
+        {
+          "id": "ring-rec-m8opp3elt-2",
+          "raw": "3 Large egg yolks",
+          "quantity": 3,
+          "unit": "_item",
+          "ingredientName": "egg yolk",
+          "canonicalItemId": "item-1771258066957-qw00nhi9g"
+        },
+        {
+          "id": "ring-rec-m8opp3elt-3",
+          "raw": "1 Whole large egg",
+          "quantity": 1,
+          "unit": "_item",
+          "ingredientName": "whole egg",
+          "canonicalItemId": "item-1771258066957-qw00nhi9g"
+        },
+        {
+          "id": "ring-rec-m8opp3elt-4",
+          "raw": "60g Pecorino Romano, finely grated",
+          "quantity": 60,
+          "unit": "g",
+          "ingredientName": "pecorino romano",
+          "preparation": "finely grated",
+          "canonicalItemId": "item-1771258090091-8cafniefd"
+        },
+        {
+          "id": "ring-rec-m8opp3elt-5",
+          "raw": "3g Black peppercorns, coarsely crushed",
+          "quantity": 3,
+          "unit": "g",
+          "ingredientName": "black peppercorn",
+          "preparation": "coarsely crushed",
+          "canonicalItemId": "item-1771258090105-h10tgh67s"
+        },
+        {
+          "id": "ring-rec-m8opp3elt-6",
+          "raw": "Fine sea salt",
+          "quantity": null,
+          "unit": null,
+          "ingredientName": "fine sea salt",
+          "canonicalItemId": "item-1771257983337-knwzw22zv"
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "april@pendery.org",
+      "email": "april@pendery.org",
+      "displayName": "April"
+    },
+    {
+      "id": "claire@pendery.org",
+      "email": "claire@pendery.org",
+      "displayName": "Claire"
+    },
+    {
+      "id": "daniel@pendery.org",
+      "email": "daniel@pendery.org",
+      "displayName": "Daniel"
+    },
+    {
+      "id": "daniel@salt.uk",
+      "email": "daniel@salt.uk",
+      "displayName": "Test"
+    },
+    {
+      "id": "ryan@pendery.org",
+      "email": "ryan@pendery.org",
+      "displayName": "Ryan"
+    },
+    {
+      "id": "tom@tom.tom",
+      "email": "tom@tom.tom",
+      "displayName": "Tom"
+    }
+  ],
+  "plans": [
+    {
+      "startDate": "template",
+      "days": [
+        {
+          "userNotes": {},
+          "cookId": "daniel@pendery.org",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "daniel@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org"
+          ],
+          "date": "day-0",
+          "mealNotes": ""
+        },
+        {
+          "mealNotes": "",
+          "userNotes": {},
+          "date": "day-1",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "ryan@salt.uk",
+            "daniel@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "cookId": "daniel@pendery.org"
+        },
+        {
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "claire@pendery.org",
+            "daniel@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "mealNotes": "",
+          "userNotes": {},
+          "cookId": "claire@pendery.org",
+          "date": "day-2"
+        },
+        {
+          "date": "day-3",
+          "cookId": null,
+          "mealNotes": "",
+          "userNotes": {},
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ]
+        },
+        {
+          "date": "day-4",
+          "mealNotes": "",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "userNotes": {},
+          "cookId": null
+        },
+        {
+          "userNotes": {},
+          "cookId": null,
+          "date": "day-5",
+          "mealNotes": "",
+          "presentIds": [
+            "user-2",
+            "user-3",
+            "user-1",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ]
+        },
+        {
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "user-4",
+            "user-5",
+            "april@salt.uk",
+            "claire@salt.uk",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "tom@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org",
+            "april@pendery.org",
+            "tom@tom.tom"
+          ],
+          "mealNotes": "",
+          "userNotes": {},
+          "cookId": null,
+          "date": "day-6"
+        }
+      ],
+      "createdBy": "user-daniel",
+      "createdAt": "2026-02-04T15:44:03.926Z",
+      "id": "plan-template"
+    },
+    {
+      "days": [
+        {
+          "userNotes": {
+            "april@pendery.org": "gfhmgfnh"
+          },
+          "date": "2026-02-13",
+          "mealNotes": "Takeaway ",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "daniel@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org"
+          ],
+          "cookId": "daniel@pendery.org"
+        },
+        {
+          "cookId": "daniel@pendery.org",
+          "date": "2026-02-14",
+          "userNotes": {},
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "ryan@salt.uk",
+            "daniel@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "mealNotes": "Pizza"
+        },
+        {
+          "userNotes": {},
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "claire@pendery.org",
+            "daniel@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "date": "2026-02-15",
+          "mealNotes": "Haggis \nSpring greens\nPotato  celeriac\nGravy",
+          "cookId": "claire@pendery.org"
+        },
+        {
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "date": "2026-02-16",
+          "cookId": "daniel@pendery.org",
+          "mealNotes": "Arrabiatta",
+          "userNotes": {}
+        },
+        {
+          "userNotes": {
+            "claire@pendery.org": "8:00"
+          },
+          "mealNotes": "Beef curry",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "ryan@pendery.org",
+            "claire@pendery.org"
+          ],
+          "cookId": "claire@pendery.org",
+          "date": "2026-02-17"
+        },
+        {
+          "presentIds": [
+            "user-2",
+            "user-3",
+            "user-1",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "date": "2026-02-18",
+          "mealNotes": "",
+          "cookId": "ryan@pendery.org",
+          "userNotes": {
+            "claire@pendery.org": "11:00"
+          }
+        },
+        {
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "user-4",
+            "user-5",
+            "april@salt.uk",
+            "claire@salt.uk",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "tom@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org",
+            "april@pendery.org",
+            "tom@tom.tom"
+          ],
+          "mealNotes": "",
+          "date": "2026-02-19",
+          "userNotes": {},
+          "cookId": "claire@pendery.org"
+        }
+      ],
+      "startDate": "2026-02-13",
+      "id": "plan-2026-02-13",
+      "createdAt": "2026-02-12T19:28:53.381Z",
+      "createdBy": "daniel@pendery.org"
+    },
+    {
+      "days": [
+        {
+          "mealNotes": "test",
+          "cookId": "daniel@pendery.org",
+          "userNotes": {},
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "daniel@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org"
+          ],
+          "date": "2026-02-13"
+        },
+        {
+          "cookId": "daniel@pendery.org",
+          "date": "2026-02-14",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "ryan@salt.uk",
+            "daniel@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "mealNotes": "",
+          "userNotes": {}
+        },
+        {
+          "mealNotes": "",
+          "cookId": "claire@pendery.org",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "claire@pendery.org",
+            "daniel@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "userNotes": {},
+          "date": "2026-02-15"
+        },
+        {
+          "mealNotes": "",
+          "date": "2026-02-16",
+          "userNotes": {},
+          "cookId": null,
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ]
+        },
+        {
+          "mealNotes": "",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "cookId": null,
+          "date": "2026-02-17",
+          "userNotes": {}
+        },
+        {
+          "cookId": null,
+          "userNotes": {},
+          "date": "2026-02-18",
+          "mealNotes": "",
+          "presentIds": [
+            "user-2",
+            "user-3",
+            "user-1",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ]
+        },
+        {
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "user-4",
+            "user-5",
+            "april@salt.uk",
+            "claire@salt.uk",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "tom@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org",
+            "april@pendery.org",
+            "tom@tom.tom"
+          ],
+          "userNotes": {},
+          "mealNotes": "",
+          "date": "2026-02-19",
+          "cookId": null
+        }
+      ],
+      "createdAt": "2026-02-11T16:07:02.317Z",
+      "startDate": "2026-02-13",
+      "createdBy": "daniel@pendery.org",
+      "id": "new"
+    },
+    {
+      "startDate": "2026-02-06",
+      "id": "plan-2026-02-06",
+      "days": [
+        {
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "daniel@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org"
+          ],
+          "cookId": "daniel@pendery.org",
+          "mealNotes": "",
+          "date": "2026-02-06",
+          "userNotes": {}
+        },
+        {
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "ryan@salt.uk",
+            "daniel@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "date": "2026-02-07",
+          "userNotes": {},
+          "cookId": "daniel@pendery.org",
+          "mealNotes": ""
+        },
+        {
+          "mealNotes": "",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "userNotes": {},
+          "cookId": "daniel@pendery.org",
+          "date": "2026-02-08"
+        },
+        {
+          "date": "2026-02-09",
+          "mealNotes": "",
+          "userNotes": {},
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "cookId": "daniel@pendery.org"
+        },
+        {
+          "userNotes": {},
+          "date": "2026-02-10",
+          "cookId": "ryan@pendery.org",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "mealNotes": "Spaghetti Bolognaise"
+        },
+        {
+          "cookId": "claire@pendery.org",
+          "mealNotes": "Indian Takeaway",
+          "userNotes": {},
+          "presentIds": [
+            "user-2",
+            "user-3",
+            "user-1",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "claire@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org"
+          ],
+          "date": "2026-02-11"
+        },
+        {
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3",
+            "user-4",
+            "user-5",
+            "april@salt.uk",
+            "claire@salt.uk",
+            "daniel@salt.uk",
+            "ryan@salt.uk",
+            "tom@salt.uk",
+            "daniel@pendery.org",
+            "claire@pendery.org",
+            "ryan@pendery.org",
+            "april@pendery.org",
+            "tom@tom.tom"
+          ],
+          "cookId": "claire@pendery.org",
+          "userNotes": {},
+          "date": "2026-02-12",
+          "mealNotes": "Sausages\nPan roasted vegetables\n"
+        }
+      ],
+      "createdBy": "daniel@pendery.org",
+      "createdAt": "2026-02-11T17:44:46.895Z"
+    },
+    {
+      "createdAt": "2026-01-30T12:30:49.114Z",
+      "createdBy": "user-1",
+      "id": "plan-dnjtng4f2",
+      "startDate": "2026-01-30",
+      "days": [
+        {
+          "cookId": "user-1",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3"
+          ],
+          "date": "2026-01-30",
+          "mealNotes": "Indian Takeaway",
+          "userNotes": {
+            "user-2": "working until 19:00",
+            "user-3": "working until 20:00"
+          }
+        },
+        {
+          "date": "2026-01-31",
+          "cookId": "user-1",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3"
+          ],
+          "mealNotes": "Chicken and chorizo, salad potatoes.",
+          "userNotes": {
+            "user-2": "working until 19:00"
+          }
+        },
+        {
+          "userNotes": {},
+          "mealNotes": "Indian Takeaway",
+          "date": "2026-02-01",
+          "cookId": "user-2",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3"
+          ]
+        },
+        {
+          "userNotes": {},
+          "date": "2026-02-02",
+          "mealNotes": "Penne Arrabiata",
+          "cookId": "user-1",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3"
+          ]
+        },
+        {
+          "cookId": "user-2",
+          "mealNotes": "",
+          "presentIds": [
+            "user-1",
+            "user-2",
+            "user-3"
+          ],
+          "date": "2026-02-03",
+          "userNotes": {}
+        },
+        {
+          "userNotes": {},
+          "mealNotes": "Chilli & Rice",
+          "presentIds": [
+            "user-1",
+            "user-3"
+          ],
+          "date": "2026-02-04",
+          "cookId": "user-3"
+        },
+        {
+          "presentIds": [
+            "user-1",
+            "user-3",
+            "user-5",
+            "user-4"
+          ],
+          "mealNotes": "Baked Potatoes Beans and Sausages",
+          "cookId": "user-1",
+          "date": "2026-02-05",
+          "userNotes": {}
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "directives": "Prefer the anova oven over the rangemaster ovens unless there's a good reason (size) to use the rangemaster\n\nDon't suggest recipes with mushrooms in\n",
+    "debugEnabled": true,
+    "userOrder": [
+      "daniel@pendery.org",
+      "claire@pendery.org",
+      "ryan@pendery.org",
+      "april@pendery.org",
+      "tom@tom.tom"
+    ]
+  },
+  "canonicalItems": [
+    {
+      "name": "Strong White Bread Flour",
+      "normalisedName": "strong white bread flour",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "Bread Flour",
+        "Strong Flour",
+        "White Bread Flour"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:04:57.817Z",
+      "id": "item-1771257897817-5uy788yz0"
+    },
+    {
+      "name": "Coarse Sea Salt",
+      "normalisedName": "coarse sea salt",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "Rock Salt",
+        "Maldon",
+        "Sea Salt"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:04:57.834Z",
+      "id": "item-1771257897834-0o06fq3b8"
+    },
+    {
+      "name": "Fast Action Dried Yeast",
+      "normalisedName": "fast action dried yeast",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "Instant Yeast",
+        "Dried Yeast",
+        "Easy Bake Yeast"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:04:57.848Z",
+      "id": "item-1771257897848-o69o5lz08"
+    },
+    {
+      "name": "Water",
+      "normalisedName": "water",
+      "preferredUnit": "ml",
+      "aisle": "Other",
+      "isStaple": true,
+      "synonyms": [
+        "Tap Water",
+        "Filtered Water"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:04:57.890Z",
+      "id": "item-1771257897890-lqqmljp68"
+    },
+    {
+      "name": "Fine Semolina",
+      "normalisedName": "fine semolina",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "Semolina",
+        "Semola"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:04:57.902Z",
+      "id": "item-1771257897902-x9134ms7s"
+    },
+    {
+      "name": "Neapolitan Pizza Dough",
+      "normalisedName": "neapolitan pizza dough",
+      "preferredUnit": "_item",
+      "aisle": "Bakery",
+      "isStaple": false,
+      "synonyms": [
+        "pizza dough",
+        "pizza base",
+        "dough ball"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:06:23.313Z",
+      "id": "item-1771257983313-4ozsw7t4y"
+    },
+    {
+      "name": "San Marzano Tomatoes",
+      "normalisedName": "san marzano tomatoes",
+      "preferredUnit": "_item",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "canned tomatoes",
+        "plum tomatoes",
+        "tinned tomatoes"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:06:23.324Z",
+      "id": "item-1771257983324-y3okxlw93"
+    },
+    {
+      "name": "Fine Sea Salt",
+      "normalisedName": "fine sea salt",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "sea salt",
+        "table salt"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:06:23.337Z",
+      "id": "item-1771257983337-knwzw22zv"
+    },
+    {
+      "name": "Fior di Latte Mozzarella",
+      "normalisedName": "fior di latte mozzarella",
+      "preferredUnit": "g",
+      "aisle": "Dairy",
+      "isStaple": false,
+      "synonyms": [
+        "mozzarella",
+        "low-moisture mozzarella",
+        "pizza cheese"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:06:23.358Z",
+      "id": "item-1771257983358-xi7ge1j2o"
+    },
+    {
+      "name": "Parmesan Cheese",
+      "normalisedName": "parmesan cheese",
+      "preferredUnit": "g",
+      "aisle": "Dairy",
+      "isStaple": true,
+      "synonyms": [
+        "parmigiano reggiano",
+        "hard cheese"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:06:23.369Z",
+      "id": "item-1771257983369-6ikdvrbq8"
+    },
+    {
+      "name": "Sliced Pepperoni",
+      "normalisedName": "sliced pepperoni",
+      "preferredUnit": "g",
+      "aisle": "Meat & Fish",
+      "isStaple": false,
+      "synonyms": [
+        "salami",
+        "pepperoni"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:06:23.392Z",
+      "id": "item-1771257983392-zgbw7o02q"
+    },
+    {
+      "name": "Extra Virgin Olive Oil",
+      "normalisedName": "extra virgin olive oil",
+      "preferredUnit": "ml",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "olive oil",
+        "EVOO"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:06:23.402Z",
+      "id": "item-1771257983402-so765oerw"
+    },
+    {
+      "name": "Semolina Flour",
+      "normalisedName": "semolina flour",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "semolina",
+        "dusting flour",
+        "pizza flour"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:06:23.412Z",
+      "id": "item-1771257983412-9nks5i2yx"
+    },
+    {
+      "name": "Digestive Biscuit",
+      "normalisedName": "digestive biscuit",
+      "preferredUnit": "g",
+      "aisle": "Bakery",
+      "isStaple": false,
+      "synonyms": [
+        "digestive",
+        "sweetmeal biscuit"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:07:46.845Z",
+      "id": "item-1771258066845-dqhb74yad"
+    },
+    {
+      "name": "Unsalted Butter",
+      "normalisedName": "unsalted butter",
+      "preferredUnit": "g",
+      "aisle": "Dairy",
+      "isStaple": true,
+      "synonyms": [
+        "sweet butter"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:07:46.900Z",
+      "id": "item-1771258066900-fh9aipcqe"
+    },
+    {
+      "name": "Full-Fat Cream Cheese",
+      "normalisedName": "full-fat cream cheese",
+      "preferredUnit": "g",
+      "aisle": "Dairy",
+      "isStaple": false,
+      "synonyms": [
+        "soft white cheese",
+        "cream cheese"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:07:46.922Z",
+      "id": "item-1771258066922-uiwxgvvul"
+    },
+    {
+      "name": "Caster Sugar",
+      "normalisedName": "caster sugar",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "superfine sugar"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:07:46.939Z",
+      "id": "item-1771258066939-9z3hkqve4"
+    },
+    {
+      "name": "Egg",
+      "normalisedName": "egg",
+      "preferredUnit": "_item",
+      "aisle": "Dairy",
+      "isStaple": true,
+      "synonyms": [
+        "whole egg",
+        "free-range egg"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:07:46.957Z",
+      "id": "item-1771258066957-qw00nhi9g"
+    },
+    {
+      "name": "Double Cream",
+      "normalisedName": "double cream",
+      "preferredUnit": "ml",
+      "aisle": "Dairy",
+      "isStaple": false,
+      "synonyms": [
+        "heavy cream"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:07:46.977Z",
+      "id": "item-1771258066977-u2cw0we1v"
+    },
+    {
+      "name": "Lime",
+      "normalisedName": "lime",
+      "preferredUnit": "_item",
+      "aisle": "Produce",
+      "isStaple": false,
+      "synonyms": [
+        "persian lime"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:07:46.997Z",
+      "id": "item-1771258066997-ls2ll291k"
+    },
+    {
+      "name": "Spaghetti",
+      "normalisedName": "spaghetti",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "Dried Spaghetti",
+        "Pasta"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:08:10.027Z",
+      "id": "item-1771258090027-cw4xdygm0"
+    },
+    {
+      "name": "Guanciale",
+      "normalisedName": "guanciale",
+      "preferredUnit": "g",
+      "aisle": "Meat & Fish",
+      "isStaple": false,
+      "synonyms": [
+        "Cured Pork Jowl",
+        "Italian Cured Pork"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:08:10.079Z",
+      "id": "item-1771258090079-vrt42jcs9"
+    },
+    {
+      "name": "Pecorino Romano",
+      "normalisedName": "pecorino romano",
+      "preferredUnit": "g",
+      "aisle": "Dairy",
+      "isStaple": false,
+      "synonyms": [
+        "Pecorino",
+        "Hard Sheep's Cheese"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:08:10.091Z",
+      "id": "item-1771258090091-8cafniefd"
+    },
+    {
+      "name": "Black Peppercorns",
+      "normalisedName": "black peppercorns",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "Whole Black Pepper",
+        "Peppercorns"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T16:08:10.105Z",
+      "id": "item-1771258090105-h10tgh67s"
+    },
+    {
+      "name": "Sausages",
+      "normalisedName": "sausages",
+      "preferredUnit": "items",
+      "aisle": "",
+      "isStaple": false,
+      "synonyms": [],
+      "createdAt": "2026-02-16T16:30:13.835Z",
+      "id": "item-1771259413835-wk80jik8i"
+    },
+    {
+      "name": "Pork Mince",
+      "normalisedName": "pork mince",
+      "preferredUnit": "g",
+      "aisle": "Meat & Fish",
+      "isStaple": false,
+      "synonyms": [
+        "minced pork",
+        "pork sausage meat"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.275Z",
+      "id": "item-1771272270275-dys1dl01j"
+    },
+    {
+      "name": "Beef Mince",
+      "normalisedName": "beef mince",
+      "preferredUnit": "g",
+      "aisle": "Meat & Fish",
+      "isStaple": false,
+      "synonyms": [
+        "minced beef",
+        "ground beef"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.338Z",
+      "id": "item-1771272270338-adl55jicv"
+    },
+    {
+      "name": "Pancetta",
+      "normalisedName": "pancetta",
+      "preferredUnit": "g",
+      "aisle": "Meat & Fish",
+      "isStaple": false,
+      "synonyms": [
+        "smoked pancetta",
+        "unsmoked pancetta",
+        "pancetta lardons"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.359Z",
+      "id": "item-1771272270359-wl5q56dcu"
+    },
+    {
+      "name": "Brown Onion",
+      "normalisedName": "brown onion",
+      "preferredUnit": "_item",
+      "aisle": "Produce",
+      "isStaple": true,
+      "synonyms": [
+        "yellow onion",
+        "cooking onion"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.373Z",
+      "id": "item-1771272270373-sefnyvimz"
+    },
+    {
+      "name": "Celery",
+      "normalisedName": "celery",
+      "preferredUnit": "_item",
+      "aisle": "Produce",
+      "isStaple": false,
+      "synonyms": [
+        "celery stick",
+        "celery stalk"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.383Z",
+      "id": "item-1771272270383-5merbb19r"
+    },
+    {
+      "name": "Carrot",
+      "normalisedName": "carrot",
+      "preferredUnit": "_item",
+      "aisle": "Produce",
+      "isStaple": true,
+      "synonyms": [
+        "whole carrot"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.396Z",
+      "id": "item-1771272270396-ai5bl8b0c"
+    },
+    {
+      "name": "Tomato Passata",
+      "normalisedName": "tomato passata",
+      "preferredUnit": "ml",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "passata",
+        "italian passata",
+        "sieved tomatoes"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.409Z",
+      "id": "item-1771272270409-is2fl1eqp"
+    },
+    {
+      "name": "Tomato Purée",
+      "normalisedName": "tomato purée",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "tomato paste",
+        "concentrated tomato"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.422Z",
+      "id": "item-1771272270422-kz2u3bya4"
+    },
+    {
+      "name": "Canned Plum Tomatoes",
+      "normalisedName": "canned plum tomatoes",
+      "preferredUnit": "_item",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "tinned plum tomatoes",
+        "peeled plum tomatoes",
+        "whole tomatoes"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.436Z",
+      "id": "item-1771272270436-2n3br6f6f"
+    },
+    {
+      "name": "Dry Wine",
+      "normalisedName": "dry wine",
+      "preferredUnit": "ml",
+      "aisle": "Pantry",
+      "isStaple": false,
+      "synonyms": [
+        "red wine",
+        "dry white wine",
+        "cooking wine"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.448Z",
+      "id": "item-1771272270448-ruhl7xcla"
+    },
+    {
+      "name": "Whole Milk",
+      "normalisedName": "whole milk",
+      "preferredUnit": "ml",
+      "aisle": "Dairy",
+      "isStaple": true,
+      "synonyms": [
+        "full cream milk",
+        "full fat milk"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.461Z",
+      "id": "item-1771272270461-6n4emkuym"
+    },
+    {
+      "name": "Sea Salt",
+      "normalisedName": "sea salt",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "salt",
+        "table salt",
+        "fine salt"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.474Z",
+      "id": "item-1771272270474-cc6s0ajbk"
+    },
+    {
+      "name": "Black Pepper",
+      "normalisedName": "black pepper",
+      "preferredUnit": "g",
+      "aisle": "Pantry",
+      "isStaple": true,
+      "synonyms": [
+        "ground black pepper",
+        "peppercorns"
+      ],
+      "metadata": {},
+      "createdAt": "2026-02-16T20:04:30.486Z",
+      "id": "item-1771272270486-h92os8b8j"
+    }
+  ],
+  "shoppingLists": [
+    {
+      "name": "Weekly Shop",
+      "recipeIds": [],
+      "createdAt": "2026-02-16T16:28:10.914Z",
+      "createdBy": "daniel@salt.uk",
+      "id": "sl-1771259290914-ce5grf3u9"
+    }
+  ],
+  "shoppingListItems": [
+    {
+      "shoppingListId": "sl-1771259290914-ce5grf3u9",
+      "canonicalItemId": "item-1771258066997-ls2ll291k",
+      "name": "Lime",
+      "aisle": "Produce",
+      "isStaple": false,
+      "quantity": 4,
+      "unit": "_item",
+      "checked": true,
+      "id": "sli-1771259376611-gkzq8psfu"
+    },
+    {
+      "shoppingListId": "sl-1771259290914-ce5grf3u9",
+      "canonicalItemId": "item-1771259413835-wk80jik8i",
+      "name": "Sausages",
+      "aisle": "",
+      "isStaple": false,
+      "quantity": 4,
+      "unit": "items",
+      "checked": false,
+      "id": "sli-1771259413853-h7ssy79hg"
+    }
+  ],
+  "units": [
+    {
+      "name": "g",
+      "sortOrder": 0,
+      "createdAt": "2026-02-16T16:04:57.753Z",
+      "id": "unit-1771257897753-m0shncw0k"
+    },
+    {
+      "name": "ml",
+      "sortOrder": 1,
+      "createdAt": "2026-02-16T16:04:57.865Z",
+      "id": "unit-1771257897865-ppeftkuy8"
+    },
+    {
+      "name": "_item",
+      "sortOrder": 2,
+      "createdAt": "2026-02-16T16:29:36.417Z",
+      "id": "unit-1771259376417-24rqs3fqp"
+    },
+    {
+      "name": "items",
+      "sortOrder": 3,
+      "createdAt": "2026-02-16T16:30:13.672Z",
+      "id": "unit-1771259413672-5jcozym98"
+    }
+  ],
+  "aisles": [
+    {
+      "name": "Pantry",
+      "sortOrder": 0,
+      "createdAt": "2026-02-16T16:04:57.800Z",
+      "id": "aisle-1771257897800-gfkjdcilc"
+    },
+    {
+      "name": "Other",
+      "sortOrder": 1,
+      "createdAt": "2026-02-16T16:04:57.880Z",
+      "id": "aisle-1771257897880-bn3zsk4fh"
+    },
+    {
+      "name": "Bakery",
+      "sortOrder": 2,
+      "createdAt": "2026-02-16T16:06:23.301Z",
+      "id": "aisle-1771257983301-dp02gfwb0"
+    },
+    {
+      "name": "Dairy",
+      "sortOrder": 3,
+      "createdAt": "2026-02-16T16:06:23.350Z",
+      "id": "aisle-1771257983350-tpzi6m8ie"
+    },
+    {
+      "name": "Meat & Fish",
+      "sortOrder": 4,
+      "createdAt": "2026-02-16T16:06:23.382Z",
+      "id": "aisle-1771257983382-p548dn844"
+    },
+    {
+      "name": "Produce",
+      "sortOrder": 5,
+      "createdAt": "2026-02-16T16:07:46.988Z",
+      "id": "aisle-1771258066988-o8on7ldsq"
+    }
+  ],
+  "categories": [
+    {
+      "name": "Pasta",
+      "description": "AI-suggested from Classic Precision Carbonara",
+      "confidence": 0.98,
+      "recipeId": "rec-m8opp3elt",
+      "createdBy": "system",
+      "createdAt": "2026-02-16T16:06:51.366Z",
+      "isApproved": true,
+      "id": "8gHtFK5slWAXys7Tw3k2"
+    },
+    {
+      "name": "Sauces & Ragùs",
+      "description": "AI-suggested from Ultimate Bolognese Sauce",
+      "isApproved": false,
+      "confidence": 0.95,
+      "recipeId": "rec-2usdkxbu5",
+      "createdBy": "system",
+      "createdAt": "2026-02-16T20:16:43.608Z",
+      "id": "Czeoz5Rj9AdsODVj2H4T"
+    },
+    {
+      "name": "Pizza Bases",
+      "description": "AI-suggested from Essential Neapolitan-Style Pizza Dough",
+      "confidence": 0.95,
+      "recipeId": "rec-4sbi3w3l0",
+      "createdBy": "system",
+      "createdAt": "2026-02-16T16:04:49.750Z",
+      "isApproved": true,
+      "id": "K1ozxSGFuMpCbaH86Cil"
+    },
+    {
+      "name": "Main Courses",
+      "description": "AI-suggested from Neapolitan Pepperoni Pizza",
+      "confidence": 0.9,
+      "recipeId": "rec-hvx0of1rh",
+      "createdBy": "system",
+      "createdAt": "2026-02-16T16:06:04.400Z",
+      "isApproved": true,
+      "id": "L8rkrjVM7ehqtX2PgbcQ"
+    },
+    {
+      "name": "Breads & Doughs",
+      "description": "AI-suggested from Essential Neapolitan-Style Pizza Dough",
+      "confidence": 0.98,
+      "recipeId": "rec-4sbi3w3l0",
+      "createdBy": "system",
+      "createdAt": "2026-02-16T16:04:49.678Z",
+      "isApproved": true,
+      "id": "RIUGF1pmZmsE8A0Mhgd3"
+    },
+    {
+      "name": "Italian Cuisine",
+      "description": "AI-suggested from Neapolitan Pepperoni Pizza",
+      "confidence": 0.95,
+      "recipeId": "rec-hvx0of1rh",
+      "createdBy": "system",
+      "createdAt": "2026-02-16T16:06:04.349Z",
+      "isApproved": true,
+      "id": "bQdb4b2b2cMzeejAuzw1"
+    },
+    {
+      "name": "Desserts",
+      "description": "AI-suggested from Precision Baked Lime Cheesecake",
+      "confidence": 0.98,
+      "recipeId": "rec-czefpih2h",
+      "createdBy": "system",
+      "createdAt": "2026-02-16T16:07:20.434Z",
+      "isApproved": true,
+      "id": "zTp1knu3UTlWAezoDj1k"
+    }
+  ],
+  "exportedAt": "2026-02-18T21:29:35.542Z"
+}

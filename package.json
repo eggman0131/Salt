@@ -12,6 +12,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
+    "emulators:testdata": "bash scripts/emulators-testdata.sh",
     "dev:all": "bash -c \"npm run emulators & npm run dev\"",
     "emulators:export": "firebase emulators:export ./emulator-data",
     "emulators:import": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
