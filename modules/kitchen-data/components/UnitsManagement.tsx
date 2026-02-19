@@ -1,246 +1,386 @@
 import React, { useState, useEffect } from 'react';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Plus, Trash2, Pencil, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Unit } from '../../../types/contract';
-import { Button, Card, Input, Label } from '../../../components/UI';
 import { kitchenDataBackend } from '../backend';
+import { toast } from 'sonner';
 
 interface UnitsManagementProps {
-  onRefresh?: () => void;
+  onRefresh: () => void;
 }
+
+interface SortableUnitItemProps {
+  unit: Unit;
+  onEdit: (unit: Unit) => void;
+  onDelete: (unit: Unit) => void;
+}
+
+const SortableUnitItem: React.FC<SortableUnitItemProps> = ({ unit, onEdit, onDelete }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: unit.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 p-3 border rounded-lg bg-background shadow-sm hover:shadow-md transition-shadow"
+    >
+      <button
+        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
+      <div className="flex-1">
+        <p className="font-medium text-sm">{unit.name}</p>
+      </div>
+
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          onClick={() => onEdit(unit)}
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:bg-primary/10 hover:text-primary"
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          onClick={() => onDelete(unit)}
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) => {
   const [units, setUnits] = useState<Unit[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
-  const [showNewUnitModal, setShowNewUnitModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [name, setName] = useState('');
   const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [unitToEdit, setUnitToEdit] = useState<Unit | null>(null);
+  const [editName, setEditName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
 
-  // Form state
-  const [formName, setFormName] = useState('');
-  const [formSortOrder, setFormSortOrder] = useState(999);
-
-  const loadUnits = async () => {
-    setIsLoading(true);
-    try {
-      const data = await kitchenDataBackend.getUnits();
-      setUnits(data);
-    } catch (err) {
-      console.error('Failed to load units:', err);
-      alert('Failed to load units');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     loadUnits();
   }, []);
 
-  const openNewUnitModal = () => {
-    setFormName('');
-    setFormSortOrder(units.length > 0 ? Math.max(...units.map(u => u.sortOrder)) + 10 : 10);
-    setEditingUnit(null);
-    setShowNewUnitModal(true);
-  };
-
-  const openEditModal = (unit: Unit) => {
-    setFormName(unit.name);
-    setFormSortOrder(unit.sortOrder);
-    setEditingUnit(unit);
-    setShowNewUnitModal(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formName.trim()) {
-      alert('Unit name is required');
-      return;
-    }
-
-    setIsSubmitting(true);
+  const loadUnits = async () => {
     try {
-      const unitData = {
-        name: formName.trim(),
-        sortOrder: formSortOrder
-      };
-
-      if (editingUnit) {
-        await kitchenDataBackend.updateUnit(editingUnit.id, unitData);
-      } else {
-        await kitchenDataBackend.createUnit(unitData);
-      }
-
-      setShowNewUnitModal(false);
-      await loadUnits();
-      onRefresh?.();
+      const data = await kitchenDataBackend.getUnits();
+      setUnits(data);
     } catch (err) {
-      console.error('Failed to save unit:', err);
-      alert('Failed to save unit');
-    } finally {
-      setIsSubmitting(false);
+      console.error('Failed to load units', err);
+      toast.error('Failed to load units');
     }
   };
 
-  const confirmDelete = (unit: Unit) => {
-    setUnitToDelete(unit);
-    setShowDeleteConfirm(true);
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = units.findIndex(u => u.id === active.id);
+    const newIndex = units.findIndex(u => u.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(units, oldIndex, newIndex);
+    
+    // Update sortOrder for all units
+    const updates = reordered.map((unit, index) => ({
+      ...unit,
+      sortOrder: index,
+    }));
+
+    setUnits(updates);
+
+    // Save to backend
+    try {
+      for (const unit of updates) {
+        await kitchenDataBackend.updateUnit(unit.id, { sortOrder: unit.sortOrder });
+      }
+      toast.success('Unit order updated');
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to save unit order', err);
+      toast.error('Failed to update order');
+      loadUnits(); // Reload to revert
+    }
   };
 
-  const handleDelete = async () => {
-    if (!unitToDelete) return;
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || isAdding) return;
+    
+    setIsAdding(true);
+    try {
+      await kitchenDataBackend.createUnit({
+        name: name.trim(),
+        sortOrder: units.length,
+      });
+      setName('');
+      await loadUnits();
+      toast.success('Unit added', { description: name.trim() });
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to create unit', err);
+      toast.error('Failed to add unit');
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
-    setIsSubmitting(true);
+  const handleDeleteConfirm = async () => {
+    if (!unitToDelete) return;
+    
+    setIsDeleting(true);
     try {
       await kitchenDataBackend.deleteUnit(unitToDelete.id);
-      setShowDeleteConfirm(false);
-      setUnitToDelete(null);
       await loadUnits();
-      onRefresh?.();
+      toast.success('Unit deleted', { description: unitToDelete.name });
+      onRefresh();
     } catch (err) {
-      console.error('Failed to delete unit:', err);
-      alert('Failed to delete unit');
+      console.error('Failed to delete unit', err);
+      toast.error('Failed to delete unit');
     } finally {
-      setIsSubmitting(false);
+      setIsDeleting(false);
+      setUnitToDelete(null);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading units...</div>
-      </div>
-    );
-  }
+  const handleEditClick = (unit: Unit) => {
+    setUnitToEdit(unit);
+    setEditName(unit.name);
+  };
+
+  const handleEditSave = async () => {
+    if (!unitToEdit || !editName.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      await kitchenDataBackend.updateUnit(unitToEdit.id, { name: editName.trim() });
+      await loadUnits();
+      setUnitToEdit(null);
+      setEditName('');
+      toast.success('Unit updated', { description: editName.trim() });
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to update unit', err);
+      toast.error('Failed to update unit');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-600">
-          Units are used for measuring items. Sort order determines display order.
-        </p>
-        <Button onClick={openNewUnitModal}>Add Unit</Button>
-      </div>
+    <>
+      <CardHeader>
+        <div className="space-y-1">
 
-      {/* Units List */}
-      <div className="grid gap-3">
-        {units.length === 0 ? (
-          <Card className="p-6 text-center text-gray-500">
-            No units yet
-          </Card>
-        ) : (
-          units.map((unit) => (
-            <Card key={unit.id} className="p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-gray-900">{unit.name}</h3>
-                    <span className="text-xs text-gray-500">
-                      Sort: {unit.sortOrder}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button onClick={() => openEditModal(unit)} className="text-sm">
-                    Edit
-                  </Button>
-                  <Button onClick={() => confirmDelete(unit)} className="text-sm bg-red-600 hover:bg-red-700">
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))
-        )}
-      </div>
-
-      {/* New/Edit Unit Modal */}
-      {showNewUnitModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full">
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingUnit ? 'Edit Unit' : 'New Unit'}
-              </h2>
-
-              <div>
-                <Label htmlFor="name">Unit Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g., g, kg, ml, l"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Use metric units (g, kg, ml, l). Special unit: <code className="bg-gray-100 px-1 rounded">_item</code> for natural counting
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="sortOrder">Sort Order</Label>
-                <Input
-                  id="sortOrder"
-                  type="number"
-                  value={formSortOrder}
-                  onChange={(e) => setFormSortOrder(parseInt(e.target.value))}
-                  placeholder="10"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Lower numbers appear first in lists
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button type="submit" disabled={isSubmitting} className="flex-1">
-                  {isSubmitting ? 'Saving...' : editingUnit ? 'Update' : 'Create'}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => setShowNewUnitModal(false)}
-                  disabled={isSubmitting}
-                  className="bg-gray-500 hover:bg-gray-600"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </Card>
+          <CardTitle className="text-xl md:text-2xl">Units</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {units.length} measurement {units.length === 1 ? 'unit' : 'units'}
+          </p>
         </div>
-      )}
+      </CardHeader>
 
-      {/* Delete Confirmation */}
-      {showDeleteConfirm && unitToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-6 space-y-4">
-            <h2 className="text-xl font-bold text-gray-900">Confirm Delete</h2>
-            <p className="text-gray-600">
-              Are you sure you want to delete the unit <strong>{unitToDelete.name}</strong>?
-              This may affect items using this unit.
-            </p>
-            <div className="flex gap-3">
-              <Button
-                onClick={handleDelete}
-                disabled={isSubmitting}
-                className="flex-1 bg-red-600 hover:bg-red-700"
+      <CardContent className="flex flex-col space-y-3 h-full px-0 md:px-6">
+        {/* Add Unit Form */}
+        <form onSubmit={handleAdd} className="space-y-4">
+          <div className="flex gap-2">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="unit-name">Unit Name</Label>
+              <Input 
+                id="unit-name"
+                placeholder="e.g. g, kg, ml, l"
+                value={name} 
+                onChange={(e) => setName(e.target.value)}
+                disabled={isAdding}
+              />
+            </div>
+            <div className="self-end">
+              <Button 
+                type="submit" 
+                disabled={!name.trim() || isAdding}
               >
-                {isSubmitting ? 'Deleting...' : 'Delete'}
+                <Plus className="h-4 w-4 mr-2" />
+                Add Unit
               </Button>
+            </div>
+          </div>
+        </form>
+
+        {/* Unit List */}
+        <div className="flex-1 min-h-0">
+          {units.length === 0 ? (
+          <div className="py-12 text-center border border-dashed rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              No units yet. Add measurement units above.
+            </p>
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={units.map(u => u.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {units.map((unit) => (
+                  <SortableUnitItem
+                    key={unit.id}
+                    unit={unit}
+                    onEdit={handleEditClick}
+                    onDelete={setUnitToDelete}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+            )}
+        </div>
+
+        {/* Edit Unit Dialog */}
+        <Dialog open={!!unitToEdit} onOpenChange={() => setUnitToEdit(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Unit</DialogTitle>
+              <DialogDescription>
+                Update the unit name
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Unit Name</Label>
+                <Input 
+                  id="edit-name"
+                  placeholder="e.g. g, kg, ml, l" 
+                  value={editName} 
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editName.trim()) {
+                      handleEditSave();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
               <Button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isSubmitting}
-                className="bg-gray-500 hover:bg-gray-600"
+                variant="outline"
+                onClick={() => setUnitToEdit(null)}
+                disabled={isSaving}
               >
                 Cancel
               </Button>
-            </div>
-          </Card>
-        </div>
-      )}
-    </div>
+              <Button
+                onClick={handleEditSave}
+                disabled={!editName.trim() || isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!unitToDelete} onOpenChange={() => setUnitToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Unit?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {unitToDelete && (
+                  <>
+                    Are you sure you want to delete <strong>{unitToDelete.name}</strong>? 
+                    This action cannot be undone and may affect items using this unit.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Unit'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardContent>
+    </>
   );
 };
