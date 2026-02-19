@@ -32,17 +32,31 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   const mode = getActiveBackendMode();
   const [directives, setDirectives] = useState('');
   const [debugEnabled, setDebugEnabled] = useState(false);
+  const [userOrder, setUserOrder] = useState<string[] | undefined>(undefined);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const debounceTimerRef = useRef<number | null>(null);
+
+  const kitchenSettings: KitchenSettings = {
+    directives,
+    debugEnabled,
+    userOrder,
+  };
 
   // Fetch settings when lastSync changes (e.g. after import)
   useEffect(() => {
     plannerBackend.getKitchenSettings().then(s => {
       setDirectives(s.directives);
       setDebugEnabled(s.debugEnabled || false);
+      setUserOrder(s.userOrder);
       debugLogger.setEnabled(s.debugEnabled || false);
     });
   }, [lastSync]);
+
+  const handleSettingsChange = (settings: KitchenSettings) => {
+    setDirectives(settings.directives);
+    setDebugEnabled(settings.debugEnabled || false);
+    setUserOrder(settings.userOrder);
+  };
 
   const handleUpdateDirectives = (val: string) => {
     setDirectives(val);
@@ -75,8 +89,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   };
 
   return (
-    <div className="min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-160px)] flex flex-col gap-6 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-160px)] flex flex-col gap-4 md:gap-6 animate-in fade-in duration-500">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Left Column: Infrastructure & Directives */}
         <div className="space-y-6">
           {/* System State Card */}
@@ -213,7 +227,12 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
         {/* Right Column: User Management */}
         <Card className="flex flex-col">
-          <UsersModule users={users} onRefresh={onRefresh} />
+          <UsersModule 
+            users={users} 
+            kitchenSettings={kitchenSettings}
+            onRefresh={onRefresh}
+            onSettingsChange={handleSettingsChange}
+          />
         </Card>
       </div>
     </div>

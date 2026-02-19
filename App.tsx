@@ -7,6 +7,8 @@ import { Card, Button } from './components/UI';
 import { User, Recipe, Equipment, Plan } from './types/contract';
 import { systemBackend } from './shared/backend/system-backend';
 import { ensureEmulatorAuth } from './shared/backend/auth-emulator';
+import { toast } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
 
 // Feature Modules
 import { InventoryModule } from './modules/inventory';
@@ -162,6 +164,9 @@ const App: React.FC = () => {
     a.click();
     URL.revokeObjectURL(url);
     setLastSync(new Date().toISOString());
+    toast.success('Backup created', {
+      description: `Downloaded as salt-backup-${getLocalDateString()}.json`,
+    });
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,9 +177,13 @@ const App: React.FC = () => {
       const text = await file.text();
       await systemBackend.importSystemState(text);
       await loadData();
-      alert("Kitchen state restored.");
+      toast.success('Kitchen state restored', {
+        description: 'All data imported successfully',
+      });
     } catch (err: any) {
-      alert(err.message || "Restore failed.");
+      toast.error('Restore failed', {
+        description: err.message || 'Unable to import backup file',
+      });
     } finally {
       setIsImporting(false);
       if (e.target) e.target.value = ''; 
@@ -202,8 +211,18 @@ const App: React.FC = () => {
   };
 
   if (view === 'loading') return null;
-  if (view === 'landing') return <LandingPage onStart={() => setView('login')} />;
-  if (view === 'login') return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  if (view === 'landing') return (
+    <>
+      <Toaster position="top-right" />
+      <LandingPage onStart={() => setView('login')} />
+    </>
+  );
+  if (view === 'login') return (
+    <>
+      <Toaster position="top-right" />
+      <LoginPage onLoginSuccess={handleLoginSuccess} />
+    </>
+  );
 
   if (view === 'dashboard' && user) {
     const todayStr = getLocalDateString();
@@ -211,7 +230,9 @@ const App: React.FC = () => {
     const todaysMeal = currentPlan?.days.find(d => d.date === todayStr);
 
     return (
-      <DashboardLayout 
+      <>
+        <Toaster position="top-right" />
+        <DashboardLayout 
         activeTab={activeTab} 
         onTabChange={(tabId) => {
           if (tabId !== 'ai') setAiInitialMessage(undefined);
@@ -397,6 +418,7 @@ const App: React.FC = () => {
           />
         )}
       </DashboardLayout>
+      </>
     );
   }
 

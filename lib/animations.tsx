@@ -90,6 +90,38 @@ export const slideIn = (direction: 'top' | 'bottom' | 'left' | 'right' = 'bottom
 };
 
 /**
+ * Modal Animation Token - Consistent animation for all modals (Dialog, AlertDialog)
+ * 
+ * AI USAGE:
+ * Apply to Dialog and AlertDialog content for consistent modal animations.
+ * Single source of truth for all modal enter/exit animations.
+ * 
+ * TO MODIFY:
+ * - Zoom + slide: Add zoom-in-95/zoom-out-95 and slide classes
+ * - No animation: Return empty string
+ * - Different effect: Modify animation class combination
+ * 
+ * CURRENT EFFECT:
+ * Fade only (duration: 200ms)
+ * 
+ * @returns Tailwind className string for modal animations
+ * 
+ * @example
+ * <DialogContent className={cn(modalAnimation(), 'other-classes')}>
+ *   Modal content
+ * </DialogContent>
+ */
+export const modalAnimation = (): string => {
+  return cn(
+    'duration-200',
+    'data-[state=open]:animate-in',
+    'data-[state=closed]:animate-out',
+    'data-[state=closed]:fade-out-0',
+    'data-[state=open]:fade-in-0'
+  );
+};
+
+/**
  * LoadingSpinner Component - Standard AI wait indicator
  * 
  * AI USAGE:
