@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AddButton } from '@/components/ui/add-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Pencil, X, Loader2 } from 'lucide-react';
+import { Trash2, Pencil, X, Loader2 } from 'lucide-react';
 import { Equipment, EquipmentCandidate } from '../../../types/contract';
 import { inventoryBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
@@ -220,9 +221,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
               {inventory.length} {inventory.length === 1 ? 'item' : 'items'}
             </p>
           </div>
-          <Button onClick={handleAddClick} className="shrink-0">
-            + Add
-          </Button>
+          <AddButton onClick={handleAddClick} className="shrink-0" label="Add" />
         </div>
       </CardHeader>
 
@@ -562,14 +561,13 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
                         }}
                         disabled={isValidating}
                       />
-                      <Button
+                      <AddButton
                         type="button"
                         onClick={handleAddAccessory}
                         disabled={!newAccessoryName.trim() || isValidating}
                         variant="outline"
-                      >
-                        {isValidating ? 'Validating...' : 'Add'}
-                      </Button>
+                        label={isValidating ? 'Validating...' : 'Add'}
+                      />
                     </div>
                   </div>
 

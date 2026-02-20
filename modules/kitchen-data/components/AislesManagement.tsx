@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AddButton } from '@/components/ui/add-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Pencil, GripVertical } from 'lucide-react';
+import { Trash2, Pencil, GripVertical } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -265,13 +266,11 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
               />
             </div>
             <div className="self-end">
-              <Button 
-                type="submit" 
+              <AddButton
+                type="submit"
                 disabled={!name.trim() || isAdding}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Aisle
-              </Button>
+                label="Add"
+              />
             </div>
           </div>
         </form>

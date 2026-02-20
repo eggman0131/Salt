@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AddButton } from '@/components/ui/add-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Pencil, X } from 'lucide-react';
+import { Trash2, Pencil, X } from 'lucide-react';
 import { CanonicalItem, Unit, Aisle } from '../../../types/contract';
 import { kitchenDataBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
@@ -201,9 +202,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
               {items.length} canonical {items.length === 1 ? 'item' : 'items'}
             </p>
           </div>
-          <Button onClick={handleAddClick} className="shrink-0">
-            + Add
-          </Button>
+          <AddButton onClick={handleAddClick} className="shrink-0" label="Add" />
         </div>
       </CardHeader>
 
@@ -289,7 +288,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
             </DialogHeader>
             
             <ScrollArea className="max-h-[60vh]">
-              <div className="space-y-4 py-4 pr-4">
+              <div className="space-y-4 py-4 pl-3 pr-1 md:px-6">
                 <div className="space-y-2">
                   <Label htmlFor="add-name">Item Name</Label>
                   <Input 
@@ -361,9 +360,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                         }
                       }}
                     />
-                    <Button type="button" onClick={handleAddSynonym} variant="outline">
-                      Add
-                    </Button>
+                    <AddButton type="button" onClick={handleAddSynonym} variant="outline" label="Add" />
                   </div>
                   
                   {synonyms.length > 0 && (
@@ -393,28 +390,29 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
               >
                 Cancel
               </Button>
-              <Button
+              <AddButton
                 onClick={handleAdd}
                 disabled={!name.trim() || isAdding}
-              >
-                {isAdding ? 'Adding...' : 'Add Item'}
-              </Button>
+                label={isAdding ? 'Adding...' : 'Add Item'}
+              />
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         {/* Edit Item Dialog */}
         <Dialog open={!!itemToEdit} onOpenChange={() => setItemToEdit(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Edit Canonical Item</DialogTitle>
-              <DialogDescription>
-                Update the item details
-              </DialogDescription>
-            </DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col">
+            <div className="pl-3 pr-1 md:px-6 pt-6 shrink-0">
+              <DialogHeader>
+                <DialogTitle>Edit Canonical Item</DialogTitle>
+                <DialogDescription>
+                  Update the item details
+                </DialogDescription>
+              </DialogHeader>
+            </div>
             
-            <ScrollArea className="max-h-[60vh]">
-              <div className="space-y-4 py-4 pr-4">
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="space-y-4 py-4 pl-3 pr-1 md:px-6 pb-6">
                 <div className="space-y-2">
                   <Label htmlFor="edit-name">Item Name</Label>
                   <Input 
@@ -486,9 +484,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                         }
                       }}
                     />
-                    <Button type="button" onClick={handleAddSynonym} variant="outline">
-                      Add
-                    </Button>
+                    <AddButton type="button" onClick={handleAddSynonym} variant="outline" label="Add" />
                   </div>
                   
                   {synonyms.length > 0 && (
@@ -510,7 +506,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
               </div>
             </ScrollArea>
 
-            <DialogFooter>
+            <DialogFooter className="pl-3 pr-1 md:px-6 pt-6 pb-6 border-t shrink-0">
               <Button
                 variant="outline"
                 onClick={() => setItemToEdit(null)}
