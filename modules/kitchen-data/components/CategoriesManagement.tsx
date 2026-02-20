@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AddButton } from '@/components/ui/add-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Pencil, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Trash2, Pencil, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { RecipeCategory } from '../../../types/contract';
 import { kitchenDataBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
@@ -277,9 +278,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
               {approvedCategories.length} approved, {pendingCategories.length} pending
             </p>
           </div>
-          <Button onClick={handleAddClick} className="shrink-0">
-            + Add
-          </Button>
+          <AddButton onClick={handleAddClick} className="shrink-0" label="Add" />
         </div>
       </CardHeader>
 
@@ -376,9 +375,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
                         }
                       }}
                     />
-                    <Button type="button" onClick={handleAddSynonym} variant="outline">
-                      Add
-                    </Button>
+                    <AddButton type="button" onClick={handleAddSynonym} variant="outline" label="Add" />
                   </div>
                   
                   {synonyms.length > 0 && (
@@ -408,12 +405,11 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
               >
                 Cancel
               </Button>
-              <Button
+              <AddButton
                 onClick={handleAdd}
                 disabled={!name.trim() || isAdding}
-              >
-                {isAdding ? 'Adding...' : 'Add Category'}
-              </Button>
+                label={isAdding ? 'Adding...' : 'Add Category'}
+              />
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -465,9 +461,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
                         }
                       }}
                     />
-                    <Button type="button" onClick={handleAddSynonym} variant="outline">
-                      Add
-                    </Button>
+                    <AddButton type="button" onClick={handleAddSynonym} variant="outline" label="Add" />
                   </div>
                   
                   {synonyms.length > 0 && (

@@ -1,9 +1,10 @@
 import React from 'react';
 import { Equipment } from '../../../types/contract';
+import { AddButton } from '../../../components/ui/add-button';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
-import { Plus, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface RecipeEquipmentInputProps {
   equipmentNeeded: string[];
@@ -28,10 +29,7 @@ export const RecipeEquipmentInput: React.FC<RecipeEquipmentInputProps> = ({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label>Equipment</Label>
-        <Button type="button" onClick={onAddEquipment}>
-          <Plus className="w-4 h-4 mr-1" />
-          Add
-        </Button>
+        <AddButton type="button" onClick={onAddEquipment} label="Add" />
       </div>
       <div className="space-y-2">
         {equipmentNeeded.map((equipment, index) => {

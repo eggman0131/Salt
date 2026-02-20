@@ -7,6 +7,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../../../components/ui/dialog';
+import { AddButton } from '../../../components/ui/add-button';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
@@ -20,7 +21,7 @@ import {
 } from '../../../components/ui/select';
 import { Separator } from '../../../components/ui/separator';
 import { Badge } from '../../../components/ui/badge';
-import { Plus, X, Clock8 } from 'lucide-react';
+import { X, Clock8 } from 'lucide-react';
 import { CategoryPicker } from './CategoryPicker';
 import { RecipeIngredientsInput } from './RecipeIngredientsInput';
 import { RecipeEquipmentInput } from './RecipeEquipmentInput';
@@ -445,13 +446,11 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Categories</Label>
-                <Button
+                <AddButton
                   type="button"
                   onClick={() => setShowCategoryPicker(true)}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
+                  label="Add"
+                />
               </div>
               {selectedCategoryIds.length > 0 && (
                 <div className="flex flex-wrap gap-2">

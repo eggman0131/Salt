@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Recipe, RecipeCategory } from '../../../types/contract';
 import { Card } from '../../../components/ui/card';
-import { Button } from '../../../components/ui/button';
+import { AddButton } from '../../../components/ui/add-button';
 import { Input } from '../../../components/ui/input';
 import { Badge } from '../../../components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../../components/ui/accordion';
-import { Plus, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { RecipeFormDialog } from './RecipeFormDialog';
 import { RecipeCard } from './RecipeCard';
 
@@ -81,10 +81,7 @@ export const RecipesList: React.FC<RecipesListProps> = ({
             {filteredRecipes.length} {filteredRecipes.length === 1 ? 'recipe' : 'recipes'}
           </p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Recipe
-        </Button>
+        <AddButton onClick={() => setIsCreateDialogOpen(true)} label="Add" />
       </div>
 
       {/* Search and Filters */}
@@ -163,14 +160,12 @@ export const RecipesList: React.FC<RecipesListProps> = ({
               <>
                 <p className="text-lg font-medium">No recipes yet</p>
                 <p className="mt-1">Create your first recipe to get started</p>
-                <Button
+                <AddButton
                   onClick={() => setIsCreateDialogOpen(true)}
                   className="mt-4"
                   variant="outline"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Recipe
-                </Button>
+                  label="Add"
+                />
               </>
             )}
           </div>
