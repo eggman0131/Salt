@@ -73,19 +73,19 @@ export const RecipesList: React.FC<RecipesListProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Recipes</h1>
-          <p className="text-muted-foreground mt-1">
-            {filteredRecipes.length} {filteredRecipes.length === 1 ? 'recipe' : 'recipes'}
-          </p>
-        </div>
-        <AddButton onClick={() => setIsCreateDialogOpen(true)} label="Add" />
-      </div>
-
       {/* Search and Filters */}
       <Card>
+        {/* Header */}
+        <div className="flex items-center justify-between p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Find Recipes</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {filteredRecipes.length} {filteredRecipes.length === 1 ? 'recipe' : 'recipes'}
+            </p>
+          </div>
+          <AddButton onClick={() => setIsCreateDialogOpen(true)} label="Add" />
+        </div>
+
         {/* Search */}
         <div className="p-4">
           <div className="relative">
