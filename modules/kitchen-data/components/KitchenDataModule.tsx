@@ -42,8 +42,11 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
       <Tabs defaultValue="categories" className="w-full flex flex-col flex-1 min-h-0">
-        <TabsList className="w-full flex">
-          <TabsTrigger value="categories" className="flex-1 flex items-center justify-center gap-1.5">
+        <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
+          <TabsTrigger 
+            value="categories" 
+            className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+          >
             <Tags className="w-4 h-4" />
             <span className="hidden md:inline">Categories</span>
             {pendingCount > 0 && (
@@ -52,15 +55,24 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="items" className="flex-1 flex items-center justify-center gap-1.5">
+          <TabsTrigger 
+            value="items" 
+            className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+          >
             <List className="w-4 h-4" />
             <span className="hidden md:inline">Items</span>
           </TabsTrigger>
-          <TabsTrigger value="units" className="flex-1 flex items-center justify-center gap-1.5">
+          <TabsTrigger 
+            value="units" 
+            className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+          >
             <Ruler className="w-4 h-4" />
             <span className="hidden md:inline">Units</span>
           </TabsTrigger>
-          <TabsTrigger value="aisles" className="flex-1 flex items-center justify-center gap-1.5">
+          <TabsTrigger 
+            value="aisles" 
+            className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+          >
             <MapPin className="w-4 h-4" />
             <span className="hidden md:inline">Aisles</span>
           </TabsTrigger>
