@@ -27,7 +27,7 @@ import {
 import { Plus, Trash2, Pencil, X, Loader2 } from 'lucide-react';
 import { Equipment, EquipmentCandidate } from '../../../types/contract';
 import { inventoryBackend } from '../backend';
-import { toast } from 'sonner';
+import { softToast } from '@/lib/soft-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface InventoryModuleProps {
@@ -73,11 +73,11 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
       setCandidates(results);
 
       if (results.length === 0) {
-        toast.info('No matches found', { description: 'Try a different search term' });
+        softToast.info('No matches found', { description: 'Try a different search term' });
       }
     } catch (err) {
       console.error('Failed to search equipment', err);
-      toast.error('Search failed', { description: 'Please try again' });
+      softToast.error('Search failed', { description: 'Please try again' });
       setCandidates([]);
     } finally {
       setIsSearching(false);
@@ -104,12 +104,12 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
       };
 
       await inventoryBackend.createEquipment(newEquipment);
-      toast.success('Equipment added', { description: newEquipment.name });
+      softToast.success('Equipment added', { description: newEquipment.name });
       await onRefresh();
       setShowAddDialog(false);
     } catch (err) {
       console.error('Failed to add equipment:', err);
-      toast.error('Failed to add equipment', { description: 'Please try again' });
+      softToast.error('Failed to add equipment', { description: 'Please try again' });
     } finally {
       setIsGenerating(false);
     }
@@ -122,10 +122,10 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
     try {
       await inventoryBackend.deleteEquipment(equipmentToDelete.id);
       await onRefresh();
-      toast.success('Equipment deleted', { description: equipmentToDelete.name });
+      softToast.success('Equipment deleted', { description: equipmentToDelete.name });
     } catch (err) {
       console.error('Failed to delete equipment', err);
-      toast.error('Failed to delete equipment');
+      softToast.error('Failed to delete equipment');
     } finally {
       setIsDeleting(false);
       setEquipmentToDelete(null);
@@ -157,10 +157,10 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
         },
       ]);
       setNewAccessoryName('');
-      toast.success('Accessory added');
+      softToast.success('Accessory added');
     } catch (err) {
       console.error('Failed to validate accessory', err);
-      toast.error('Failed to add accessory');
+      softToast.error('Failed to add accessory');
     } finally {
       setIsValidating(false);
     }
@@ -188,10 +188,10 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
 
       await onRefresh();
       setEquipmentToEdit(null);
-      toast.success('Equipment updated', { description: equipmentToEdit.name });
+      softToast.success('Equipment updated', { description: equipmentToEdit.name });
     } catch (err) {
       console.error('Failed to update equipment', err);
-      toast.error('Failed to update equipment');
+      softToast.error('Failed to update equipment');
     } finally {
       setIsSaving(false);
     }

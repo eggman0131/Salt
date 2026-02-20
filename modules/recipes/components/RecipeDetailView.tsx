@@ -11,7 +11,7 @@ import { RecipeFormDialog } from './RecipeFormDialog';
 import { DeleteRecipeDialog } from './DeleteRecipeDialog';
 import { CategoryPicker } from './CategoryPicker';
 import { ImageEditor } from '../../../shared/components/ImageEditor';
-import { toast } from 'sonner';
+import { softToast } from '@/lib/soft-toast';
 
 interface RecipeDetailViewProps {
   recipe: Recipe;
@@ -62,7 +62,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
       await onUpdate(recipe.id, { categoryIds: newCategoryIds });
     } catch (error) {
       console.error('Failed to update categories:', error);
-      toast.error('Failed to update categories');
+      softToast.error('Failed to update categories');
     }
   };
 
@@ -106,7 +106,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const handleSaveImage = async (imageData: string) => {
     try {
       const updatedRecipe = await recipesBackend.updateRecipe(recipe.id, {}, imageData);
-      toast.success('Image uploaded successfully');
+      softToast.success('Image uploaded successfully');
       setIsImageEditorOpen(false);
       // Refresh the image
       if (updatedRecipe.imagePath) {
@@ -115,7 +115,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
       }
     } catch (error) {
       console.error('Failed to upload image:', error);
-      toast.error('Failed to upload image');
+      softToast.error('Failed to upload image');
     }
   };
 
@@ -124,13 +124,13 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
       setIsRefreshingImage(true);
       const imagePath = await recipesBackend.generateRecipeImage(recipe.title, recipe.description);
       const updatedRecipe = await recipesBackend.updateRecipe(recipe.id, { imagePath });
-      toast.success('AI image generated');
+      softToast.success('AI image generated');
       // Refresh the image
       const newImageSrc = await recipesBackend.resolveImagePath(imagePath);
       setImageSrc(newImageSrc);
     } catch (error) {
       console.error('Failed to generate image:', error);
-      toast.error('Failed to generate image');
+      softToast.error('Failed to generate image');
     } finally {
       setIsRefreshingImage(false);
     }

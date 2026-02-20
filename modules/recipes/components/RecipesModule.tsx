@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Recipe, RecipeCategory } from '../../../types/contract';
 import { recipesBackend } from '../backend';
 import { kitchenDataBackend } from '../../kitchen-data';
-import { toast, Toaster } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
+import { softToast } from '@/lib/soft-toast';
 import { RecipesList } from './RecipesList';
 import { RecipeDetailView } from './RecipeDetailView';
 
@@ -28,7 +29,7 @@ export const RecipesModule: React.FC = () => {
       setCategories(categoriesData.filter(c => c.isApproved));
     } catch (error) {
       console.error('Failed to load recipes:', error);
-      toast.error('Failed to load recipes');
+      softToast.error('Failed to load recipes');
     } finally {
       setIsLoading(false);
     }
@@ -37,11 +38,11 @@ export const RecipesModule: React.FC = () => {
   const handleCreateRecipe = async (recipeData: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>) => {
     try {
       await recipesBackend.createRecipe(recipeData);
-      toast.success('Recipe created');
+      softToast.success('Recipe created');
       await loadData();
     } catch (error) {
       console.error('Failed to create recipe:', error);
-      toast.error('Failed to create recipe');
+      softToast.error('Failed to create recipe');
       throw error;
     }
   };
@@ -49,7 +50,7 @@ export const RecipesModule: React.FC = () => {
   const handleUpdateRecipe = async (id: string, updates: Partial<Recipe>) => {
     try {
       await recipesBackend.updateRecipe(id, updates);
-      toast.success('Recipe updated');
+      softToast.success('Recipe updated');
       await loadData();
       
       // Update selected recipe if it's the one being edited
@@ -59,7 +60,7 @@ export const RecipesModule: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to update recipe:', error);
-      toast.error('Failed to update recipe');
+      softToast.error('Failed to update recipe');
       throw error;
     }
   };
@@ -67,7 +68,7 @@ export const RecipesModule: React.FC = () => {
   const handleDeleteRecipe = async (id: string) => {
     try {
       await recipesBackend.deleteRecipe(id);
-      toast.success('Recipe deleted');
+      softToast.success('Recipe deleted');
       
       // Close detail view if we deleted the selected recipe
       if (selectedRecipe?.id === id) {
@@ -77,7 +78,7 @@ export const RecipesModule: React.FC = () => {
       await loadData();
     } catch (error) {
       console.error('Failed to delete recipe:', error);
-      toast.error('Failed to delete recipe');
+      softToast.error('Failed to delete recipe');
       throw error;
     }
   };

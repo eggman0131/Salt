@@ -27,7 +27,7 @@ import {
 import { Plus, Trash2, Pencil, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { RecipeCategory } from '../../../types/contract';
 import { kitchenDataBackend } from '../backend';
-import { toast } from 'sonner';
+import { softToast } from '@/lib/soft-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CategoriesManagementProps {
@@ -71,7 +71,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
       onPendingChange?.();
     } catch (err) {
       console.error('Failed to load categories', err);
-      toast.error('Failed to load categories');
+      softToast.error('Failed to load categories');
     }
   };
 
@@ -109,11 +109,11 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
       
       await loadCategories();
       setShowAddDialog(false);
-      toast.success('Category added', { description: name.trim() });
+      softToast.success('Category added', { description: name.trim() });
       onRefresh();
     } catch (err) {
       console.error('Failed to create category', err);
-      toast.error('Failed to add category');
+      softToast.error('Failed to add category');
     } finally {
       setIsAdding(false);
     }
@@ -124,11 +124,11 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     try {
       await kitchenDataBackend.approveCategory(category.id);
       await loadCategories();
-      toast.success('Category approved', { description: category.name });
+      softToast.success('Category approved', { description: category.name });
       onRefresh();
     } catch (err) {
       console.error('Failed to approve category', err);
-      toast.error('Failed to approve category');
+      softToast.error('Failed to approve category');
     } finally {
       setApproving(null);
     }
@@ -141,11 +141,11 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     try {
       await kitchenDataBackend.deleteCategory(categoryToDelete.id);
       await loadCategories();
-      toast.success('Category deleted', { description: categoryToDelete.name });
+      softToast.success('Category deleted', { description: categoryToDelete.name });
       onRefresh();
     } catch (err) {
       console.error('Failed to delete category', err);
-      toast.error('Failed to delete category');
+      softToast.error('Failed to delete category');
     } finally {
       setIsDeleting(false);
       setCategoryToDelete(null);
@@ -173,11 +173,11 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
       
       await loadCategories();
       setCategoryToEdit(null);
-      toast.success('Category updated', { description: name.trim() });
+      softToast.success('Category updated', { description: name.trim() });
       onRefresh();
     } catch (err) {
       console.error('Failed to update category', err);
-      toast.error('Failed to update category');
+      softToast.error('Failed to update category');
     } finally {
       setIsSaving(false);
     }

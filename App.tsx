@@ -7,7 +7,7 @@ import { Card, Button } from './components/UI';
 import { User, Recipe, Equipment, Plan } from './types/contract';
 import { systemBackend } from './shared/backend/system-backend';
 import { ensureEmulatorAuth } from './shared/backend/auth-emulator';
-import { toast } from 'sonner';
+import { softToast } from '@/lib/soft-toast';
 import { Toaster } from '@/components/ui/sonner';
 
 // Feature Modules
@@ -164,7 +164,7 @@ const App: React.FC = () => {
     a.click();
     URL.revokeObjectURL(url);
     setLastSync(new Date().toISOString());
-    toast.success('Backup created', {
+    softToast.success('Backup created', {
       description: `Downloaded as salt-backup-${getLocalDateString()}.json`,
     });
   };
@@ -177,11 +177,11 @@ const App: React.FC = () => {
       const text = await file.text();
       await systemBackend.importSystemState(text);
       await loadData();
-      toast.success('Kitchen state restored', {
+      softToast.success('Kitchen state restored', {
         description: 'All data imported successfully',
       });
     } catch (err: any) {
-      toast.error('Restore failed', {
+      softToast.error('Restore failed', {
         description: err.message || 'Unable to import backup file',
       });
     } finally {
