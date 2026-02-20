@@ -397,17 +397,26 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
       {/* Tabbed Navigation */}
       <Tabs defaultValue="recipe" className="w-full">
         {/* Tab Triggers */}
-        <TabsList className="w-full flex">
-          <TabsTrigger value="recipe" className="flex-1 flex items-center justify-center gap-1.5">
+        <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
+          <TabsTrigger 
+            value="recipe" 
+            className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+          >
             <Book className="w-4 h-4" />
             <span className="hidden md:inline">Recipe</span>
           </TabsTrigger>
           {/* Chef tab only visible on mobile */}
-          <TabsTrigger value="chef" className="flex-1 flex items-center justify-center gap-1.5 md:hidden">
+          <TabsTrigger 
+            value="chef" 
+            className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 md:hidden font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+          >
             <ChefHat className="w-4 h-4" />
             <span className="hidden md:inline">Chef</span>
           </TabsTrigger>
-          <TabsTrigger value="cook" className="flex-1 flex items-center justify-center gap-1.5">
+          <TabsTrigger 
+            value="cook" 
+            className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+          >
             <Flame className="w-4 h-4" />
             <span className="hidden md:inline">Cook</span>
           </TabsTrigger>
@@ -422,21 +431,32 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
               Back to Recipes
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsHistoryOpen(true)}>
-                <Clock className="w-4 h-4 mr-2" />
-                History
+              <Button 
+                variant="outline" 
+                onClick={() => setIsHistoryOpen(true)}
+                className="h-9 w-9 md:w-auto md:h-10 md:px-4"
+                title="History"
+              >
+                <Clock className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">History</span>
               </Button>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Edit
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditDialogOpen(true)}
+                className="h-9 w-9 md:w-auto md:h-10 md:px-4"
+                title="Edit"
+              >
+                <Edit className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Edit</span>
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setIsDeleteDialogOpen(true)}
-                className="text-destructive hover:bg-destructive/10"
+                className="h-9 w-9 md:w-auto md:h-10 md:px-4 text-destructive hover:bg-destructive/10"
+                title="Delete"
               >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
+                <Trash2 className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Delete</span>
               </Button>
             </div>
           </div>
@@ -534,7 +554,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
         </TabsContent>
 
         {/* Chef Tab - Mobile only */}
-        <TabsContent value="chef" className="mt-6 md:hidden">
+        <TabsContent value="chef" className="mt-6 md:hidden h-[75vh]">
           <RecipeChefChat
             recipe={recipe}
             onRecipeUpdate={onUpdate}
