@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Recipe, RecipeCategory } from '../../../types/contract';
+import React, { useState, useEffect, useRef } from 'react';
+import { Recipe, RecipeCategory, RecipeHistoryEntry } from '../../../types/contract';
 import { AddButton } from '../../../components/ui/add-button';
 import { Button } from '../../../components/ui/button';
 import { Card, CardContent, CardHeader } from '../../../components/ui/card';
@@ -13,8 +13,21 @@ import { RecipeFormDialog } from './RecipeFormDialog';
 import { DeleteRecipeDialog } from './DeleteRecipeDialog';
 import { CategoryPicker } from './CategoryPicker';
 import { RecipeChefChat } from './RecipeChefChat';
+import { RecipeHistoryDialog } from './RecipeHistoryDialog';
 import { ImageEditor } from '../../../shared/components/ImageEditor';
 import { softToast } from '@/lib/soft-toast';
+import { systemBackend } from '../../../shared/backend/system-backend';
+import { buildManualEditSummary, createHistoryEntry } from '../backend/recipe-updates';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../../components/ui/alert-dialog';
 
 interface RecipeDetailContentProps {
   recipe: Recipe;
@@ -36,7 +49,7 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
   getSourceDisplay,
   isValidUrl,
 }) => (
-  <Card className="max-w-2xl">
+  <Card className="w-full">
     <CardHeader className="p-4 md:p-6">
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
@@ -220,6 +233,12 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
   const [isRefreshingImage, setIsRefreshingImage] = useState(false);
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
+  const imageRef = useRef<HTMLDivElement | null>(null);
+  const [chatTop, setChatTop] = useState<number | null>(null);
+  const [currentUserName, setCurrentUserName] = useState('Chef');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [pendingRestoreEntry, setPendingRestoreEntry] = useState<RecipeHistoryEntry | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // Load image if exists
   useEffect(() => {
@@ -231,6 +250,16 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
         .finally(() => setIsLoadingImage(false));
     }
   }, [recipe.imagePath]);
+
+  useEffect(() => {
+    systemBackend.getCurrentUser()
+      .then(user => {
+        if (user?.displayName) {
+          setCurrentUserName(user.displayName);
+        }
+      })
+      .catch(() => null);
+  }, []);
 
   // Get category names for this recipe
   const recipeCategories = categories.filter(cat => 
@@ -278,14 +307,43 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
     }
   };
 
-  const handleUpdate = async (updates: Partial<Recipe>) => {
-    await onUpdate(recipe.id, updates);
+  const handleEditUpdate = async (updates: Partial<Recipe>) => {
+    const merged = { ...recipe, ...updates } as Recipe;
+    const editSummary = buildManualEditSummary(recipe, merged);
+    const historyEntry = createHistoryEntry(recipe, editSummary, currentUserName);
+    await onUpdate(recipe.id, {
+      ...updates,
+      history: [...(recipe.history || []), historyEntry],
+    });
     setIsEditDialogOpen(false);
   };
 
   const handleDelete = async () => {
     await onDelete(recipe.id);
     setIsDeleteDialogOpen(false);
+  };
+
+  const handleRestoreHistory = async () => {
+    if (!pendingRestoreEntry) return;
+    setIsRestoring(true);
+    try {
+      const safetyEntry = createHistoryEntry(
+        recipe,
+        'Restore point saved before reverting.',
+        currentUserName
+      );
+      await onUpdate(recipe.id, {
+        ...pendingRestoreEntry.snapshot,
+        history: [...(recipe.history || []), safetyEntry],
+      });
+      setIsHistoryOpen(false);
+      setPendingRestoreEntry(null);
+    } catch (error) {
+      console.error('Failed to restore version:', error);
+      softToast.error('Could not restore version');
+    } finally {
+      setIsRestoring(false);
+    }
   };
 
   const handleSaveImage = async (imageData: string) => {
@@ -321,6 +379,19 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
     }
   };
 
+  const updateChatTop = () => {
+    if (!imageRef.current) return;
+    const rect = imageRef.current.getBoundingClientRect();
+    setChatTop(rect.top);
+  };
+
+  useEffect(() => {
+    updateChatTop();
+    const handleResize = () => requestAnimationFrame(updateChatTop);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [imageSrc]);
+
   return (
     <div className="space-y-6">
       {/* Tabbed Navigation */}
@@ -351,6 +422,10 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
               Back to Recipes
             </Button>
             <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsHistoryOpen(true)}>
+                <Clock className="w-4 h-4 mr-2" />
+                History
+              </Button>
               <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
                 <Edit className="w-4 h-4 mr-2" />
                 Edit
@@ -366,72 +441,73 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
             </div>
           </div>
 
-          {/* Image */}
-          <div className="relative aspect-video w-full max-w-2xl mx-auto overflow-hidden rounded-lg bg-muted group">
-            {isLoadingImage ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : imageSrc ? (
-              <>
-                <img 
-                  src={imageSrc} 
-                  alt={recipe.title}
-                  className="w-full h-full object-cover"
-                />
-                {/* Image Actions - Always visible, overlaid on image */}
-                <div className="absolute top-3 right-3 flex gap-2 z-10">
-                  <Button
-                    size="icon"
-                    className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
-                    onClick={() => setIsImageEditorOpen(true)}
-                    title="Upload new image"
-                  >
-                    <Upload className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
-                    onClick={handleRefreshImage}
-                    disabled={isRefreshingImage}
-                    title="Generate AI image"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isRefreshingImage ? 'animate-spin' : ''}`} />
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
+            {/* Recipe Content */}
+            <div className="space-y-6 w-full md:w-[65%]">
+              {/* Image */}
+              <div ref={imageRef} className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted group">
+                {isLoadingImage ? (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <ChefHat className="w-16 h-16 text-muted-foreground/20" />
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 </div>
-                {/* Upload button for recipes without images */}
-                <div className="absolute top-3 right-3 flex gap-2 z-10">
-                  <Button
-                    size="icon"
-                    className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
-                    onClick={() => setIsImageEditorOpen(true)}
-                    title="Upload image"
-                  >
-                    <Upload className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
-                    onClick={handleRefreshImage}
-                    disabled={isRefreshingImage}
-                    title="Generate AI image"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isRefreshingImage ? 'animate-spin' : ''}`} />
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
+              ) : imageSrc ? (
+                <>
+                  <img 
+                    src={imageSrc} 
+                    alt={recipe.title}
+                    className="w-full h-full object-cover"
+                      onLoad={updateChatTop}
+                  />
+                  {/* Image Actions - Always visible, overlaid on image */}
+                  <div className="absolute top-3 right-3 flex gap-2 z-10">
+                    <Button
+                      size="icon"
+                      className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                      onClick={() => setIsImageEditorOpen(true)}
+                      title="Upload new image"
+                    >
+                      <Upload className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                      onClick={handleRefreshImage}
+                      disabled={isRefreshingImage}
+                      title="Generate AI image"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isRefreshingImage ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <ChefHat className="w-16 h-16 text-muted-foreground/20" />
+                  </div>
+                  {/* Upload button for recipes without images */}
+                  <div className="absolute top-3 right-3 flex gap-2 z-10">
+                    <Button
+                      size="icon"
+                      className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                      onClick={() => setIsImageEditorOpen(true)}
+                      title="Upload image"
+                    >
+                      <Upload className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                      onClick={handleRefreshImage}
+                      disabled={isRefreshingImage}
+                      title="Generate AI image"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isRefreshingImage ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
 
-          {/* Recipe Content Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] gap-6 items-start">
-            {/* Recipe Detail - Left Column */}
+            {/* Recipe Detail - Column 1 */}
             <RecipeDetailContent 
               recipe={recipe}
               categories={categories}
@@ -442,26 +518,39 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
               getSourceDisplay={getSourceDisplay}
               isValidUrl={isValidUrl}
             />
-            
-            {/* Chef Chat - Right Column (Desktop only) */}
-            <div className="hidden md:block sticky top-6 h-[calc(100vh-24rem)]">
-              <RecipeChefChat recipe={recipe} onRecipeUpdate={onUpdate} />
-            </div>
+          </div>
+
+          {/* Chef Chat - Fixed (Desktop only) */}
+          <div
+            className="hidden md:block fixed right-6 w-[35vw] max-w-105 min-w-[320px] h-[70vh] max-h-180 z-20"
+            style={{ top: chatTop ?? 96 }}
+          >
+            <RecipeChefChat
+              recipe={recipe}
+              onRecipeUpdate={onUpdate}
+              currentUserName={currentUserName}
+            />
           </div>
         </TabsContent>
 
         {/* Chef Tab - Mobile only */}
         <TabsContent value="chef" className="mt-6 md:hidden">
-          <RecipeChefChat recipe={recipe} onRecipeUpdate={onUpdate} />
+          <RecipeChefChat
+            recipe={recipe}
+            onRecipeUpdate={onUpdate}
+            currentUserName={currentUserName}
+          />
         </TabsContent>
 
         {/* Cook Tab - Placeholder for cook mode */}
         <TabsContent value="cook" className="mt-6">
-          <Card className="max-w-2xl mx-auto p-12 border-dashed text-center">
+          <Card className="max-w-2xl mx-auto p-12 border-dashed bg-muted/30 text-center animate-in fade-in zoom-in duration-300">
             <div className="text-muted-foreground">
-              <Flame className="w-12 h-12 mx-auto mb-4 text-muted-foreground/20" />
-              <p className="text-lg font-medium">Cook Mode</p>
-              <p className="mt-1">Coming soon</p>
+              <div className="w-20 h-20 mx-auto mb-6 bg-muted flex items-center justify-center rounded-full">
+                <Flame className="w-10 h-10 text-orange-400 animate-pulse" />
+              </div>
+              <p className="text-xl font-semibold text-primary">Service Mode</p>
+              <p className="mt-2 text-sm max-w-xs mx-auto">The Chef is finalizing the interactive cooking experience. Please stick to the recipe view for now.</p>
             </div>
           </Card>
         </TabsContent>
@@ -472,7 +561,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         categories={categories}
-        onSubmit={handleUpdate}
+        onSubmit={handleEditUpdate}
         recipe={recipe}
       />
 
@@ -507,6 +596,33 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
         selectedCategoryIds={recipe.categoryIds || []}
         onToggle={toggleCategory}
       />
+
+      <RecipeHistoryDialog
+        open={isHistoryOpen}
+        onOpenChange={setIsHistoryOpen}
+        history={recipe.history}
+        onRestore={(entry) => {
+          setPendingRestoreEntry(entry);
+          setIsHistoryOpen(false);
+        }}
+      />
+
+      <AlertDialog open={!!pendingRestoreEntry} onOpenChange={(open) => !open && setPendingRestoreEntry(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore this version?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your current version will be saved before restoring.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRestoring}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestoreHistory} disabled={isRestoring}>
+              {isRestoring ? 'Restoring...' : 'Restore'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

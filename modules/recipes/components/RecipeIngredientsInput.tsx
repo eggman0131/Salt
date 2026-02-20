@@ -1,15 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { RecipeIngredient, CanonicalItem } from '../../../types/contract';
 import { AddButton } from '../../../components/ui/add-button';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
-import { X } from 'lucide-react';
+import { X, Check, ChevronsUpDown } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '../../../components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '../../../components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface RecipeIngredientsInputProps {
   ingredients: RecipeIngredient[];
-  ingredientSearchQueries: { [key: number]: string | undefined };
+  ingredientSearchQueries: { [key: number]: string | undefined }; // Keep for consistency but use locally
   availableIngredients: CanonicalItem[];
   onAddIngredient: () => void;
   onRemoveIngredient: (id: string) => void;
@@ -22,7 +36,6 @@ interface RecipeIngredientsInputProps {
 
 export const RecipeIngredientsInput: React.FC<RecipeIngredientsInputProps> = ({
   ingredients,
-  ingredientSearchQueries,
   availableIngredients,
   onAddIngredient,
   onRemoveIngredient,
@@ -30,89 +43,130 @@ export const RecipeIngredientsInput: React.FC<RecipeIngredientsInputProps> = ({
   onChangeUnit,
   onChangeIngredientName,
   onChangePreparation,
-  onChangeSearchQuery,
 }) => {
+  const [openStates, setOpenStates] = useState<{ [key: number]: boolean }>({});
+
+  const setOpen = (index: number, open: boolean) => {
+    setOpenStates(prev => ({ ...prev, [index]: open }));
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Label>Ingredients *</Label>
+        <Label className="text-sm font-semibold">Ingredients *</Label>
         <AddButton type="button" onClick={onAddIngredient} label="Add" />
       </div>
       <div className="space-y-2">
         {ingredients.map((ingredient, index) => {
-          const query = ingredientSearchQueries[index];
-          const showSuggestions = query && query.length > 0 && !availableIngredients.find(item => item.name === query);
-          const getFilteredIngredients = () => {
-            if (!showSuggestions) return [];
-            return availableIngredients
-              .filter(item => item.name.toLowerCase().includes(query.toLowerCase()))
-              .map(item => item.name)
-              .sort();
-          };
-          const filtered = getFilteredIngredients();
-
           return (
-            <div key={ingredient.id} className="flex gap-1 items-start w-full">
-              <Input
-                placeholder="Qty"
-                value={ingredient.quantity || ''}
-                onChange={(e) => onChangeQuantity(index, e.target.value || null)}
-                className="shrink-0 w-13 md:w-16 text-sm"
-                type="number"
-                step="any"
-              />
-              <Input
-                placeholder="Unit"
-                value={ingredient.unit || ''}
-                onChange={(e) => onChangeUnit(index, e.target.value || null)}
-                className="shrink-0 w-17 md:w-32 text-sm"
-                list={`units-${index}`}
-              />
-              <datalist id={`units-${index}`}>
-                <option>ml</option>
-                <option>l</option>
-                <option>g</option>
-                <option>kg</option>
-              </datalist>
-              <div className="w-40 md:flex-1 relative min-w-0">
+            <div key={ingredient.id} className="flex gap-2 items-start w-full group">
+              <div className="flex gap-1 flex-1 min-w-0">
                 <Input
-                  placeholder="Ingredient *"
-                  value={ingredient.ingredientName}
-                  onChange={(e) => onChangeIngredientName(index, e.target.value)}
-                  onFocus={() => onChangeSearchQuery(index, ingredient.ingredientName || '')}
-                  onBlur={() => onChangeSearchQuery(index, undefined)}
-                  className="w-full text-sm"
+                  placeholder="Qty"
+                  value={ingredient.quantity || ''}
+                  onChange={(e) => onChangeQuantity(index, e.target.value || null)}
+                  className="shrink-0 w-14 md:w-16 text-sm h-9"
+                  type="number"
+                  step="any"
                 />
-                {filtered.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-10 bg-white dark:bg-gray-950 border rounded-md shadow-lg mt-1">
-                    {filtered.map((name) => (
-                      <button
-                        key={name}
-                        type="button"
-                        onClick={() => {
-                          onChangeIngredientName(index, name);
-                          onChangeSearchQuery(index, undefined);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                <Input
+                  placeholder="Unit"
+                  value={ingredient.unit || ''}
+                  onChange={(e) => onChangeUnit(index, e.target.value || null)}
+                  className="shrink-0 w-18 md:w-24 text-sm h-9"
+                  list={`units-${index}`}
+                />
+                <datalist id={`units-${index}`}>
+                  <option>ml</option>
+                  <option>l</option>
+                  <option>g</option>
+                  <option>kg</option>
+                </datalist>
+
+                <div className="flex-1 min-w-0">
+                  <Popover 
+                    open={openStates[index]} 
+                    onOpenChange={(open) => setOpen(index, open)}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openStates[index]}
+                        className={cn(
+                          "w-full justify-between text-sm h-9 px-3 font-normal",
+                          !ingredient.ingredientName && "text-muted-foreground"
+                        )}
                       >
-                        {name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                        {ingredient.ingredientName || "Select ingredient..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search items..." className="h-9" />
+                        <CommandList className="max-h-60 overflow-y-auto">
+                          <CommandEmpty className="py-2 px-4 text-xs">
+                             <div className="flex flex-col gap-2">
+                               <span>No item found.</span>
+                               <Button 
+                                 variant="secondary" 
+                                 size="sm" 
+                                 className="h-7 text-xs"
+                                 onClick={() => {
+                                    // Use whatever they typed as the new item name
+                                    // This is tricky as we don't easily have the current search term without a local state
+                                    // But Command handles the filtering
+                                    setOpen(index, false);
+                                 }}
+                               >
+                                 Use manual entry
+                               </Button>
+                             </div>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {availableIngredients.map((item) => (
+                              <CommandItem
+                                key={item.id}
+                                value={item.name}
+                                onSelect={(currentValue) => {
+                                  onChangeIngredientName(index, currentValue);
+                                  setOpen(index, false);
+                                }}
+                                className="text-sm"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    ingredient.ingredientName === item.name ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {item.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {/* Invisible input to allow manual typing if they click away from popover or popover fails */}
+                  {/* Alternatively, just let them type in the CommandInput and have a "Use [text]" option */}
+                </div>
+
+                <Input
+                  placeholder="Prep"
+                  value={ingredient.preparation || ''}
+                  onChange={(e) => onChangePreparation(index, e.target.value)}
+                  className="shrink-0 w-20 md:w-28 text-sm h-9"
+                />
               </div>
-              <Input
-                placeholder="Prep"
-                value={ingredient.preparation || ''}
-                onChange={(e) => onChangePreparation(index, e.target.value)}
-                className="shrink-0 w-18 md:w-24 text-sm"
-              />
+
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => onRemoveIngredient(ingredient.id)}
-                className="shrink-0"
+                className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               >
                 <X className="w-4 h-4" />
               </Button>
