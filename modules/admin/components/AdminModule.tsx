@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UsersModule } from './UsersModule';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { AddButton } from '@/components/ui/add-button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -234,6 +235,13 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                     Destructive
                   </Button>
                 </div>
+              </div>
+              <div className="space-y-2 rounded-lg border p-4">
+                <p className="text-sm font-semibold">Add Button</p>
+                <p className="text-xs text-muted-foreground">
+                  Standard extra-small add action.
+                </p>
+                <AddButton type="button" />
               </div>
             </CardContent>
           </Card>

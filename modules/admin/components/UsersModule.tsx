@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AddButton } from '@/components/ui/add-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { UserPlus, Trash2, Pencil, GripVertical } from 'lucide-react';
+import { Trash2, Pencil, GripVertical } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -288,14 +289,12 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
             </div>
           </div>
           
-          <Button 
-            type="submit" 
+          <AddButton
+            type="submit"
             disabled={!name.trim() || !email.trim()}
             className="w-full"
-          >
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add User
-          </Button>
+            label="Add User"
+          />
         </form>
 
         {/* User List */}

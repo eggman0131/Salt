@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Recipe, RecipeCategory } from '../../../types/contract';
+import { AddButton } from '../../../components/ui/add-button';
 import { Button } from '../../../components/ui/button';
 import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
-import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Plus } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import { recipesBackend } from '../backend';
 import { RecipeFormDialog } from './RecipeFormDialog';
@@ -239,15 +240,13 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium">Categories</h3>
-                <Button
+                <AddButton
                   type="button"
                   size="sm"
                   variant="outline"
                   onClick={() => setIsCategoryPickerOpen(true)}
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add
-                </Button>
+                  label="Add"
+                />
               </div>
               {recipeCategories.length > 0 && (
                 <div className="flex flex-wrap gap-2">

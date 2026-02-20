@@ -1,8 +1,9 @@
 import React from 'react';
+import { AddButton } from '../../../components/ui/add-button';
 import { Button } from '../../../components/ui/button';
 import { Textarea } from '../../../components/ui/textarea';
 import { Label } from '../../../components/ui/label';
-import { Plus, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface RecipeInstructionsInputProps {
   instructions: string[];
@@ -21,10 +22,7 @@ export const RecipeInstructionsInput: React.FC<RecipeInstructionsInputProps> = (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label>Instructions *</Label>
-        <Button type="button" onClick={onAddInstruction}>
-          <Plus className="w-4 h-4 mr-1" />
-          Add
-        </Button>
+        <AddButton type="button" onClick={onAddInstruction} label="Add" />
       </div>
       <div className="space-y-2">
         {instructions.map((instruction, index) => (
