@@ -225,7 +225,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
       </div>
 
       {/* Main content */}
-      <Card>
+      <Card className="max-w-2xl mx-auto">
         <CardHeader className="p-4 md:p-6">
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-4">
