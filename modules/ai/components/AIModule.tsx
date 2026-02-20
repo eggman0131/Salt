@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { MessageSquare, Link as LinkIcon, Loader2, Send, CheckCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { recipesBackend } from '../../recipes';
-import { toast } from 'sonner';
+import { softToast } from '@/lib/soft-toast';
 
 interface Message {
   role: 'user' | 'ai';
@@ -90,7 +90,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       setMessages(prev => [...prev, { role: 'ai', text: response }]);
     } catch (err) {
       console.error('Chat error:', err);
-      toast.error('Chat failed', { description: 'Please try again' });
+      softToast.error('Chat failed', { description: 'Please try again' });
     } finally {
       setIsProcessing(false);
       setProcessStatus('');
@@ -141,7 +141,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
         complexity: (recipeData.complexity as any) || 'Intermediate',
       } as any, imageData);
 
-      toast.success('Recipe created', { description: recipeData.title });
+      softToast.success('Recipe created', { description: recipeData.title });
       onRecipeGenerated();
       
       // Clear chat and localStorage after successful creation
@@ -153,7 +153,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
       }
     } catch (err) {
       console.error('Finalisation error:', err);
-      toast.error('Failed to create recipe', { description: 'Please try again' });
+      softToast.error('Failed to create recipe', { description: 'Please try again' });
     } finally {
       setIsProcessing(false);
       setProcessStatus('');
@@ -192,12 +192,12 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
         complexity: (importedRecipe.complexity as any) || 'Intermediate',
       } as any, imageData);
       
-      toast.success('Recipe imported', { description: importedRecipe.title });
+      softToast.success('Recipe imported', { description: importedRecipe.title });
       setUrlInput('');
       onRecipeGenerated();
     } catch (err) {
       console.error('Import error:', err);
-      toast.error('Import failed', { description: 'Check the URL and try again' });
+      softToast.error('Import failed', { description: 'Check the URL and try again' });
     } finally {
       setIsProcessing(false);
       setProcessStatus('');

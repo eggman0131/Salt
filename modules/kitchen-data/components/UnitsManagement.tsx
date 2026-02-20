@@ -41,7 +41,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Unit } from '../../../types/contract';
 import { kitchenDataBackend } from '../backend';
-import { toast } from 'sonner';
+import { softToast } from '@/lib/soft-toast';
 
 interface UnitsManagementProps {
   onRefresh: () => void;
@@ -136,7 +136,7 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
       setUnits(data);
     } catch (err) {
       console.error('Failed to load units', err);
-      toast.error('Failed to load units');
+      softToast.error('Failed to load units');
     }
   };
 
@@ -165,11 +165,11 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
       for (const unit of updates) {
         await kitchenDataBackend.updateUnit(unit.id, { sortOrder: unit.sortOrder });
       }
-      toast.success('Unit order updated');
+      softToast.success('Unit order updated');
       onRefresh();
     } catch (err) {
       console.error('Failed to save unit order', err);
-      toast.error('Failed to update order');
+      softToast.error('Failed to update order');
       loadUnits(); // Reload to revert
     }
   };
@@ -186,11 +186,11 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
       });
       setName('');
       await loadUnits();
-      toast.success('Unit added', { description: name.trim() });
+      softToast.success('Unit added', { description: name.trim() });
       onRefresh();
     } catch (err) {
       console.error('Failed to create unit', err);
-      toast.error('Failed to add unit');
+      softToast.error('Failed to add unit');
     } finally {
       setIsAdding(false);
     }
@@ -203,11 +203,11 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
     try {
       await kitchenDataBackend.deleteUnit(unitToDelete.id);
       await loadUnits();
-      toast.success('Unit deleted', { description: unitToDelete.name });
+      softToast.success('Unit deleted', { description: unitToDelete.name });
       onRefresh();
     } catch (err) {
       console.error('Failed to delete unit', err);
-      toast.error('Failed to delete unit');
+      softToast.error('Failed to delete unit');
     } finally {
       setIsDeleting(false);
       setUnitToDelete(null);
@@ -228,11 +228,11 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
       await loadUnits();
       setUnitToEdit(null);
       setEditName('');
-      toast.success('Unit updated', { description: editName.trim() });
+      softToast.success('Unit updated', { description: editName.trim() });
       onRefresh();
     } catch (err) {
       console.error('Failed to update unit', err);
-      toast.error('Failed to update unit');
+      softToast.error('Failed to update unit');
     } finally {
       setIsSaving(false);
     }

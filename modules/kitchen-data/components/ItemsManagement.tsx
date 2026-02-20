@@ -33,7 +33,7 @@ import {
 import { Plus, Trash2, Pencil, X } from 'lucide-react';
 import { CanonicalItem, Unit, Aisle } from '../../../types/contract';
 import { kitchenDataBackend } from '../backend';
-import { toast } from 'sonner';
+import { softToast } from '@/lib/soft-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ItemsManagementProps {
@@ -75,7 +75,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       setAisles(aislesData);
     } catch (err) {
       console.error('Failed to load data', err);
-      toast.error('Failed to load items');
+      softToast.error('Failed to load items');
     }
   };
 
@@ -117,11 +117,11 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       
       await loadData();
       setShowAddDialog(false);
-      toast.success('Item added', { description: name.trim() });
+      softToast.success('Item added', { description: name.trim() });
       onRefresh();
     } catch (err) {
       console.error('Failed to create item', err);
-      toast.error('Failed to add item');
+      softToast.error('Failed to add item');
     } finally {
       setIsAdding(false);
     }
@@ -134,11 +134,11 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     try {
       await kitchenDataBackend.deleteCanonicalItem(itemToDelete.id);
       await loadData();
-      toast.success('Item deleted', { description: itemToDelete.name });
+      softToast.success('Item deleted', { description: itemToDelete.name });
       onRefresh();
     } catch (err) {
       console.error('Failed to delete item', err);
-      toast.error('Failed to delete item');
+      softToast.error('Failed to delete item');
     } finally {
       setIsDeleting(false);
       setItemToDelete(null);
@@ -171,11 +171,11 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       
       await loadData();
       setItemToEdit(null);
-      toast.success('Item updated', { description: name.trim() });
+      softToast.success('Item updated', { description: name.trim() });
       onRefresh();
     } catch (err) {
       console.error('Failed to update item', err);
-      toast.error('Failed to update item');
+      softToast.error('Failed to update item');
     } finally {
       setIsSaving(false);
     }

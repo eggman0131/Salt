@@ -41,7 +41,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Aisle } from '../../../types/contract';
 import { kitchenDataBackend } from '../backend';
-import { toast } from 'sonner';
+import { softToast } from '@/lib/soft-toast';
 
 interface AislesManagementProps {
   onRefresh: () => void;
@@ -136,7 +136,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
       setAisles(data);
     } catch (err) {
       console.error('Failed to load aisles', err);
-      toast.error('Failed to load aisles');
+      softToast.error('Failed to load aisles');
     }
   };
 
@@ -165,11 +165,11 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
       for (const aisle of updates) {
         await kitchenDataBackend.updateAisle(aisle.id, { sortOrder: aisle.sortOrder });
       }
-      toast.success('Aisle order updated');
+      softToast.success('Aisle order updated');
       onRefresh();
     } catch (err) {
       console.error('Failed to save aisle order', err);
-      toast.error('Failed to update order');
+      softToast.error('Failed to update order');
       loadAisles(); // Reload to revert
     }
   };
@@ -186,11 +186,11 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
       });
       setName('');
       await loadAisles();
-      toast.success('Aisle added', { description: name.trim() });
+      softToast.success('Aisle added', { description: name.trim() });
       onRefresh();
     } catch (err) {
       console.error('Failed to create aisle', err);
-      toast.error('Failed to add aisle');
+      softToast.error('Failed to add aisle');
     } finally {
       setIsAdding(false);
     }
@@ -203,11 +203,11 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
     try {
       await kitchenDataBackend.deleteAisle(aisleToDelete.id);
       await loadAisles();
-      toast.success('Aisle deleted', { description: aisleToDelete.name });
+      softToast.success('Aisle deleted', { description: aisleToDelete.name });
       onRefresh();
     } catch (err) {
       console.error('Failed to delete aisle', err);
-      toast.error('Failed to delete aisle');
+      softToast.error('Failed to delete aisle');
     } finally {
       setIsDeleting(false);
       setAisleToDelete(null);
@@ -228,11 +228,11 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
       await loadAisles();
       setAisleToEdit(null);
       setEditName('');
-      toast.success('Aisle updated', { description: editName.trim() });
+      softToast.success('Aisle updated', { description: editName.trim() });
       onRefresh();
     } catch (err) {
       console.error('Failed to update aisle', err);
-      toast.error('Failed to update aisle');
+      softToast.error('Failed to update aisle');
     } finally {
       setIsSaving(false);
     }
