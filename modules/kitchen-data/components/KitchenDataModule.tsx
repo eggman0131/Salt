@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { List, MapPin, Ruler, Tags } from 'lucide-react';
 import { kitchenDataBackend } from '../backend';
 import { UnitsManagement } from './UnitsManagement.js';
 import { AislesManagement } from './AislesManagement.js';
@@ -43,21 +44,25 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({
       <Tabs defaultValue="categories" className="w-full flex flex-col flex-1 min-h-0">
         <TabsList className="w-full flex">
           <TabsTrigger value="categories" className="flex-1 flex items-center justify-center gap-1.5">
-            Categories
+            <Tags className="w-4 h-4" />
+            <span className="hidden md:inline">Categories</span>
             {pendingCount > 0 && (
               <Badge className="h-5 min-w-5 px-1 tabular-nums flex items-center justify-center">
                 {pendingCount}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="items" className="flex-1">
-            Items
+          <TabsTrigger value="items" className="flex-1 flex items-center justify-center gap-1.5">
+            <List className="w-4 h-4" />
+            <span className="hidden md:inline">Items</span>
           </TabsTrigger>
-          <TabsTrigger value="units" className="flex-1">
-            Units
+          <TabsTrigger value="units" className="flex-1 flex items-center justify-center gap-1.5">
+            <Ruler className="w-4 h-4" />
+            <span className="hidden md:inline">Units</span>
           </TabsTrigger>
-          <TabsTrigger value="aisles" className="flex-1">
-            Aisles
+          <TabsTrigger value="aisles" className="flex-1 flex items-center justify-center gap-1.5">
+            <MapPin className="w-4 h-4" />
+            <span className="hidden md:inline">Aisles</span>
           </TabsTrigger>
         </TabsList>
 
