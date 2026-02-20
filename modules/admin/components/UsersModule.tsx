@@ -252,7 +252,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
 
   return (
     <>
-      <CardHeader>
+      <CardHeader className="p-4 md:p-6">
         <div className="space-y-1">
           <CardTitle className="text-xl md:text-2xl">Authorised Users</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -261,7 +261,7 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 p-4 md:p-6">
         {/* Add User Form */}
         <form onSubmit={handleAdd} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

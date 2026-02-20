@@ -11,6 +11,7 @@ import { User, KitchenSettings } from '../../../types/contract';
 import { getActiveBackendMode } from '../../../shared/backend/system-backend';
 import { plannerBackend } from '../../planner';
 import { debugLogger } from '../../../shared/backend/debug-logger';
+import { softToast } from '@/lib/soft-toast';
 
 interface AdminModuleProps {
   users: User[];
@@ -94,14 +95,14 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         {/* Left Column: Infrastructure & Directives */}
         <div className="space-y-6">
           {/* System State Card */}
-          <Card>
-            <CardHeader>
+          <Card className="shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="p-4 md:p-6">
               <div className="space-y-1">
                 <CardTitle className="text-xl md:text-2xl">System State</CardTitle>
                 <p className="text-sm text-muted-foreground">Current environment and sync status</p>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 p-4 md:p-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -158,15 +159,15 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
             </CardContent>
           </Card>
 
-          {/* Debug Logger Card */}
-          <Card>
-            <CardHeader>
+          {/* Development Card */}
+          <Card className="shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="p-4 md:p-6">
               <div className="space-y-1">
-                <CardTitle className="text-xl md:text-2xl">Debug Logging</CardTitle>
-                <p className="text-sm text-muted-foreground">Control backend console logging for development and troubleshooting</p>
+                <CardTitle className="text-xl md:text-2xl">Development</CardTitle>
+                <p className="text-sm text-muted-foreground">Tools for diagnostics and interface checks</p>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 p-4 md:p-6">
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <Label htmlFor="debug-mode" className="text-sm font-semibold">
@@ -182,12 +183,64 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   onCheckedChange={handleToggleDebug}
                 />
               </div>
+              <div className="space-y-2 rounded-lg border p-4">
+                <p className="text-sm font-semibold">Toast Preview</p>
+                <p className="text-xs text-muted-foreground">
+                  Trigger the soft toast styles with sample messages.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      softToast.info('Inventory tip', {
+                        description: 'Drag items to reorder the list.',
+                      })
+                    }
+                  >
+                    Info
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      softToast.success('Backup complete', {
+                        description: 'Salt saved the latest kitchen state.',
+                      })
+                    }
+                  >
+                    Success
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      softToast.warning('Service warning', {
+                        description: 'Check the hob settings before service.',
+                      })
+                    }
+                  >
+                    Warning
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      softToast.error('Import failed', {
+                        description: 'The file could not be read.',
+                      })
+                    }
+                  >
+                    Destructive
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           {/* Kitchen Directives Card */}
-          <Card className="flex-1">
-            <CardHeader>
+          <Card className="flex-1 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="p-4 md:p-6">
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
                   <CardTitle className="text-xl md:text-2xl">Kitchen Directives</CardTitle>
@@ -203,7 +256,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 p-4 md:p-6">
               <Label htmlFor="directives" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Global AI Rules
               </Label>
@@ -222,7 +275,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         </div>
 
         {/* Right Column: User Management */}
-        <Card className="flex flex-col">
+        <Card className="flex flex-col shadow-sm hover:shadow-md transition-shadow">
           <UsersModule 
             users={users} 
             kitchenSettings={kitchenSettings}
