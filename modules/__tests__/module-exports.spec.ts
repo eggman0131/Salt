@@ -228,28 +228,18 @@ describe('Recipes Module Exports', () => {
     expect(typeof recipesModule.RecipesModule).toBe('function');
   });
 
-  it('should export RecipeDetail component', async () => {
-    const recipesModule = await import('../recipes');
-    expect(recipesModule.RecipeDetail).toBeDefined();
-    expect(typeof recipesModule.RecipeDetail).toBe('function');
-  });
-
-  it('should export RecipesList component', async () => {
-    const recipesModule = await import('../recipes');
-    expect(recipesModule.RecipesList).toBeDefined();
-    expect(typeof recipesModule.RecipesList).toBe('function');
-  });
+  // RecipeDetail and RecipesList are now internal components (not exported)
+  // Only RecipesModule (main orchestrator) is exported as the public component
 
   it('should have all expected exports', async () => {
     const recipesModule = await import('../recipes');
     const exports = Object.keys(recipesModule);
     
+    // Simplified exports: only backend and main module
     const expectedExports = [
       'recipesBackend',
       'getRecipesBackend',
       'RecipesModule',
-      'RecipeDetail',
-      'RecipesList',
     ];
     
     expectedExports.forEach(exp => {
@@ -262,7 +252,14 @@ describe('Recipes Module Exports', () => {
   it('should not export internal utilities', async () => {
     const recipesModule = await import('../recipes');
     
+    // Internal components should not be exported
     expect((recipesModule as any).RecipeCard).toBeUndefined();
+    expect((recipesModule as any).RecipeDetailView).toBeUndefined();
+    expect((recipesModule as any).RecipesList).toBeUndefined();
+    expect((recipesModule as any).RecipeFormDialog).toBeUndefined();
+    expect((recipesModule as any).DeleteRecipeDialog).toBeUndefined();
+    
+    // Internal backend implementations should not be exported
     expect((recipesModule as any).FirebaseRecipesBackend).toBeUndefined();
     expect((recipesModule as any).BaseRecipesBackend).toBeUndefined();
   });
