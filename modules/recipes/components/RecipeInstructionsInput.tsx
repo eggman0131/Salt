@@ -9,7 +9,6 @@ interface RecipeInstructionsInputProps {
   onAddInstruction: () => void;
   onRemoveInstruction: (index: number) => void;
   onChangeInstruction: (index: number, value: string) => void;
-  instructionRefs: React.MutableRefObject<{ [key: number]: HTMLTextAreaElement | null }>;
 }
 
 export const RecipeInstructionsInput: React.FC<RecipeInstructionsInputProps> = ({
@@ -17,7 +16,6 @@ export const RecipeInstructionsInput: React.FC<RecipeInstructionsInputProps> = (
   onAddInstruction,
   onRemoveInstruction,
   onChangeInstruction,
-  instructionRefs,
 }) => {
   return (
     <div className="space-y-3">
@@ -34,13 +32,10 @@ export const RecipeInstructionsInput: React.FC<RecipeInstructionsInputProps> = (
             <div className="flex-1 min-w-0">
               <div className="text-xs text-muted-foreground mb-1">Step {index + 1}</div>
               <Textarea
-                ref={(el) => {
-                  if (el) instructionRefs.current[index] = el;
-                }}
                 value={instruction}
                 onChange={(e) => onChangeInstruction(index, e.target.value)}
                 placeholder="Describe this step..."
-                className="resize-none w-full text-sm"
+                className="w-full text-sm"
               />
             </div>
             {instructions.length > 1 && (

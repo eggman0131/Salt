@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Recipe, RecipeCategory, RecipeIngredient } from '../../../types/contract';
 import {
   Dialog,
@@ -65,8 +65,6 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
   const [availableIngredients, setAvailableIngredients] = useState<CanonicalItem[]>([]);
   const [ingredientSearchQueries, setIngredientSearchQueries] = useState<{ [key: number]: string | undefined }>({});
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const instructionRefs = useRef<{ [key: number]: HTMLTextAreaElement | null }>({});
-  const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Helper: Convert "20 mins", "1 hour 30 mins", etc to "HH:MM"
   const durationToTimeFormat = (duration: string): string => {
@@ -101,23 +99,6 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
     return `${String(totalHours).padStart(2, '0')}:${String(totalMins).padStart(2, '0')}`;
   };
 
-  // Auto-resize instruction textareas
-  useEffect(() => {
-    Object.values(instructionRefs.current).forEach(textarea => {
-      if (textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = `${textarea.scrollHeight}px`;
-      }
-    });
-  }, [instructions]);
-
-  // Auto-resize description textarea
-  useEffect(() => {
-    if (descriptionRef.current) {
-      descriptionRef.current.style.height = 'auto';
-      descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`;
-    }
-  }, [description]);
 
   // Initialize form with recipe data in edit mode
   useEffect(() => {
@@ -138,21 +119,6 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
     }
   }, [recipe, open]);
 
-  // Trigger textarea resize after initialization
-  useEffect(() => {
-    setTimeout(() => {
-      if (descriptionRef.current) {
-        descriptionRef.current.style.height = 'auto';
-        descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`;
-      }
-      Object.values(instructionRefs.current).forEach(textarea => {
-        if (textarea) {
-          textarea.style.height = 'auto';
-          textarea.style.height = `${textarea.scrollHeight}px`;
-        }
-      });
-    }, 0);
-  }, [open]);
 
   // Auto-calculate total time from prep + cook time
   useEffect(() => {
@@ -394,12 +360,10 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
             <div>
               <Label htmlFor="description">Description *</Label>
               <Textarea
-                ref={descriptionRef}
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Brief description of the recipe"
-                className="resize-none"
                 required
               />
             </div>
@@ -532,7 +496,6 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
             onAddInstruction={addInstruction}
             onRemoveInstruction={removeInstruction}
             onChangeInstruction={updateInstruction}
-            instructionRefs={instructionRefs}
           />
 
           <Separator className="my-4" />
