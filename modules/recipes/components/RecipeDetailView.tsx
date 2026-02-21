@@ -6,14 +6,20 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, Flame } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, Flame, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { recipesBackend } from '../backend';
 import { RecipeFormDialog } from './RecipeFormDialog';
 import { DeleteRecipeDialog } from './DeleteRecipeDialog';
 import { CategoryPicker } from './CategoryPicker';
 import { RecipeChefChat } from './RecipeChefChat';
 import { RecipeHistoryDialog } from './RecipeHistoryDialog';
+import { CookTab } from './CookTab';
 import { ImageEditor } from '../../../shared/components/ImageEditor';
 import { softToast } from '@/lib/soft-toast';
 import { systemBackend } from '../../../shared/backend/system-backend';
@@ -136,7 +142,7 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
               <span>
                 {ingredient.quantity && ingredient.unit && (
                   <span className="font-medium">
-                    {ingredient.quantity}{ingredient.unit}{' '}
+                    {ingredient.quantity} {ingredient.unit}{' '}
                   </span>
                 )}
                 {ingredient.ingredientName}
@@ -159,10 +165,44 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
         <ol className="space-y-4">
           {recipe.instructions.map((instruction, index) => (
             <li key={index} className="flex gap-3">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold mt-0.5">
                 {index + 1}
               </span>
-              <span className="flex-1 pt-0.5">{instruction}</span>
+              <div className="flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm leading-relaxed pt-0.5">{instruction}</p>
+                  
+                  {/* Step Technical Warning Popover */}
+                  {recipe.stepAlerts && recipe.stepAlerts[index] && recipe.stepAlerts[index].length > 0 && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="shrink-0 text-warning hover:text-warning/80 transition-colors p-1 -m-1">
+                          <AlertTriangle className="w-5 h-5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent 
+                        side="top" 
+                        align="end" 
+                        className="w-72 p-0 overflow-hidden border-orange-200/50 shadow-lg shadow-orange-500/10"
+                      >
+                        <div className="p-3 bg-[color-mix(in_oklab,var(--warning)_10%,var(--background))]">
+                          <div className="flex items-center gap-2 mb-2">
+                            <AlertTriangle className="w-5 h-5 text-warning" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-warning-foreground">Technical Warning</span>
+                          </div>
+                          <ul className="space-y-2">
+                            {recipe.stepAlerts[index].map((alertIdx) => (
+                              <li key={alertIdx} className="text-xs text-warning-foreground font-medium leading-normal">
+                                {recipe.workflowAdvice?.technicalWarnings?.[alertIdx] || 'A technical warning applies to this step.'}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+              </div>
             </li>
           ))}
         </ol>
@@ -239,6 +279,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [pendingRestoreEntry, setPendingRestoreEntry] = useState<RecipeHistoryEntry | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [activeTab, setActiveTab] = useState<'recipe' | 'chef' | 'cook'>('recipe');
 
   // Load image if exists
   useEffect(() => {
@@ -393,188 +434,271 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   }, [imageSrc]);
 
   return (
-    <div className="space-y-6">
-      {/* Tabbed Navigation */}
-      <Tabs defaultValue="recipe" className="w-full">
-        {/* Tab Triggers */}
-        <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
-          <TabsTrigger 
-            value="recipe" 
-            className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
-          >
-            <Book className="w-4 h-4" />
-            <span className="hidden md:inline">Recipe</span>
-          </TabsTrigger>
-          {/* Chef tab only visible on mobile */}
-          <TabsTrigger 
-            value="chef" 
-            className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 md:hidden font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
-          >
-            <ChefHat className="w-4 h-4" />
-            <span className="hidden md:inline">Chef</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="cook" 
-            className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
-          >
-            <Flame className="w-4 h-4" />
-            <span className="hidden md:inline">Cook</span>
-          </TabsTrigger>
-        </TabsList>
+    <>
+      {/* Mobile: Conditional View */}
+      <div className="md:hidden">
+        {activeTab === 'cook' ? (
+          <CookTab recipe={recipe} onClose={() => setActiveTab('recipe')} />
+        ) : (
+          <div className="space-y-6 p-4">
+            {/* Mobile Recipe/Chef Tabs */}
+            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'recipe' | 'chef' | 'cook')} className="w-full">
+              <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
+                <TabsTrigger 
+                  value="recipe" 
+                  className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+                >
+                  <Book className="w-4 h-4" />
+                  <span className="hidden md:inline">Recipe</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="chef" 
+                  className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+                >
+                  <ChefHat className="w-4 h-4" />
+                  <span className="hidden md:inline">Chef</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="cook" 
+                  className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+                >
+                  <Flame className="w-4 h-4" />
+                  <span className="hidden md:inline">Cook</span>
+                </TabsTrigger>
+              </TabsList>
 
-        {/* Recipe Tab - Desktop: Two columns, Mobile: Full width */}
-        <TabsContent value="recipe" className="mt-6 space-y-6">
-          {/* Header with actions */}
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" onClick={onClose}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Recipes
-            </Button>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsHistoryOpen(true)}
-                className="h-9 w-9 md:w-auto md:h-10 md:px-4"
-                title="History"
-              >
-                <Clock className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">History</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsEditDialogOpen(true)}
-                className="h-9 w-9 md:w-auto md:h-10 md:px-4"
-                title="Edit"
-              >
-                <Edit className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">Edit</span>
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setIsDeleteDialogOpen(true)}
-                className="h-9 w-9 md:w-auto md:h-10 md:px-4 text-destructive hover:bg-destructive/10"
-                title="Delete"
-              >
-                <Trash2 className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">Delete</span>
-              </Button>
-            </div>
-          </div>
-
-            {/* Recipe Content */}
-            <div className="space-y-6 w-full md:w-[65%]">
-              {/* Image */}
-              <div ref={imageRef} className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted group">
-                {isLoadingImage ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <TabsContent value="recipe" className="mt-6">
+                {/* Header with actions */}
+                <div className="flex items-center justify-between mb-4">
+                  <Button variant="ghost" onClick={onClose}>
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to Recipes
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsHistoryOpen(true)}
+                      className="h-9 w-9"
+                      title="History"
+                    >
+                      <Clock className="w-5 h-5" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsEditDialogOpen(true)}
+                      className="h-9 w-9"
+                      title="Edit"
+                    >
+                      <Edit className="w-5 h-5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      className="h-9 w-9 text-destructive hover:bg-destructive/10"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </Button>
+                  </div>
                 </div>
-              ) : imageSrc ? (
-                <>
-                  <img 
-                    src={imageSrc} 
-                    alt={recipe.title}
-                    className="w-full h-full object-cover"
-                      onLoad={updateChatTop}
-                  />
-                  {/* Image Actions - Always visible, overlaid on image */}
-                  <div className="absolute top-3 right-3 flex gap-2 z-10">
-                    <Button
-                      size="icon"
-                      className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
-                      onClick={() => setIsImageEditorOpen(true)}
-                      title="Upload new image"
-                    >
-                      <Upload className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
-                      onClick={handleRefreshImage}
-                      disabled={isRefreshingImage}
-                      title="Generate AI image"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${isRefreshingImage ? 'animate-spin' : ''}`} />
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <ChefHat className="w-16 h-16 text-muted-foreground/20" />
-                  </div>
-                  {/* Upload button for recipes without images */}
-                  <div className="absolute top-3 right-3 flex gap-2 z-10">
-                    <Button
-                      size="icon"
-                      className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
-                      onClick={() => setIsImageEditorOpen(true)}
-                      title="Upload image"
-                    >
-                      <Upload className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
-                      onClick={handleRefreshImage}
-                      disabled={isRefreshingImage}
-                      title="Generate AI image"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${isRefreshingImage ? 'animate-spin' : ''}`} />
-                    </Button>
-                  </div>
-                </>
-              )}
+                <RecipeDetailContent 
+                  recipe={recipe}
+                  categories={categories}
+                  recipeCategories={recipeCategories}
+                  complexityVariant={complexityVariant}
+                  toggleCategory={toggleCategory}
+                  setIsCategoryPickerOpen={setIsCategoryPickerOpen}
+                  getSourceDisplay={getSourceDisplay}
+                  isValidUrl={isValidUrl}
+                />
+              </TabsContent>
+
+              <TabsContent value="chef" className="mt-6 h-[75vh]">
+                <RecipeChefChat
+                  recipe={recipe}
+                  onRecipeUpdate={onUpdate}
+                  currentUserName={currentUserName}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop/Tablet: Tabbed Interface */}
+      <div className="hidden md:block space-y-6">
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'recipe' | 'chef' | 'cook')} className="w-full">
+          {/* Tab Triggers */}
+          <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
+            <TabsTrigger 
+              value="recipe" 
+              className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+            >
+              <Book className="w-4 h-4" />
+              <span className="hidden md:inline">Recipe</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="chef" 
+              className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all lg:hidden"
+            >
+              <ChefHat className="w-4 h-4" />
+              <span className="hidden md:inline">Chef</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="cook" 
+              className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+            >
+              <Flame className="w-4 h-4" />
+              <span className="hidden md:inline">Cook</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Recipe Tab - Desktop: Two columns */}
+          <TabsContent value="recipe" className="mt-6 space-y-6">
+            {/* Header with actions */}
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" onClick={onClose}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Recipes
+              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsHistoryOpen(true)}
+                  className="h-9 w-9 md:w-auto md:h-10 md:px-4"
+                  title="History"
+                >
+                  <Clock className="w-5 h-5 md:mr-2" />
+                  <span className="hidden md:inline">History</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsEditDialogOpen(true)}
+                  className="h-9 w-9 md:w-auto md:h-10 md:px-4"
+                  title="Edit"
+                >
+                  <Edit className="w-5 h-5 md:mr-2" />
+                  <span className="hidden md:inline">Edit</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  className="h-9 w-9 md:w-auto md:h-10 md:px-4 text-destructive hover:bg-destructive/10"
+                  title="Delete"
+                >
+                  <Trash2 className="w-5 h-5 md:mr-2" />
+                  <span className="hidden md:inline">Delete</span>
+                </Button>
+              </div>
             </div>
 
-            {/* Recipe Detail - Column 1 */}
-            <RecipeDetailContent 
-              recipe={recipe}
-              categories={categories}
-              recipeCategories={recipeCategories}
-              complexityVariant={complexityVariant}
-              toggleCategory={toggleCategory}
-              setIsCategoryPickerOpen={setIsCategoryPickerOpen}
-              getSourceDisplay={getSourceDisplay}
-              isValidUrl={isValidUrl}
-            />
-          </div>
+              {/* Recipe Content */}
+              <div className="space-y-6 w-full md:w-[65%]">
+                {/* Image */}
+                <div ref={imageRef} className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted group">
+                  {isLoadingImage ? (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : imageSrc ? (
+                  <>
+                    <img 
+                      src={imageSrc} 
+                      alt={recipe.title}
+                      className="w-full h-full object-cover"
+                        onLoad={updateChatTop}
+                    />
+                    {/* Image Actions - Always visible, overlaid on image */}
+                    <div className="absolute top-3 right-3 flex gap-2 z-10">
+                      <Button
+                        size="icon"
+                        className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                        onClick={() => setIsImageEditorOpen(true)}
+                        title="Upload new image"
+                      >
+                        <Upload className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                        onClick={handleRefreshImage}
+                        disabled={isRefreshingImage}
+                        title="Generate AI image"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isRefreshingImage ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <ChefHat className="w-16 h-16 text-muted-foreground/20" />
+                    </div>
+                    {/* Upload button for recipes without images */}
+                    <div className="absolute top-3 right-3 flex gap-2 z-10">
+                      <Button
+                        size="icon"
+                        className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                        onClick={() => setIsImageEditorOpen(true)}
+                        title="Upload image"
+                      >
+                        <Upload className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                        onClick={handleRefreshImage}
+                        disabled={isRefreshingImage}
+                        title="Generate AI image"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isRefreshingImage ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
 
-          {/* Chef Chat - Fixed (Desktop only) */}
-          <div
-            className="hidden md:block fixed right-6 w-[35vw] max-w-105 min-w-[320px] h-[70vh] max-h-180 z-20"
-            style={{ top: chatTop ?? 96 }}
-          >
+              {/* Recipe Detail - Column 1 */}
+              <RecipeDetailContent 
+                recipe={recipe}
+                categories={categories}
+                recipeCategories={recipeCategories}
+                complexityVariant={complexityVariant}
+                toggleCategory={toggleCategory}
+                setIsCategoryPickerOpen={setIsCategoryPickerOpen}
+                getSourceDisplay={getSourceDisplay}
+                isValidUrl={isValidUrl}
+              />
+            </div>
+
+            {/* Chef Chat - Fixed (Desktop only) */}
+            <div
+              className="hidden lg:block fixed right-6 w-[35vw] max-w-105 min-w-[320px] h-[70vh] max-h-180 z-20"
+              style={{ top: chatTop ?? 96 }}
+            >
+              <RecipeChefChat
+                recipe={recipe}
+                onRecipeUpdate={onUpdate}
+                currentUserName={currentUserName}
+              />
+            </div>
+          </TabsContent>
+
+          {/* Chef Tab */}
+          <TabsContent value="chef" className="mt-6 md:hidden h-[75vh]">
             <RecipeChefChat
               recipe={recipe}
               onRecipeUpdate={onUpdate}
               currentUserName={currentUserName}
             />
-          </div>
-        </TabsContent>
+          </TabsContent>
 
-        {/* Chef Tab - Mobile only */}
-        <TabsContent value="chef" className="mt-6 md:hidden h-[75vh]">
-          <RecipeChefChat
-            recipe={recipe}
-            onRecipeUpdate={onUpdate}
-            currentUserName={currentUserName}
-          />
-        </TabsContent>
-
-        {/* Cook Tab - Placeholder for cook mode */}
-        <TabsContent value="cook" className="mt-6">
-          <Card className="max-w-2xl mx-auto p-12 border-dashed bg-muted/30 text-center animate-in fade-in zoom-in duration-300">
-            <div className="text-muted-foreground">
-              <div className="w-20 h-20 mx-auto mb-6 bg-muted flex items-center justify-center rounded-full">
-                <Flame className="w-10 h-10 text-orange-400 animate-pulse" />
-              </div>
-              <p className="text-xl font-semibold text-primary">Service Mode</p>
-              <p className="mt-2 text-sm max-w-xs mx-auto">The Chef is finalizing the interactive cooking experience. Please stick to the recipe view for now.</p>
-            </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          {/* Cook Tab */}
+          <TabsContent value="cook" className="mt-6">
+            <CookTab recipe={recipe} />
+          </TabsContent>
+        </Tabs>
+      </div>
 
       {/* Edit Dialog */}
       <RecipeFormDialog
@@ -643,6 +767,6 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 };
