@@ -1,12 +1,90 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Recipe } from '../../../../types/contract';
 import { CookStep } from './types';
+
+const STORAGE_KEY_PREFIX = 'salt-cook-progress-';
+
+interface CookProgress {
+  currentStep: CookStep;
+  miseEnPlaceChecked: string[];
+  timestamp: number;
+}
+
+function getStorageKey(recipeId: string) {
+  return `${STORAGE_KEY_PREFIX}${recipeId}`;
+}
+
+function loadProgress(recipeId: string): CookProgress | null {
+  try {
+    const raw = localStorage.getItem(getStorageKey(recipeId));
+    if (!raw) return null;
+    return JSON.parse(raw) as CookProgress;
+  } catch {
+    return null;
+  }
+}
+
+function saveProgress(recipeId: string, progress: CookProgress) {
+  try {
+    localStorage.setItem(getStorageKey(recipeId), JSON.stringify(progress));
+  } catch {
+    // Storage full or unavailable — silently ignore
+  }
+}
+
+function clearProgress(recipeId: string) {
+  try {
+    localStorage.removeItem(getStorageKey(recipeId));
+  } catch {
+    // Silently ignore
+  }
+}
 
 export const useCookTabLogic = (recipe: Recipe) => {
   const [currentStep, setCurrentStep] = useState<CookStep>('miseEnPlace');
   const [miseEnPlaceChecked, setMiseEnPlaceChecked] = useState<Set<string>>(new Set());
   const [keepAwakeEnabled, setKeepAwakeEnabled] = useState(false);
+  const [pendingResume, setPendingResume] = useState<CookProgress | null>(null);
   const touchStartX = useRef(0);
+
+  // Check for saved progress on mount
+  useEffect(() => {
+    const saved = loadProgress(recipe.id);
+    if (saved) {
+      // Only offer to resume if they were past the start
+      const hasMiseProgress = saved.miseEnPlaceChecked.length > 0;
+      const hasCookProgress = typeof saved.currentStep === 'number';
+      if (hasMiseProgress || hasCookProgress) {
+        setPendingResume(saved);
+      }
+    }
+  }, [recipe.id]);
+
+  const resumeProgress = useCallback(() => {
+    if (!pendingResume) return;
+    setCurrentStep(pendingResume.currentStep);
+    setMiseEnPlaceChecked(new Set(pendingResume.miseEnPlaceChecked));
+    setPendingResume(null);
+  }, [pendingResume]);
+
+  const restartProgress = useCallback(() => {
+    clearProgress(recipe.id);
+    setCurrentStep('miseEnPlace');
+    setMiseEnPlaceChecked(new Set());
+    setPendingResume(null);
+  }, [recipe.id]);
+
+  // Persist progress whenever step or mise en place changes
+  useEffect(() => {
+    // Don't save while the resume prompt is showing
+    if (pendingResume) return;
+
+    saveProgress(recipe.id, {
+      currentStep,
+      miseEnPlaceChecked: Array.from(miseEnPlaceChecked),
+      timestamp: Date.now(),
+    });
+  }, [currentStep, miseEnPlaceChecked, recipe.id, pendingResume]);
 
   // Keep-awake effect
   useEffect(() => {
@@ -93,5 +171,8 @@ export const useCookTabLogic = (recipe: Recipe) => {
     handlePrev,
     handleTouchStart,
     handleTouchEnd,
+    pendingResume,
+    resumeProgress,
+    restartProgress,
   };
 };

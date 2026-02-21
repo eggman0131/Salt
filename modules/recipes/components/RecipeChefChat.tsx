@@ -162,7 +162,7 @@ export const RecipeChefChat: React.FC<RecipeChefChatProps> = ({
   return (
     <>
       <Card className="flex flex-col h-full overflow-hidden shadow-md">
-      <CardHeader className="p-4 md:p-6">
+      <CardHeader className="px-4 py-4 md:p-6">
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-lg flex items-center gap-2">
           <MessageSquare className="h-4 w-4" />
