@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { LandingPage } from './pages/Landing';
 import { LoginPage } from './pages/Login';
-import { DashboardLayout } from './components/Layout';
+import { AppLayout } from './components/layout/AppLayout';
 import { Card, Button } from './components/UI';
 import { User, Recipe, Equipment, Plan } from './types/contract';
 import { systemBackend } from './shared/backend/system-backend';
@@ -232,7 +232,7 @@ const App: React.FC = () => {
     return (
       <>
         <Toaster position="top-right" />
-        <DashboardLayout 
+        <AppLayout 
         activeTab={activeTab} 
         onTabChange={(tabId) => {
           if (tabId !== 'ai') setAiInitialMessage(undefined);
@@ -417,7 +417,7 @@ const App: React.FC = () => {
             onCancel={() => setShowImportRecipeModal(false)}
           />
         )}
-      </DashboardLayout>
+      </AppLayout>
       </>
     );
   }
