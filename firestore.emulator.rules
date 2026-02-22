@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // EMULATOR RULES (RELAXED) - Current behaviour for local development
+    match /{document=**} {
+      allow read, write;
+    }
+
+    // EMULATOR RULES (STRICT) - Uncomment to mirror production
+    // match /{document=**} {
+    //   allow read, write: if request.auth != null;
+    // }
+  }
+}

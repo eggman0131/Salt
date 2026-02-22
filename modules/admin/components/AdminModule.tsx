@@ -1,11 +1,18 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { UsersModule } from './UsersModule';
-import { Card, Button, Label } from '../../../components/UI';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AddButton } from '@/components/ui/add-button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Upload, Download } from 'lucide-react';
 import { User, KitchenSettings } from '../../../types/contract';
 import { getActiveBackendMode } from '../../../shared/backend/system-backend';
 import { plannerBackend } from '../../planner';
 import { debugLogger } from '../../../shared/backend/debug-logger';
+import { softToast } from '@/lib/soft-toast';
 
 interface AdminModuleProps {
   users: User[];
@@ -27,17 +34,31 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   const mode = getActiveBackendMode();
   const [directives, setDirectives] = useState('');
   const [debugEnabled, setDebugEnabled] = useState(false);
+  const [userOrder, setUserOrder] = useState<string[] | undefined>(undefined);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const debounceTimerRef = useRef<number | null>(null);
 
-  // Re-fetch whenever lastSync changes (e.g. after import)
+  const kitchenSettings: KitchenSettings = {
+    directives,
+    debugEnabled,
+    userOrder,
+  };
+
+  // Fetch settings when lastSync changes (e.g. after import)
   useEffect(() => {
     plannerBackend.getKitchenSettings().then(s => {
       setDirectives(s.directives);
       setDebugEnabled(s.debugEnabled || false);
+      setUserOrder(s.userOrder);
       debugLogger.setEnabled(s.debugEnabled || false);
     });
   }, [lastSync]);
+
+  const handleSettingsChange = (settings: KitchenSettings) => {
+    setDirectives(settings.directives);
+    setDebugEnabled(settings.debugEnabled || false);
+    setUserOrder(settings.userOrder);
+  };
 
   const handleUpdateDirectives = (val: string) => {
     setDirectives(val);
@@ -70,35 +91,47 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   };
 
   return (
-    <div className="min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-160px)] flex flex-col gap-6 animate-in fade-in duration-500 overflow-auto">
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-auto min-h-0">
+    <div className="min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-160px)] flex flex-col gap-4 md:gap-6 animate-in fade-in duration-500">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Left Column: Infrastructure & Directives */}
-        <div className="flex flex-col gap-6 overflow-hidden min-h-0">
-          {/* System Controls */}
-          <Card className="p-6 md:p-8 border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 flex flex-col">
-            <div className="space-y-6 flex-1 flex flex-col">
+        <div className="space-y-6">
+          {/* System State Card */}
+          <Card className="shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="p-4 md:p-6">
               <div className="space-y-1">
-                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Infrastructure</p>
-                <h4 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight">System State</h4>
-                <div className="pt-2 flex flex-col gap-1">
+                <CardTitle className="text-xl md:text-2xl">System State</CardTitle>
+                <p className="text-sm text-muted-foreground">Current environment and sync status</p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 p-4 md:p-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Environment:
+                  </span>
+                  <Badge 
+                    variant={mode === 'firebase' ? 'default' : 'secondary'}
+                    className="text-xs"
+                  >
+                    {mode}
+                  </Badge>
+                </div>
+                {lastSync && (
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Environment:</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                      mode === 'firebase' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-blue-50 text-blue-700 border-blue-100'
-                    }`}>
-                      {mode}
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Last Synced:
+                    </span>
+                    <span className="text-xs text-foreground">
+                      {new Date(lastSync).toLocaleString('en-GB', { 
+                        dateStyle: 'medium', 
+                        timeStyle: 'short' 
+                      })}
                     </span>
                   </div>
-                  {lastSync && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Last Synced:</span>
-                      <span className="text-[10px] font-medium text-gray-600">{new Date(lastSync).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
               
-              <div className="flex gap-3 pt-6 border-t border-gray-100 mt-auto">
+              <div className="flex gap-3 pt-2">
                 <input 
                   type="file" 
                   id="admin-import" 
@@ -106,96 +139,159 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   accept=".json" 
                   onChange={onImport} 
                 />
-                <button 
+                <Button
                   onClick={() => document.getElementById('admin-import')?.click()}
                   disabled={isImporting}
-                  className="flex-1 inline-flex items-center justify-center rounded-md bg-orange-600 text-white px-4 py-2.5 font-semibold hover:bg-orange-700 transition shadow-sm disabled:opacity-30 gap-2 text-sm"
-                  title="Restore from Backup"
+                  className="flex-1"
+                  variant="default"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                  <Upload className="h-4 w-4 mr-2" />
                   Restore
-                </button>
-                <button 
+                </Button>
+                <Button
                   onClick={onExport}
-                  className="flex-1 inline-flex items-center justify-center rounded-md bg-white border border-gray-200 text-gray-700 px-4 py-2.5 font-semibold hover:bg-gray-50 transition shadow-sm gap-2 text-sm"
-                  title="Create Backup"
+                  variant="outline"
+                  className="flex-1"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  <Download className="h-4 w-4 mr-2" />
                   Backup
-                </button>
+                </Button>
               </div>
-            </div>
+            </CardContent>
           </Card>
 
-          {/* Debug Logger Controls */}
-          <Card className="p-6 md:p-8 border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 flex flex-col">
-            <div className="space-y-4 flex-1 flex flex-col">
+          {/* Development Card */}
+          <Card className="shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="p-4 md:p-6">
               <div className="space-y-1">
-                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Developer Tools</p>
-                <h4 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight">Debug Logging</h4>
-                <p className="text-xs text-gray-500 italic pt-2">
-                  Control backend console logging for development and troubleshooting.
-                </p>
+                <CardTitle className="text-xl md:text-2xl">Development</CardTitle>
+                <p className="text-sm text-muted-foreground">Tools for diagnostics and interface checks</p>
               </div>
-              
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-gray-700">Debug Mode</span>
-                  <span className="text-xs text-gray-500">
+            </CardHeader>
+            <CardContent className="space-y-4 p-4 md:p-6">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="debug-mode" className="text-sm font-semibold">
+                    Debug Mode
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
                     {debugEnabled ? 'Logs are visible in console' : 'Logs are suppressed'}
-                  </span>
+                  </p>
                 </div>
-                <button
-                  onClick={() => handleToggleDebug(!debugEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    debugEnabled ? 'bg-orange-600' : 'bg-gray-200'
-                  }`}
-                  aria-pressed={debugEnabled}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      debugEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <Switch
+                  id="debug-mode"
+                  checked={debugEnabled}
+                  onCheckedChange={handleToggleDebug}
+                />
               </div>
-            </div>
+              <div className="space-y-2 rounded-lg border p-4">
+                <p className="text-sm font-semibold">Toast Preview</p>
+                <p className="text-xs text-muted-foreground">
+                  Trigger the soft toast styles with sample messages.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      softToast.info('Inventory tip', {
+                        description: 'Drag items to reorder the list.',
+                      })
+                    }
+                  >
+                    Info
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      softToast.success('Backup complete', {
+                        description: 'Salt saved the latest kitchen state.',
+                      })
+                    }
+                  >
+                    Success
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      softToast.warning('Service warning', {
+                        description: 'Check the hob settings before service.',
+                      })
+                    }
+                  >
+                    Warning
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      softToast.error('Import failed', {
+                        description: 'The file could not be read.',
+                      })
+                    }
+                  >
+                    Destructive
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2 rounded-lg border p-4">
+                <p className="text-sm font-semibold">Add Button</p>
+                <p className="text-xs text-muted-foreground">
+                  Standard extra-small add action.
+                </p>
+                <AddButton type="button" />
+              </div>
+            </CardContent>
           </Card>
 
-          {/* AI Directives */}
-          <Card className="flex-1 p-6 md:p-8 border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 flex flex-col min-h-0">
-            <div className="flex justify-between items-start mb-6 shrink-0">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Configuration</p>
-                <h4 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight">Kitchen Directives</h4>
+          {/* Kitchen Directives Card */}
+          <Card className="flex-1 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="p-4 md:p-6">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <CardTitle className="text-xl md:text-2xl">Kitchen Directives</CardTitle>
+                  <p className="text-sm text-muted-foreground">System prompts and kitchen guidelines</p>
+                </div>
+                {saveStatus !== 'idle' && (
+                  <Badge 
+                    variant={saveStatus === 'saving' ? 'secondary' : 'default'}
+                    className="text-xs"
+                  >
+                    {saveStatus === 'saving' ? 'Syncing...' : 'Saved'}
+                  </Badge>
+                )}
               </div>
-              {saveStatus !== 'idle' && (
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${saveStatus === 'saving' ? 'text-orange-600 animate-pulse' : 'text-green-600'}`}>
-                  {saveStatus === 'saving' ? 'Syncing...' : 'Saved'}
-                </span>
-              )}
-            </div>
-            
-            <div className="flex-1 flex flex-col space-y-3 min-h-0">
-              <Label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Global AI Rules</Label>
-              <textarea 
-                className="flex-1 w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-sans leading-relaxed focus:border-orange-500 focus:ring-orange-50 outline-none transition-all resize-none placeholder:text-gray-300"
+            </CardHeader>
+            <CardContent className="space-y-3 p-4 md:p-6">
+              <Label htmlFor="directives" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Global AI Rules
+              </Label>
+              <Textarea
+                id="directives"
+                className="min-h-50 resize-none"
                 placeholder="- Prefer Anova over Rangemaster&#10;- No mushrooms&#10;- Always suggest metric substitutes"
                 value={directives}
-                onChange={e => handleUpdateDirectives(e.target.value)}
+                onChange={(e) => handleUpdateDirectives(e.target.value)}
               />
-              <p className="text-xs text-gray-500 italic mt-2 shrink-0">These house rules ensure the Chef's recommendations align with your setup.</p>
-            </div>
+              <p className="text-xs text-muted-foreground">
+                These house rules ensure the Chef's recommendations align with your setup.
+              </p>
+            </CardContent>
           </Card>
         </div>
 
         {/* Right Column: User Management */}
-        <Card className="flex flex-col border-l-4 border-l-orange-600 bg-white shadow-md shadow-orange-500/10 min-h-0 overflow-auto">
-          <UsersModule users={users} onRefresh={onRefresh} />
+        <Card className="flex flex-col shadow-sm hover:shadow-md transition-shadow">
+          <UsersModule 
+            users={users} 
+            kitchenSettings={kitchenSettings}
+            onRefresh={onRefresh}
+            onSettingsChange={handleSettingsChange}
+          />
         </Card>
       </div>
-
-
     </div>
   );
 };

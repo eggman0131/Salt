@@ -1,243 +1,385 @@
 import React, { useState, useEffect } from 'react';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AddButton } from '@/components/ui/add-button';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Trash2, Pencil, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Aisle } from '../../../types/contract';
-import { Button, Card, Input, Label } from '../../../components/UI';
 import { kitchenDataBackend } from '../backend';
+import { softToast } from '@/lib/soft-toast';
 
 interface AislesManagementProps {
-  onRefresh?: () => void;
+  onRefresh: () => void;
 }
+
+interface SortableAisleItemProps {
+  aisle: Aisle;
+  onEdit: (aisle: Aisle) => void;
+  onDelete: (aisle: Aisle) => void;
+}
+
+const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, onDelete }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: aisle.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 p-3 border rounded-lg bg-background shadow-sm hover:shadow-md transition-shadow"
+    >
+      <button
+        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
+      <div className="flex-1">
+        <p className="font-medium text-sm">{aisle.name}</p>
+      </div>
+
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          onClick={() => onEdit(aisle)}
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:bg-primary/10 hover:text-primary"
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          onClick={() => onDelete(aisle)}
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh }) => {
   const [aisles, setAisles] = useState<Aisle[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [editingAisle, setEditingAisle] = useState<Aisle | null>(null);
-  const [showNewAisleModal, setShowNewAisleModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [name, setName] = useState('');
   const [aisleToDelete, setAisleToDelete] = useState<Aisle | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [aisleToEdit, setAisleToEdit] = useState<Aisle | null>(null);
+  const [editName, setEditName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
 
-  // Form state
-  const [formName, setFormName] = useState('');
-  const [formSortOrder, setFormSortOrder] = useState(999);
-
-  const loadAisles = async () => {
-    setIsLoading(true);
-    try {
-      const data = await kitchenDataBackend.getAisles();
-      setAisles(data);
-    } catch (err) {
-      console.error('Failed to load aisles:', err);
-      alert('Failed to load aisles');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     loadAisles();
   }, []);
 
-  const openNewAisleModal = () => {
-    setFormName('');
-    setFormSortOrder(aisles.length > 0 ? Math.max(...aisles.map(a => a.sortOrder)) + 10 : 10);
-    setEditingAisle(null);
-    setShowNewAisleModal(true);
-  };
-
-  const openEditModal = (aisle: Aisle) => {
-    setFormName(aisle.name);
-    setFormSortOrder(aisle.sortOrder);
-    setEditingAisle(aisle);
-    setShowNewAisleModal(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formName.trim()) {
-      alert('Aisle name is required');
-      return;
-    }
-
-    setIsSubmitting(true);
+  const loadAisles = async () => {
     try {
-      const aisleData = {
-        name: formName.trim(),
-        sortOrder: formSortOrder
-      };
-
-      if (editingAisle) {
-        await kitchenDataBackend.updateAisle(editingAisle.id, aisleData);
-      } else {
-        await kitchenDataBackend.createAisle(aisleData);
-      }
-
-      setShowNewAisleModal(false);
-      await loadAisles();
-      onRefresh?.();
+      const data = await kitchenDataBackend.getAisles();
+      setAisles(data);
     } catch (err) {
-      console.error('Failed to save aisle:', err);
-      alert('Failed to save aisle');
-    } finally {
-      setIsSubmitting(false);
+      console.error('Failed to load aisles', err);
+      softToast.error('Failed to load aisles');
     }
   };
 
-  const confirmDelete = (aisle: Aisle) => {
-    setAisleToDelete(aisle);
-    setShowDeleteConfirm(true);
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = aisles.findIndex(a => a.id === active.id);
+    const newIndex = aisles.findIndex(a => a.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(aisles, oldIndex, newIndex);
+    
+    // Update sortOrder for all aisles
+    const updates = reordered.map((aisle, index) => ({
+      ...aisle,
+      sortOrder: index,
+    }));
+
+    setAisles(updates);
+
+    // Save to backend
+    try {
+      for (const aisle of updates) {
+        await kitchenDataBackend.updateAisle(aisle.id, { sortOrder: aisle.sortOrder });
+      }
+      softToast.success('Aisle order updated');
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to save aisle order', err);
+      softToast.error('Failed to update order');
+      loadAisles(); // Reload to revert
+    }
   };
 
-  const handleDelete = async () => {
-    if (!aisleToDelete) return;
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || isAdding) return;
+    
+    setIsAdding(true);
+    try {
+      await kitchenDataBackend.createAisle({
+        name: name.trim(),
+        sortOrder: aisles.length,
+      });
+      setName('');
+      await loadAisles();
+      softToast.success('Aisle added', { description: name.trim() });
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to create aisle', err);
+      softToast.error('Failed to add aisle');
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
-    setIsSubmitting(true);
+  const handleDeleteConfirm = async () => {
+    if (!aisleToDelete) return;
+    
+    setIsDeleting(true);
     try {
       await kitchenDataBackend.deleteAisle(aisleToDelete.id);
-      setShowDeleteConfirm(false);
-      setAisleToDelete(null);
       await loadAisles();
-      onRefresh?.();
+      softToast.success('Aisle deleted', { description: aisleToDelete.name });
+      onRefresh();
     } catch (err) {
-      console.error('Failed to delete aisle:', err);
-      alert('Failed to delete aisle');
+      console.error('Failed to delete aisle', err);
+      softToast.error('Failed to delete aisle');
     } finally {
-      setIsSubmitting(false);
+      setIsDeleting(false);
+      setAisleToDelete(null);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading aisles...</div>
-      </div>
-    );
-  }
+  const handleEditClick = (aisle: Aisle) => {
+    setAisleToEdit(aisle);
+    setEditName(aisle.name);
+  };
+
+  const handleEditSave = async () => {
+    if (!aisleToEdit || !editName.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      await kitchenDataBackend.updateAisle(aisleToEdit.id, { name: editName.trim() });
+      await loadAisles();
+      setAisleToEdit(null);
+      setEditName('');
+      softToast.success('Aisle updated', { description: editName.trim() });
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to update aisle', err);
+      softToast.error('Failed to update aisle');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-600">
-          Aisles help organize shopping lists. Sort order determines display order.
-        </p>
-        <Button onClick={openNewAisleModal}>Add Aisle</Button>
-      </div>
+    <>
+      <CardHeader>
+        <div className="space-y-1">
 
-      {/* Aisles List */}
-      <div className="grid gap-3">
-        {aisles.length === 0 ? (
-          <Card className="p-6 text-center text-gray-500">
-            No aisles yet
-          </Card>
-        ) : (
-          aisles.map((aisle) => (
-            <Card key={aisle.id} className="p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-gray-900">{aisle.name}</h3>
-                    <span className="text-xs text-gray-500">
-                      Sort: {aisle.sortOrder}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button onClick={() => openEditModal(aisle)} className="text-sm">
-                    Edit
-                  </Button>
-                  <Button onClick={() => confirmDelete(aisle)} className="text-sm bg-red-600 hover:bg-red-700">
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))
-        )}
-      </div>
-
-      {/* New/Edit Aisle Modal */}
-      {showNewAisleModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full">
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingAisle ? 'Edit Aisle' : 'New Aisle'}
-              </h2>
-
-              <div>
-                <Label htmlFor="name">Aisle Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g., Produce, Dairy, Bakery"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="sortOrder">Sort Order</Label>
-                <Input
-                  id="sortOrder"
-                  type="number"
-                  value={formSortOrder}
-                  onChange={(e) => setFormSortOrder(parseInt(e.target.value))}
-                  placeholder="10"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Lower numbers appear first in lists
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button type="submit" disabled={isSubmitting} className="flex-1">
-                  {isSubmitting ? 'Saving...' : editingAisle ? 'Update' : 'Create'}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => setShowNewAisleModal(false)}
-                  disabled={isSubmitting}
-                  className="bg-gray-500 hover:bg-gray-600"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </Card>
+          <CardTitle className="text-xl md:text-2xl">Aisles</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {aisles.length} shop {aisles.length === 1 ? 'aisle' : 'aisles'}
+          </p>
         </div>
-      )}
+      </CardHeader>
 
-      {/* Delete Confirmation */}
-      {showDeleteConfirm && aisleToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-6 space-y-4">
-            <h2 className="text-xl font-bold text-gray-900">Confirm Delete</h2>
-            <p className="text-gray-600">
-              Are you sure you want to delete the aisle <strong>{aisleToDelete.name}</strong>?
-              This may affect items using this aisle.
+      <CardContent className="flex flex-col space-y-3 h-full px-0 md:px-6">
+        {/* Add Aisle Form */}
+        <form onSubmit={handleAdd} className="space-y-4">
+          <div className="flex gap-2">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="aisle-name">Aisle Name</Label>
+              <Input 
+                id="aisle-name"
+                placeholder="e.g. Produce, Dairy, Bakery"
+                value={name} 
+                onChange={(e) => setName(e.target.value)}
+                disabled={isAdding}
+              />
+            </div>
+            <div className="self-end">
+              <AddButton
+                type="submit"
+                disabled={!name.trim() || isAdding}
+                label="Add"
+              />
+            </div>
+          </div>
+        </form>
+
+        {/* Aisle List */}
+        <div className="flex-1 min-h-0">
+          {aisles.length === 0 ? (
+          <div className="py-12 text-center border border-dashed rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              No aisles yet. Add shop aisles above.
             </p>
-            <div className="flex gap-3">
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={aisles.map(a => a.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {aisles.map((aisle) => (
+                  <SortableAisleItem
+                    key={aisle.id}
+                    aisle={aisle}
+                    onEdit={handleEditClick}
+                    onDelete={setAisleToDelete}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+            )}
+        </div>
+
+        {/* Edit Aisle Dialog */}
+        <Dialog open={!!aisleToEdit} onOpenChange={() => setAisleToEdit(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Aisle</DialogTitle>
+              <DialogDescription>
+                Update the aisle name
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Aisle Name</Label>
+                <Input 
+                  id="edit-name"
+                  placeholder="e.g. Produce, Dairy, Bakery" 
+                  value={editName} 
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editName.trim()) {
+                      handleEditSave();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
               <Button
-                onClick={handleDelete}
-                disabled={isSubmitting}
-                className="flex-1 bg-red-600 hover:bg-red-700"
-              >
-                {isSubmitting ? 'Deleting...' : 'Delete'}
-              </Button>
-              <Button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isSubmitting}
-                className="bg-gray-500 hover:bg-gray-600"
+                variant="outline"
+                onClick={() => setAisleToEdit(null)}
+                disabled={isSaving}
               >
                 Cancel
               </Button>
-            </div>
-          </Card>
-        </div>
-      )}
-    </div>
+              <Button
+                onClick={handleEditSave}
+                disabled={!editName.trim() || isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!aisleToDelete} onOpenChange={() => setAisleToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Aisle?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {aisleToDelete && (
+                  <>
+                    Are you sure you want to delete <strong>{aisleToDelete.name}</strong>? 
+                    This action cannot be undone and may affect items in this aisle.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Aisle'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardContent>
+    </>
   );
 };

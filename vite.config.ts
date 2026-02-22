@@ -1,6 +1,7 @@
 
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 // Vite Configuration for SALT
 // Environment variables prefixed with VITE_ are exposed to the client.
@@ -8,6 +9,11 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   publicDir: 'public',
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './'),
+    },
+  },
   build: {
     // Ensure service worker and manifest are included
     rollupOptions: {
