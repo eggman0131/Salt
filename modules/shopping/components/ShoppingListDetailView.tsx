@@ -65,9 +65,10 @@ interface ItemRowProps {
   onToggle: () => void;
   onDelete: () => void;
   onSaveNote: (note: string) => void;
+  onEdit: () => void;
 }
 
-const ItemRow: React.FC<ItemRowProps> = ({ item, onToggle, onDelete, onSaveNote }) => {
+const ItemRow: React.FC<ItemRowProps> = ({ item, onToggle, onDelete, onSaveNote, onEdit }) => {
   const [swipeX, setSwipeX] = useState(0);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteValue, setNoteValue] = useState(item.note ?? '');
@@ -140,9 +141,20 @@ const ItemRow: React.FC<ItemRowProps> = ({ item, onToggle, onDelete, onSaveNote 
           checked={item.checked}
           onCheckedChange={onToggle}
           className="h-5 w-5 shrink-0"
+          onClick={e => e.stopPropagation()}
         />
 
-        <div className="flex-1 min-w-0 py-3.5">
+        <button
+          className="flex-1 min-w-0 py-3.5 text-left cursor-pointer"
+          onClick={(e) => {
+            // Don't open edit modal if user was swiping
+            if (swipeX > 0) {
+              e.preventDefault();
+              return;
+            }
+            onEdit();
+          }}
+        >
           <span className={cn('text-sm font-medium', item.checked && 'line-through text-muted-foreground')}>
             {item.name}
           </span>
@@ -151,7 +163,7 @@ const ItemRow: React.FC<ItemRowProps> = ({ item, onToggle, onDelete, onSaveNote 
               {item.quantity} {item.unit}
             </span>
           )}
-        </div>
+        </button>
 
         {/* Note popover */}
         <Popover open={noteOpen} onOpenChange={setNoteOpen}>
@@ -357,6 +369,129 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
   );
 };
 
+// ─── Edit Item Dialog ─────────────────────────────────────────────────────────
+
+interface EditItemDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  item: ShoppingListItem | null;
+  units: Unit[];
+  aisles: Aisle[];
+  onSave: (id: string, name: string, quantity: number, unit: string, aisle?: string) => Promise<void>;
+}
+
+const EditItemDialog: React.FC<EditItemDialogProps> = ({
+  open,
+  onOpenChange,
+  item,
+  units,
+  aisles,
+  onSave,
+}) => {
+  const [name, setName] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [unit, setUnit] = useState('');
+  const [aisle, setAisle] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (open && item) {
+      setName(item.name);
+      setQuantity(item.quantity?.toString() ?? '');
+      setUnit(item.unit ?? '');
+      setAisle(item.aisle ?? '');
+    }
+  }, [open, item]);
+
+  const handleSave = async () => {
+    if (!item) return;
+    const qty = parseFloat(quantity);
+    if (!name.trim() || !quantity.trim() || isNaN(qty) || qty <= 0) {
+      softToast.warning('Enter a name and valid quantity');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await onSave(item.id, name.trim(), qty, unit || 'items', aisle || undefined);
+      onOpenChange(false);
+    } catch {
+      // errors handled upstream
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!item) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Edit Item</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-1">
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-item-name">Item</Label>
+            <Input
+              id="edit-item-name"
+              placeholder="e.g. Tomatoes"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
+              autoFocus
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-item-qty">Quantity</Label>
+              <Input
+                id="edit-item-qty"
+                type="number"
+                min="0.1"
+                step="0.1"
+                value={quantity}
+                onChange={e => setQuantity(e.target.value)}
+                placeholder="1"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Unit</Label>
+              <Select value={unit} onValueChange={setUnit}>
+                <SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger>
+                <SelectContent>
+                  {units.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                  {units.length === 0 && <SelectItem value="items">items</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Aisle</Label>
+            <Select value={aisle} onValueChange={setAisle}>
+              <SelectTrigger><SelectValue placeholder="Select aisle" /></SelectTrigger>
+              <SelectContent>
+                {aisles.map(a => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving || !name.trim() || !quantity.trim()}>
+              {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // ─── Main Detail View ─────────────────────────────────────────────────────────
 
 interface ShoppingListDetailViewProps {
@@ -396,6 +531,8 @@ export const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({
 }) => {
   const [showChecked, setShowChecked] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<ShoppingListItem | null>(null);
   const [listSwitchOpen, setListSwitchOpen] = useState(false);
   const [removeCheckedOpen, setRemoveCheckedOpen] = useState(false);
   const [deleteListOpen, setDeleteListOpen] = useState(false);
@@ -425,6 +562,15 @@ export const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({
     setDeletingList(true);
     try { await onDeleteList(list.id); }
     finally { setDeletingList(false); }
+  };
+
+  const handleEditItem = (item: ShoppingListItem) => {
+    setEditingItem(item);
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = async (id: string, name: string, quantity: number, unit: string, aisle?: string) => {
+    await onUpdateItem(id, { name, quantity, unit, aisle });
   };
 
   return (
@@ -520,6 +666,7 @@ export const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({
                   onToggle={() => onUpdateItem(item.id, { checked: !item.checked })}
                   onDelete={() => onDeleteItem(item.id)}
                   onSaveNote={note => onUpdateItem(item.id, { note })}
+                  onEdit={() => handleEditItem(item)}
                 />
               ))}
             </div>
@@ -575,6 +722,15 @@ export const ShoppingListDetailView: React.FC<ShoppingListDetailViewProps> = ({
         aisles={aisles}
         canonicalItems={canonicalItems}
         onAdd={onAddItem}
+      />
+
+      <EditItemDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        item={editingItem}
+        units={units}
+        aisles={aisles}
+        onSave={handleSaveEdit}
       />
 
       <AlertDialog open={removeCheckedOpen} onOpenChange={setRemoveCheckedOpen}>
