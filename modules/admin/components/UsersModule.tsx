@@ -4,7 +4,7 @@ import { AddButton } from '@/components/ui/add-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,8 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Trash2, Pencil, GripVertical, Camera } from 'lucide-react';
-import { ImageEditor } from '@/components/ImageEditor';
+import { Trash2, Pencil, GripVertical } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -56,10 +55,9 @@ interface SortableUserItemProps {
   user: User;
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
-  onEditAvatar: (user: User) => void;
 }
 
-const SortableUserItem: React.FC<SortableUserItemProps> = ({ user, onEdit, onDelete, onEditAvatar }) => {
+const SortableUserItem: React.FC<SortableUserItemProps> = ({ user, onEdit, onDelete }) => {
   const {
     attributes,
     listeners,
@@ -90,7 +88,6 @@ const SortableUserItem: React.FC<SortableUserItemProps> = ({ user, onEdit, onDel
       </button>
 
       <Avatar className="h-9 w-9">
-        {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
         <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
           {user.displayName[0].toUpperCase()}
         </AvatarFallback>
@@ -106,14 +103,6 @@ const SortableUserItem: React.FC<SortableUserItemProps> = ({ user, onEdit, onDel
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        <Button
-          onClick={() => onEditAvatar(user)}
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:bg-secondary/10 hover:text-secondary"
-        >
-          <Camera className="h-4 w-4" />
-        </Button>
         <Button
           onClick={() => onEdit(user)}
           variant="ghost"
@@ -148,8 +137,6 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [editName, setEditName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [userToEditAvatar, setUserToEditAvatar] = useState<User | null>(null);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -248,26 +235,6 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
     setEditName(user.displayName);
   };
 
-  const handleEditAvatarClick = (user: User) => {
-    setUserToEditAvatar(user);
-  };
-
-  const handleAvatarSave = async (imageData: string) => {
-    if (!userToEditAvatar) return;
-    
-    setIsUploadingAvatar(true);
-    try {
-      const avatarUrl = await systemBackend.uploadUserAvatar(userToEditAvatar.id, imageData);
-      await systemBackend.updateUser(userToEditAvatar.id, { avatarUrl });
-      onRefresh();
-      setUserToEditAvatar(null);
-    } catch (err) {
-      console.error('Failed to upload avatar', err);
-    } finally {
-      setIsUploadingAvatar(false);
-    }
-  };
-
   const handleEditSave = async () => {
     if (!userToEdit || !editName.trim()) return;
     
@@ -354,7 +321,6 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
                     user={user}
                     onEdit={handleEditClick}
                     onDelete={setUserToDelete}
-                    onEditAvatar={handleEditAvatarClick}
                   />
                 ))}
               </div>
@@ -434,27 +400,6 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        {/* Edit Avatar Dialog */}
-        <Dialog open={!!userToEditAvatar} onOpenChange={() => setUserToEditAvatar(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Edit Avatar</DialogTitle>
-              <DialogDescription>
-                Upload or edit avatar for {userToEditAvatar?.displayName}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="py-4">
-              <ImageEditor
-                initialImage={userToEditAvatar?.avatarUrl}
-                onSave={handleAvatarSave}
-                onCancel={() => setUserToEditAvatar(null)}
-                aspectRatio={1}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
       </CardContent>
     </>
   );
