@@ -1,301 +1,406 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
-import { Card, Button, Input, Label } from '../../../components/UI';
-import { User } from '../../../types/contract';
+import React, { useState, useMemo } from 'react';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AddButton } from '@/components/ui/add-button';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Trash2, Pencil, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { User, KitchenSettings } from '../../../types/contract';
 import { systemBackend } from '../../../shared/backend/system-backend';
 
 interface UsersModuleProps {
   users: User[];
+  kitchenSettings: KitchenSettings;
   onRefresh: () => void;
+  onSettingsChange: (settings: KitchenSettings) => void;
 }
 
-export const UsersModule: React.FC<UsersModuleProps> = ({ users, onRefresh }) => {
+interface SortableUserItemProps {
+  user: User;
+  onEdit: (user: User) => void;
+  onDelete: (user: User) => void;
+}
+
+const SortableUserItem: React.FC<SortableUserItemProps> = ({ user, onEdit, onDelete }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: user.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 p-3 border rounded-lg bg-background shadow-sm hover:shadow-md transition-shadow"
+    >
+      <button
+        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
+      <Avatar className="h-9 w-9">
+        <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+          {user.displayName[0].toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">
+          {user.displayName}
+        </p>
+        <p className="text-xs text-muted-foreground truncate">
+          {user.email}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          onClick={() => onEdit(user)}
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:bg-primary/10 hover:text-primary"
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          onClick={() => onDelete(user)}
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export const UsersModule: React.FC<UsersModuleProps> = ({ 
+  users, 
+  kitchenSettings,
+  onRefresh,
+  onSettingsChange 
+}) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [activeConfirmId, setActiveConfirmId] = useState<string | null>(null);
-  const [userOrder, setUserOrder] = useState<string[] | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [editName, setEditName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Auto-reset confirmation state after 3 seconds
-  useEffect(() => {
-    if (activeConfirmId) {
-      const timer = setTimeout(() => setActiveConfirmId(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [activeConfirmId]);
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-  // Load manual user order from localStorage (per-admin browser preference)
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const settings = await systemBackend.getKitchenSettings();
-        if (mounted && settings?.userOrder && Array.isArray(settings.userOrder)) {
-          setUserOrder(settings.userOrder as string[]);
-          return;
-        }
-      } catch (e) {
-        // ignore backend errors and fall back to localStorage
-      }
-
-      try {
-        const raw = localStorage.getItem('salt_user_order');
-        if (raw) {
-          const parsed = JSON.parse(raw) as string[];
-          if (Array.isArray(parsed) && mounted) setUserOrder(parsed);
-        }
-      } catch (e) {
-        console.error('Failed to load user order', e);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
-
-  // Persist order helper
-  const persistOrder = (order: string[]) => {
-    try {
-      localStorage.setItem('salt_user_order', JSON.stringify(order));
-      // Persist backend-wide as kitchen setting (merge with existing directives)
-      (async () => {
-        try {
-          const current = await systemBackend.getKitchenSettings();
-          const merged = { ...current, userOrder: order } as any;
-          await systemBackend.updateKitchenSettings(merged);
-        } catch (e) {
-          console.error('Failed to persist user order to backend', e);
-        }
-      })();
-    } catch (e) {
-      console.error('Failed to save user order', e);
-    }
-  };
-
-  // Compute ordered users: follow userOrder then append any new users
+  // Apply custom order if available, otherwise sort alphabetically
   const orderedUsers = useMemo(() => {
-    if (!userOrder || userOrder.length === 0) return users;
-    const byId = new Map(users.map(u => [u.id, u] as [string, User]));
+    const { userOrder } = kitchenSettings;
+    
+    if (!userOrder || userOrder.length === 0) {
+      // No custom order - sort alphabetically
+      return [...users].sort((a, b) => a.displayName.localeCompare(b.displayName));
+    }
+
+    // Apply custom order, placing any new users at the end
+    const userMap = new Map(users.map(u => [u.id, u]));
     const ordered: User[] = [];
+    const seen = new Set<string>();
+
+    // Add users in custom order
     for (const id of userOrder) {
-      const u = byId.get(id);
-      if (u) {
-        ordered.push(u);
-        byId.delete(id);
+      const user = userMap.get(id);
+      if (user) {
+        ordered.push(user);
+        seen.add(id);
       }
     }
-    // Append any users not in stored order (newly added)
-    for (const u of users) {
-      if (byId.has(u.id)) ordered.push(u);
+
+    // Add any new users not in the custom order (alphabetically)
+    const newUsers = users.filter(u => !seen.has(u.id))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    
+    return [...ordered, ...newUsers];
+  }, [users, kitchenSettings.userOrder]);
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = orderedUsers.findIndex(u => u.id === active.id);
+    const newIndex = orderedUsers.findIndex(u => u.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(orderedUsers, oldIndex, newIndex);
+    const newOrder = reordered.map(u => u.id);
+
+    // Save to backend
+    try {
+      const updatedSettings = {
+        ...kitchenSettings,
+        userOrder: newOrder,
+      };
+      await systemBackend.updateKitchenSettings(updatedSettings);
+      onSettingsChange(updatedSettings);
+    } catch (err) {
+      console.error('Failed to save user order', err);
     }
-    return ordered;
-  }, [users, userOrder]);
-
-  const move = (id: string, direction: 'up' | 'down') => {
-    const base = userOrder && userOrder.length ? [...userOrder] : users.map(u => u.id);
-    const idx = base.indexOf(id);
-    if (idx === -1) return;
-    const swapWith = direction === 'up' ? idx - 1 : idx + 1;
-    if (swapWith < 0 || swapWith >= base.length) return;
-    const tmp = base[swapWith];
-    base[swapWith] = base[idx];
-    base[idx] = tmp;
-    setUserOrder(base);
-    persistOrder(base);
-  };
-
-  const resetOrder = () => {
-    setUserOrder(null);
-    try { localStorage.removeItem('salt_user_order'); } catch(e){}
-  };
-
-  // Drag & drop state and helpers
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
-
-  const onHandleDragStart = (e: React.DragEvent, id: string) => {
-    e.dataTransfer.setData('text/plain', id);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggingId(id);
-  };
-
-  const onHandleDragEnd = () => {
-    setDraggingId(null);
-    setDragOverId(null);
-  };
-
-  const onItemDragOver = (e: React.DragEvent, id: string) => {
-    e.preventDefault();
-    if (dragOverId !== id) setDragOverId(id);
-  };
-
-  const onItemDrop = (e: React.DragEvent, id: string) => {
-    e.preventDefault();
-    const draggedId = e.dataTransfer.getData('text/plain');
-    if (!draggedId || draggedId === id) {
-      setDraggingId(null);
-      setDragOverId(null);
-      return;
-    }
-    const base = userOrder && userOrder.length ? [...userOrder] : users.map(u => u.id);
-    // ensure draggedId exists
-    if (!base.includes(draggedId)) base.push(draggedId);
-    const from = base.indexOf(draggedId);
-    const to = base.indexOf(id);
-    if (from === -1 || to === -1) return;
-    base.splice(from, 1);
-    base.splice(to, 0, draggedId);
-    setUserOrder(base);
-    persistOrder(base);
-    setDraggingId(null);
-    setDragOverId(null);
   };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email) return;
-    await systemBackend.createUser({ displayName: name, email });
-    setName('');
-    setEmail('');
-    onRefresh();
+    if (!name.trim() || !email.trim()) return;
+    
+    try {
+      await systemBackend.createUser({ displayName: name.trim(), email: email.trim() });
+      setName('');
+      setEmail('');
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to create user', err);
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    if (activeConfirmId === id) {
-      await systemBackend.deleteUser(id);
-      setActiveConfirmId(null);
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await systemBackend.deleteUser(userToDelete.id);
       onRefresh();
-    } else {
-      setActiveConfirmId(id);
+    } catch (err) {
+      console.error('Failed to delete user', err);
+    } finally {
+      setIsDeleting(false);
+      setUserToDelete(null);
+    }
+  };
+
+  const handleEditClick = (user: User) => {
+    setUserToEdit(user);
+    setEditName(user.displayName);
+  };
+
+  const handleEditSave = async () => {
+    if (!userToEdit || !editName.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      await systemBackend.updateUser(userToEdit.id, { displayName: editName.trim() });
+      onRefresh();
+      setUserToEdit(null);
+      setEditName('');
+    } catch (err) {
+      console.error('Failed to update user', err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white">
-      <div className="p-6 md:p-8 space-y-8 flex flex-col h-full min-h-0">
-        {/* Header Section */}
-        <div className="space-y-1 shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Access Control</p>
-              <h3 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight">Authorised Users</h3>
+    <>
+      <CardHeader className="p-4 md:p-6">
+        <div className="space-y-1">
+          <CardTitle className="text-xl md:text-2xl">Authorised Users</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {users.length} {users.length === 1 ? 'user' : 'users'} with full access
+          </p>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-6 p-4 md:p-6">
+        {/* Add User Form */}
+        <form onSubmit={handleAdd} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="user-name">Full Name</Label>
+              <Input 
+                id="user-name"
+                className="pl-3"
+                placeholder="e.g. John Doe" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={resetOrder}
-                className="text-xs px-3 py-1 rounded-md bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-                title="Reset manual order"
-              >
-                Reset Order
-              </button>
+            <div className="space-y-2">
+              <Label htmlFor="user-email">Email Address</Label>
+              <Input 
+                id="user-email"
+                type="email"
+                className="pl-3"
+                placeholder="john@example.com" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
           </div>
-        </div>
+          
+          <AddButton
+            type="submit"
+            disabled={!name.trim() || !email.trim()}
+            className="w-full"
+            label="Add User"
+          />
+        </form>
 
-        {/* List Section - Now Scrollable */}
-        <div className="flex-1 min-h-0 flex flex-col space-y-3">
-          <Label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Current Access List ({users.length})</Label>
-          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            <div className="space-y-3 pb-4">
-              {orderedUsers.map((u, idx) => (
-                <div 
-                  key={u.id} 
-                  onDragOver={(e) => onItemDragOver(e, u.id)}
-                  onDrop={(e) => onItemDrop(e, u.id)}
-                  className={`flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-xl group hover:border-orange-200 hover:bg-white transition-all shadow-sm ${dragOverId === u.id ? 'ring-2 ring-orange-200' : ''}`}
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
-                      {u.displayName[0]}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{u.displayName}</p>
-                      <p className="text-xs text-gray-500 font-medium mt-0.5 truncate">{u.email}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center shrink-0 ml-4 gap-2">
-                    <div className="mr-2">
-                      <button
-                        draggable
-                        onDragStart={(e) => onHandleDragStart(e, u.id)}
-                        onDragEnd={onHandleDragEnd}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-all cursor-grab"
-                        title="Drag to reorder"
-                        aria-label="Drag to reorder"
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7h18M3 12h18M3 17h18" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </button>
-                    </div>
-
-                    {activeConfirmId === u.id ? (
-                      <button 
-                        onClick={() => handleDelete(u.id)}
-                        className="bg-red-600 hover:bg-red-700 text-white px-3 h-8 rounded-md text-[10px] font-bold uppercase tracking-wide animate-in slide-in-from-right-1 shadow-sm"
-                      >
-                        Confirm
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => handleDelete(u.id)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-500 transition-all"
-                        title="Remove User"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {users.length === 0 && (
-                <div className="py-12 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                  <p className="text-sm text-gray-400 font-bold italic">No authorised users found.</p>
-                </div>
-              )}
-            </div>
+        {/* User List */}
+        {users.length === 0 ? (
+          <div className="py-12 text-center border border-dashed rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              No users yet. Add someone above to grant access.
+            </p>
           </div>
-        </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={orderedUsers.map(u => u.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {orderedUsers.map((user) => (
+                  <SortableUserItem
+                    key={user.id}
+                    user={user}
+                    onEdit={handleEditClick}
+                    onDelete={setUserToDelete}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
 
-        {/* Onboarding Section - Fixed at Bottom */}
-        <div className="pt-6 border-t border-gray-100 shrink-0">
-          <form onSubmit={handleAdd} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="user-name" className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Full Name</Label>
-                <Input 
-                  id="user-name"
-                  placeholder="e.g. John Doe" 
-                  value={name} 
-                  onChange={e => setName(e.target.value)}
-                  className="h-10 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-50"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="user-email" className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Email Address</Label>
-                <Input 
-                  id="user-email"
-                  type="email"
-                  placeholder="john@example.com" 
-                  value={email} 
-                  onChange={e => setEmail(e.target.value)}
-                  className="h-10 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-50"
-                />
-              </div>
-            </div>
+        {/* Edit User Dialog */}
+        <Dialog open={!!userToEdit} onOpenChange={() => setUserToEdit(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit User</DialogTitle>
+              <DialogDescription>
+                Update the display name for {userToEdit?.email}
+              </DialogDescription>
+            </DialogHeader>
             
-            <div className="flex flex-col md:flex-row gap-4 items-center">
-              <div className="flex-1 flex gap-2 items-center text-[11px] text-orange-700 bg-orange-50/50 p-2 rounded-lg border border-orange-100/50">
-                <div className="w-1.5 h-1.5 rounded-full bg-orange-600 shrink-0" />
-                <span>Full read/write permissions for catalog and schedule.</span>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Display Name</Label>
+                <Input 
+                  id="edit-name"
+                  className="pl-3"
+                  placeholder="Full Name" 
+                  value={editName} 
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editName.trim()) {
+                      handleEditSave();
+                    }
+                  }}
+                />
               </div>
-              <button 
-                type="submit" 
-                disabled={!name || !email}
-                className="w-full md:w-auto inline-flex items-center justify-center rounded-md bg-orange-600 text-white px-6 py-2 h-10 font-bold text-sm hover:bg-orange-700 transition shadow-sm disabled:opacity-30 gap-2 shrink-0"
-              >
-                Grant Access
-              </button>
             </div>
-          </form>
-        </div>
-      </div>
-    </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setUserToEdit(null)}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleEditSave}
+                disabled={!editName.trim() || isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove User Access?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {userToDelete && (
+                  <>
+                    <strong>{userToDelete.displayName}</strong> ({userToDelete.email}) will no longer 
+                    have access to Salt. This action cannot be undone.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? 'Removing...' : 'Remove User'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardContent>
+    </>
   );
 };

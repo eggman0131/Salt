@@ -1,371 +1,556 @@
 import React, { useState, useEffect } from 'react';
-import { CanonicalItem, Unit, Aisle, Recipe } from '../../../types/contract';
-import { Button, Card, Input, Label } from '../../../components/UI';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AddButton } from '@/components/ui/add-button';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Trash2, Pencil, X } from 'lucide-react';
+import { CanonicalItem, Unit, Aisle } from '../../../types/contract';
 import { kitchenDataBackend } from '../backend';
-import { recipesBackend } from '../../recipes';
+import { softToast } from '@/lib/soft-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ItemsManagementProps {
-  onRefresh?: () => void;
+  onRefresh: () => void;
 }
 
 export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) => {
   const [items, setItems] = useState<CanonicalItem[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [aisles, setAisles] = useState<Aisle[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [editingItem, setEditingItem] = useState<CanonicalItem | null>(null);
-  const [showNewItemModal, setShowNewItemModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<CanonicalItem | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [recipesUsingItem, setRecipesUsingItem] = useState<Recipe[]>([]);
-  const [isLoadingDeleteRecipes, setIsLoadingDeleteRecipes] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<CanonicalItem | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   // Form state
-  const [formName, setFormName] = useState('');
-  const [formUnit, setFormUnit] = useState('');
-  const [formAisle, setFormAisle] = useState('');
-  const [formIsStaple, setFormIsStaple] = useState(false);
-  const [formSynonyms, setFormSynonyms] = useState('');
-
-  const loadData = async () => {
-    setIsLoading(true);
-    try {
-      const [itemsData, unitsData, aislesData] = await Promise.all([
-        kitchenDataBackend.getCanonicalItems(),
-        kitchenDataBackend.getUnits(),
-        kitchenDataBackend.getAisles()
-      ]);
-      setItems(itemsData.sort((a, b) => a.name.localeCompare(b.name)));
-      setUnits(unitsData);
-      setAisles(aislesData);
-    } catch (err) {
-      console.error('Failed to load data:', err);
-      alert('Failed to load items');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [name, setName] = useState('');
+  const [isStaple, setIsStaple] = useState(false);
+  const [aisleId, setAisleId] = useState<string>('none');
+  const [unitId, setUnitId] = useState<string>('none');
+  const [synonyms, setSynonyms] = useState<string[]>([]);
+  const [synonymInput, setSynonymInput] = useState('');
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const openNewItemModal = () => {
-    setFormName('');
-    setFormUnit(units.length > 0 ? units[0].name : '_item');
-    setFormAisle(aisles.length > 0 ? aisles[0].name : '');
-    setFormIsStaple(false);
-    setFormSynonyms('');
-    setEditingItem(null);
-    setShowNewItemModal(true);
+  const loadData = async () => {
+    try {
+      const [itemsData, unitsData, aislesData] = await Promise.all([
+        kitchenDataBackend.getCanonicalItems(),
+        kitchenDataBackend.getUnits(),
+        kitchenDataBackend.getAisles(),
+      ]);
+      setItems(itemsData);
+      setUnits(unitsData);
+      setAisles(aislesData);
+    } catch (err) {
+      console.error('Failed to load data', err);
+      softToast.error('Failed to load items');
+    }
   };
 
-  const openEditModal = (item: CanonicalItem) => {
-    setFormName(item.name);
-    setFormUnit(item.preferredUnit);
-    setFormAisle(item.aisle);
-    setFormIsStaple(item.isStaple);
-    setFormSynonyms(item.synonyms?.join(', ') || '');
-    setEditingItem(item);
-    setShowNewItemModal(true);
+  const handleAddClick = () => {
+    setName('');
+    setIsStaple(false);
+    setAisleId('none');
+    setUnitId('none');
+    setSynonyms([]);
+    setSynonymInput('');
+    setShowAddDialog(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddSynonym = () => {
+    const trimmed = synonymInput.trim().toLowerCase();
+    if (trimmed && !synonyms.includes(trimmed)) {
+      setSynonyms([...synonyms, trimmed]);
+      setSynonymInput('');
+    }
+  };
+
+  const handleRemoveSynonym = (syn: string) => {
+    setSynonyms(synonyms.filter(s => s !== syn));
+  };
+
+  const handleAdd = async () => {
+    if (!name.trim() || isAdding) return;
     
-    if (!formName.trim()) {
-      alert('Item name is required');
-      return;
-    }
-
-    setIsSubmitting(true);
+    setIsAdding(true);
     try {
-      const synonymsArray = formSynonyms
-        .split(',')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-
-      const itemData = {
-        name: formName.trim(),
-        normalisedName: formName.trim().toLowerCase(),
-        preferredUnit: formUnit,
-        aisle: formAisle,
-        isStaple: formIsStaple,
-        synonyms: synonymsArray.length > 0 ? synonymsArray : undefined
-      };
-
-      if (editingItem) {
-        await kitchenDataBackend.updateCanonicalItem(editingItem.id, itemData);
-      } else {
-        await kitchenDataBackend.createCanonicalItem(itemData);
-      }
-
-      setShowNewItemModal(false);
+      await kitchenDataBackend.createCanonicalItem({
+        name: name.trim(),
+        normalisedName: name.trim().toLowerCase(),
+        isStaple,
+        aisle: aisleId && aisleId !== 'none' ? aisleId : undefined,
+        preferredUnit: unitId && unitId !== 'none' ? unitId : undefined,
+        synonyms: synonyms.length > 0 ? synonyms : [],
+      });
+      
       await loadData();
-      onRefresh?.();
+      setShowAddDialog(false);
+      softToast.success('Item added', { description: name.trim() });
+      onRefresh();
     } catch (err) {
-      console.error('Failed to save item:', err);
-      alert('Failed to save item');
+      console.error('Failed to create item', err);
+      softToast.error('Failed to add item');
     } finally {
-      setIsSubmitting(false);
+      setIsAdding(false);
     }
   };
 
-  const confirmDelete = async (item: CanonicalItem) => {
-    setItemToDelete(item);
-    setShowDeleteConfirm(true);
-    setRecipesUsingItem([]);
-    setIsLoadingDeleteRecipes(true);
-    try {
-      const recipes = await recipesBackend.getRecipes();
-      const matched = recipes.filter(recipe =>
-        recipe.ingredients?.some(ing => ing.canonicalItemId === item.id)
-      );
-      setRecipesUsingItem(matched);
-    } catch (err) {
-      console.error('Failed to load recipes for item delete:', err);
-    } finally {
-      setIsLoadingDeleteRecipes(false);
-    }
-  };
-
-  const handleDelete = async () => {
+  const handleDeleteConfirm = async () => {
     if (!itemToDelete) return;
-
-    setIsSubmitting(true);
+    
+    setIsDeleting(true);
     try {
       await kitchenDataBackend.deleteCanonicalItem(itemToDelete.id);
-      setShowDeleteConfirm(false);
-      setItemToDelete(null);
       await loadData();
-      onRefresh?.();
+      softToast.success('Item deleted', { description: itemToDelete.name });
+      onRefresh();
     } catch (err) {
-      console.error('Failed to delete item:', err);
-      alert('Failed to delete item');
+      console.error('Failed to delete item', err);
+      softToast.error('Failed to delete item');
     } finally {
-      setIsSubmitting(false);
+      setIsDeleting(false);
+      setItemToDelete(null);
     }
   };
 
-  const filteredItems = items.filter(item => {
-    const query = searchQuery.toLowerCase();
-    return (
-      item.name.toLowerCase().includes(query) ||
-      item.normalisedName.includes(query) ||
-      item.synonyms?.some(s => s.toLowerCase().includes(query))
-    );
-  });
+  const handleEditClick = (item: CanonicalItem) => {
+    setItemToEdit(item);
+    setName(item.name);
+    setIsStaple(item.isStaple);
+    setAisleId(item.aisle || 'none');
+    setUnitId(item.preferredUnit || 'none');
+    setSynonyms(item.synonyms || []);
+    setSynonymInput('');
+  };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading items...</div>
-      </div>
-    );
-  }
+  const handleEditSave = async () => {
+    if (!itemToEdit || !name.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      await kitchenDataBackend.updateCanonicalItem(itemToEdit.id, {
+        name: name.trim(),
+        normalisedName: name.trim().toLowerCase(),
+        isStaple,
+        aisle: aisleId && aisleId !== 'none' ? aisleId : undefined,
+        preferredUnit: unitId && unitId !== 'none' ? unitId : undefined,
+        synonyms: synonyms,
+      });
+      
+      await loadData();
+      setItemToEdit(null);
+      softToast.success('Item updated', { description: name.trim() });
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to update item', err);
+      softToast.error('Failed to update item');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const getAisleName = (aisleId?: string) => {
+    if (!aisleId) return 'None';
+    return aisles.find(a => a.id === aisleId)?.name || 'Unknown';
+  };
+
+  const getUnitName = (unitId?: string) => {
+    if (!unitId) return 'None';
+    return units.find(u => u.id === unitId)?.name || 'Unknown';
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Search and Add */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1">
-          <Input
-            type="text"
-            placeholder="Search items..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <Button onClick={openNewItemModal}>Add Item</Button>
-      </div>
-
-      {/* Items List */}
-      <div className="grid gap-3">
-        {filteredItems.length === 0 ? (
-          <Card className="p-6 text-center text-gray-500">
-            {searchQuery ? 'No items match your search' : 'No items yet'}
-          </Card>
-        ) : (
-          filteredItems.map((item) => (
-            <Card key={item.id} className="p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                    {item.isStaple && (
-                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                        Staple
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-sm text-gray-600 space-y-1">
-                    <div>Unit: <span className="font-medium">{item.preferredUnit}</span></div>
-                    {item.aisle && <div>Aisle: <span className="font-medium">{item.aisle}</span></div>}
-                    {item.synonyms && item.synonyms.length > 0 && (
-                      <div>Synonyms: <span className="text-gray-500">{item.synonyms.join(', ')}</span></div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button onClick={() => openEditModal(item)} className="text-sm">
-                    Edit
-                  </Button>
-                  <Button onClick={() => confirmDelete(item)} className="text-sm bg-red-600 hover:bg-red-700">
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))
-        )}
-      </div>
-
-      {/* New/Edit Item Modal */}
-      {showNewItemModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingItem ? 'Edit Item' : 'New Item'}
-              </h2>
-
-              <div>
-                <Label htmlFor="name">Item Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g., Onion"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="unit">Preferred Unit</Label>
-                <select
-                  id="unit"
-                  value={formUnit}
-                  onChange={(e) => setFormUnit(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="_item">Item (natural count)</option>
-                  {units.map((unit) => (
-                    <option key={unit.id} value={unit.name}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <Label htmlFor="aisle">Aisle</Label>
-                <select
-                  id="aisle"
-                  value={formAisle}
-                  onChange={(e) => setFormAisle(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">No aisle</option>
-                  {aisles.map((aisle) => (
-                    <option key={aisle.id} value={aisle.name}>
-                      {aisle.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  id="staple"
-                  type="checkbox"
-                  checked={formIsStaple}
-                  onChange={(e) => setFormIsStaple(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <Label htmlFor="staple" className="mb-0">Mark as staple item</Label>
-              </div>
-
-              <div>
-                <Label htmlFor="synonyms">Synonyms (comma-separated)</Label>
-                <Input
-                  id="synonyms"
-                  type="text"
-                  value={formSynonyms}
-                  onChange={(e) => setFormSynonyms(e.target.value)}
-                  placeholder="e.g., Red onion, Brown onion"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button type="submit" disabled={isSubmitting} className="flex-1">
-                  {isSubmitting ? 'Saving...' : editingItem ? 'Update' : 'Create'}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => setShowNewItemModal(false)}
-                  disabled={isSubmitting}
-                  className="bg-gray-500 hover:bg-gray-600"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
-
-      {/* Delete Confirmation */}
-      {showDeleteConfirm && itemToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-6 space-y-4">
-            <h2 className="text-xl font-bold text-gray-900">Confirm Delete</h2>
-            <p className="text-gray-600">
-              Are you sure you want to delete <strong>{itemToDelete.name}</strong>?
-              This cannot be undone.
+    <>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="text-xl md:text-2xl">Canonical Items</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {items.length} canonical {items.length === 1 ? 'item' : 'items'}
             </p>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
-                Recipes using this item
+          </div>
+          <AddButton onClick={handleAddClick} className="shrink-0" label="Add" />
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex flex-col space-y-3 h-full px-0 md:px-6">
+        {/* Items List */}
+        <div className="flex-1 min-h-0">
+          {items.length === 0 ? (
+            <div className="py-12 text-center border border-dashed rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                No canonical items yet. Add items above.
               </p>
-              {isLoadingDeleteRecipes ? (
-                <p className="text-sm text-gray-600">Loading recipes...</p>
-              ) : recipesUsingItem.length > 0 ? (
-                <ul className="space-y-1 max-h-40 overflow-y-auto text-sm text-gray-700">
-                  {recipesUsingItem.map(recipe => (
-                    <li key={recipe.id} className="truncate">{recipe.title}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-gray-600">None</p>
-              )}
-              {recipesUsingItem.length > 0 && (
-                <p className="text-xs text-gray-500 mt-2">
-                  This will remove the item from those recipes.
-                </p>
-              )}
             </div>
-            <div className="flex gap-3">
+          ) : (
+            <ScrollArea className="h-full">
+              <div className="space-y-2">
+                {items.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-start gap-3 p-3 border rounded-lg bg-background shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{item.name}</p>
+                      {item.isStaple && (
+                        <Badge variant="secondary" className="text-xs">
+                          Staple
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p>
+                        <span className="font-medium">Aisle:</span> {getAisleName(item.aisle)}
+                        {' · '}
+                        <span className="font-medium">Unit:</span> {getUnitName(item.preferredUnit)}
+                      </p>
+                      
+                      {item.synonyms && item.synonyms.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {item.synonyms.map((syn) => (
+                            <Badge key={syn} variant="outline" className="text-xs">
+                              {syn}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      onClick={() => handleEditClick(item)}
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      onClick={() => setItemToDelete(item)}
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+            )}
+        </div>
+
+        {/* Add Item Dialog */}
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>Add Canonical Item</DialogTitle>
+              <DialogDescription>
+                Create a new standard ingredient for recipes
+              </DialogDescription>
+            </DialogHeader>
+            
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-4 py-4 pl-3 pr-1 md:px-6">
+                <div className="space-y-2">
+                  <Label htmlFor="add-name">Item Name</Label>
+                  <Input 
+                    id="add-name"
+                    placeholder="e.g. Chicken Breast" 
+                    value={name} 
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="add-staple"
+                    checked={isStaple}
+                    onCheckedChange={(checked) => setIsStaple(checked as boolean)}
+                  />
+                  <Label htmlFor="add-staple" className="cursor-pointer">
+                    Mark as staple ingredient
+                  </Label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Aisle</Label>
+                    <Select value={aisleId} onValueChange={setAisleId}>
+                      <SelectTrigger>
+                        <SelectValue>{getAisleName(aisleId)}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectItem value="none">None</SelectItem>
+                        {aisles.map((aisle) => (
+                          <SelectItem key={aisle.id} value={aisle.id}>
+                            {aisle.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Preferred Unit</Label>
+                    <Select value={unitId} onValueChange={setUnitId}>
+                      <SelectTrigger>
+                        <SelectValue>{getUnitName(unitId)}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectItem value="none">None</SelectItem>
+                        {units.map((unit) => (
+                          <SelectItem key={unit.id} value={unit.id}>
+                            {unit.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Synonyms</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Add synonym"
+                      value={synonymInput}
+                      onChange={(e) => setSynonymInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddSynonym();
+                        }
+                      }}
+                    />
+                    <AddButton type="button" onClick={handleAddSynonym} variant="outline" label="Add" />
+                  </div>
+                  
+                  {synonyms.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {synonyms.map((syn) => (
+                        <Badge key={syn} variant="secondary" className="text-xs">
+                          {syn}
+                          <button
+                            onClick={() => handleRemoveSynonym(syn)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ScrollArea>
+
+            <DialogFooter>
               <Button
-                onClick={handleDelete}
-                disabled={isSubmitting}
-                className="flex-1 bg-red-600 hover:bg-red-700"
-              >
-                {isSubmitting ? 'Deleting...' : 'Delete'}
-              </Button>
-              <Button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isSubmitting}
-                className="bg-gray-500 hover:bg-gray-600"
+                variant="outline"
+                onClick={() => setShowAddDialog(false)}
+                disabled={isAdding}
               >
                 Cancel
               </Button>
+              <AddButton
+                onClick={handleAdd}
+                disabled={!name.trim() || isAdding}
+                label={isAdding ? 'Adding...' : 'Add Item'}
+              />
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Item Dialog */}
+        <Dialog open={!!itemToEdit} onOpenChange={() => setItemToEdit(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col">
+            <div className="pl-3 pr-1 md:px-6 pt-6 shrink-0">
+              <DialogHeader>
+                <DialogTitle>Edit Canonical Item</DialogTitle>
+                <DialogDescription>
+                  Update the item details
+                </DialogDescription>
+              </DialogHeader>
             </div>
-          </Card>
-        </div>
-      )}
-    </div>
+            
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="space-y-4 py-4 pl-3 pr-1 md:px-6 pb-6">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Item Name</Label>
+                  <Input 
+                    id="edit-name"
+                    placeholder="e.g. Chicken Breast" 
+                    value={name} 
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="edit-staple"
+                    checked={isStaple}
+                    onCheckedChange={(checked) => setIsStaple(checked as boolean)}
+                  />
+                  <Label htmlFor="edit-staple" className="cursor-pointer">
+                    Mark as staple ingredient
+                  </Label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Aisle</Label>
+                    <Select value={aisleId} onValueChange={setAisleId}>
+                      <SelectTrigger>
+                        <SelectValue>{getAisleName(aisleId)}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectItem value="none">None</SelectItem>
+                        {aisles.map((aisle) => (
+                          <SelectItem key={aisle.id} value={aisle.id}>
+                            {aisle.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Preferred Unit</Label>
+                    <Select value={unitId} onValueChange={setUnitId}>
+                      <SelectTrigger>
+                        <SelectValue>{getUnitName(unitId)}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectItem value="none">None</SelectItem>
+                        {units.map((unit) => (
+                          <SelectItem key={unit.id} value={unit.id}>
+                            {unit.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Synonyms</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Add synonym"
+                      value={synonymInput}
+                      onChange={(e) => setSynonymInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddSynonym();
+                        }
+                      }}
+                    />
+                    <AddButton type="button" onClick={handleAddSynonym} variant="outline" label="Add" />
+                  </div>
+                  
+                  {synonyms.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {synonyms.map((syn) => (
+                        <Badge key={syn} variant="secondary" className="text-xs">
+                          {syn}
+                          <button
+                            onClick={() => handleRemoveSynonym(syn)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ScrollArea>
+
+            <DialogFooter className="pl-3 pr-1 md:px-6 pt-6 pb-6 border-t shrink-0">
+              <Button
+                variant="outline"
+                onClick={() => setItemToEdit(null)}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleEditSave}
+                disabled={!name.trim() || isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!itemToDelete} onOpenChange={() => setItemToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Item?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {itemToDelete && (
+                  <>
+                    Are you sure you want to delete <strong>{itemToDelete.name}</strong>? 
+                    This action cannot be undone and may affect recipes using this item.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Item'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardContent>
+    </>
   );
 };
