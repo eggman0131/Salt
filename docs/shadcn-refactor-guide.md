@@ -276,7 +276,7 @@ className="bg-primary text-primary-foreground"  // Works in both themes
 className="z-400"
 
 // ❌ Incorrect
-className="z-[400]"
+style={{ zIndex: 401 }}
 ```
 
 ## Layout Patterns
@@ -404,16 +404,20 @@ Study these for patterns before refactoring other modules.
 
 **Tier 1** (Isolated, UI-only):
 1. ✅ Admin Module
-2. AI Module (chat interface)
+2. ✅ AI Module (chat interface)
 
 **Tier 2** (Self-contained, backend-driven):
-3. Kitchen Data Module
-4. Inventory Module
+3. ✅ Kitchen Data Module
+4. ✅ Inventory Module
 
 **Tier 3** (Complex, interdependent):
-5. Recipes Module (depends on Kitchen Data)
-6. Shopping Module (depends on Kitchen Data)
-7. Planner Module (depends on Recipes, Shopping)
+5. ✅ Recipes Module (depends on Kitchen Data)
+6. ⏳ Shopping Module (depends on Kitchen Data)
+7. ✅ Planner Module (depends on Recipes, Shopping)
+
+**Framework & Dashboard:**
+8. ⏳ App Framework (sidebar, navigation, layout)
+9. ⏳ Dashboard
 
 ## Common Pitfalls
 
@@ -423,7 +427,7 @@ Study these for patterns before refactoring other modules.
 <div className="bg-orange-600">
 
 // Arbitrary values
-<div className="z-[999]">
+<div style={{ zIndex: 998 }}>
 
 // localStorage for backend data
 localStorage.setItem('users', JSON.stringify(users));

@@ -44,7 +44,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input 
       {...props}
       ref={ref}
-      className={`w-full px-4 py-2 min-h-[44px] border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-white text-gray-900 text-base md:text-sm placeholder:text-gray-400 font-normal ${props.className || ''}`}
+      className={`w-full px-4 py-2 min-h-11 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-white text-gray-900 text-base md:text-sm placeholder:text-gray-400 font-normal ${props.className || ''}`}
     />
   )
 );

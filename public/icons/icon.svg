@@ -1,14 +1,23 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <!-- Orange background -->
-  <rect width="512" height="512" fill="#ea580c" rx="80"/>
+  <!-- Salt crystals - geometric composition -->
   
-  <!-- White text "SALT" -->
-  <text x="256" y="320" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="140" font-weight="900" fill="white" text-anchor="middle" letter-spacing="-5">SALT</text>
+  <!-- Large crystal (primary blue) -->
+  <polygon points="256,80 320,180 320,280 256,380 192,280 192,180" fill="#3b82f6" opacity="0.9"/>
   
-  <!-- Decorative chef hat -->
-  <g transform="translate(256, 140)">
-    <ellipse cx="0" cy="0" rx="80" ry="30" fill="white" opacity="0.2"/>
-    <rect x="-60" y="-10" width="120" height="40" fill="white" opacity="0.3" rx="5"/>
-    <path d="M -70,-10 Q -70,-60 -40,-70 Q -20,-80 0,-75 Q 20,-80 40,-70 Q 70,-60 70,-10 Z" fill="white" opacity="0.3"/>
-  </g>
+  <!-- Secondary crystal (cyan accent) -->
+  <polygon points="160,220 200,280 180,340 120,320 100,260" fill="#06b6d4" opacity="0.8"/>
+  
+  <!-- Tertiary crystal (purple accent) -->
+  <polygon points="352,220 392,280 372,340 312,320 332,260" fill="#a78bfa" opacity="0.75"/>
+  
+  <!-- Small granules for texture -->
+  <circle cx="140" cy="380" r="12" fill="#3b82f6" opacity="0.6"/>
+  <circle cx="200" cy="420" r="10" fill="#06b6d4" opacity="0.5"/>
+  <circle cx="372" cy="380" r="12" fill="#a78bfa" opacity="0.5"/>
+  <circle cx="312" cy="400" r="8" fill="#3b82f6" opacity="0.4"/>
+  <circle cx="256" cy="432" r="10" fill="#06b6d4" opacity="0.45"/>
+  
+  <!-- Top highlights (subtle) -->
+  <circle cx="260" cy="100" r="8" fill="white" opacity="0.6"/>
+  <circle cx="288" cy="140" r="6" fill="white" opacity="0.4"/>
 </svg>

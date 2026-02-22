@@ -3,6 +3,12 @@
  */
 
 export function registerServiceWorker() {
+  // Skip registration in development mode
+  if (import.meta.env.DEV) {
+    console.log('⏭️ Service Worker registration skipped (running in dev mode)');
+    return;
+  }
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker

@@ -210,7 +210,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
     <>
       <div className="h-[calc(100vh-120px)] md:h-[calc(100vh-160px)] flex flex-col animate-in fade-in duration-500">
         <Card className="flex-1 flex flex-col overflow-hidden shadow-md">
-          <CardHeader>
+          <CardHeader className="px-4 py-4 md:p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1 flex-1">
                 <CardTitle className="text-xl md:text-2xl flex items-center gap-2">
@@ -238,7 +238,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
           {/* Messages */}
           <CardContent className="flex-1 overflow-hidden p-0">
             <ScrollArea className="h-full">
-              <div className="p-4 md:p-6 space-y-4">
+              <div className="p-4 space-y-4">
                 {!hasConversation && (
                   <div className="py-12 text-center">
                     <p className="text-sm text-muted-foreground">
@@ -283,14 +283,14 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
                     {processStatus}
                   </div>
                 )}
+                
+                {/* Scroll anchor */}
+                <div ref={scrollEndRef} />
               </div>
             </ScrollArea>
           </CardContent>
 
           <Separator />
-  
-                {/* Scroll anchor */}
-                <div ref={scrollEndRef} />
               
           {/* Input */}
           <CardContent className="p-4 space-y-3">
