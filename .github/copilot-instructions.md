@@ -87,7 +87,9 @@ types/contract.ts    ← The Law (all modules import from here)
 - All modules → `types/contract.ts` (The Law)
 - All modules → `shared/components` (UI library)
 - All modules → `shared/backend` (API transport)
-- `shopping` → `kitchen-data` (read-only: units, aisles)
+- `shopping` → `kitchen-data` (read-only: units, aisles, categories)
+- `recipes` → `inventory` (read-only: equipment data)
+- `recipes` → `kitchen-data` (read-only: categories)
 - `planner` → `recipes` (read-only: recipe data)
 - `planner` → `shopping` (can create lists)
 
@@ -161,12 +163,35 @@ Salt is manifest-based. The Export Backup feature in the Admin panel moves entir
 - Verify British English and metric units in all outputs
 - Ensure Zod schema validation works correctly
 
+## Design System (UI Constitution)
+
+All frontend development must adhere to the **Design System** — the UI equivalent of The Law.
+
+**See:** [design-system.instructions.md](./design-system.instructions.md)
+
+The design system covers:
+- **Design Tokens** — Colours, spacing, radii, typography (never hardcode values)
+- **Components** — Button styles, forms, badges, cards
+- **Layout Primitives** — Page, Section, Stack, Card containers
+- **Icons** — lucide-react standardization
+- **Interaction Patterns** — Modals, inline editing, action bars, search
+- **Mobile-First Responsive** — Breakpoint strategy and testing
+
+**Key Rule:** All UI changes require token-based styling and shadcn/ui components. Hardcoded colours, arbitrary spacing, or custom CSS bypasses the design system and creates inconsistency.
+
+When working on components:
+1. Check if a pattern already exists in the design system
+2. Use tokens for all colours and spacing
+3. Test on mobile (375px), tablet (768px), and desktop (1024px)
+4. Follow the checklists in `design-system.instructions.md` before shipping
+
 ## When Making Changes
 
 1. Read the module's `README.md` if working in a module
 2. Understand the architectural hierarchy
-3. Maintain type safety with Zod schemas
-4. Test with both simulation and Firebase backends
-5. Verify British English and metric units
-6. Keep changes minimal and focused
-7. Document any new patterns or conventions in the module's README
+3. **Respect the Design System** for all UI work
+4. Maintain type safety with Zod schemas
+5. Test with both simulation and Firebase backends
+6. Verify British English and metric units
+7. Keep changes minimal and focused
+8. Document any new patterns or conventions in the module's README

@@ -297,6 +297,11 @@ export const systemBackend = {
     await deleteDoc(doc(db, 'users', id));
   },
 
+  async updateUser(id: string, userData: Partial<Omit<User, 'id' | 'email'>>): Promise<void> {
+    const userDoc = doc(db, 'users', id);
+    await setDoc(userDoc, userData, { merge: true });
+  },
+
   async getKitchenSettings(): Promise<KitchenSettings> {
     const docRef = doc(db, 'settings', 'global');
     const docSnap = await getDoc(docRef);
