@@ -35,10 +35,10 @@ export interface SidebarProps {
 const menuItems: NavItem[] = [
   { label: 'Home', id: 'dashboard', icon: Home },
   { label: 'Planner', id: 'planner', icon: Calendar },
-  { label: 'Chef', id: 'ai', icon: Lightbulb },
-  { label: 'Recipes', id: 'recipes', icon: BookOpen },
-  { label: 'Equipment', id: 'inventory', icon: Puzzle },
   { label: 'Shopping', id: 'shopping', icon: ShoppingCart },
+  { label: 'Recipes', id: 'recipes', icon: BookOpen },
+  { label: 'Chef', id: 'ai', icon: Lightbulb },
+  { label: 'Equipment', id: 'inventory', icon: Puzzle },
   { label: 'Kitchen Data', id: 'kitchendata', icon: ClipboardList },
 ];
 
