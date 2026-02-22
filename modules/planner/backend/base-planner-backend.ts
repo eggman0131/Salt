@@ -44,4 +44,24 @@ export abstract class BasePlannerBackend implements IPlannerBackend {
     }
     return settings.userOrder;
   }
+
+  /**
+   * Sanitize a plan by removing presentIds that don't exist in validUserIds
+   * Returns the sanitized plan (mutates in-place)
+   */
+  sanitizePlan(plan: Plan, validUserIds: string[]): Plan {
+    const validIdSet = new Set(validUserIds);
+    
+    const sanitizedDays = plan.days.map(day => ({
+      ...day,
+      // Remove cookId if it's not in valid list, remove invalid presentIds
+      cookId: (day.cookId && validIdSet.has(day.cookId)) ? day.cookId : null,
+      presentIds: day.presentIds.filter(id => validIdSet.has(id))
+    }));
+
+    return {
+      ...plan,
+      days: sanitizedDays
+    };
+  }
 }

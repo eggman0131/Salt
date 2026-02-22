@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, Button } from './UI';
 import { Badge } from './ui/badge';
-import { Utensils, ChefHat, BookOpen, ArrowRight } from 'lucide-react';
+import { ChefHat, BookOpen, ArrowRight } from 'lucide-react';
 import { User, Recipe, Plan } from '@/types/contract';
 import { cn } from '@/lib/utils';
 
@@ -40,9 +40,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onTabChange,
   onShowImportModal,
 }) => {
-  const [viewWeek, setViewWeek] = useState<'current' | 'next'>('current');
-  const activePlan = viewWeek === 'current' ? currentPlan : nextPlan;
-
   const getLocalDateString = (date: Date = new Date()) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -116,82 +113,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         ) : (
           <Card className="p-6">
             <div className="text-center space-y-3">
-              <Utensils className="h-8 w-8 text-muted-foreground mx-auto opacity-50" />
               <p className="text-sm text-muted-foreground">No meal planned for today</p>
               <Button
                 size="sm"
                 onClick={() => onTabChange('planner')}
               >
                 Plan Today's Meal
-              </Button>
-            </div>
-          </Card>
-        )}
-      </section>
-
-      {/* Section: Weekly Planner */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">This Week's Menu</h2>
-          <button
-            onClick={() => setViewWeek(viewWeek === 'current' ? 'next' : 'current')}
-            className="text-sm font-medium text-primary hover:underline transition-all"
-          >
-            {viewWeek === 'current' ? 'Next week' : 'This week'}
-          </button>
-        </div>
-
-        {activePlan ? (
-          <Card className="overflow-hidden">
-            <div className="divide-y divide-border">
-              {activePlan.days.map((day) => {
-                const isToday = day.date === todayStr;
-                const dayNum = parseInt(day.date.split('-')[2], 10);
-                const dayName = new Date(day.date).toLocaleDateString('en-GB', { weekday: 'short' });
-
-                return (
-                  <div
-                    key={day.date}
-                    className={cn(
-                      'p-4 transition-all',
-                      isToday ? 'bg-primary/5' : 'hover:bg-muted/50'
-                    )}
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* Date */}
-                      <div className="min-w-fit">
-                        <p className="text-xs text-muted-foreground font-medium uppercase">{dayName}</p>
-                        <p className="text-lg font-semibold">{dayNum}</p>
-                      </div>
-
-                      {/* Meal & Cook */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{day.mealNotes || 'TBC'}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {allUsers.find(u => u.id === day.cookId)?.displayName || 'Unassigned'}
-                        </p>
-                      </div>
-
-                      {/* Today indicator */}
-                      {isToday && (
-                        <Badge variant="default" className="shrink-0">Live</Badge>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        ) : (
-          <Card className="p-6">
-            <div className="text-center space-y-3">
-              <Utensils className="h-8 w-8 text-muted-foreground mx-auto opacity-50" />
-              <p className="text-sm text-muted-foreground">No plan created yet</p>
-              <Button
-                size="sm"
-                onClick={() => onTabChange('planner')}
-              >
-                Create Weekly Plan
               </Button>
             </div>
           </Card>
