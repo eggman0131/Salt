@@ -9,6 +9,7 @@ import { BasePlannerBackend } from './base-planner-backend';
 import { Plan, KitchenSettings } from '../../../types/contract';
 import { db, auth } from '../../../shared/backend/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, orderBy, runTransaction } from 'firebase/firestore';
+import { systemBackend } from '../../../shared/backend/system-backend';
 
 const TEMPLATE_ID = 'plan-template';
 
@@ -53,14 +54,20 @@ export class FirebasePlannerBackend extends BasePlannerBackend {
     const snapshot = await getDocs(
       query(collection(db, 'plans'), orderBy('startDate', 'desc'))
     );
+    
+    // Get valid user IDs for sanitization
+    const users = await systemBackend.getUsers();
+    const validUserIds = users.map(u => u.id);
+    
     const plans: Plan[] = [];
     
     snapshot.forEach((doc) => {
       const data = this.convertTimestamps(doc.data());
-      plans.push({
-        ...data,
-        id: doc.id
-      } as Plan);
+      const plan = { ...data, id: doc.id } as Plan;
+      
+      // Sanitize plan (remove non-existent user IDs)
+      const sanitized = this.sanitizePlan(plan, validUserIds);
+      plans.push(sanitized);
     });
     
     return plans;
@@ -72,7 +79,16 @@ export class FirebasePlannerBackend extends BasePlannerBackend {
     
     if (docSnap.exists()) {
       const data = this.convertTimestamps(docSnap.data());
-      return { ...data, id: docSnap.id } as Plan;
+      const plan = { ...data, id: docSnap.id } as Plan;
+      
+      // Get valid user IDs for sanitization
+      const users = await systemBackend.getUsers();
+      const validUserIds = users.map(u => u.id);
+      
+      // Sanitize plan (remove non-existent user IDs)
+      const sanitized = this.sanitizePlan(plan, validUserIds);
+      
+      return sanitized;
     }
 
     return null;
