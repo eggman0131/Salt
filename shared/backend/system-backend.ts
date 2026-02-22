@@ -1,6 +1,7 @@
 import { User, KitchenSettings } from '../../types/contract';
-import { auth, db } from './firebase';
+import { auth, db, storage } from './firebase';
 import { debugLogger } from './debug-logger';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   collection,
   doc,
@@ -300,6 +301,61 @@ export const systemBackend = {
   async updateUser(id: string, userData: Partial<Omit<User, 'id' | 'email'>>): Promise<void> {
     const userDoc = doc(db, 'users', id);
     await setDoc(userDoc, userData, { merge: true });
+  },
+
+  async uploadUserAvatar(userId: string, imageData: string): Promise<string> {
+    const path = `users/${userId}/avatar.jpg`;
+    
+    // Use the same pattern as recipe images for Dev mode proxy uploads
+    if (import.meta.env.DEV) {
+      try {
+        const bucket = storage.app.options.storageBucket || 'gen-lang-client-0015061880.firebasestorage.app';
+        const encodedPath = encodeURIComponent(path);
+        
+        // Construct upload URL via Proxy (/v0)
+        const uploadUrl = `/v0/b/${bucket}/o?uploadType=media&name=${encodedPath}`;
+        
+        // Convert Base64 to Blob
+        const res = await fetch(imageData);
+        const blob = await res.blob();
+        
+        // Get a fresh token to ensure the request is authorized
+        const token = await auth.currentUser?.getIdToken();
+
+        const headers: HeadersInit = {
+          'Content-Type': 'image/jpeg'
+        };
+
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          body: blob,
+          headers: headers
+        });
+        
+        if (!response.ok) {
+          debugLogger.error('Firebase Storage', 'Manual avatar upload failed:', response.statusText);
+          throw new Error(`Upload failed: ${response.statusText}`);
+        }
+        
+        // Get download URL
+        const storageRef = ref(storage, path);
+        return await getDownloadURL(storageRef);
+      } catch (e) {
+        debugLogger.error('Firebase Storage', "Manual avatar upload failed, falling back to SDK", e);
+        // Fallthrough to SDK
+      }
+    }
+    
+    // Production or fallback: Use Firebase SDK
+    const res = await fetch(imageData);
+    const blob = await res.blob();
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+    return await getDownloadURL(storageRef);
   },
 
   async getKitchenSettings(): Promise<KitchenSettings> {
