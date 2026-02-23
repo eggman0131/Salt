@@ -163,14 +163,7 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
       <div>
         <h2 className="text-xl font-semibold mb-3">Instructions</h2>
         <ol className="space-y-4">
-          {recipe.instructions.map((instr: RecipeInstruction, index: number) => {
-            console.log(`[Render] Step ${index}:`, {
-              text: instr.text,
-              ingredientsCount: instr.ingredients?.length || 0,
-              warningsCount: instr.technicalWarnings?.length || 0,
-              ingredients: instr.ingredients,
-            });
-            return (
+          {recipe.instructions.map((instr: RecipeInstruction, index: number) => (
             <li key={instr.id} className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold mt-0.5">
                 {index + 1}
