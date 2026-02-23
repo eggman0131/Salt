@@ -565,7 +565,11 @@ describe('Recipes Backend - Contract Compliance', () => {
             canonicalItemId: 'item-tomato',
           },
         ],
-        instructions: ['Cook pasta', 'Make sauce', 'Combine'],
+        instructions: [
+          { id: 'step-1', text: 'Cook pasta', ingredients: [], technicalWarnings: [] },
+          { id: 'step-2', text: 'Make sauce', ingredients: [], technicalWarnings: [] },
+          { id: 'step-3', text: 'Combine', ingredients: [], technicalWarnings: [] },
+        ],
         equipmentNeeded: ['Frying Pan', 'Pot'],
         prepTime: '10 mins',
         cookTime: '20 mins',
