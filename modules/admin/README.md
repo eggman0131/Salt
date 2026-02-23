@@ -14,6 +14,40 @@ modules/admin/
 
 ## Key Features
 
+### Data Portability - Contract-Based Backup System
+
+**Dynamic Collection Registry** - All kitchen data is automatically backed up using `COLLECTION_REGISTRY` in `types/contract.ts`.
+
+**How It Works:**
+1. Collection Registry defines all Firestore collections as "The Law"
+2. `systemBackend.exportAllData()` dynamically exports all registered collections
+3. `systemBackend.importAllData()` dynamically imports all registered collections
+
+**Adding New Collections:**
+```typescript
+// In types/contract.ts - COLLECTION_REGISTRY
+myNewCollection: {
+  schema: MyNewSchema,
+  requiresEncoding: false  // true if needs nested array encoding like recipes
+}
+```
+That's it! Backup/restore automatically includes it.
+
+**What Gets Backed Up:**
+- Recipes (with nested array encoding)
+- Equipment inventory
+- Meal plans
+- Kitchen data (canonical items, units, aisles, categories)
+- Shopping lists and items
+- **Cook guides** (automatically added via registry)
+- Users and settings
+
+**Benefits:**
+- ✅ No manual updates needed when adding collections
+- ✅ Type-safe with schema validation
+- ✅ Follows "Contract is The Law" principle
+- ✅ Backward compatible with old backups
+
 ### System State Management
 - **Backend Mode:** Display current backend (Firebase vs Simulation)
 - **Last Synced:** Show timestamp of last backup restore

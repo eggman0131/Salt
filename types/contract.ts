@@ -217,3 +217,88 @@ export interface EquipmentCandidate {
   category: 'Complex Appliance' | 'Technical Cookware' | 'Standard Tool';
 }
 
+/**
+ * Collection Registry
+ * 
+ * Defines all Firestore collections that constitute "kitchen state".
+ * Used by backup/restore system to dynamically discover all data.
+ * 
+ * When adding a new feature with Firestore persistence:
+ * 1. Add collection to this registry
+ * 2. Backup/restore will automatically include it
+ */
+export const COLLECTION_REGISTRY = {
+  // Core domain collections
+  recipes: { 
+    schema: RecipeSchema, 
+    requiresEncoding: true, // Recipes need special encoding for Firestore
+    idField: 'id'
+  },
+  inventory: { 
+    schema: EquipmentSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  plans: { 
+    schema: PlanSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  
+  // Kitchen data collections
+  canonical_items: { 
+    schema: CanonicalItemSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  units: { 
+    schema: UnitSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  aisles: { 
+    schema: AisleSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  categories: { 
+    schema: RecipeCategorySchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  
+  // Shopping collections
+  shopping_lists: { 
+    schema: ShoppingListSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  shopping_list_items: { 
+    schema: ShoppingListItemSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  
+  // Cook mode collections
+  cookGuides: {
+    schema: z.any(), // CookGuide schema lives in cook-mode module
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  
+  // System collections
+  users: { 
+    schema: UserSchema,
+    requiresEncoding: false,
+    idField: 'email' // Users use email as document ID, not 'id'
+  },
+  settings: {
+    schema: KitchenSettingsSchema,
+    requiresEncoding: false,
+    isSingleton: true, // Only one document: 'global'
+    documentId: 'global'
+  }
+} as const;
+
+export type CollectionName = keyof typeof COLLECTION_REGISTRY;
+

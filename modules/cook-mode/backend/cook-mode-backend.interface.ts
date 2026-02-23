@@ -30,6 +30,23 @@ export interface ICookModeBackend {
   getCookGuide: (guideId: string) => Promise<CookGuide | null>;
 
   /**
+   * Update a cooking step within a guide.
+   * Preserves other steps and guide metadata.
+   */
+  updateCookingStep: (guideId: string, stepNumber: number, updatedStep: Partial<CookGuide['steps'][0]>) => Promise<CookGuide>;
+
+  /**
+   * Update all prep groups in a guide.
+   * Preserves cooking steps and guide metadata.
+   */
+  updatePrepGroups: (guideId: string, prepGroups: CookGuide['prepGroups']) => Promise<CookGuide>;
+
+  /**
+   * Get all cook guides for a recipe.
+   */
+  getAllCookGuides: () => Promise<CookGuide[]>;
+
+  /**
    * Delete a cook guide.
    */
   deleteCookGuide: (guideId: string) => Promise<void>;
