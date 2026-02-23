@@ -444,16 +444,6 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     }
 
     const hasLegacyData = stepIngredients.length > 0 || stepAlerts.length > 0;
-    
-    if (hasLegacyData) {
-      console.log(`[Migration] Converting ${recipeId}:`, {
-        instructionsCount: instructions.length,
-        stepIngredientsCount: stepIngredients.length,
-        stepAlertsCount: stepAlerts.length,
-        ingredientsCount: allIngredients.length,
-        warningsCount: technicalWarnings.length,
-      });
-    }
 
     return instructions.map((instr, stepIdx) => {
       // Step 1: Ensure instruction is a RecipeInstruction object
@@ -479,9 +469,6 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
           .filter(ing => ing !== undefined);
         
         baseInstruction.ingredients = embeddedIngredients;
-        if (embeddedIngredients.length > 0) {
-          console.log(`[Migration] Step ${stepIdx}: embedded ${embeddedIngredients.length} ingredients`);
-        }
       }
 
       // Step 3: Embed step-specific warnings from old format
@@ -492,9 +479,6 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
           .filter(warning => warning !== undefined);
         
         baseInstruction.technicalWarnings = embeddedWarnings;
-        if (embeddedWarnings.length > 0) {
-          console.log(`[Migration] Step ${stepIdx}: embedded ${embeddedWarnings.length} warnings`);
-        }
       }
 
       return baseInstruction;
