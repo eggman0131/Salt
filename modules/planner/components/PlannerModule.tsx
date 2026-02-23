@@ -1,19 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -425,17 +417,22 @@ const WeekHeader: React.FC<{
                 <button
                   key={day.date}
                   onClick={() => onSelect(idx)}
-                  className={`flex flex-col gap-1 rounded-md border px-3 py-2 text-left transition-colors ${
+                  className={`flex flex-col items-center gap-1.5 rounded-md border px-3 py-2 transition-colors ${
                     isActive
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50'
                   }`}
                 >
                   <span className="text-xs text-muted-foreground">
-                    {date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    {date.toLocaleDateString('en-GB', { weekday: 'short' })}
                   </span>
-                  <span className="text-sm font-medium truncate">{cook?.displayName || 'None'}</span>
-                  <span className="text-xs text-muted-foreground truncate">{firstLine}</span>
+                  <Avatar className="h-8 w-8">
+                    {cook?.avatarUrl && <AvatarImage src={cook.avatarUrl} alt={cook.displayName} />}
+                    <AvatarFallback className="text-xs">
+                      {cook ? cook.displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '—'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs text-muted-foreground truncate max-w-full">{firstLine}</span>
                 </button>
               );
             })}
@@ -471,17 +468,16 @@ const DayDetail: React.FC<{
   onChange: (updates: Partial<DayPlan>) => void;
 }> = ({ day, users, onChange }) => {
   const date = new Date(`${day.date}T00:00:00Z`);
-  const cookIdValue = day.cookId ?? 'none';
 
-  const handleChefChange = (value: string) => {
-    if (value === 'none') {
+  const handleChefSelect = (userId: string | null) => {
+    if (userId === null) {
       onChange({ cookId: null });
       return;
     }
-    const nextPresent = day.presentIds.includes(value)
+    const nextPresent = day.presentIds.includes(userId)
       ? day.presentIds
-      : [...day.presentIds, value];
-    onChange({ cookId: value, presentIds: nextPresent });
+      : [...day.presentIds, userId];
+    onChange({ cookId: userId, presentIds: nextPresent });
   };
 
   return (
@@ -498,20 +494,41 @@ const DayDetail: React.FC<{
       </CardHeader>
       <CardContent className="space-y-6 p-4 md:p-6 pt-0 md:pt-0">
         <div className="space-y-2">
-          <Label htmlFor="chef-selector">Chef</Label>
-          <Select value={cookIdValue} onValueChange={handleChefChange}>
-            <SelectTrigger id="chef-selector">
-              <SelectValue placeholder="Select a chef" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              {users.map(user => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.displayName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Chef</Label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => handleChefSelect(null)}
+              className={`rounded-full p-0.5 transition-all ${
+                day.cookId === null
+                  ? 'ring-2 ring-primary ring-offset-2'
+                  : 'opacity-50 hover:opacity-100'
+              }`}
+            >
+              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                <span className="text-xs text-muted-foreground">—</span>
+              </div>
+            </button>
+            {users.map(user => (
+              <button
+                key={user.id}
+                type="button"
+                onClick={() => handleChefSelect(user.id)}
+                className={`rounded-full p-0.5 transition-all ${
+                  day.cookId === user.id
+                    ? 'ring-2 ring-primary ring-offset-2'
+                    : 'opacity-50 hover:opacity-100'
+                }`}
+              >
+                <Avatar className="h-10 w-10">
+                  {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
+                  <AvatarFallback className="text-sm">
+                    {user.displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -564,15 +581,24 @@ const PeopleForDay: React.FC<{
             <div key={user.id} className="rounded-md border border-border p-3 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <Checkbox
-                    checked={isPresent}
-                    onCheckedChange={() => onTogglePresence(user.id)}
-                  />
-                  <span className="text-sm font-medium">{user.displayName}</span>
+                  <Avatar className="h-9 w-9">
+                    {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
+                    <AvatarFallback className="text-xs">
+                      {user.displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
-                <Badge variant={isPresent ? 'default' : 'outline'}>
+                <button
+                  type="button"
+                  onClick={() => onTogglePresence(user.id)}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    isPresent
+                      ? 'bg-green-600/10 text-green-600 dark:bg-green-400/10 dark:text-green-400'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
                   {isPresent ? 'Attending' : 'Not attending'}
-                </Badge>
+                </button>
               </div>
               <Input
                 placeholder="Notes for the day"
