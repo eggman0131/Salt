@@ -17,9 +17,57 @@ import {
   setDoc,
   deleteDoc,
 } from 'firebase/firestore';
-import { db } from '../../../shared/backend/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
+import { auth, db, functions } from '../../../shared/backend/firebase';
+import { debugLogger } from '../../../shared/backend/debug-logger';
 
 export class FirebaseCookModeBackend extends BaseCookModeBackend {
+  private currentIdToken: string | null = null;
+
+  protected async callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse> {
+    const user = auth.currentUser;
+    let idToken = this.currentIdToken;
+
+    debugLogger.log('callGenerateContent', 'Starting - auth.currentUser:', user?.email, 'storedToken:', idToken ? 'yes' : 'no');
+
+    if (!idToken && !user) {
+      throw new Error('User not authenticated. Cannot call Gemini API.');
+    }
+
+    if (user) {
+      try {
+        debugLogger.log('callGenerateContent', 'Attempting to get fresh token...');
+        idToken = await user.getIdToken(true);
+        debugLogger.log('callGenerateContent', 'Got fresh token:', idToken ? 'yes' : 'no');
+        this.currentIdToken = idToken;
+      } catch (e) {
+        debugLogger.log('callGenerateContent', 'getIdToken failed, using fallback:', e);
+        if (!idToken) throw e;
+      }
+    }
+
+    debugLogger.log('callGenerateContent', 'Final idToken:', idToken ? `${idToken.substring(0, 20)}...` : 'MISSING');
+
+    if (!idToken) {
+      throw new Error('Failed to obtain authentication token.');
+    }
+
+    const cloudGenerateContent = httpsCallable(functions, 'cloudGenerateContent');
+
+    debugLogger.log('callGenerateContent', 'Calling Cloud Function with idToken...');
+    try {
+      const result = await cloudGenerateContent({
+        idToken,
+        params,
+      });
+      debugLogger.log('callGenerateContent', 'Success');
+      return result.data as GenerateContentResponse;
+    } catch (error) {
+      debugLogger.error('callGenerateContent', 'Cloud Function error:', error);
+      throw error;
+    }
+  }
   private collectionName = 'cookGuides';
 
   async getOrGenerateCookGuide(recipe: Recipe): Promise<CookGuide> {
