@@ -26,6 +26,7 @@ import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_CORE } from '../../../shared/backend/prompts';
+import { cookModeBackend } from '../../cook-mode/backend';
 
 export class FirebaseRecipesBackend extends BaseRecipesBackend {
   private currentIdToken: string | null = null;
@@ -571,6 +572,13 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
   }
   
   async deleteRecipe(id: string): Promise<void> {
+    // Delete associated cook guides first (cascade delete)
+    const cookGuides = await cookModeBackend.getCookGuidesForRecipe(id);
+    for (const guide of cookGuides) {
+      await cookModeBackend.deleteCookGuide(guide.id);
+    }
+
+    // Then delete the recipe
     await deleteDoc(doc(db, 'recipes', id));
   }
 

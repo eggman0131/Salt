@@ -59,7 +59,7 @@ export const CookModeModule: React.FC<CookModeModuleProps> = ({ recipe, onClose 
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-          <p className="text-muted-foreground">Preparing your cooking guide...</p>
+          <p className="text-muted-foreground">Generating Assist Mode guide...</p>
         </div>
       </div>
     );
@@ -81,6 +81,36 @@ export const CookModeModule: React.FC<CookModeModuleProps> = ({ recipe, onClose 
   const currentStep = guide.steps[currentStepIdx];
   const allStepsComplete = currentStepIdx >= guide.steps.length;
 
+  const handleStepUpdate = async (guideId: string, stepNumber: number, updatedStep: any) => {
+    try {
+      const updatedGuide = await cookModeBackend.updateCookingStep(guideId, stepNumber, updatedStep);
+      setGuide(updatedGuide);
+      softToast.success('Step updated', {
+        description: 'Your changes have been saved',
+      });
+    } catch (error) {
+      console.error('Failed to update step:', error);
+      softToast.error('Save failed', {
+        description: error instanceof Error ? error.message : 'Unable to save changes',
+      });
+    }
+  };
+
+  const handlePrepGroupsUpdate = async (guideId: string, prepGroups: any) => {
+    try {
+      const updatedGuide = await cookModeBackend.updatePrepGroups(guideId, prepGroups);
+      setGuide(updatedGuide);
+      softToast.success('Prep phase updated', {
+        description: 'Your changes have been saved',
+      });
+    } catch (error) {
+      console.error('Failed to update prep groups:', error);
+      softToast.error('Save failed', {
+        description: error instanceof Error ? error.message : 'Unable to save changes',
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background space-y-4 md:space-y-6 pb-8">
       {/* Header */}
@@ -91,7 +121,7 @@ export const CookModeModule: React.FC<CookModeModuleProps> = ({ recipe, onClose 
               <ChefHat className="h-5 w-5 text-primary" />
               <div>
                 <CardTitle className="text-lg md:text-xl">{guide.recipeTitle}</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">Autism-friendly cooking mode</p>
+                <p className="text-xs text-muted-foreground mt-1">Assist Mode • Step-by-step guidance</p>
               </div>
             </div>
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -131,7 +161,11 @@ export const CookModeModule: React.FC<CookModeModuleProps> = ({ recipe, onClose 
         {/* Prep phase */}
         {phase === Phase.PREP && (
           <div className="space-y-6">
-            <PrepPhaseView prepGroups={guide.prepGroups} />
+            <PrepPhaseView 
+              prepGroups={guide.prepGroups}
+              guideId={guide.id}
+              onPrepGroupsUpdate={handlePrepGroupsUpdate}
+            />
             <Button onClick={() => setPhase(Phase.COOKING)} className="w-full">
               Let's Start Cooking →
             </Button>
@@ -143,7 +177,13 @@ export const CookModeModule: React.FC<CookModeModuleProps> = ({ recipe, onClose 
           <div className="space-y-6">
             {!allStepsComplete ? (
               <>
-                <CookingStepView step={currentStep} totalSteps={guide.steps.length} />
+                <CookingStepView 
+                  step={currentStep} 
+                  totalSteps={guide.steps.length}
+                  recipeInstruction={recipe.instructions[currentStepIdx]?.text}
+                  guideId={guide.id}
+                  onStepUpdate={handleStepUpdate}
+                />
 
                 {/* Navigation */}
                 <div className="flex gap-3 pt-4">

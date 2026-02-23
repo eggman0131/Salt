@@ -110,8 +110,50 @@ export class FirebaseCookModeBackend extends BaseCookModeBackend {
     return snapshot.exists() ? (snapshot.data() as CookGuide) : null;
   }
 
+  async updateCookingStep(guideId: string, stepNumber: number, updatedStep: Partial<CookGuide['steps'][0]>): Promise<CookGuide> {
+    const guide = await this.getCookGuide(guideId);
+    if (!guide) {
+      throw new Error(`Cook guide ${guideId} not found`);
+    }
+
+    // Find and update the step
+    const stepIndex = guide.steps.findIndex(s => s.stepNumber === stepNumber);
+    if (stepIndex === -1) {
+      throw new Error(`Step ${stepNumber} not found in guide`);
+    }
+
+    // Merge the updated step with existing data
+    guide.steps[stepIndex] = {
+      ...guide.steps[stepIndex],
+      ...updatedStep,
+    };
+
+    // Save updated guide
+    await setDoc(doc(db, this.collectionName, guideId), guide);
+    return guide;
+  }
+
+  async updatePrepGroups(guideId: string, prepGroups: CookGuide['prepGroups']): Promise<CookGuide> {
+    const guide = await this.getCookGuide(guideId);
+    if (!guide) {
+      throw new Error(`Cook guide ${guideId} not found`);
+    }
+
+    // Update prep groups
+    guide.prepGroups = prepGroups;
+
+    // Save updated guide
+    await setDoc(doc(db, this.collectionName, guideId), guide);
+    return guide;
+  }
+
   async deleteCookGuide(guideId: string): Promise<void> {
     await deleteDoc(doc(db, this.collectionName, guideId));
+  }
+
+  async getAllCookGuides(): Promise<CookGuide[]> {
+    const snapshot = await getDocs(collection(db, this.collectionName));
+    return snapshot.docs.map(docSnap => docSnap.data() as CookGuide);
   }
 
   async getCookGuidesForRecipe(recipeId: string): Promise<CookGuide[]> {

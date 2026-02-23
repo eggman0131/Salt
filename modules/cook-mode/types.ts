@@ -1,7 +1,7 @@
 /**
  * Cook Mode Types
  * 
- * Defines the schema for sensory-rich, autism-friendly cooking guides.
+ * Defines the schema for Assist Mode cooking guides with sensory cues.
  * These are derived from recipes and stored separately.
  */
 
