@@ -13,6 +13,7 @@ import { GenerateContentParameters, GenerateContentResponse } from "@google/gena
 import {
   Recipe,
   RecipeIngredient,
+  RecipeInstruction,
   CanonicalItem,
   Equipment,
   RecipeCategory,
@@ -58,7 +59,11 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     const leanInventory = await this.getLeanInventoryString();
     let recipeContext = "No original recipe exists.";
     if (currentRecipe) {
-      recipeContext = `EXISTING RECIPE:\nTITLE: ${currentRecipe.title}\nINGREDIENTS:\n${(currentRecipe.ingredients || []).join('\n')}\nMETHOD:\n${(currentRecipe.instructions || []).join('\n')}`;
+      // Extract instruction text from RecipeInstruction objects (or use string directly for legacy)
+      const instructionTexts = (currentRecipe.instructions || []).map(instr => 
+        typeof instr === 'string' ? instr : instr.text
+      );
+      recipeContext = `EXISTING RECIPE:\nTITLE: ${currentRecipe.title}\nINGREDIENTS:\n${(currentRecipe.ingredients || []).join('\n')}\nMETHOD:\n${instructionTexts.join('\n')}`;
     }
     const historySummary = history ? `DISCUSSION:\n${history.slice(-30).map(m => `${m.role}: ${m.text}`).join('\n')}` : '';
     const instruction = await this.getSystemInstruction("You are the Head Chef performing synthesis.");
@@ -170,6 +175,14 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
         )
       : [];
     
+    // Extract instruction texts for categorization
+    // Handle both legacy string[] and new RecipeInstruction[] formats
+    const instructionTexts = Array.isArray(recipe.instructions)
+      ? recipe.instructions.map((instr: any) =>
+          typeof instr === 'string' ? instr : (instr.text || '')
+        )
+      : [];
+    
     // Call AI with categorization prompt
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
@@ -179,7 +192,7 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
           text: RECIPE_PROMPTS.categorization(
             recipe.title,
             ingredientNames,
-            recipe.instructions,
+            instructionTexts,
             categoryNames ? categoryNames.split(', ') : []
           )
         }]
@@ -371,6 +384,123 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     }
   }
 
+  /**
+   * Convert instructions to RecipeInstruction objects with persistent IDs.
+   * Simplified approach: instructions are self-contained with embedded ingredients/warnings.
+   * 
+   * @param instructions Raw instruction strings or objects
+   * @returns Array of RecipeInstruction objects with persistent IDs
+   */
+  protected normalizeInstructions(instructions: any[]): RecipeInstruction[] {
+    if (!Array.isArray(instructions)) {
+      return [];
+    }
+
+    return instructions.map((instr) => {
+      // If already a RecipeInstruction, ensure required fields exist
+      if (typeof instr === 'object' && instr !== null && instr.id && instr.text) {
+        return {
+          id: instr.id,
+          text: instr.text,
+          ingredients: instr.ingredients || [],
+          technicalWarnings: instr.technicalWarnings || [],
+        };
+      }
+
+      // Convert string to RecipeInstruction
+      return {
+        id: `step-${crypto.randomUUID()}`,
+        text: typeof instr === 'string' ? instr : String(instr),
+        ingredients: [],
+        technicalWarnings: [],
+      };
+    });
+  }
+
+  /**
+   * Issue #57: Convert instructions to RecipeInstruction objects while migrating old format.
+   * 
+   * Embeds step-specific ingredients and warnings directly in instruction objects.
+   * This is called during normalization to capture old format data before it's lost.
+   * 
+   * @param instructions Raw instruction strings
+   * @param allIngredients All ingredients in recipe
+   * @param stepIngredients Old format: indices per step
+   * @param stepAlerts Old format: indices per step
+   * @param technicalWarnings Old format: warning strings
+   * @param recipeId Recipe ID for logging
+   * @returns Array of RecipeInstruction objects with embedded data
+   */
+  protected normalizeInstructionsWithMigration(
+    instructions: any[],
+    allIngredients: any[],
+    stepIngredients: any[][],
+    stepAlerts: any[][],
+    technicalWarnings: string[],
+    recipeId: string
+  ): RecipeInstruction[] {
+    if (!Array.isArray(instructions)) {
+      return [];
+    }
+
+    const hasLegacyData = stepIngredients.length > 0 || stepAlerts.length > 0;
+    
+    if (hasLegacyData) {
+      console.log(`[Migration] Converting ${recipeId}:`, {
+        instructionsCount: instructions.length,
+        stepIngredientsCount: stepIngredients.length,
+        stepAlertsCount: stepAlerts.length,
+        ingredientsCount: allIngredients.length,
+        warningsCount: technicalWarnings.length,
+      });
+    }
+
+    return instructions.map((instr, stepIdx) => {
+      // Step 1: Ensure instruction is a RecipeInstruction object
+      const baseInstruction = typeof instr === 'object' && instr !== null && instr.id && instr.text
+        ? {
+            id: instr.id,
+            text: instr.text,
+            ingredients: instr.ingredients || [],
+            technicalWarnings: instr.technicalWarnings || [],
+          }
+        : {
+            id: `step-${crypto.randomUUID()}`,
+            text: typeof instr === 'string' ? instr : String(instr),
+            ingredients: [],
+            technicalWarnings: [],
+          };
+
+      // Step 2: Embed step-specific ingredients from old format
+      if (stepIngredients[stepIdx] && Array.isArray(stepIngredients[stepIdx])) {
+        const stepIngredientIndices = stepIngredients[stepIdx] as number[];
+        const embeddedIngredients = stepIngredientIndices
+          .map(idx => allIngredients[idx])
+          .filter(ing => ing !== undefined);
+        
+        baseInstruction.ingredients = embeddedIngredients;
+        if (embeddedIngredients.length > 0) {
+          console.log(`[Migration] Step ${stepIdx}: embedded ${embeddedIngredients.length} ingredients`);
+        }
+      }
+
+      // Step 3: Embed step-specific warnings from old format
+      if (stepAlerts[stepIdx] && Array.isArray(stepAlerts[stepIdx])) {
+        const stepAlertIndices = stepAlerts[stepIdx] as number[];
+        const embeddedWarnings = stepAlertIndices
+          .map(idx => technicalWarnings[idx])
+          .filter(warning => warning !== undefined);
+        
+        baseInstruction.technicalWarnings = embeddedWarnings;
+        if (embeddedWarnings.length > 0) {
+          console.log(`[Migration] Step ${stepIdx}: embedded ${embeddedWarnings.length} warnings`);
+        }
+      }
+
+      return baseInstruction;
+    });
+  }
+
   protected normalizeRecipeData(raw: any): Partial<Recipe> {
     const source = Array.isArray(raw) ? (raw[0] || {}) : (raw || {});
     const normalized: any = { ...source };
@@ -393,47 +523,49 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
         ? normalized.instructions.split('\n').filter(s => s.trim())
         : [];
     }
-    const stepCount = normalized.instructions.length;
-
-    // Bridge Step Ingredients
-    if (!Array.isArray(normalized.stepIngredients)) {
-      normalized.stepIngredients = new Array(stepCount).fill([]);
-    } else if (normalized.stepIngredients.length !== stepCount) {
-      // Pad or trim to match instructions
-      const nextSteps = new Array(stepCount).fill([]);
-      normalized.stepIngredients.forEach((val: any, idx: number) => {
-        if (idx < stepCount) nextSteps[idx] = val;
-      });
-      normalized.stepIngredients = nextSteps;
+    
+    // Check if instructions are already migrated RecipeInstruction objects
+    const instructionsAreAlreadyMigrated = normalized.instructions.length > 0 && 
+      typeof normalized.instructions[0] === 'object' && 
+      'id' in normalized.instructions[0] && 
+      'text' in normalized.instructions[0] &&
+      'ingredients' in normalized.instructions[0];
+    
+    if (instructionsAreAlreadyMigrated) {
+      // Instructions are already migrated - pass through as-is
+      // (they already have embedded ingredients and warnings)
+      return normalized;
     }
+    
+    // Convert instructions to strings for migration processing
+    normalized.instructions = normalized.instructions.map((instr: any) => 
+      typeof instr === 'string' ? instr : (instr.text || String(instr))
+    );
 
-    // Bridge Step Alerts and Workflow Advice (Prompt vs Contract mismatch)
-    // Prompt asks for: "stepAlerts": {"0": "Alert text", "1": "Another alert"}
-    // Contract expects: stepAlerts: number[][] and workflowAdvice: { technicalWarnings: string[] }
-    const rawAlerts = source.stepAlerts;
-    if (rawAlerts && typeof rawAlerts === 'object' && !Array.isArray(rawAlerts)) {
-      const warnings: string[] = [];
-      const alertsIdx: number[][] = new Array(stepCount).fill(null).map(() => []);
+    // Issue #57: CRITICAL - Migrate old format BEFORE normalizing instructions
+    // This preserves stepIngredients and stepAlerts for embedding
+    const stepIngredients = normalized.stepIngredients || [];
+    const stepAlerts = normalized.stepAlerts || [];
+    const technicalWarnings = normalized.workflowAdvice?.technicalWarnings || [];
+    
+    // Convert string instructions to RecipeInstruction objects with embedded data
+    normalized.instructions = this.normalizeInstructionsWithMigration(
+      normalized.instructions,
+      normalized.ingredients,
+      stepIngredients,
+      stepAlerts,
+      technicalWarnings,
+      normalized.id || 'unknown'
+    );
 
-      Object.entries(rawAlerts).forEach(([key, value]) => {
-        const stepIdx = parseInt(key, 10);
-        if (stepIdx >= 0 && stepIdx < stepCount && typeof value === 'string') {
-          let warningIdx = warnings.indexOf(value);
-          if (warningIdx === -1) {
-            warningIdx = warnings.length;
-            warnings.push(value);
-          }
-          alertsIdx[stepIdx].push(warningIdx);
-        }
-      });
-
-      normalized.stepAlerts = alertsIdx;
-      normalized.workflowAdvice = {
-        ...(normalized.workflowAdvice || {}),
-        technicalWarnings: warnings
-      };
-    } else if (!Array.isArray(normalized.stepAlerts)) {
-      normalized.stepAlerts = new Array(stepCount).fill([]);
+    // Clean up legacy fields
+    delete normalized.stepIngredients;
+    delete normalized.stepAlerts;
+    if (normalized.workflowAdvice) {
+      delete normalized.workflowAdvice.technicalWarnings;
+      if (Object.keys(normalized.workflowAdvice).length === 0) {
+        delete normalized.workflowAdvice;
+      }
     }
 
     return normalized;

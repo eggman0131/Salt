@@ -524,7 +524,11 @@ describe('Contract Runtime Validation - Recipe', () => {
         ingredientName: 'tomatoes',
       },
     ],
-    instructions: ['Boil water', 'Add pasta', 'Make sauce'],
+    instructions: [
+      { id: 'step-1', text: 'Boil water', ingredients: [], technicalWarnings: [] },
+      { id: 'step-2', text: 'Add pasta', ingredients: [], technicalWarnings: [] },
+      { id: 'step-3', text: 'Make sauce', ingredients: [], technicalWarnings: [] },
+    ],
     equipmentNeeded: ['Saucepan', 'Frying Pan'],
     prepTime: '10 mins',
     cookTime: '20 mins',
@@ -1019,7 +1023,9 @@ describe('Contract Validation Consistency', () => {
       title: 'Test Recipe',
       description: 'A test recipe',
       ingredients: [],
-      instructions: ['Step 1'],
+      instructions: [
+        { id: 'step-1', text: 'Step 1', ingredients: [], technicalWarnings: [] },
+      ],
       equipmentNeeded: ['Pan'],
       prepTime: '10 mins',
       cookTime: '15 mins',

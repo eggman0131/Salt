@@ -1,5 +1,5 @@
 import React from 'react';
-import { Recipe } from '../../../../types/contract';
+import { Recipe, RecipeInstruction } from '../../../../types/contract';
 import { Badge } from '../../../../components/ui/badge';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Progress } from '../../../../components/ui/progress';
@@ -101,27 +101,25 @@ export const CookingStepContent = ({
   renderWarnings: () => React.ReactNode;
   renderIngredients: () => React.ReactNode;
 } => {
-  const instruction = recipe.instructions[stepIndex];
-  const hasWarning =
-    recipe.stepAlerts &&
-    recipe.stepAlerts[stepIndex] &&
-    recipe.stepAlerts[stepIndex].length > 0;
-  const nextInstruction = stepIndex < recipe.instructions.length - 1 ? recipe.instructions[stepIndex + 1] : null;
+  const instr = recipe.instructions[stepIndex] as RecipeInstruction;
+  const nextInstr = stepIndex < recipe.instructions.length - 1 
+    ? (recipe.instructions[stepIndex + 1] as RecipeInstruction) 
+    : null;
 
   return {
-    instruction,
-    hasWarning,
-    nextInstruction,
+    instruction: instr.text,
+    hasWarning: instr.technicalWarnings && instr.technicalWarnings.length > 0,
+    nextInstruction: nextInstr?.text || null,
     renderWarnings: () => (
-      hasWarning && recipe.workflowAdvice?.technicalWarnings && (
+      instr.technicalWarnings && instr.technicalWarnings.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-warning">⚠ Warnings</h3>
           <div className="p-3 rounded-md bg-[color-mix(in_oklab,var(--warning)_10%,var(--background))] border border-warning/30">
             <ul className="space-y-2">
-              {recipe.stepAlerts![stepIndex].map((alertIdx) => (
-                <li key={alertIdx} className="flex gap-2 text-sm text-warning-foreground">
+              {instr.technicalWarnings.map((warning, idx) => (
+                <li key={idx} className="flex gap-2 text-sm text-warning-foreground">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>{recipe.workflowAdvice?.technicalWarnings?.[alertIdx]}</span>
+                  <span>{warning}</span>
                 </li>
               ))}
             </ul>
@@ -130,19 +128,15 @@ export const CookingStepContent = ({
       )
     ),
     renderIngredients: () => (
-      recipe.stepIngredients && recipe.stepIngredients[stepIndex] && recipe.stepIngredients[stepIndex].length > 0 && (
+      instr.ingredients && instr.ingredients.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {recipe.stepIngredients[stepIndex].map((ingIdx) => {
-            const ingredient = recipe.ingredients[ingIdx];
-            if (!ingredient) return null;
-            return (
-              <Badge key={ingredient.id} variant="secondary" className="text-xs py-0.5 px-2">
-                {ingredient.quantity && ingredient.unit
-                  ? `${ingredient.quantity} ${ingredient.unit} ${ingredient.ingredientName}`
-                  : ingredient.ingredientName}
-              </Badge>
-            );
-          })}
+          {instr.ingredients.map((ingredient) => (
+            <Badge key={ingredient.id} variant="secondary" className="text-xs py-0.5 px-2">
+              {ingredient.quantity && ingredient.unit
+                ? `${ingredient.quantity} ${ingredient.unit} ${ingredient.ingredientName}`
+                : ingredient.ingredientName}
+            </Badge>
+          ))}
         </div>
       )
     ),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Recipe, RecipeCategory, RecipeHistoryEntry } from '../../../types/contract';
+import { Recipe, RecipeCategory, RecipeHistoryEntry, RecipeInstruction } from '../../../types/contract';
 import { AddButton } from '../../../components/ui/add-button';
 import { Button } from '../../../components/ui/button';
 import { Card, CardContent, CardHeader } from '../../../components/ui/card';
@@ -163,17 +163,24 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
       <div>
         <h2 className="text-xl font-semibold mb-3">Instructions</h2>
         <ol className="space-y-4">
-          {recipe.instructions.map((instruction, index) => (
-            <li key={index} className="flex gap-3">
+          {recipe.instructions.map((instr: RecipeInstruction, index: number) => {
+            console.log(`[Render] Step ${index}:`, {
+              text: instr.text,
+              ingredientsCount: instr.ingredients?.length || 0,
+              warningsCount: instr.technicalWarnings?.length || 0,
+              ingredients: instr.ingredients,
+            });
+            return (
+            <li key={instr.id} className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold mt-0.5">
                 {index + 1}
               </span>
               <div className="flex-1">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm leading-relaxed pt-0.5">{instruction}</p>
+                  <p className="text-sm leading-relaxed pt-0.5">{instr.text}</p>
                   
-                  {/* Step Technical Warning Popover */}
-                  {recipe.stepAlerts && recipe.stepAlerts[index] && recipe.stepAlerts[index].length > 0 && (
+                  {/* Step Technical Warnings Popover */}
+                  {instr.technicalWarnings && instr.technicalWarnings.length > 0 && (
                     <Popover>
                       <PopoverTrigger asChild>
                         <button className="shrink-0 text-warning hover:text-warning/80 transition-colors p-1 -m-1">
@@ -191,9 +198,9 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
                             <span className="text-[10px] font-bold uppercase tracking-wider text-warning-foreground">Technical Warning</span>
                           </div>
                           <ul className="space-y-2">
-                            {recipe.stepAlerts[index].map((alertIdx) => (
-                              <li key={alertIdx} className="text-xs text-warning-foreground font-medium leading-normal">
-                                {recipe.workflowAdvice?.technicalWarnings?.[alertIdx] || 'A technical warning applies to this step.'}
+                            {instr.technicalWarnings.map((warning, idx) => (
+                              <li key={idx} className="text-xs text-warning-foreground font-medium leading-normal">
+                                {warning}
                               </li>
                             ))}
                           </ul>
@@ -202,9 +209,29 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
                     </Popover>
                   )}
                 </div>
+
+                {/* Step-specific ingredients */}
+                {instr.ingredients && instr.ingredients.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {instr.ingredients.map((ingredient) => (
+                      <span
+                        key={ingredient.id}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted text-muted-foreground text-xs"
+                      >
+                        {ingredient.quantity && ingredient.unit && (
+                          <span className="font-medium">
+                            {ingredient.quantity} {ingredient.unit}
+                          </span>
+                        )}
+                        <span>{ingredient.ingredientName}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </li>
-          ))}
+          );
+          })}
         </ol>
       </div>
 

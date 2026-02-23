@@ -364,17 +364,72 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
   }
 
   // ==================== RECIPE CRUD ====================
+
+  /**
+   * Detect if a recipe is in old format (Issue #57).
+   * @param rawData Raw recipe data from Firestore
+   * @returns true if recipe has legacy fields
+   */
+  private hasLegacyFormat(rawData: any): boolean {
+    return rawData.stepIngredients !== undefined || 
+           rawData.stepAlerts !== undefined ||
+           (rawData.workflowAdvice?.technicalWarnings !== undefined);
+  }
+
+  /**
+   * Persist migrated recipe back to Firestore.
+   * @param recipe Migrated recipe to persist
+   */
+  private async persistMigratedRecipe(recipe: Recipe): Promise<void> {
+    try {
+      const docRef = doc(db, 'recipes', recipe.id);
+      
+      // Explicitly remove legacy fields to ensure they don't persist
+      const cleanRecipe = { ...recipe };
+      delete (cleanRecipe as any).stepIngredients;
+      delete (cleanRecipe as any).stepAlerts;
+      if ((cleanRecipe as any).workflowAdvice) {
+        delete (cleanRecipe as any).workflowAdvice.technicalWarnings;
+        if (Object.keys((cleanRecipe as any).workflowAdvice).length === 0) {
+          delete (cleanRecipe as any).workflowAdvice;
+        }
+      }
+      
+      const firestoreData = this.cleanUndefinedValues(this.encodeRecipeForFirestore(cleanRecipe));
+      
+      // Use setDoc with merge:false to completely replace the document with new format
+      // This ensures legacy fields are removed
+      await setDoc(docRef, firestoreData, { merge: false });
+      debugLogger.log('Recipe Migration', `Persisted migrated recipe: ${recipe.id}`);
+    } catch (error) {
+      // Log migration persistence error, but don't fail the read operation
+      debugLogger.warn('Recipe Migration', `Failed to persist migrated recipe ${recipe.id}:`, error);
+    }
+  }
   
   async getRecipes(): Promise<Recipe[]> {
     const snapshot = await getDocs(collection(db, 'recipes'));
     const recipes: Recipe[] = [];
+    const migrationsToApply: Promise<void>[] = [];
     
     snapshot.forEach((doc) => {
       const rawData = this.decodeRecipeFromFirestore(this.convertTimestamps(doc.data()));
-      const data = this.normalizeRecipeData({ ...rawData, id: doc.id }) as Recipe;
+      const hadLegacyFormat = this.hasLegacyFormat(rawData);
+      
+      let data = this.normalizeRecipeData({ ...rawData, id: doc.id }) as Recipe;
       recipes.push(data);
+      
+      // If recipe was migrated, persist the new format back to Firestore
+      if (hadLegacyFormat) {
+        migrationsToApply.push(this.persistMigratedRecipe(data));
+      }
     });
-    
+
+    // Wait for all migrations to persist (but don't block returning recipes)
+    Promise.all(migrationsToApply).catch(err => 
+      debugLogger.warn('Recipe Migration', 'Some migrations failed to persist:', err)
+    );
+
     return recipes;
   }
   
@@ -387,7 +442,19 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     }
     
     const rawData = this.decodeRecipeFromFirestore(this.convertTimestamps(docSnap.data()));
-    return this.normalizeRecipeData({ ...rawData, id: docSnap.id }) as Recipe;
+    const hadLegacyFormat = this.hasLegacyFormat(rawData);
+    
+    let data = this.normalizeRecipeData({ ...rawData, id: docSnap.id }) as Recipe;
+    
+    // If recipe was migrated, persist the new format back to Firestore
+    if (hadLegacyFormat) {
+      // Persist asynchronously, don't block the return
+      this.persistMigratedRecipe(data).catch(err =>
+        debugLogger.warn('Recipe Migration', `Failed to persist migrated recipe ${id}:`, err)
+      );
+    }
+    
+    return data;
   }
   
   async resolveImagePath(path: string): Promise<string> {
