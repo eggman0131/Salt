@@ -8,6 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '..
 import { Search } from 'lucide-react';
 import { RecipeFormDialog } from './RecipeFormDialog';
 import { RecipeCard } from './RecipeCard';
+import { Stack } from '../../../shared/components/primitives';
 
 interface RecipesListProps {
   recipes: Recipe[];
@@ -72,7 +73,7 @@ export const RecipesList: React.FC<RecipesListProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <Stack spacing="gap-6">
       {/* Search and Filters */}
       <Card>
         {/* Header */}
@@ -190,6 +191,6 @@ export const RecipesList: React.FC<RecipesListProps> = ({
         categories={categories}
         onSubmit={handleCreateRecipe}
       />
-    </div>
+    </Stack>
   );
 };

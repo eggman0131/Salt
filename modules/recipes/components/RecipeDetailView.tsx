@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, RecipeCategory, RecipeHistoryEntry, RecipeInstruction } from '../../../types/contract';
+import { Stack } from '../../../shared/components/primitives';
 import { AddButton } from '../../../components/ui/add-button';
 import { Button } from '../../../components/ui/button';
 import { Card, CardContent, CardHeader } from '../../../components/ui/card';
@@ -470,7 +471,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
         {activeTab === 'cook' ? (
           <CookTab recipe={recipe} onClose={() => setActiveTab('recipe')} />
         ) : (
-          <div className="space-y-6 p-4">
+          <Stack spacing="gap-6">
             {/* Mobile Recipe/Chef Tabs */}
             <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'recipe' | 'chef' | 'cook')} className="w-full">
               <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
@@ -562,12 +563,12 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                 />
               </TabsContent>
             </Tabs>
-          </div>
+          </Stack>
         )}
       </div>
 
       {/* Desktop/Tablet: Tabbed Interface */}
-      <div className="hidden md:block space-y-6">
+      <Stack spacing="gap-6" className="hidden md:block">
         <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'recipe' | 'chef' | 'cook')} className="w-full">
           {/* Tab Triggers */}
           <div className="flex flex-wrap items-center gap-2">
@@ -645,7 +646,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
             </div>
 
               {/* Recipe Content */}
-              <div className="space-y-6 w-full md:w-[65%]">
+              <Stack spacing="gap-6" className="w-full md:w-[65%]">
                 {/* Image */}
                 <div ref={imageRef} className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted group">
                   {isLoadingImage ? (
@@ -721,7 +722,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                 getSourceDisplay={getSourceDisplay}
                 isValidUrl={isValidUrl}
               />
-            </div>
+            </Stack>
 
             {/* Chef Chat - Fixed (Desktop only) */}
             <div
@@ -750,7 +751,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
             <CookTab recipe={recipe} />
           </TabsContent>
         </Tabs>
-      </div>
+      </Stack>
 
       {/* Edit Dialog */}
       <RecipeFormDialog

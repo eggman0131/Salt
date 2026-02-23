@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Stack } from '@/shared/components/primitives';
 import { Recipe } from '../../../types/contract';
 import { CookGuide } from '../types';
 import { cookModeBackend } from '../backend';
@@ -112,7 +113,7 @@ export const CookModeModule: React.FC<CookModeModuleProps> = ({ recipe, onClose 
   };
 
   return (
-    <div className="min-h-screen bg-background space-y-4 md:space-y-6 pb-8">
+    <Stack spacing="gap-4" className="min-h-screen bg-background pb-8 md:gap-6">
       {/* Header */}
       <Card className="sticky top-0 z-40 border-b">
         <CardHeader className="p-4 md:p-6">
@@ -231,6 +232,6 @@ export const CookModeModule: React.FC<CookModeModuleProps> = ({ recipe, onClose 
           </div>
         )}
       </div>
-    </div>
+    </Stack>
   );
 };

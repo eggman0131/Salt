@@ -245,7 +245,7 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'recipes' && (
-          <RecipesModule recipes={recipes} inventory={inventory} onRefresh={loadData} currentUser={user} onNewRecipe={() => setActiveTab('ai')} />
+          <RecipesModule />
         )}
 
         {activeTab === 'admin' && (
