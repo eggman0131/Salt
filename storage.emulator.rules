@@ -1,0 +1,9 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // EMULATOR RULES (RELAXED) - Allow all operations for local development
+    match /{allPaths=**} {
+      allow read, write;
+    }
+  }
+}
