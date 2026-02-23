@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Stack } from '@/shared/components/primitives';
 import { UsersModule } from './UsersModule';
 import { AssistModeGuidesList } from './AssistModeGuidesList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,10 +93,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   };
 
   return (
-    <div className="min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-160px)] flex flex-col gap-4 md:gap-6 animate-in fade-in duration-500">
+    <div className="flex flex-col gap-4 md:gap-6 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Left Column: Infrastructure & Directives */}
-        <div className="space-y-6">
+        <Stack spacing="gap-6">
           {/* System State Card */}
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="p-4 md:p-6">
@@ -281,7 +282,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               </p>
             </CardContent>
           </Card>
-        </div>
+        </Stack>
 
         {/* Right Column: User Management */}
         <Card className="flex flex-col shadow-sm hover:shadow-md transition-shadow">

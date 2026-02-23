@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Stack } from '@/shared/components/primitives';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -307,8 +308,8 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     : firstDay.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
+    <Stack spacing="gap-6">
+      <Stack spacing="gap-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
@@ -344,7 +345,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
             {saveStatus === 'saved' && <div className="h-2 w-2 rounded-full bg-green-600" title="Saved" />}
           </div>
         </div>
-      </div>
+      </Stack>
 
       <WeekHeader
         days={plan.days}
@@ -393,7 +394,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
           </div>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Stack>
   );
 };
 
@@ -684,7 +685,7 @@ const PlansDialog: React.FC<{
             <DialogDescription>Open a plan, create a new week, or manage templates.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <Stack spacing="gap-4">
             <Card className="border-dashed">
               <CardContent className="flex items-center justify-between gap-3 p-4">
                 <div>
@@ -697,12 +698,12 @@ const PlansDialog: React.FC<{
               </CardContent>
             </Card>
 
-            <div className="space-y-2">
+            <Stack spacing="gap-2">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium">Weekly plans</p>
                 <AddButton label="Add plan" onClick={handleOpenDatePicker} />
               </div>
-              <div className="space-y-2">
+              <Stack spacing="gap-2">
                 {plans.length === 0 && (
                   <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
                     No saved plans yet.
@@ -738,9 +739,9 @@ const PlansDialog: React.FC<{
                     </Card>
                   );
                 })}
-              </div>
-            </div>
-          </div>
+              </Stack>
+            </Stack>
+          </Stack>
         </DialogContent>
       </Dialog>
 
