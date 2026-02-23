@@ -5,13 +5,26 @@
  * Shared between simulation and Firebase implementations.
  */
 
+import { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 import { Recipe } from '../../../types/contract';
 import { CookGuide } from '../types';
 import { ICookModeBackend } from './cook-mode-backend.interface';
 import { COOK_GUIDE_SYSTEM_PROMPT, COOK_GUIDE_USER_PROMPT } from '../prompts';
-import { createHash } from 'crypto';
+const HASH_HEX_LENGTH = 16;
+
+const hashString = (value: string): string => {
+  // Simple deterministic hash for cache versioning (not for security).
+  let hash = 5381;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = ((hash << 5) + hash) ^ value.charCodeAt(i);
+  }
+  const hex = (hash >>> 0).toString(16);
+  return hex.padStart(HASH_HEX_LENGTH, '0').slice(0, HASH_HEX_LENGTH);
+};
 
 export abstract class BaseCookModeBackend implements ICookModeBackend {
+  protected abstract callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse>;
+
   /**
    * Hash recipe for version tracking.
    * Used to detect if guide needs regeneration.
@@ -22,7 +35,7 @@ export abstract class BaseCookModeBackend implements ICookModeBackend {
       ingredients: recipe.ingredients,
       instructions: recipe.instructions,
     });
-    return createHash('sha256').update(data).digest('hex').slice(0, 16);
+    return hashString(data);
   }
 
   /**
@@ -32,31 +45,18 @@ export abstract class BaseCookModeBackend implements ICookModeBackend {
     try {
       const prompt = COOK_GUIDE_USER_PROMPT(recipe);
       
-      // Call Gemini API
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': process.env.VITE_API_KEY || '',
-        },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: COOK_GUIDE_SYSTEM_PROMPT }],
+      const response = await this.callGenerateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user' as const,
+            parts: [{ text: prompt }],
           },
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
-        }),
+        ],
+        config: { systemInstruction: COOK_GUIDE_SYSTEM_PROMPT },
       });
 
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const content = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
       // Extract JSON from response
       const jsonMatch = content.match(/\{[\s\S]*\}/);

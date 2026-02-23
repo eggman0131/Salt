@@ -20,6 +20,7 @@ import { CategoryPicker } from './CategoryPicker';
 import { RecipeChefChat } from './RecipeChefChat';
 import { RecipeHistoryDialog } from './RecipeHistoryDialog';
 import { CookTab } from './CookTab';
+import { CookModeModule } from '../../cook-mode';
 import { ImageEditor } from '../../../shared/components/ImageEditor';
 import { softToast } from '@/lib/soft-toast';
 import { systemBackend } from '../../../shared/backend/system-backend';
@@ -223,8 +224,7 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
                 )}
               </div>
             </li>
-          );
-          })}
+          ))}
         </ol>
       </div>
 
@@ -300,6 +300,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const [pendingRestoreEntry, setPendingRestoreEntry] = useState<RecipeHistoryEntry | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [activeTab, setActiveTab] = useState<'recipe' | 'chef' | 'cook'>('recipe');
+  const [isCookModeOpen, setIsCookModeOpen] = useState(false);
 
   // Load image if exists
   useEffect(() => {
@@ -453,6 +454,15 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [imageSrc]);
 
+  if (isCookModeOpen) {
+    return (
+      <CookModeModule
+        recipe={recipe}
+        onClose={() => setIsCookModeOpen(false)}
+      />
+    );
+  }
+
   return (
     <>
       {/* Mobile: Conditional View */}
@@ -486,6 +496,17 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                   <span className="hidden md:inline">Cook</span>
                 </TabsTrigger>
               </TabsList>
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setIsCookModeOpen(true)}
+                >
+                  <ChefHat className="w-4 h-4 mr-2" />
+                  Cook Mode
+                </Button>
+              </div>
 
               <TabsContent value="recipe" className="mt-6">
                 {/* Header with actions */}
@@ -549,29 +570,40 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
       <div className="hidden md:block space-y-6">
         <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'recipe' | 'chef' | 'cook')} className="w-full">
           {/* Tab Triggers */}
-          <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
-            <TabsTrigger 
-              value="recipe" 
-              className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+          <div className="flex flex-wrap items-center gap-2">
+            <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
+              <TabsTrigger 
+                value="recipe" 
+                className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+              >
+                <Book className="w-4 h-4" />
+                <span className="hidden md:inline">Recipe</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="chef" 
+                className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all lg:hidden"
+              >
+                <ChefHat className="w-4 h-4" />
+                <span className="hidden md:inline">Chef</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="cook" 
+                className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+              >
+                <Flame className="w-4 h-4" />
+                <span className="hidden md:inline">Cook</span>
+              </TabsTrigger>
+            </TabsList>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11"
+              onClick={() => setIsCookModeOpen(true)}
             >
-              <Book className="w-4 h-4" />
-              <span className="hidden md:inline">Recipe</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="chef" 
-              className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all lg:hidden"
-            >
-              <ChefHat className="w-4 h-4" />
-              <span className="hidden md:inline">Chef</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="cook" 
-              className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
-            >
-              <Flame className="w-4 h-4" />
-              <span className="hidden md:inline">Cook</span>
-            </TabsTrigger>
-          </TabsList>
+              <ChefHat className="w-4 h-4 mr-2" />
+              Cook Mode
+            </Button>
+          </div>
 
           {/* Recipe Tab - Desktop: Two columns */}
           <TabsContent value="recipe" className="mt-6 space-y-6">
