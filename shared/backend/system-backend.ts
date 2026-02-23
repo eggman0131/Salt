@@ -1,4 +1,4 @@
-import { User, KitchenSettings } from '../../types/contract';
+import { User, KitchenSettings, COLLECTION_REGISTRY, CollectionName } from '../../types/contract';
 import { auth, db, storage } from './firebase';
 import { debugLogger } from './debug-logger';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -387,20 +387,67 @@ export const systemBackend = {
   },
 
   async importSystemState(json: string): Promise<void> {
+    // Deprecated: Use importAllData instead
+    // Kept for backward compatibility
     const data = JSON.parse(json);
+    return this.importAllData(data);
+  },
 
-    await clearCollection('inventory');
-    await clearCollection('recipes');
-    await clearCollection('users');
-    await clearCollection('plans');
-    await clearCollection('canonical_items');
-    await clearCollection('shopping_lists');
-    await clearCollection('shopping_list_items');
-    await clearCollection('units');
-    await clearCollection('aisles');
-    await clearCollection('categories');
-    await deleteDoc(doc(db, 'settings', 'global'));
+  /**
+   * Export all kitchen data dynamically using Collection Registry
+   * 
+   * This replaces the manual export in App.tsx and automatically
+   * includes all collections defined in COLLECTION_REGISTRY.
+   */
+  async exportAllData(): Promise<Record<string, any>> {
+    const exportData: Record<string, any> = {
+      exportedAt: new Date().toISOString(),
+    };
 
+    for (const [collectionName, config] of Object.entries(COLLECTION_REGISTRY)) {
+      try {
+        if (config.isSingleton) {
+          // Singleton collection (like settings)
+          const docRef = doc(db, collectionName, config.documentId!);
+          const snapshot = await getDoc(docRef);
+          if (snapshot.exists()) {
+            exportData[collectionName] = snapshot.data();
+          }
+        } else {
+          // Regular collection
+          const snapshot = await getDocs(collection(db, collectionName));
+          const items = snapshot.docs.map(docSnap => docSnap.data());
+          exportData[collectionName] = items;
+        }
+      } catch (error) {
+        debugLogger.error('Export', `Failed to export ${collectionName}:`, error);
+        // Continue with other collections even if one fails
+        exportData[collectionName] = [];
+      }
+    }
+
+    return exportData;
+  },
+
+  /**
+   * Import kitchen data dynamically using Collection Registry
+   * 
+   * This replaces the manual import logic and automatically
+   * handles all collections defined in COLLECTION_REGISTRY.
+   */
+  async importAllData(data: Record<string, any>): Promise<void> {
+    // Step 1: Clear all collections
+    for (const [collectionName, config] of Object.entries(COLLECTION_REGISTRY)) {
+      if (config.isSingleton) {
+        // Delete singleton document
+        await deleteDoc(doc(db, collectionName, config.documentId!));
+      } else {
+        // Clear entire collection
+        await clearCollection(collectionName);
+      }
+    }
+
+    // Step 2: Import all data
     let batch = writeBatch(db);
     let count = 0;
 
@@ -412,104 +459,43 @@ export const systemBackend = {
       }
     };
 
-    if (data.inventory) {
-      for (const item of data.inventory) {
-        const docRef = doc(db, 'inventory', item.id);
-        batch.set(docRef, item);
-        count += 1;
-        await commitIfNeeded();
+    for (const [collectionName, config] of Object.entries(COLLECTION_REGISTRY)) {
+      const collectionData = data[collectionName];
+      if (!collectionData) {
+        debugLogger.log('Import', `No data for ${collectionName}, skipping`);
+        continue;
       }
-    }
 
-    if (data.recipes) {
-      for (const recipe of data.recipes) {
-        const docRef = doc(db, 'recipes', recipe.id);
-        batch.set(docRef, encodeRecipeForFirestore(recipe));
+      if (config.isSingleton) {
+        // Import singleton document
+        const docRef = doc(db, collectionName, config.documentId!);
+        batch.set(docRef, collectionData);
         count += 1;
         await commitIfNeeded();
-      }
-    }
+      } else {
+        // Import collection documents
+        const items = Array.isArray(collectionData) ? collectionData : [];
+        for (const item of items) {
+          // Get the document ID from the specified idField (default: 'id')
+          const idField = config.idField || 'id';
+          const docId = item[idField];
+          
+          if (!docId) {
+            debugLogger.error('Import', `Item in ${collectionName} missing ${idField}, skipping:`, item);
+            continue;
+          }
 
-    if (data.users) {
-      for (const user of data.users) {
-        const userEmail = user.email || user.id;
-        const docRef = doc(db, 'users', userEmail);
-        batch.set(docRef, {
-          email: userEmail,
-          displayName: user.displayName || userEmail,
-        });
-        count += 1;
-        await commitIfNeeded();
-      }
-    }
-
-    if (data.plans) {
-      for (const plan of data.plans) {
-        const docRef = doc(db, 'plans', plan.id);
-        batch.set(docRef, plan);
-        count += 1;
-        await commitIfNeeded();
-      }
-    }
-
-    if (data.settings) {
-      const docRef = doc(db, 'settings', 'global');
-      batch.set(docRef, data.settings);
-      count += 1;
-      await commitIfNeeded();
-    }
-
-    if (data.canonicalItems) {
-      for (const item of data.canonicalItems) {
-        const docRef = doc(db, 'canonical_items', item.id);
-        batch.set(docRef, item);
-        count += 1;
-        await commitIfNeeded();
-      }
-    }
-
-    if (data.shoppingLists) {
-      for (const list of data.shoppingLists) {
-        const docRef = doc(db, 'shopping_lists', list.id);
-        batch.set(docRef, list);
-        count += 1;
-        await commitIfNeeded();
-      }
-    }
-
-    if (data.shoppingListItems) {
-      for (const item of data.shoppingListItems) {
-        const docRef = doc(db, 'shopping_list_items', item.id);
-        batch.set(docRef, item);
-        count += 1;
-        await commitIfNeeded();
-      }
-    }
-
-    if (data.units) {
-      for (const unit of data.units) {
-        const docRef = doc(db, 'units', unit.id);
-        batch.set(docRef, unit);
-        count += 1;
-        await commitIfNeeded();
-      }
-    }
-
-    if (data.aisles) {
-      for (const aisle of data.aisles) {
-        const docRef = doc(db, 'aisles', aisle.id);
-        batch.set(docRef, aisle);
-        count += 1;
-        await commitIfNeeded();
-      }
-    }
-
-    if (data.categories) {
-      for (const category of data.categories) {
-        const docRef = doc(db, 'categories', category.id);
-        batch.set(docRef, category);
-        count += 1;
-        await commitIfNeeded();
+          const docRef = doc(db, collectionName, docId);
+          
+          // Apply encoding if needed (e.g., recipes with nested arrays)
+          const itemData = config.requiresEncoding 
+            ? encodeRecipeForFirestore(item) 
+            : item;
+          
+          batch.set(docRef, itemData);
+          count += 1;
+          await commitIfNeeded();
+        }
       }
     }
 

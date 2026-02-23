@@ -121,51 +121,27 @@ const App: React.FC = () => {
   }, [view, activeTab, loadData]);
 
   const handleExportData = async () => {
-    const [r, i, u, p, s, items, lists, units, aisles, cats] = await Promise.all([
-      recipesBackend.getRecipes(),
-      inventoryBackend.getInventory(),
-      systemBackend.getUsers(),
-      plannerBackend.getPlans(),
-      systemBackend.getKitchenSettings(),
-      kitchenDataBackend.getCanonicalItems(),
-      shoppingBackend.getShoppingLists(),
-      kitchenDataBackend.getUnits(),
-      kitchenDataBackend.getAisles(),
-      kitchenDataBackend.getCategories()
-    ]);
-    
-    // Fetch all shopping list items for all lists
-    const allShoppingItems: any[] = [];
-    for (const list of lists) {
-      const items = await shoppingBackend.getShoppingListItems(list.id);
-      allShoppingItems.push(...items);
+    try {
+      const exportData = await systemBackend.exportAllData();
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `salt-backup-${getLocalDateString()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      setLastSync(new Date().toISOString());
+      softToast.success('Backup created', {
+        description: `Downloaded as salt-backup-${getLocalDateString()}.json`,
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      softToast.error('Backup failed', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
-    
-    const exportObj = { 
-      inventory: i, 
-      recipes: r, 
-      users: u, 
-      plans: p, 
-      settings: s,
-      canonicalItems: items,
-      shoppingLists: lists,
-      shoppingListItems: allShoppingItems,
-      units: units,
-      aisles: aisles,
-      categories: cats,
-      exportedAt: new Date().toISOString() 
-    };
-    const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `salt-backup-${getLocalDateString()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setLastSync(new Date().toISOString());
-    softToast.success('Backup created', {
-      description: `Downloaded as salt-backup-${getLocalDateString()}.json`,
-    });
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,7 +150,8 @@ const App: React.FC = () => {
     setIsImporting(true);
     try {
       const text = await file.text();
-      await systemBackend.importSystemState(text);
+      const data = JSON.parse(text);
+      await systemBackend.importAllData(data);
       await loadData();
       softToast.success('Kitchen state restored', {
         description: 'All data imported successfully',
