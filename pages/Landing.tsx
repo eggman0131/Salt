@@ -10,8 +10,8 @@ export const LandingPage: React.FC<LandingProps> = ({ onStart }) => {
   return (
     <div className="min-h-screen bg-[#fcfcfc] flex flex-col items-center justify-center p-6 relative overflow-hidden">
       {/* Background Decorative Elements */}
-      <div className="absolute top-0 right-0 -mr-32 -mt-32 w-[500px] h-[500px] bg-blue-50/40 rounded-full blur-3xl opacity-60" />
-      <div className="absolute bottom-0 left-0 -ml-32 -mb-32 w-[500px] h-[500px] bg-gray-100/50 rounded-full blur-3xl opacity-60" />
+      <div className="absolute top-0 right-0 -mr-32 -mt-32 w-125 h-125 bg-blue-50/40 rounded-full blur-3xl opacity-60" />
+      <div className="absolute bottom-0 left-0 -ml-32 -mb-32 w-125 h-125 bg-gray-100/50 rounded-full blur-3xl opacity-60" />
 
       <main className="z-10 text-center space-y-8 max-w-lg animate-in fade-in zoom-in-95 duration-1000">
         <div className="space-y-2">
