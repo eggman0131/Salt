@@ -41,7 +41,11 @@ export const CookModeModule: React.FC<CookModeModuleProps> = ({ recipe, onClose 
         setGuide(cookGuide);
       } catch (err) {
         console.error('Failed to load cook guide:', err);
-        softToast.error('Failed to load cooking guide');
+        if (err instanceof Error && err.message.includes('Gemini API key not configured')) {
+          softToast.error('Cooking guide service key is missing');
+        } else {
+          softToast.error('Failed to load cooking guide');
+        }
       } finally {
         setIsLoading(false);
       }
