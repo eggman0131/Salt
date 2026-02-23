@@ -57,3 +57,4 @@ coverage
 
 # SALT backups
 salt-backup-*.json
+firebase-export-*
