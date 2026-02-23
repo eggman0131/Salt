@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Recipe, RecipeCategory, RecipeIngredient } from '../../../types/contract';
+import { Recipe, RecipeCategory, RecipeIngredient, RecipeInstruction } from '../../../types/contract';
 import {
   Dialog,
   DialogContent,
@@ -113,7 +113,9 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
       setComplexity(recipe.complexity);
       setSelectedCategoryIds(recipe.categoryIds || []);
       setIngredients(recipe.ingredients.length > 0 ? recipe.ingredients : [createEmptyIngredient()]);
-      setInstructions(recipe.instructions.length > 0 ? recipe.instructions : ['']);
+      // Issue #57: Extract instruction texts from RecipeInstruction objects
+      const instructionTexts = recipe.instructions.map((instr: RecipeInstruction) => instr.text);
+      setInstructions(instructionTexts.length > 0 ? instructionTexts : ['']);
       setEquipmentNeeded(recipe.equipmentNeeded && recipe.equipmentNeeded.length > 0 ? recipe.equipmentNeeded : ['']);
     } else {
       resetForm();

@@ -167,25 +167,32 @@ This module is imported by:
   title: string;
   description: string;
   ingredients: RecipeIngredient[];
-  instructions: string[];
-  stepIngredients: string[][];      // Per-step ingredient callouts
-  stepAlerts: number[][];            // Index refs to workflowAdvice.technicalWarnings
-  prepTime: string;                  // "20 mins"
-  cookTime: string;                  // "30 mins"
-  totalTime: string;                 // "50 mins"
-  servings: string;                  // "4 people"
+  instructions: RecipeInstruction[];  // Self-contained with embedded ingredients/warnings
+  prepTime: string;                   // "20 mins"
+  cookTime: string;                   // "30 mins"
+  totalTime: string;                  // "50 mins"
+  servings: string;                   // "4 people"
   complexity: 'Easy' | 'Intermediate' | 'Advanced';
   categoryIds: string[];              // FK to RecipeCategory
   equipmentNeeded: string[];          // Equipment names
   imagePath?: string;                 // Firebase Storage path
-  workflowAdvice: {
-    technicalWarnings: string[];      // Indexed by stepAlerts
+  workflowAdvice?: {
     seasonalNotes?: string;
     serviceNotes?: string;
   };
   source?: string;                    // For imported recipes
   createdAt: string;
   createdBy: string;
+}
+```
+
+### RecipeInstruction (Issue #57 - Persistent IDs)
+```typescript
+{
+  id: string;                         // UUID - persistent anchor (prevents data loss on reordering)
+  text: string;                       // The instruction text
+  ingredients: RecipeIngredient[];    // Step-specific ingredients (embedded, no indices)
+  technicalWarnings: string[];        // Step-specific warnings (embedded, no indices)
 }
 ```
 

@@ -116,6 +116,16 @@ export const RecipeIngredientSchema = z.object({
 });
 export type RecipeIngredient = z.infer<typeof RecipeIngredientSchema>;
 
+// Recipe Instruction Schema with persistent ID (Issue #57: Anchor-based mapping)
+// Simplified design: embeds ingredients and warnings directly per step
+export const RecipeInstructionSchema = z.object({
+  id: z.string(), // Persistent ID: survives step reordering/deletion
+  text: z.string(), // The instruction text
+  ingredients: z.array(RecipeIngredientSchema), // Ingredients used in this step (always array, maybe empty)
+  technicalWarnings: z.array(z.string()), // Warnings that apply to this step (always array, maybe empty)
+});
+export type RecipeInstruction = z.infer<typeof RecipeInstructionSchema>;
+
 // Shopping List Schema
 export const ShoppingListSchema = z.object({
   id: z.string(),
@@ -160,19 +170,15 @@ export const RecipeSchema = z.object({
   title: z.string(),
   description: z.string(),
   ingredients: z.array(RecipeIngredientSchema), // Structured format
-  legacyIngredients: z.array(z.string()).optional(), // For rollback compatibility
-  instructions: z.array(z.string()),
+  instructions: z.array(RecipeInstructionSchema), // Self-contained with embedded ingredients/warnings
   equipmentNeeded: z.array(z.string()),
   prepTime: z.string(),
   cookTime: z.string(),
   totalTime: z.string(),
   servings: z.string(),
   complexity: z.enum(['Simple', 'Intermediate', 'Advanced']),
-  stepIngredients: z.array(z.array(z.number())).optional(),
-  stepAlerts: z.array(z.array(z.number())).optional(),
   workflowAdvice: z.object({
     parallelTracks: z.array(z.string()).optional(),
-    technicalWarnings: z.array(z.string()).optional(),
     optimumToolLogic: z.string().optional(),
   }).optional(),
   categoryIds: z.array(z.string()).optional(),

@@ -14,6 +14,7 @@ import type {
   Recipe,
   RecipeIngredient,
   RecipeCategory,
+  RecipeInstruction,
 } from '../../../../types/contract';
 import {
   RecipeSchema,
@@ -66,11 +67,11 @@ const RECIPE_FIXTURE: Recipe = {
   description: 'A warming vegetable soup for cool evenings',
   ingredients: RECIPE_INGREDIENTS_FIXTURE,
   instructions: [
-    'Heat oil in large hob',
-    'Sauté onions until soft',
-    'Add carrots and stock',
-    'Simmer until tender',
-    'Season and serve',
+    { id: 'step-1', text: 'Heat oil in large hob', ingredients: [], technicalWarnings: [] },
+    { id: 'step-2', text: 'Sauté onions until soft', ingredients: [], technicalWarnings: [] },
+    { id: 'step-3', text: 'Add carrots and stock', ingredients: [RECIPE_INGREDIENTS_FIXTURE[1]], technicalWarnings: [] },
+    { id: 'step-4', text: 'Simmer until tender', ingredients: [], technicalWarnings: ['Do not boil vigorously'] },
+    { id: 'step-5', text: 'Season and serve', ingredients: [], technicalWarnings: [] },
   ],
   equipmentNeeded: ['Large saucepan', 'Wooden spoon', 'Knife'],
   prepTime: '15 minutes',
@@ -258,7 +259,10 @@ describe('RecipeModule - Data Mutations', () => {
   it('should validate recipe with updated instructions', () => {
     const updated: Recipe = {
       ...RECIPE_FIXTURE,
-      instructions: ['New instruction 1', 'New instruction 2'],
+      instructions: [
+        { id: 'step-new-1', text: 'New instruction 1', ingredients: [], technicalWarnings: [] },
+        { id: 'step-new-2', text: 'New instruction 2', ingredients: [], technicalWarnings: [] },
+      ],
     };
     expect(() => RecipeSchema.parse(updated)).not.toThrow();
   });
@@ -370,7 +374,12 @@ describe('RecipeModule - Edge Cases', () => {
   it('should accept recipe with many instructions', () => {
     const manySteps: Recipe = {
       ...RECIPE_FIXTURE,
-      instructions: Array.from({ length: 50 }, (_, i) => `Step ${i + 1}`),
+      instructions: Array.from({ length: 50 }, (_, i) => ({
+        id: `step-many-${i}`,
+        text: `Step ${i + 1}`,
+        ingredients: [],
+        technicalWarnings: [],
+      })),
     };
     expect(() => RecipeSchema.parse(manySteps)).not.toThrow();
   });
