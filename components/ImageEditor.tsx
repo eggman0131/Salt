@@ -6,15 +6,26 @@ interface ImageEditorProps {
   initialImage?: string;
   onSave: (imageData: string) => void;
   onCancel?: () => void;
-  aspectRatio?: number; // width / height
+  aspectRatio?: number; // width / height (ignored if width/height are provided)
+  width?: number;
+  height?: number;
+  isCircle?: boolean;
 }
 
 export const ImageEditor: React.FC<ImageEditorProps> = ({ 
   initialImage, 
   onSave, 
   onCancel,
-  aspectRatio = 4/3 
+  aspectRatio: propAspectRatio,
+  width,
+  height,
+  isCircle = false,
 }) => {
+  // Calculate aspect ratio from width/height if provided, else use prop, else default
+  const aspectRatio = (width && height) ? width / height : (propAspectRatio ?? 4/3);
+  const outputWidth = width ?? 600;
+  const outputHeight = height ?? Math.round(outputWidth / aspectRatio);
+  
   const [image, setImage] = useState<string | null>(initialImage || null);
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -67,27 +78,60 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
 
     const img = new Image();
     img.onload = () => {
-      // Optimized for minimal but decent quality: 600px width is sufficient for 4:3
-      canvas.width = 600;
-      canvas.height = 600 / aspectRatio;
+      const container = containerRef.current!;
+      const containerWidth = container.offsetWidth;
+      const containerHeight = container.offsetHeight;
+      
+      // Set output canvas size
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
+      
+      // Fill background
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      const drawWidth = canvas.width * zoom;
-      const drawHeight = (img.height / img.width) * drawWidth;
-      const drawX = position.x + (canvas.width - drawWidth) / 2;
-      const drawY = position.y + (canvas.height - drawHeight) / 2;
+      
+      // Calculate scale factor between display and output
+      const scaleX = outputWidth / containerWidth;
+      const scaleY = outputHeight / containerHeight;
+      
+      // Calculate the base image scale to fit container width
+      const baseScale = containerWidth / img.width;
+      const displayWidth = img.width * baseScale * zoom;
+      const displayHeight = img.height * baseScale * zoom;
+      
+      // Calculate position in display coordinates (centered + user offset)
+      const displayX = (containerWidth - displayWidth) / 2 + position.x;
+      const displayY = (containerHeight - displayHeight) / 2 + position.y;
+      
+      // Scale to output coordinates
+      const drawX = displayX * scaleX;
+      const drawY = displayY * scaleY;
+      const drawWidth = displayWidth * scaleX;
+      const drawHeight = displayHeight * scaleY;
+      
       ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-      // Quality 0.7 is the sweet spot for "minimal decent" JPEG
-      onSave(canvas.toDataURL('image/jpeg', 0.7));
+      
+      // If circle, apply circular mask
+      if (isCircle) {
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.beginPath();
+        ctx.arc(outputWidth / 2, outputHeight / 2, Math.min(outputWidth, outputHeight) / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      onSave(canvas.toDataURL('image/jpeg', 0.85));
     };
     img.src = image;
   };
+
+  // Determine container aspect class
+  const aspectClass = aspectRatio === 1 ? 'aspect-square' : 'aspect-4/3';
 
   return (
     <div className="space-y-4" onPaste={handlePaste}>
       <div 
         ref={containerRef}
-        className="relative w-full aspect-[4/3] bg-gray-50 border border-gray-100 rounded-lg overflow-hidden cursor-move flex items-center justify-center shadow-inner"
+        className={`relative w-full ${aspectClass} bg-gray-50 border border-gray-100 rounded-lg overflow-hidden cursor-move flex items-center justify-center shadow-inner ${isCircle ? 'rounded-full' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -101,7 +145,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
             style={{ 
               transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
               maxWidth: 'none',
-              maxHeight: '100%'
+              width: '100%',
             }} 
             className="transition-transform duration-75"
           />
@@ -109,6 +153,15 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
           <div className="text-center p-8 bg-white rounded-lg border border-dashed border-gray-200">
             <p className="text-sm text-gray-400 font-medium italic font-sans">Paste (Ctrl+V) or upload below</p>
           </div>
+        )}
+        {/* Circle overlay for visual feedback */}
+        {isCircle && image && (
+          <div 
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, transparent 50%, rgba(0,0,0,0.5) 50%)',
+            }}
+          />
         )}
       </div>
       {image && (
@@ -124,7 +177,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
           <Button variant="primary" fullWidth className="sm:w-auto text-[10px] uppercase font-bold py-1 px-3 h-11" onClick={captureCrop}>Save Crop</Button>
         </div>
       )}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-2 rounded">
         <input type="file" accept="image/*" onChange={handleFileChange} className="w-full text-base text-gray-400 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 font-sans" />
         <div className="flex gap-2 w-full sm:w-auto">
           {onCancel && <Button variant="secondary" className="text-sm h-11" onClick={onCancel}>Cancel</Button>}

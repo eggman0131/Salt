@@ -19,8 +19,8 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
   initialImage,
   onSave,
   onCancel,
-  width = 400,
-  height = 300,
+  width = 250,
+  height = 250,
   borderRadius = 0,
   isCircle = false,
 }) => {
@@ -29,14 +29,6 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
   const [rotate, setRotate] = useState(0);
   const editorRef = useRef<AvatarEditor>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Calculate responsive dimensions - ensure it fits within container
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  // On mobile: leave room for padding and borders. On desktop: use reasonable max
-  const maxWidth = isMobile ? window.innerWidth - 100 : Math.min(width, 550);
-  const aspectRatio = height / width;
-  const editorWidth = maxWidth;
-  const editorHeight = maxWidth * aspectRatio;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -59,9 +51,14 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
 
   const handleSave = () => {
     if (editorRef.current) {
+      // Debug: log what the editor thinks it has
       const canvas = editorRef.current.getImageScaledToCanvas();
+      console.log('Editor canvas dimensions:', canvas.width, 'x', canvas.height);
+      console.log('Props width/height:', width, 'x', height);
       const imageData = canvas.toDataURL('image/jpeg', 0.85);
       onSave(imageData);
+    } else {
+      console.log('Editor ref is null!');
     }
   };
 
@@ -82,24 +79,21 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
   return (
     <div className="space-y-4 w-full" onPaste={handlePaste} tabIndex={0}>
       {/* Editor Canvas */}
-      <div className="flex flex-col items-center justify-center bg-muted rounded-lg p-2 md:p-4 overflow-hidden">
+      <div className="flex flex-col items-center justify-center bg-muted rounded-lg p-4 overflow-hidden">
         {image ? (
-          <div className="flex items-center justify-center">
-            <AvatarEditor
-              ref={editorRef}
-              image={image}
-              width={editorWidth}
-              height={editorHeight}
-              border={10}
-              borderRadius={isCircle ? Math.max(editorWidth, editorHeight) / 2 : borderRadius}
-              color={[0, 0, 0, 0.4]}
-              scale={scale}
-              rotate={rotate}
-              className="rounded-lg"
-            />
-          </div>
+          <AvatarEditor
+            ref={editorRef}
+            image={image}
+            width={width}
+            height={height}
+            border={30}
+            borderRadius={isCircle ? width / 2 : borderRadius}
+            color={[0, 0, 0, 0.5]}
+            scale={scale}
+            rotate={rotate}
+          />
         ) : (
-          <div className="flex flex-col items-center justify-center py-12 px-4 md:px-8 border-2 border-dashed rounded-lg" style={{ minHeight: isMobile ? '200px' : '300px', width: '100%' }}>
+          <div className="flex flex-col items-center justify-center py-12 px-8 border-2 border-dashed rounded-lg" style={{ minHeight: '200px', width: '100%' }}>
             <Upload className="w-12 h-12 text-muted-foreground mb-4" />
             <p className="text-sm text-muted-foreground text-center">
               Paste an image (Ctrl+V) or upload below

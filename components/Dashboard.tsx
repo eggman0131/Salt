@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Button } from './UI';
 import { Badge } from './ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChefHat, BookOpen, ArrowRight } from 'lucide-react';
 import { User, Recipe, Plan } from '@/types/contract';
 import { cn } from '@/lib/utils';
@@ -75,9 +76,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div>
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Head Chef</p>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm shadow-sm">
-                      {allUsers.find(u => u.id === todaysMeal.cookId)?.displayName?.[0] || '?'}
-                    </div>
+                    <Avatar className="h-10 w-10">
+                      {allUsers.find(u => u.id === todaysMeal.cookId)?.avatarUrl && (
+                        <AvatarImage src={allUsers.find(u => u.id === todaysMeal.cookId)?.avatarUrl} alt={allUsers.find(u => u.id === todaysMeal.cookId)?.displayName} />
+                      )}
+                      <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
+                        {allUsers.find(u => u.id === todaysMeal.cookId)?.displayName?.[0] || '?'}
+                      </AvatarFallback>
+                    </Avatar>
                     <span className="font-medium text-sm">
                       {allUsers.find(u => u.id === todaysMeal.cookId)?.displayName || 'Unassigned'}
                     </span>
@@ -115,7 +121,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="text-center space-y-3">
               <p className="text-sm text-muted-foreground">No meal planned for today</p>
               <Button
-                size="sm"
                 onClick={() => onTabChange('planner')}
               >
                 Plan Today's Meal
