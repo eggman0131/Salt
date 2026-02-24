@@ -21,7 +21,7 @@ interface CookingStepViewProps {
   totalSteps: number;
   recipeInstruction?: string;
   guideId?: string;
-  onStepUpdate?: (guideId: string, stepNumber: number, updatedStep: Partial<CookingStep>) => Promise<void>;
+  onStepUpdate?: (guideId: string, stepId: string, updatedStep: Partial<CookingStep>) => Promise<void>;
 }
 
 export const CookingStepView: React.FC<CookingStepViewProps> = ({ step, totalSteps, recipeInstruction, guideId, onStepUpdate }) => {
@@ -34,7 +34,7 @@ export const CookingStepView: React.FC<CookingStepViewProps> = ({ step, totalSte
     
     setIsSaving(true);
     try {
-      await onStepUpdate(guideId, step.stepNumber, editedStep);
+      await onStepUpdate(guideId, step.id, editedStep);
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to update step:', error);

@@ -21,7 +21,9 @@ export interface SensoryCues {
 }
 
 export interface CookingStep {
+  id: string;                  // Persistent ID: survives step reordering/deletion
   stepNumber: number;
+  instructionIndex?: number;   // Index into recipe.instructions[] for reference (for linking to original recipe)
   instruction: string;
   containerReference?: string; // "Add Bowl 1 (soffritto)" or null for multi-step
   temperature?: string;        // "Medium-high (7 out of 10 on dial)"

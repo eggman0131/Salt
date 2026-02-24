@@ -34,11 +34,31 @@ export const AssistModeGuidesList: React.FC<AssistModeGuidesListProps> = ({ onRe
     try {
       setIsLoading(true);
       const allGuides = await cookModeBackend.getAllCookGuides();
-      setGuides(allGuides);
+      
+      // Remove duplicates - keep only the most recent guide per recipe
+      const guidesByRecipe = new Map<string, CookGuide>();
+      allGuides.forEach(guide => {
+        const existing = guidesByRecipe.get(guide.recipeId);
+        if (!existing || new Date(guide.generatedAt) > new Date(existing.generatedAt)) {
+          guidesByRecipe.set(guide.recipeId, guide);
+        }
+      });
+      
+      // Delete outdated duplicates
+      const guidesToKeep = Array.from(guidesByRecipe.values());
+      const guidesToDelete = allGuides.filter(g => !guidesToKeep.find(k => k.id === g.id));
+      
+      if (guidesToDelete.length > 0) {
+        console.log(`Cleaning up ${guidesToDelete.length} duplicate guide(s)...`);
+        await Promise.all(guidesToDelete.map(g => cookModeBackend.deleteCookGuide(g.id)));
+        softToast.success(`Cleaned up ${guidesToDelete.length} duplicate guide(s)`);
+      }
+      
+      setGuides(guidesToKeep);
 
       // Load recipe names for display
       const names: Record<string, string> = {};
-      for (const guide of allGuides) {
+      for (const guide of guidesToKeep) {
         try {
           const recipe = await recipesBackend.getRecipe(guide.recipeId);
           if (recipe) {

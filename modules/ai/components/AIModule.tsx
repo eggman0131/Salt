@@ -208,7 +208,7 @@ export const AIModule: React.FC<AIModuleProps> = ({ onRecipeGenerated, initialUs
 
   return (
     <>
-      <div className="flex flex-col animate-in fade-in duration-500 h-full">
+      <div className="flex flex-col animate-in fade-in duration-500 min-h-[calc(100vh-12rem)]">
         <Card className="flex-1 flex flex-col overflow-hidden shadow-md">
           <CardHeader className="px-4 py-4 md:p-6">
             <div className="flex items-start justify-between gap-4">
