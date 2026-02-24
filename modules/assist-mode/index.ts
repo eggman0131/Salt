@@ -1,12 +1,12 @@
 /**
- * Cook Mode Module - Public API
+ * Assist Mode Module - Public API
  * 
- * Provides access to cook mode backend and components.
+ * Provides access to assist mode backend and components.
  */
 
 // Re-export backend
-export { cookModeBackend, getCookModeBackend } from './backend';
-export type { ICookModeBackend } from './backend';
+export { assistModeBackend, getAssistModeBackend } from './backend';
+export type { IAssistModeBackend } from './backend';
 
 // Re-export types
 export type { CookGuide, PrepGroup, CookingStep, SensoryCues } from './types';

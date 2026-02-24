@@ -40,7 +40,7 @@ function clearProgress(recipeId: string) {
   }
 }
 
-export const useCookTabLogic = (recipe: Recipe) => {
+export const useCookTabLogic = (recipe: Recipe, onClose?: () => void) => {
   const [currentStep, setCurrentStep] = useState<CookStep>('miseEnPlace');
   const [miseEnPlaceChecked, setMiseEnPlaceChecked] = useState<Set<string>>(new Set());
   const [keepAwakeEnabled, setKeepAwakeEnabled] = useState(false);
@@ -142,6 +142,11 @@ export const useCookTabLogic = (recipe: Recipe) => {
       setCurrentStep(0);
     } else if (typeof currentStep === 'number' && currentStep < recipe.instructions.length - 1) {
       setCurrentStep(currentStep + 1);
+    } else if (typeof currentStep === 'number' && currentStep === recipe.instructions.length - 1) {
+      // On last step, finish and close
+      if (onClose) {
+        onClose();
+      }
     }
   };
 

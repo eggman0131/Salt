@@ -98,10 +98,29 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ inventory, onR
         class: details.class || '',
         description: details.description || candidate.description || '',
         status: 'Available' as const,
-        accessories: (details.accessories || []).map((acc) => ({
-          ...acc,
-          id: acc.id || uuidv4(),
-        })),
+        accessories: (details.accessories || []).map((acc) => {
+          // Handle both string accessories and object accessories
+          if (typeof acc === 'string') {
+            return {
+              id: uuidv4(),
+              name: acc,
+              owned: false,
+              type: 'standard' as const,
+            };
+          }
+          // Handle object accessories (ensure all required fields)
+          const accessory: any = {
+            id: acc.id || uuidv4(),
+            name: acc.name || '',
+            owned: acc.owned ?? false,
+            type: (acc.type === 'standard' || acc.type === 'optional') ? acc.type : 'standard' as const,
+          };
+          // Only include description if it has a value (Firestore doesn't allow undefined)
+          if (acc.description) {
+            accessory.description = acc.description;
+          }
+          return accessory;
+        }),
       };
 
       await inventoryBackend.createEquipment(newEquipment);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Stack } from '@/shared/components/primitives';
 import { UsersModule } from './UsersModule';
 import { AssistModeGuidesList } from './AssistModeGuidesList';
+import { CollectionSelector } from './CollectionSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AddButton } from '@/components/ui/add-button';
@@ -10,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Upload, Download } from 'lucide-react';
-import { User, KitchenSettings } from '../../../types/contract';
+import { User, KitchenSettings, CollectionName } from '../../../types/contract';
 import { getActiveBackendMode } from '../../../shared/backend/system-backend';
 import { plannerBackend } from '../../planner';
 import { debugLogger } from '../../../shared/backend/debug-logger';
@@ -19,8 +20,8 @@ import { softToast } from '@/lib/soft-toast';
 interface AdminModuleProps {
   users: User[];
   onRefresh: () => void;
-  onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onExport: () => void;
+  onImport: (e: React.ChangeEvent<HTMLInputElement>, selectedCollections: Set<CollectionName>) => void;
+  onExport: (selectedCollections: Set<CollectionName>) => void;
   isImporting: boolean;
   lastSync?: string | null;
 }
@@ -38,6 +39,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [userOrder, setUserOrder] = useState<string[] | undefined>(undefined);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [selectedCollections, setSelectedCollections] = useState<Set<CollectionName>>(new Set());
+  const [showCollectionSelector, setShowCollectionSelector] = useState(false);
   const debounceTimerRef = useRef<number | null>(null);
 
   const kitchenSettings: KitchenSettings = {
@@ -92,6 +95,24 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     }
   };
 
+  const handleExportClick = () => {
+    // If no collections selected, select all by default
+    if (selectedCollections.size === 0) {
+      setShowCollectionSelector(true);
+    } else {
+      onExport(selectedCollections);
+    }
+  };
+
+  const handleImportClick = () => {
+    // If no collections selected, select all by default
+    if (selectedCollections.size === 0) {
+      setShowCollectionSelector(true);
+    } else {
+      document.getElementById('admin-import')?.click();
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 md:gap-6 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
@@ -132,6 +153,40 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   </div>
                 )}
               </div>
+
+              {showCollectionSelector && (
+                <div className="rounded-lg border p-4 bg-muted/50 space-y-3">
+                  <CollectionSelector 
+                    selectedCollections={selectedCollections}
+                    onSelectionChange={setSelectedCollections}
+                    isLoading={isImporting}
+                  />
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowCollectionSelector(false)}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (selectedCollections.size > 0) {
+                          onExport(selectedCollections);
+                          setShowCollectionSelector(false);
+                        }
+                      }}
+                      disabled={selectedCollections.size === 0}
+                      className="flex-1"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Backup Selected
+                    </Button>
+                  </div>
+                </div>
+              )}
               
               <div className="flex gap-3 pt-2">
                 <input 
@@ -139,10 +194,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   id="admin-import" 
                   className="hidden" 
                   accept=".json" 
-                  onChange={onImport} 
+                  onChange={(e) => onImport(e, selectedCollections)} 
                 />
                 <Button
-                  onClick={() => document.getElementById('admin-import')?.click()}
+                  onClick={handleImportClick}
                   disabled={isImporting}
                   className="flex-1"
                   variant="default"
@@ -151,7 +206,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   Restore
                 </Button>
                 <Button
-                  onClick={onExport}
+                  onClick={handleExportClick}
                   variant="outline"
                   className="flex-1"
                 >
@@ -270,9 +325,9 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               <Label htmlFor="directives" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Global AI Rules
               </Label>
-              <Textarea
+              <textarea
                 id="directives"
-                className="min-h-50 resize-none"
+                className="flex min-h-48 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
                 placeholder="- Prefer Anova over Rangemaster&#10;- No mushrooms&#10;- Always suggest metric substitutes"
                 value={directives}
                 onChange={(e) => handleUpdateDirectives(e.target.value)}

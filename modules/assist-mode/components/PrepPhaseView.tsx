@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 import { Pencil, CheckCircle2, X, Plus, Trash2 } from 'lucide-react';
 import { PrepGroup } from '../types';
 
@@ -89,13 +91,26 @@ export const PrepPhaseView: React.FC<PrepPhaseViewProps> = ({ prepGroups, guideI
   };
 
   const allPrepped = completedPrepIds.size === prepGroups.length;
+  const prepProgress = prepGroups.length > 0 ? (completedPrepIds.size / prepGroups.length) * 100 : 0;
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <h2 className="text-lg font-semibold">Prep Phase</h2>
-        <p className="text-sm text-muted-foreground">Prepare ingredients before you start cooking</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Mise en Place</h2>
+        <p className="text-sm text-muted-foreground">Prepare and gather all ingredients</p>
       </div>
+
+      {/* Progress */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preparation Progress</span>
+          <span className="text-sm font-bold text-primary">{completedPrepIds.size} / {prepGroups.length}</span>
+        </div>
+        <Progress value={prepProgress} className="h-2" />
+      </div>
+
+      <Separator />
 
       <div className="grid gap-3">
         {editedGroups.map(group => {

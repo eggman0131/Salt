@@ -503,6 +503,124 @@ export const systemBackend = {
       await batch.commit();
     }
   },
+
+  /**
+   * Export selected collections only
+   */
+  async exportSelectedData(collectionNames: string[]): Promise<Record<string, any>> {
+    const exportData: Record<string, any> = {
+      exportedAt: new Date().toISOString(),
+    };
+
+    for (const collectionName of collectionNames) {
+      const config = COLLECTION_REGISTRY[collectionName as CollectionName];
+      if (!config) {
+        debugLogger.warn('Export', `Collection ${collectionName} not found in registry`);
+        continue;
+      }
+
+      try {
+        if (config.isSingleton) {
+          // Singleton collection (like settings)
+          const docRef = doc(db, collectionName, config.documentId!);
+          const snapshot = await getDoc(docRef);
+          if (snapshot.exists()) {
+            exportData[collectionName] = snapshot.data();
+          }
+        } else {
+          // Regular collection
+          const snapshot = await getDocs(collection(db, collectionName));
+          const items = snapshot.docs.map(docSnap => docSnap.data());
+          exportData[collectionName] = items;
+        }
+      } catch (error) {
+        debugLogger.error('Export', `Failed to export ${collectionName}:`, error);
+        exportData[collectionName] = [];
+      }
+    }
+
+    return exportData;
+  },
+
+  /**
+   * Import selected collections only (preserves other collections)
+   */
+  async importSelectedData(data: Record<string, any>, collectionNames: string[]): Promise<void> {
+    // Clear only selected collections
+    for (const collectionName of collectionNames) {
+      const config = COLLECTION_REGISTRY[collectionName as CollectionName];
+      if (!config) {
+        debugLogger.warn('Import', `Collection ${collectionName} not found in registry`);
+        continue;
+      }
+
+      if (config.isSingleton) {
+        // Delete singleton document
+        await deleteDoc(doc(db, collectionName, config.documentId!));
+      } else {
+        // Clear entire collection
+        await clearCollection(collectionName);
+      }
+    }
+
+    // Import selected data
+    let batch = writeBatch(db);
+    let count = 0;
+
+    const commitIfNeeded = async () => {
+      if (count >= 450) {
+        await batch.commit();
+        batch = writeBatch(db);
+        count = 0;
+      }
+    };
+
+    for (const collectionName of collectionNames) {
+      const config = COLLECTION_REGISTRY[collectionName as CollectionName];
+      if (!config) continue;
+
+      const collectionData = data[collectionName];
+      if (!collectionData) {
+        debugLogger.log('Import', `No data for ${collectionName}, skipping`);
+        continue;
+      }
+
+      if (config.isSingleton) {
+        // Import singleton document
+        const docRef = doc(db, collectionName, config.documentId!);
+        batch.set(docRef, collectionData);
+        count += 1;
+        await commitIfNeeded();
+      } else {
+        // Import collection documents
+        const items = Array.isArray(collectionData) ? collectionData : [];
+        for (const item of items) {
+          const idField = config.idField || 'id';
+          const docId = item[idField];
+          
+          if (!docId) {
+            debugLogger.error('Import', `Item in ${collectionName} missing ${idField}, skipping:`, item);
+            continue;
+          }
+
+          const docRef = doc(db, collectionName, docId);
+          
+          // Apply encoding if needed (e.g., recipes with nested arrays)
+          const itemData = config.requiresEncoding 
+            ? encodeRecipeForFirestore(item) 
+            : item;
+          
+          batch.set(docRef, itemData);
+          count += 1;
+          await commitIfNeeded();
+        }
+      }
+    }
+
+    if (count > 0) {
+      await batch.commit();
+    }
+  },
 };
 
 export const getActiveBackendMode = (): string => 'firebase';

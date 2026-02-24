@@ -1,12 +1,12 @@
 /**
- * Firebase Cook Mode Backend
+ * Firebase Assist Mode Backend
  * 
  * Persistence layer for cook guides using Firestore.
  */
 
 import { Recipe } from '../../../types/contract';
 import { CookGuide } from '../types';
-import { BaseCookModeBackend } from './base-cook-mode-backend';
+import { BaseAssistModeBackend } from './base-assist-mode-backend';
 import {
   collection,
   query,
@@ -22,8 +22,10 @@ import { GenerateContentParameters, GenerateContentResponse } from '@google/gena
 import { auth, db, functions } from '../../../shared/backend/firebase';
 import { debugLogger } from '../../../shared/backend/debug-logger';
 
-export class FirebaseCookModeBackend extends BaseCookModeBackend {
+export class FirebaseAssistModeBackend extends BaseAssistModeBackend {
   private currentIdToken: string | null = null;
+  // Mutex to prevent concurrent guide generation for the same recipe
+  private generatingGuides = new Map<string, Promise<CookGuide>>();
 
   protected async callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse> {
     const user = auth.currentUser;
@@ -71,25 +73,42 @@ export class FirebaseCookModeBackend extends BaseCookModeBackend {
   private collectionName = 'cookGuides';
 
   async getOrGenerateCookGuide(recipe: Recipe): Promise<CookGuide> {
-    // Check if guide exists
-    const q = query(collection(db, this.collectionName), where('recipeId', '==', recipe.id));
-    const snapshot = await getDocs(q);
-
-    if (!snapshot.empty) {
-      const guide = snapshot.docs[0].data() as CookGuide;
-      const recipeVersion = this.hashRecipe(recipe);
-
-      // Return if version matches
-      if (guide.recipeVersion === recipeVersion) {
-        return guide;
-      }
-
-      // Delete outdated guides for this recipe before generating new one
-      await Promise.all(snapshot.docs.map(doc => deleteDoc(doc.ref)));
+    // If already generating this recipe's guide, wait for it
+    if (this.generatingGuides.has(recipe.id)) {
+      return this.generatingGuides.get(recipe.id)!;
     }
 
-    // Generate new guide
-    return this.generateCookGuide(recipe);
+    // Set mutex immediately to prevent race condition
+    const workPromise = (async () => {
+      // Check if guide exists
+      const q = query(collection(db, this.collectionName), where('recipeId', '==', recipe.id));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const guide = snapshot.docs[0].data() as CookGuide;
+        const recipeVersion = this.hashRecipe(recipe);
+
+        // Return if version matches
+        if (guide.recipeVersion === recipeVersion) {
+          return guide;
+        }
+
+        // Delete outdated guides for this recipe before generating new one
+        await Promise.all(snapshot.docs.map(doc => deleteDoc(doc.ref)));
+      }
+
+      // Generate new guide
+      return await this.generateCookGuide(recipe);
+    })();
+
+    this.generatingGuides.set(recipe.id, workPromise);
+
+    try {
+      return await workPromise;
+    } finally {
+      // Remove from generating set when complete
+      this.generatingGuides.delete(recipe.id);
+    }
   }
 
   async generateCookGuide(recipe: Recipe): Promise<CookGuide> {

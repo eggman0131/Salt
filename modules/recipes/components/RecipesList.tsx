@@ -13,6 +13,7 @@ import { Stack } from '../../../shared/components/primitives';
 interface RecipesListProps {
   recipes: Recipe[];
   categories: RecipeCategory[];
+  assistGuideRecipeIds: Set<string>;
   isLoading: boolean;
   onSelectRecipe: (recipe: Recipe) => void;
   onCreateRecipe: (recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>) => Promise<void>;
@@ -21,6 +22,7 @@ interface RecipesListProps {
 export const RecipesList: React.FC<RecipesListProps> = ({
   recipes,
   categories,
+  assistGuideRecipeIds,
   isLoading,
   onSelectRecipe,
   onCreateRecipe,
@@ -29,6 +31,7 @@ export const RecipesList: React.FC<RecipesListProps> = ({
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [assistOnly, setAssistOnly] = useState(false);
 
   // Filter recipes by search and category
   const filteredRecipes = useMemo(() => {
@@ -43,9 +46,11 @@ export const RecipesList: React.FC<RecipesListProps> = ({
       const matchesCategory = selectedCategoryIds.length === 0 ||
         selectedCategoryIds.every(catId => recipe.categoryIds?.includes(catId));
 
-      return matchesSearch && matchesCategory;
+      const matchesAssist = !assistOnly || assistGuideRecipeIds.has(recipe.id);
+
+      return matchesSearch && matchesCategory && matchesAssist;
     });
-  }, [recipes, searchQuery, selectedCategoryIds]);
+  }, [recipes, searchQuery, selectedCategoryIds, assistOnly, assistGuideRecipeIds]);
 
   // Get categories that appear in filtered recipes (or all categories if none selected)
   const availableCategories = useMemo(() => {
@@ -125,6 +130,15 @@ export const RecipesList: React.FC<RecipesListProps> = ({
                     >
                       All
                     </Badge>
+                    {assistGuideRecipeIds.size > 0 && (
+                      <Badge
+                        variant={assistOnly ? 'default' : 'outline'}
+                        className="cursor-pointer"
+                        onClick={() => setAssistOnly(prev => !prev)}
+                      >
+                        Assist mode
+                      </Badge>
+                    )}
                     {availableCategories.map(category => (
                       <Badge
                         key={category.id}
