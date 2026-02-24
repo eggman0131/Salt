@@ -4,7 +4,7 @@ import { LandingPage } from './pages/Landing';
 import { LoginPage } from './pages/Login';
 import { AppLayout } from './components/layout/AppLayout';
 import { Card, Button } from './components/UI';
-import { User, Recipe, Equipment, Plan } from './types/contract';
+import { User, Recipe, Equipment, Plan, CollectionName } from './types/contract';
 import { systemBackend } from './shared/backend/system-backend';
 import { ensureEmulatorAuth } from './shared/backend/auth-emulator';
 import { softToast } from '@/lib/soft-toast';
@@ -42,6 +42,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<AppState>('loading');
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [resetKey, setResetKey] = useState(0);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [inventory, setInventory] = useState<Equipment[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -120,9 +121,16 @@ const App: React.FC = () => {
     }
   }, [view, activeTab, loadData]);
 
-  const handleExportData = async () => {
+  const handleExportData = async (selectedCollections?: Set<CollectionName>) => {
     try {
-      const exportData = await systemBackend.exportAllData();
+      // If no collections specified, export all
+      let exportData: Record<string, any>;
+      
+      if (selectedCollections && selectedCollections.size > 0) {
+        exportData = await systemBackend.exportSelectedData(Array.from(selectedCollections));
+      } else {
+        exportData = await systemBackend.exportAllData();
+      }
       
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -144,14 +152,20 @@ const App: React.FC = () => {
     }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>, selectedCollections?: Set<CollectionName>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsImporting(true);
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      await systemBackend.importAllData(data);
+      
+      if (selectedCollections && selectedCollections.size > 0) {
+        await systemBackend.importSelectedData(data, Array.from(selectedCollections));
+      } else {
+        await systemBackend.importAllData(data);
+      }
+      
       await loadData();
       softToast.success('Kitchen state restored', {
         description: 'All data imported successfully',
@@ -211,7 +225,14 @@ const App: React.FC = () => {
         activeTab={activeTab} 
         onTabChange={(tabId) => {
           if (tabId !== 'ai') setAiInitialMessage(undefined);
-          setActiveTab(tabId);
+          if (tabId === activeTab) {
+            // Same tab clicked - reset the module by incrementing key
+            setResetKey(prev => prev + 1);
+          } else {
+            // Different tab - switch and reset key counter
+            setActiveTab(tabId);
+            setResetKey(0);
+          }
         }} 
         user={user} 
         onLogout={handleLogout}
@@ -219,6 +240,7 @@ const App: React.FC = () => {
       >
         {activeTab === 'dashboard' && (
           <Dashboard
+            key={`dashboard-${resetKey}`}
             user={user}
             todaysMeal={todaysMeal}
             currentPlan={currentPlan}
@@ -233,23 +255,24 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'planner' && (
-          <PlannerModule users={allUsers} onRefresh={loadData} />
+          <PlannerModule key={`planner-${resetKey}`} users={allUsers} onRefresh={loadData} />
         )}
 
         {activeTab === 'inventory' && (
-          <InventoryModule inventory={inventory} onRefresh={loadData} />
+          <InventoryModule key={`inventory-${resetKey}`} inventory={inventory} onRefresh={loadData} />
         )}
 
         {activeTab === 'shopping' && (
-          <ShoppingListModule onRefresh={loadData} />
+          <ShoppingListModule key={`shopping-${resetKey}`} onRefresh={loadData} />
         )}
 
         {activeTab === 'recipes' && (
-          <RecipesModule />
+          <RecipesModule key={`recipes-${resetKey}`} />
         )}
 
         {activeTab === 'admin' && (
           <AdminModule 
+            key={`admin-${resetKey}`}
             users={allUsers} 
             onRefresh={loadData} 
             onImport={handleImport} 
@@ -260,11 +283,12 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'kitchendata' && (
-          <KitchenDataModule onRefresh={loadData} onSuggestionsChanged={refreshSuggestionsCount} />
+          <KitchenDataModule key={`kitchendata-${resetKey}`} onRefresh={loadData} onSuggestionsChanged={refreshSuggestionsCount} />
         )}
 
         {activeTab === 'ai' && (
           <AIModule 
+            key={`ai-${resetKey}`}
             initialUserMessage={aiInitialMessage} 
             onRecipeGenerated={() => { 
               setAiInitialMessage(undefined);

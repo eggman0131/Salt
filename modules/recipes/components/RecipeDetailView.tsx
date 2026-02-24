@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Recipe, RecipeCategory, RecipeHistoryEntry, RecipeInstruction } from '../../../types/contract';
 import { Stack } from '../../../shared/components/primitives';
 import { AddButton } from '../../../components/ui/add-button';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, Flame, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import {
   Popover,
@@ -21,7 +21,7 @@ import { CategoryPicker } from './CategoryPicker';
 import { RecipeChefChat } from './RecipeChefChat';
 import { RecipeHistoryDialog } from './RecipeHistoryDialog';
 import { CookTab } from './CookTab';
-import { CookModeModule } from '../../cook-mode';
+import { CookModeModule } from '../../assist-mode';
 import { ImageEditor } from '../../../shared/components/ImageEditor';
 import { softToast } from '@/lib/soft-toast';
 import { systemBackend } from '../../../shared/backend/system-backend';
@@ -138,7 +138,7 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
       <div>
         <h2 className="text-xl font-semibold mb-3">Ingredients</h2>
         <ul className="space-y-2">
-          {recipe.ingredients.map((ingredient) => (
+          {recipe.ingredients.map((ingredient, idx) => (
             <li key={ingredient.id} className="flex items-start gap-2">
               <span className="text-muted-foreground mt-1">•</span>
               <span>
@@ -208,7 +208,7 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
                 {/* Step-specific ingredients */}
                 {instr.ingredients && instr.ingredients.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {instr.ingredients.map((ingredient) => (
+                    {instr.ingredients.map((ingredient, ingIdx) => (
                       <span
                         key={ingredient.id}
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted text-muted-foreground text-xs"
@@ -300,8 +300,17 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [pendingRestoreEntry, setPendingRestoreEntry] = useState<RecipeHistoryEntry | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [activeTab, setActiveTab] = useState<'recipe' | 'chef' | 'cook'>('recipe');
-  const [isCookModeOpen, setIsCookModeOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'recipe' | 'chef' | 'cook' | 'assist'>('recipe');
+
+  // Scroll to top when recipe opens or changes (before paint)
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [recipe.id]);
+
+  // Scroll to top when switching tabs
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [activeTab]);
 
   // Load image if exists
   useEffect(() => {
@@ -455,25 +464,18 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [imageSrc]);
 
-  if (isCookModeOpen) {
-    return (
-      <CookModeModule
-        recipe={recipe}
-        onClose={() => setIsCookModeOpen(false)}
-      />
-    );
-  }
-
   return (
     <>
       {/* Mobile: Conditional View */}
       <div className="md:hidden">
         {activeTab === 'cook' ? (
           <CookTab recipe={recipe} onClose={() => setActiveTab('recipe')} />
+        ) : activeTab === 'assist' ? (
+          <CookModeModule recipe={recipe} onClose={() => setActiveTab('recipe')} />
         ) : (
           <Stack spacing="gap-6">
             {/* Mobile Recipe/Chef Tabs */}
-            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'recipe' | 'chef' | 'cook')} className="w-full">
+            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'recipe' | 'chef' | 'cook' | 'assist')} className="w-full">
               <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
                 <TabsTrigger 
                   value="recipe" 
@@ -496,18 +498,14 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                   <Flame className="w-4 h-4" />
                   <span className="hidden md:inline">Cook</span>
                 </TabsTrigger>
-              </TabsList>
-              <div className="mt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setIsCookModeOpen(true)}
+                <TabsTrigger 
+                  value="assist" 
+                  className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
                 >
-                  <ChefHat className="w-4 h-4 mr-2" />
-                  Cook Mode
-                </Button>
-              </div>
+                  <HandHelping className="w-4 h-4" />
+                  <span className="hidden md:inline">Assist</span>
+                </TabsTrigger>
+              </TabsList>
 
               <TabsContent value="recipe" className="mt-6">
                 {/* Header with actions */}
@@ -569,7 +567,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
 
       {/* Desktop/Tablet: Tabbed Interface */}
       <Stack spacing="gap-6" className="hidden md:block">
-        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'recipe' | 'chef' | 'cook')} className="w-full">
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'recipe' | 'chef' | 'cook' | 'assist')} className="w-full">
           {/* Tab Triggers */}
           <div className="flex flex-wrap items-center gap-2">
             <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
@@ -594,16 +592,14 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                 <Flame className="w-4 h-4" />
                 <span className="hidden md:inline">Cook</span>
               </TabsTrigger>
+              <TabsTrigger 
+                value="assist" 
+                className="h-full flex-1 md:px-8 flex items-center justify-center gap-1.5 font-medium data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
+              >
+                <HandHelping className="w-4 h-4" />
+                <span className="hidden md:inline">Assist</span>
+              </TabsTrigger>
             </TabsList>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11"
-              onClick={() => setIsCookModeOpen(true)}
-            >
-              <ChefHat className="w-4 h-4 mr-2" />
-              Cook Mode
-            </Button>
           </div>
 
           {/* Recipe Tab - Desktop: Two columns */}
@@ -749,6 +745,11 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
           {/* Cook Tab */}
           <TabsContent value="cook" className="mt-6">
             <CookTab recipe={recipe} />
+          </TabsContent>
+
+          {/* Assist Tab */}
+          <TabsContent value="assist" className="mt-6">
+            <CookModeModule recipe={recipe} onClose={() => setActiveTab('recipe')} />
           </TabsContent>
         </Tabs>
       </Stack>

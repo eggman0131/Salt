@@ -5,13 +5,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { CookGuide } from '../../cook-mode/types';
-import { cookModeBackend } from '../../cook-mode/backend';
+import { CookGuide } from '../../assist-mode/types';
+import { assistModeBackend } from '../../assist-mode/backend';
 import { recipesBackend } from '../../recipes/backend';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, Trash2, ChefHat } from 'lucide-react';
 import { softToast } from '@/lib/soft-toast';
 
@@ -33,7 +33,7 @@ export const AssistModeGuidesList: React.FC<AssistModeGuidesListProps> = ({ onRe
   const loadGuides = async () => {
     try {
       setIsLoading(true);
-      const allGuides = await cookModeBackend.getAllCookGuides();
+      const allGuides = await assistModeBackend.getAllCookGuides();
       
       // Remove duplicates - keep only the most recent guide per recipe
       const guidesByRecipe = new Map<string, CookGuide>();
@@ -50,7 +50,7 @@ export const AssistModeGuidesList: React.FC<AssistModeGuidesListProps> = ({ onRe
       
       if (guidesToDelete.length > 0) {
         console.log(`Cleaning up ${guidesToDelete.length} duplicate guide(s)...`);
-        await Promise.all(guidesToDelete.map(g => cookModeBackend.deleteCookGuide(g.id)));
+        await Promise.all(guidesToDelete.map(g => assistModeBackend.deleteCookGuide(g.id)));
         softToast.success(`Cleaned up ${guidesToDelete.length} duplicate guide(s)`);
       }
       
@@ -81,7 +81,7 @@ export const AssistModeGuidesList: React.FC<AssistModeGuidesListProps> = ({ onRe
   const handleDeleteGuide = async (guideId: string) => {
     try {
       setIsDeletingId(guideId);
-      await cookModeBackend.deleteCookGuide(guideId);
+      await assistModeBackend.deleteCookGuide(guideId);
       setGuides(guides.filter(g => g.id !== guideId));
       setGuideToDelete(null);
       softToast.success('Guide deleted');
@@ -185,8 +185,8 @@ export const AssistModeGuidesList: React.FC<AssistModeGuidesListProps> = ({ onRe
               This will permanently delete the generated guide. The recipe will remain intact.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex gap-3 justify-end">
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingId !== null}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => guideToDeletId && handleDeleteGuide(guideToDeletId)}
               disabled={isDeletingId !== null}
@@ -201,7 +201,7 @@ export const AssistModeGuidesList: React.FC<AssistModeGuidesListProps> = ({ onRe
                 'Delete'
               )}
             </AlertDialogAction>
-          </div>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

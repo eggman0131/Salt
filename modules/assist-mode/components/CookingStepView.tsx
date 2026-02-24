@@ -5,14 +5,23 @@
  * Supports inline editing for manual corrections.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Thermometer, Clock, Pencil, CheckCircle2, X, Info, Eye, Volume2, Smile, Hand } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Clock, AlarmClock, Pencil, Trash2, CheckCircle2, X, Eye, Ear, Wind, Hand } from 'lucide-react';
 import { CookingStep } from '../types';
 import { ProgressionCheck } from './ProgressionCheck';
 
@@ -22,12 +31,23 @@ interface CookingStepViewProps {
   recipeInstruction?: string;
   guideId?: string;
   onStepUpdate?: (guideId: string, stepId: string, updatedStep: Partial<CookingStep>) => Promise<void>;
+  onDeleteGuide?: () => void | Promise<void>;
+  isDeletingGuide?: boolean;
 }
 
-export const CookingStepView: React.FC<CookingStepViewProps> = ({ step, totalSteps, recipeInstruction, guideId, onStepUpdate }) => {
+export const CookingStepView: React.FC<CookingStepViewProps> = ({ step, totalSteps, recipeInstruction, guideId, onStepUpdate, onDeleteGuide, isDeletingGuide }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedStep, setEditedStep] = useState(step);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isWakeLockActive, setIsWakeLockActive] = useState(false);
+  const [isWakeLockSupported, setIsWakeLockSupported] = useState(false);
+  const wakeLockRef = useRef<any>(null);
+  const isTimeCritical = Boolean(
+    step.timeEstimate && /min|hour|second|cook|simmer|boil|bake|roast|grill|fry|sear|saute|sauté|steam|reduce|rest|chill|prove|rise/i.test(
+      `${step.instruction} ${step.temperature ?? ''} ${step.timeEstimate}`
+    )
+  );
 
   const handleSave = async () => {
     if (!guideId || !onStepUpdate) return;
@@ -40,6 +60,63 @@ export const CookingStepView: React.FC<CookingStepViewProps> = ({ step, totalSte
       console.error('Failed to update step:', error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsWakeLockSupported(Boolean((navigator as any)?.wakeLock?.request));
+    return () => {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isWakeLockActive) return;
+
+    const requestWakeLock = async () => {
+      try {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      } catch (err) {
+        console.error('Failed to acquire wake lock:', err);
+        setIsWakeLockActive(false);
+      }
+    };
+
+    requestWakeLock();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isWakeLockActive]);
+
+  const handleToggleWakeLock = async () => {
+    if (!isWakeLockSupported) return;
+
+    if (isWakeLockActive) {
+      if (wakeLockRef.current) {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      }
+      setIsWakeLockActive(false);
+      return;
+    }
+
+    try {
+      wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      setIsWakeLockActive(true);
+    } catch (err) {
+      console.error('Failed to acquire wake lock:', err);
+      setIsWakeLockActive(false);
     }
   };
 
@@ -170,88 +247,115 @@ export const CookingStepView: React.FC<CookingStepViewProps> = ({ step, totalSte
 
   return (
     <div className="space-y-4">
-      {/* Step header */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">
-              Step {step.stepNumber} of {totalSteps}
-            </h2>
-            {recipeInstruction && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase">Recipe Instruction</p>
-                    <p className="text-sm leading-relaxed">{recipeInstruction}</p>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {step.timeEstimate && (
-              <Badge variant="outline" className="flex items-center gap-1.5">
+      <AlertDialog open={isDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete assist guide?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the current guide for this recipe. You can generate a new guide any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsDeleteOpen(false)}>Keep guide</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setIsDeleteOpen(false);
+                await onDeleteGuide?.();
+              }}
+              disabled={isDeletingGuide}
+            >
+              Delete guide
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Step controls and reference */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="p-3 md:p-4 space-y-3">
+          <div className="flex flex-col gap-2">
+            {isTimeCritical && step.timeEstimate && (
+              <Badge variant="outline" className="flex w-full items-center gap-1.5 border-primary/30 text-primary">
                 <Clock className="h-3 w-3" />
                 {step.timeEstimate}
               </Badge>
             )}
+            {step.containerReference && (
+              <Badge variant="outline" className="flex w-full items-center gap-1.5 border-primary/30 text-primary">
+                <span className="font-medium">Use:</span>
+                <span className="font-mono">{step.containerReference}</span>
+              </Badge>
+            )}
+          </div>
+          <div className="hidden md:flex items-center justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              aria-label="Set timer"
+              disabled
+            >
+              <AlarmClock className="h-4 w-4 text-muted-foreground" />
+            </Button>
             {guideId && onStepUpdate && (
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => setIsEditing(true)}
-                className="ml-2"
+                className="h-8 w-8 p-0"
+                aria-label="Edit step"
               >
                 <Pencil className="h-4 w-4" />
               </Button>
             )}
+            {guideId && onDeleteGuide && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDeleteOpen(true)}
+                className="h-8 w-8 p-0"
+                aria-label="Delete guide"
+                disabled={isDeletingGuide}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
           </div>
-        </div>
-      </div>
+          <div className="grid grid-cols-2 gap-2 md:hidden">
+            <Button
+              variant="outline"
+              className="h-10 w-full justify-center"
+              onClick={handleToggleWakeLock}
+              disabled={!isWakeLockSupported}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              {isWakeLockActive ? 'Screen stays on' : 'Keep screen on'}
+            </Button>
+            <Button
+              variant="outline"
+              className="h-10 w-full justify-center"
+              disabled
+            >
+              <AlarmClock className="mr-2 h-4 w-4" />
+              Set timer
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Original recipe instruction - REMOVED, now in popover above */}
-      <Card>
+      {/* Main instruction - prominently displayed */}
+      <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight">{step.instruction}</h2>
+
+      {/* Sensory and practical details card */}
+      <Card className="border-warning/30 bg-warning/5">
         <CardContent className="p-4 md:p-6 space-y-4">
-          {/* Instruction */}
-          <div>
-            <p className="text-base md:text-lg font-medium leading-relaxed">{step.instruction}</p>
-          </div>
-
-          {/* Container reference */}
-          {step.containerReference && (
-            <div className="rounded-lg bg-muted/30 border border-muted p-3">
-              <p className="text-sm">
-                <span className="font-medium">Use: </span>
-                <span className="text-foreground font-mono">{step.containerReference}</span>
-              </p>
-            </div>
-          )}
-
-          {/* Temperature setting - only show if it's about heat/oven/hob */}
-          {step.temperature && /heat|oven|hob|temperature|°C|fahrenheit|degree/i.test(step.temperature) && (
-            <div className="rounded-lg bg-orange-50/50 dark:bg-orange-950/10 border border-orange-200/50 dark:border-orange-800/30 p-3">
-              <div className="flex items-center gap-2">
-                <Thermometer className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                <p className="text-sm">
-                  <span className="font-medium">Heat to: </span>
-                  <span className="font-mono">{step.temperature}</span>
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* Sensory cues grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             {step.sensoryCues.visual && (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5">
-                  <Eye className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-semibold text-muted-foreground">LOOK FOR</p>
+                  <Eye className="h-4 w-4 text-warning" />
+                  <p className="text-xs font-semibold text-warning">LOOK FOR</p>
                 </div>
                 <p className="text-sm">{step.sensoryCues.visual}</p>
               </div>
@@ -259,8 +363,8 @@ export const CookingStepView: React.FC<CookingStepViewProps> = ({ step, totalSte
             {step.sensoryCues.audio && (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5">
-                  <Volume2 className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-semibold text-muted-foreground">LISTEN FOR</p>
+                  <Ear className="h-4 w-4 text-warning" />
+                  <p className="text-xs font-semibold text-warning">LISTEN FOR</p>
                 </div>
                 <p className="text-sm">{step.sensoryCues.audio}</p>
               </div>
@@ -268,8 +372,8 @@ export const CookingStepView: React.FC<CookingStepViewProps> = ({ step, totalSte
             {step.sensoryCues.aroma && (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5">
-                  <Smile className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-semibold text-muted-foreground">SMELL</p>
+                  <Wind className="h-4 w-4 text-warning" />
+                  <p className="text-xs font-semibold text-warning">SMELL</p>
                 </div>
                 <p className="text-sm">{step.sensoryCues.aroma}</p>
               </div>
@@ -277,8 +381,8 @@ export const CookingStepView: React.FC<CookingStepViewProps> = ({ step, totalSte
             {step.sensoryCues.texture && (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5">
-                  <Hand className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-semibold text-muted-foreground">TEXTURE/FEEL</p>
+                  <Hand className="h-4 w-4 text-warning" />
+                  <p className="text-xs font-semibold text-warning">TEXTURE/FEEL</p>
                 </div>
                 <p className="text-sm">{step.sensoryCues.texture}</p>
               </div>

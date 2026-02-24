@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Stack, Section } from '@/shared/components/primitives';
 import { Card, Button } from './UI';
 import { Badge } from './ui/badge';
@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChefHat, BookOpen, ArrowRight } from 'lucide-react';
 import { User, Recipe, Plan, DayPlan } from '@/types/contract';
 import { cn } from '@/lib/utils';
+import { recipesBackend } from '@/modules/recipes/backend';
 
 interface DashboardProps {
   user: User;
@@ -30,6 +31,45 @@ interface DashboardProps {
  * - Mobile-first responsive design (sm:, md:, lg: prefixes)
  * - Token-based spacing (space-y-6, gap-4, p-6, etc.)
  */
+
+/**
+ * RecipeImage - Helper component to resolve and display recipe images
+ */
+const RecipeImage: React.FC<{ imagePath: string; title: string }> = ({ imagePath, title }) => {
+  const [imageSrc, setImageSrc] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    recipesBackend.resolveImagePath(imagePath)
+      .then(setImageSrc)
+      .catch(() => setImageSrc(''))
+      .finally(() => setIsLoading(false));
+  }, [imagePath]);
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-32 bg-muted flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!imageSrc) {
+    return null;
+  }
+
+  return (
+    <div className="w-full h-32 bg-muted overflow-hidden border-b border-border">
+      <img
+        src={imageSrc}
+        alt={title}
+        className="w-full h-full object-cover"
+      />
+    </div>
+  );
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({
   user,
   todaysMeal,
@@ -191,16 +231,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <Card className="overflow-hidden h-full hover:bg-muted/50">
                   {/* Image */}
                   {recipe.imagePath && (
-                    <div className="w-full h-32 bg-muted overflow-hidden border-b border-border">
-                      <img
-                        src={recipe.imagePath}
-                        alt={recipe.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    </div>
+                    <RecipeImage imagePath={recipe.imagePath} title={recipe.title} />
                   )}
 
                   {/* Content */}
