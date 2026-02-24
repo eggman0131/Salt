@@ -67,6 +67,7 @@ Generate a cook guide with:
    - EXACT ingredient names and QUANTITIES (e.g., "250g onion, 150g carrot, 100g celery")
    - Specific prep instructions (e.g., "dice to 5mm cubes")
 2. **Cooking Steps** - For EACH step, PRESERVE the original recipe detail:
+   - Include instructionIndex: which instruction from the original recipe this step corresponds to (0-indexed)
    - Use THE EXACT instruction from the recipe - do NOT simplify or shorten
    - Add equipment references, heat settings, timing, and techniques from original
    - Only ADD sensory cues to help them know when a step is done
@@ -86,7 +87,9 @@ Return ONLY valid JSON (no markdown, no explanation):
   ],
   "steps": [
     {
+      "id": "step-1",
       "stepNumber": 1,
+      "instructionIndex": 0,
       "instruction": "Place the Le Creuset Oval Casserole on the Rangemaster over a medium-high heat. Add the olive oil and, once shimmering, add the beef mince. Allow it to sear undisturbed for 3 minutes to develop a dark crust before breaking it up with a wooden spoon.",
       "containerReference": "Le Creuset Oval Casserole",
       "temperature": "Medium-high (7 out of 10)",
@@ -104,6 +107,7 @@ Return ONLY valid JSON (no markdown, no explanation):
 
 IMPORTANT:
 - Prep group ingredients MUST list quantities (e.g., "250g onion")
+- Cooking steps MUST have an id field: "step-1", "step-2", etc. (for persistent tracking)
 - Cooking step instructions MUST preserve original recipe detail - do NOT shorten
 - Only use sensory cues when they actually help, leave empty strings for irrelevant senses
 - Use ONLY metric units (g, kg, ml, l, °C)

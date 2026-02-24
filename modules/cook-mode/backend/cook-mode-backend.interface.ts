@@ -31,9 +31,10 @@ export interface ICookModeBackend {
 
   /**
    * Update a cooking step within a guide.
+   * Uses persistent step ID instead of position-based stepNumber.
    * Preserves other steps and guide metadata.
    */
-  updateCookingStep: (guideId: string, stepNumber: number, updatedStep: Partial<CookGuide['steps'][0]>) => Promise<CookGuide>;
+  updateCookingStep: (guideId: string, stepId: string, updatedStep: Partial<CookGuide['steps'][0]>) => Promise<CookGuide>;
 
   /**
    * Update all prep groups in a guide.

@@ -82,9 +82,9 @@ export const CookModeModule: React.FC<CookModeModuleProps> = ({ recipe, onClose 
   const currentStep = guide.steps[currentStepIdx];
   const allStepsComplete = currentStepIdx >= guide.steps.length;
 
-  const handleStepUpdate = async (guideId: string, stepNumber: number, updatedStep: any) => {
+  const handleStepUpdate = async (guideId: string, stepId: string, updatedStep: any) => {
     try {
-      const updatedGuide = await cookModeBackend.updateCookingStep(guideId, stepNumber, updatedStep);
+      const updatedGuide = await cookModeBackend.updateCookingStep(guideId, stepId, updatedStep);
       setGuide(updatedGuide);
       softToast.success('Step updated', {
         description: 'Your changes have been saved',
@@ -181,7 +181,7 @@ export const CookModeModule: React.FC<CookModeModuleProps> = ({ recipe, onClose 
                 <CookingStepView 
                   step={currentStep} 
                   totalSteps={guide.steps.length}
-                  recipeInstruction={recipe.instructions[currentStepIdx]?.text}
+                  recipeInstruction={recipe.instructions[currentStep?.instructionIndex ?? currentStepIdx]?.text}
                   guideId={guide.id}
                   onStepUpdate={handleStepUpdate}
                 />

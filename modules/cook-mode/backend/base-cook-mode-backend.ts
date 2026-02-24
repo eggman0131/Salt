@@ -85,7 +85,7 @@ export abstract class BaseCookModeBackend implements ICookModeBackend {
   abstract getOrGenerateCookGuide(recipe: Recipe): Promise<CookGuide>;
   abstract generateCookGuide(recipe: Recipe): Promise<CookGuide>;
   abstract getCookGuide(guideId: string): Promise<CookGuide | null>;
-  abstract updateCookingStep(guideId: string, stepNumber: number, updatedStep: Partial<CookGuide['steps'][0]>): Promise<CookGuide>;
+  abstract updateCookingStep(guideId: string, stepId: string, updatedStep: Partial<CookGuide['steps'][0]>): Promise<CookGuide>;
   abstract updatePrepGroups(guideId: string, prepGroups: CookGuide['prepGroups']): Promise<CookGuide>;
   abstract deleteCookGuide(guideId: string): Promise<void>;
   abstract getCookGuidesForRecipe(recipeId: string): Promise<CookGuide[]>;

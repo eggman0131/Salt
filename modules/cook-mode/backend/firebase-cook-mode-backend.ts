@@ -83,6 +83,9 @@ export class FirebaseCookModeBackend extends BaseCookModeBackend {
       if (guide.recipeVersion === recipeVersion) {
         return guide;
       }
+
+      // Delete outdated guides for this recipe before generating new one
+      await Promise.all(snapshot.docs.map(doc => deleteDoc(doc.ref)));
     }
 
     // Generate new guide
@@ -99,6 +102,12 @@ export class FirebaseCookModeBackend extends BaseCookModeBackend {
       generatedBy: 'system', // TODO: Use actual user ID from auth
     };
 
+    // Ensure all steps have persistent IDs
+    guide.steps = guide.steps.map((step, idx) => ({
+      ...step,
+      id: step.id || `step-${Date.now()}-${idx}`,
+    }));
+
     // Save to Firestore
     await setDoc(doc(db, this.collectionName, guide.id), guide);
 
@@ -107,19 +116,31 @@ export class FirebaseCookModeBackend extends BaseCookModeBackend {
 
   async getCookGuide(guideId: string): Promise<CookGuide | null> {
     const snapshot = await getDoc(doc(db, this.collectionName, guideId));
-    return snapshot.exists() ? (snapshot.data() as CookGuide) : null;
+    if (!snapshot.exists()) return null;
+    
+    const guide = snapshot.data() as CookGuide;
+    
+    // Populate missing IDs for backward compatibility
+    if (guide.steps.some(s => !s.id)) {
+      guide.steps = guide.steps.map((step, idx) => ({
+        ...step,
+        id: step.id || `step-${Date.now()}-${idx}`,
+      }));
+    }
+    
+    return guide;
   }
 
-  async updateCookingStep(guideId: string, stepNumber: number, updatedStep: Partial<CookGuide['steps'][0]>): Promise<CookGuide> {
+  async updateCookingStep(guideId: string, stepId: string, updatedStep: Partial<CookGuide['steps'][0]>): Promise<CookGuide> {
     const guide = await this.getCookGuide(guideId);
     if (!guide) {
       throw new Error(`Cook guide ${guideId} not found`);
     }
 
-    // Find and update the step
-    const stepIndex = guide.steps.findIndex(s => s.stepNumber === stepNumber);
+    // Find and update the step by persistent ID
+    const stepIndex = guide.steps.findIndex(s => s.id === stepId);
     if (stepIndex === -1) {
-      throw new Error(`Step ${stepNumber} not found in guide`);
+      throw new Error(`Step ${stepId} not found in guide`);
     }
 
     // Merge the updated step with existing data
