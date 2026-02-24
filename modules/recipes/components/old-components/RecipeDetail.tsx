@@ -262,7 +262,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe: initialRecip
   const handleRegenerateImage = async () => {
     setIsRegeneratingImage(true);
     try {
-      const imageData = await recipesBackend.generateRecipeImage(recipe.title, recipe.description);
+      const ingredientNames = recipe.ingredients.map(ing => ing.ingredientName);
+      const imageData = await recipesBackend.generateRecipeImage(recipe.title, recipe.description, ingredientNames);
       const updated = await recipesBackend.updateRecipe(recipe.id, {}, imageData);
       setRecipe(updated);
       

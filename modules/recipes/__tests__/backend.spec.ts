@@ -88,7 +88,7 @@ class InMemoryRecipesBackend implements IRecipesBackend {
     return '';
   }
 
-  async generateRecipeImage(): Promise<string> {
+  async generateRecipeImage(title: string, description?: string, ingredients?: string[]): Promise<string> {
     return '';
   }
 

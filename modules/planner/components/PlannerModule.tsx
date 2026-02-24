@@ -27,6 +27,9 @@ import { Calendar, ChevronRight, History, Loader2, Plus, Trash2 } from 'lucide-r
 import { User, Plan, DayPlan } from '../../../types/contract';
 import { plannerBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
+import { useAvatarUrl } from '../../../shared/hooks/useAvatarUrl';
+
+type UserWithAvatarUrl = User & { avatarUrl?: string };
 
 interface PlannerModuleProps {
   users: User[];
@@ -400,7 +403,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
 
 const WeekHeader: React.FC<{
   days: DayPlan[];
-  users: User[];
+  users: UserWithAvatarUrl[];
   activeIndex: number;
   onSelect: (index: number) => void;
 }> = ({ days, users, activeIndex, onSelect }) => {
@@ -465,7 +468,7 @@ const WeekHeader: React.FC<{
 
 const DayDetail: React.FC<{
   day: DayPlan;
-  users: User[];
+  users: UserWithAvatarUrl[];
   onChange: (updates: Partial<DayPlan>) => void;
 }> = ({ day, users, onChange }) => {
   const date = new Date(`${day.date}T00:00:00Z`);
@@ -563,7 +566,7 @@ const DayDetail: React.FC<{
 };
 
 const PeopleForDay: React.FC<{
-  users: User[];
+  users: UserWithAvatarUrl[];
   presentIds: string[];
   userNotes: Record<string, string>;
   onTogglePresence: (userId: string) => void;

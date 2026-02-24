@@ -5,6 +5,7 @@ import { kitchenDataBackend } from '../modules/kitchen-data';
 import { useTheme } from '../shared/providers/ThemeProvider';
 import { User } from '../types/contract';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAvatarUrl } from '../shared/hooks/useAvatarUrl';
 import { 
   Home, 
   Calendar, 
@@ -66,12 +67,13 @@ const adminItem: NavItem = { label: 'Admin', id: 'admin', icon: Settings };
 const AppSidebarContent: React.FC<{
   activeTab: string;
   onTabChange: (id: string) => void;
-  user: { displayName: string };
+  user: User;
   onLogout: () => void;
   suggestionsCount: number;
 }> = ({ activeTab, onTabChange, user, onLogout, suggestionsCount }) => {
   const mode = getActiveBackendMode();
   const { theme, toggleTheme } = useTheme();
+  const avatarUrl = useAvatarUrl(user.avatarPath);
   const { setOpenMobile, isMobile } = useSidebar();
 
   const handleMenuClick = (id: string) => {
@@ -132,7 +134,7 @@ const AppSidebarContent: React.FC<{
         <div className="px-2 py-2 space-y-2">
           <div className="flex items-center gap-3 px-2 py-2 rounded-md bg-sidebar-accent/50">
             <Avatar className="h-8 w-8 shrink-0">
-              {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={user.displayName} />}
               <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                 {user.displayName ? user.displayName[0].toUpperCase() : '?'}
               </AvatarFallback>

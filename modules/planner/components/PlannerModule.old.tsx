@@ -28,8 +28,10 @@ import { User, Plan, DayPlan } from '../../../types/contract';
 import { plannerBackend } from '../backend';
 import { toast } from 'sonner';
 
+type UserWithAvatarUrl = User & { avatarUrl?: string };
+
 interface PlannerModuleProps {
-  users: User[];
+  users: UserWithAvatarUrl[];
   onRefresh: () => void;
 }
 
@@ -485,7 +487,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   );
 };
 
-  const DayCard: React.FC<{ day: DayPlan; users: User[]; isTemplate: boolean; onChange: (updates: Partial<DayPlan>) => void }> = ({ day, users, isTemplate, onChange }) => {
+  const DayCard: React.FC<{ day: DayPlan; users: UserWithAvatarUrl[]; isTemplate: boolean; onChange: (updates: Partial<DayPlan>) => void }> = ({ day, users, isTemplate, onChange }) => {
   const isToday = !isTemplate && day.date === new Date().toISOString().split('T')[0];
   
   let dayName = '';

@@ -45,18 +45,20 @@ import { CSS } from '@dnd-kit/utilities';
 import { User, KitchenSettings } from '../../../types/contract';
 import { systemBackend } from '../../../shared/backend/system-backend';
 
+type UserWithAvatarUrl = User & { avatarUrl?: string };
+
 interface UsersModuleProps {
-  users: User[];
+  users: UserWithAvatarUrl[];
   kitchenSettings: KitchenSettings;
   onRefresh: () => void;
   onSettingsChange: (settings: KitchenSettings) => void;
 }
 
 interface SortableUserItemProps {
-  user: User;
-  onEdit: (user: User) => void;
-  onDelete: (user: User) => void;
-  onEditAvatar?: (user: User) => void;
+  user: UserWithAvatarUrl;
+  onEdit: (user: UserWithAvatarUrl) => void;
+  onDelete: (user: UserWithAvatarUrl) => void;
+  onEditAvatar?: (user: UserWithAvatarUrl) => void;
 }
 
 const SortableUserItem: React.FC<SortableUserItemProps> = ({ user, onEdit, onDelete, onEditAvatar }) => {
@@ -145,12 +147,12 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserWithAvatarUrl | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [userToEdit, setUserToEdit] = useState<UserWithAvatarUrl | null>(null);
   const [editName, setEditName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [userToEditAvatar, setUserToEditAvatar] = useState<User | null>(null);
+  const [userToEditAvatar, setUserToEditAvatar] = useState<UserWithAvatarUrl | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const sensors = useSensors(
@@ -245,12 +247,12 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
     }
   };
 
-  const handleEditClick = (user: User) => {
+  const handleEditClick = (user: UserWithAvatarUrl) => {
     setUserToEdit(user);
     setEditName(user.displayName);
   };
 
-  const handleEditAvatarClick = (user: User) => {
+  const handleEditAvatarClick = (user: UserWithAvatarUrl) => {
     setUserToEditAvatar(user);
   };
 
@@ -259,8 +261,8 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
     
     setIsUploadingAvatar(true);
     try {
-      const avatarUrl = await systemBackend.uploadUserAvatar(userToEditAvatar.id, imageData);
-      await systemBackend.updateUser(userToEditAvatar.id, { avatarUrl });
+      const avatarPath = await systemBackend.uploadUserAvatar(userToEditAvatar.id, imageData);
+      await systemBackend.updateUser(userToEditAvatar.id, { avatarPath });
       onRefresh();
       setUserToEditAvatar(null);
     } catch (err) {

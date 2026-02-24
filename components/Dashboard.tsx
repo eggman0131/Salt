@@ -7,6 +7,7 @@ import { ChefHat, BookOpen, ArrowRight } from 'lucide-react';
 import { User, Recipe, Plan, DayPlan } from '@/types/contract';
 import { cn } from '@/lib/utils';
 import { recipesBackend } from '@/modules/recipes/backend';
+import { useAvatarUrl } from '@/shared/hooks/useAvatarUrl';
 
 interface DashboardProps {
   user: User;
@@ -31,6 +32,23 @@ interface DashboardProps {
  * - Mobile-first responsive design (sm:, md:, lg: prefixes)
  * - Token-based spacing (space-y-6, gap-4, p-6, etc.)
  */
+
+/**
+ * CookAvatar - Helper component to resolve and display cook avatar with path-based resolution
+ */
+const CookAvatar: React.FC<{ cookId: string | null; allUsers: User[] }> = ({ cookId, allUsers }) => {
+  const cook = allUsers.find(u => u.id === cookId);
+  const avatarUrl = useAvatarUrl(cook?.avatarPath);
+
+  return (
+    <Avatar className="h-10 w-10">
+      {avatarUrl && <AvatarImage src={avatarUrl} alt={cook?.displayName} />}
+      <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
+        {cook?.displayName?.[0] || '?'}
+      </AvatarFallback>
+    </Avatar>
+  );
+};
 
 /**
  * RecipeImage - Helper component to resolve and display recipe images
@@ -117,14 +135,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div>
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Head Chef</p>
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      {allUsers.find(u => u.id === todaysMeal.cookId)?.avatarUrl && (
-                        <AvatarImage src={allUsers.find(u => u.id === todaysMeal.cookId)?.avatarUrl} alt={allUsers.find(u => u.id === todaysMeal.cookId)?.displayName} />
-                      )}
-                      <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
-                        {allUsers.find(u => u.id === todaysMeal.cookId)?.displayName?.[0] || '?'}
-                      </AvatarFallback>
-                    </Avatar>
+                    <CookAvatar cookId={todaysMeal.cookId} allUsers={allUsers} />
                     <span className="font-medium text-sm">
                       {allUsers.find(u => u.id === todaysMeal.cookId)?.displayName || 'Unassigned'}
                     </span>

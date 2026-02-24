@@ -437,11 +437,18 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const handleRefreshImage = async () => {
     try {
       setIsRefreshingImage(true);
-      const imagePath = await recipesBackend.generateRecipeImage(recipe.title, recipe.description);
-      const updatedRecipe = await recipesBackend.updateRecipe(recipe.id, { imagePath });
+      const ingredientNames = recipe.ingredients.map(ing => ing.ingredientName);
+      const imageData = await recipesBackend.generateRecipeImage(recipe.title, recipe.description, ingredientNames);
+      if (!imageData) {
+        softToast.error('Failed to generate image');
+        return;
+      }
+      const updatedRecipe = await recipesBackend.updateRecipe(recipe.id, {}, imageData);
       softToast.success('AI image generated');
       // Refresh the image
-      const newImageSrc = await recipesBackend.resolveImagePath(imagePath);
+      const newImageSrc = updatedRecipe.imagePath
+        ? await recipesBackend.resolveImagePath(updatedRecipe.imagePath)
+        : '';
       setImageSrc(newImageSrc);
     } catch (error) {
       console.error('Failed to generate image:', error);

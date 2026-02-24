@@ -125,10 +125,10 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     return response.text || '';
   }
 
-  async generateRecipeImage(title: string, description?: string): Promise<string> {
+  async generateRecipeImage(title: string, description?: string, ingredients?: string[]): Promise<string> {
     const response = await this.callGenerateContent({
       model: 'gemini-2.5-flash-image',
-      contents: [{ role: 'user', parts: [{ text: RECIPE_PROMPTS.imagePrompt(title, description) }] }],
+      contents: [{ role: 'user', parts: [{ text: RECIPE_PROMPTS.imagePrompt(title, description, ingredients) }] }],
       config: { imageConfig: { aspectRatio: "4:3" } }
     });
     // Fix: Access inline data correctly based on Gemini Node SDK response shape

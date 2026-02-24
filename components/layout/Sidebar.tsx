@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAvatarUrl } from '../../shared/hooks/useAvatarUrl';
 import { User } from '../../types/contract';
 import {
   Home,
@@ -19,6 +20,8 @@ import {
   Sun,
   LogOut,
 } from 'lucide-react';
+
+type UserWithAvatarUrl = User & { avatarUrl?: string };
 
 interface NavItem {
   label: string;
@@ -55,6 +58,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const mode = getActiveBackendMode();
   const { theme, toggleTheme } = useTheme();
+  const avatarUrl = useAvatarUrl(user.avatarPath);
 
   return (
     <div className="flex h-full flex-col">
@@ -111,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* User section */}
         <div className="flex items-center gap-3 rounded-md bg-sidebar-accent/50 px-2 py-2">
           <Avatar className="h-8 w-8 shrink-0">
-            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={user.displayName} />}
             <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
               {user.displayName ? user.displayName[0].toUpperCase() : '?'}
             </AvatarFallback>

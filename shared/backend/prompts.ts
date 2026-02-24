@@ -142,7 +142,12 @@ CRITICAL: Lead with the equipment the user actually has. If they have a Rangemas
 Ask about portions, ingredients, and which parts of their equipment they want to use. 
 Sound like a professional chef, not a chatbot.`,
 
-  imagePrompt: (title: string, description?: string) => `A professional, close-up macro food photograph of ${title}${description ? `. ${description}` : ''}. The dish is the absolute star of the show, beautifully plated and appetising. Focus on rich textures, steam, and vibrant natural colours. Shallow depth of field with a soft, blurred minimalist kitchen background. Natural light, 4:3 aspect ratio.`,
+  imagePrompt: (title: string, description?: string, ingredients?: string[]) => {
+    const ingredientContext = ingredients && ingredients.length > 0 
+      ? ` Key ingredients: ${ingredients.slice(0, 6).join(', ')}.` 
+      : '';
+    return `A professional, close-up macro food photograph of ${title}${description ? `. ${description}` : ''}.${ingredientContext} The dish is the absolute star of the show, beautifully plated and appetising. Focus on rich textures, steam, and vibrant natural colours. Shallow depth of field with a soft, blurred minimalist kitchen background. Natural light, 4:3 aspect ratio.`;
+  },
 
   categorization: (recipeTitle: string, ingredients: string[], instructions: string[], existingCategories: string[]) => `Categorise this recipe by matching it to existing categories when appropriate. Create new categories ONLY if no suitable match exists and confidence is high.
 

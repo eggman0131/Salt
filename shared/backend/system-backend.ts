@@ -253,6 +253,7 @@ export const systemBackend = {
           id: firebaseUser.email,
           email: firebaseUser.email,
           displayName: userData.displayName || firebaseUser.displayName || firebaseUser.email,
+          avatarPath: userData.avatarPath,
         };
         return currentUser;
       }
@@ -273,7 +274,7 @@ export const systemBackend = {
         id: docSnap.id,
         email: docSnap.id,
         displayName: data.displayName || docSnap.id,
-        avatarUrl: data.avatarUrl,
+        avatarPath: data.avatarPath,
       });
     });
 
@@ -284,7 +285,7 @@ export const systemBackend = {
     const userDoc = {
       email: userData.email,
       displayName: userData.displayName,
-      avatarUrl: userData.avatarUrl,
+      avatarPath: userData.avatarPath,
     };
 
     await setDoc(doc(db, 'users', userData.email), userDoc);
@@ -293,7 +294,7 @@ export const systemBackend = {
       id: userData.email,
       email: userData.email,
       displayName: userData.displayName,
-      avatarUrl: userData.avatarUrl,
+      avatarPath: userData.avatarPath,
     };
   },
 
@@ -348,10 +349,8 @@ export const systemBackend = {
           debugLogger.error('Firebase Storage', 'Manual avatar upload failed:', response.statusText);
           throw new Error(`Upload failed: ${response.statusText}`);
         }
-        
-        // Get download URL
-        const storageRef = ref(storage, path);
-        return await getDownloadURL(storageRef);
+
+        return path;
       } catch (e) {
         debugLogger.error('Firebase Storage', "Manual avatar upload failed, falling back to SDK", e);
         // Fallthrough to SDK
@@ -363,6 +362,11 @@ export const systemBackend = {
     const blob = await res.blob();
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+    return path;
+  },
+
+  async resolveAvatarPath(path: string): Promise<string> {
+    const storageRef = ref(storage, path);
     return await getDownloadURL(storageRef);
   },
 
