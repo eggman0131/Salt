@@ -1,23 +1,32 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <!-- Salt crystals - geometric composition -->
-  
-  <!-- Large crystal (primary blue) -->
-  <polygon points="256,80 320,180 320,280 256,380 192,280 192,180" fill="#3b82f6" opacity="0.9"/>
-  
-  <!-- Secondary crystal (cyan accent) -->
-  <polygon points="160,220 200,280 180,340 120,320 100,260" fill="#06b6d4" opacity="0.8"/>
-  
-  <!-- Tertiary crystal (purple accent) -->
-  <polygon points="352,220 392,280 372,340 312,320 332,260" fill="#a78bfa" opacity="0.75"/>
-  
-  <!-- Small granules for texture -->
-  <circle cx="140" cy="380" r="12" fill="#3b82f6" opacity="0.6"/>
-  <circle cx="200" cy="420" r="10" fill="#06b6d4" opacity="0.5"/>
-  <circle cx="372" cy="380" r="12" fill="#a78bfa" opacity="0.5"/>
-  <circle cx="312" cy="400" r="8" fill="#3b82f6" opacity="0.4"/>
-  <circle cx="256" cy="432" r="10" fill="#06b6d4" opacity="0.45"/>
-  
-  <!-- Top highlights (subtle) -->
-  <circle cx="260" cy="100" r="8" fill="white" opacity="0.6"/>
-  <circle cx="288" cy="140" r="6" fill="white" opacity="0.4"/>
+<svg width="512" height="512" viewBox="80 -16 352 352" xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <filter id="softShadow" x="-20%" y="-20%" width="150%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <style>
+      .facet-light { fill: oklch(0.78 0.19 259.76); }
+      .facet-mid   { fill: oklch(0.62 0.19 259.76); }
+      .facet-dark  { fill: oklch(0.48 0.19 259.76); }
+      .facet-glow  { fill: white; fill-opacity: 0.55; }
+    </style>
+  </defs>
+
+  <g filter="url(#softShadow)">
+    <path d="M256 0L352 64L256 128L160 64L256 0Z" class="facet-light"/>
+    <path d="M352 64L416 160L352 256L256 192L352 64Z" class="facet-mid"/>
+    <path d="M160 64L96 160L160 256L256 192L160 64Z" class="facet-mid"/>
+    <path d="M256 192L352 256L256 320L160 256L256 192Z" class="facet-dark"/>
+    <path d="M256 0L320 96L256 192L192 96L256 0Z" class="facet-glow"/>
+  </g>
+
 </svg>
