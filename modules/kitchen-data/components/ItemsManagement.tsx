@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Trash2, Pencil, X } from 'lucide-react';
+import { Trash2, Pencil, X, Search } from 'lucide-react';
 import { CanonicalItem, Unit, Aisle } from '../../../types/contract';
 import { kitchenDataBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
@@ -51,6 +51,10 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
   const [isSaving, setIsSaving] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [filterText, setFilterText] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -206,6 +210,48 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     return unitNameOrId;
   };
 
+  const handleToggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    setSelectedIds(new Set(filteredItems.map(i => i.id)));
+  };
+
+  const handleSelectNone = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      await Promise.all(idsToDelete.map(id => kitchenDataBackend.deleteCanonicalItem(id)));
+      await loadData();
+      setSelectedIds(new Set());
+      setShowBulkDeleteDialog(false);
+      softToast.success(`Deleted ${idsToDelete.length} item${idsToDelete.length === 1 ? '' : 's'}`);
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to bulk delete items', err);
+      softToast.error('Failed to delete items');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const filteredItems = items.filter(item =>
+    filterText === '' || 
+    item.name.toLowerCase().includes(filterText.toLowerCase()) ||
+    (item.synonyms && item.synonyms.some(syn => syn.toLowerCase().includes(filterText.toLowerCase())))
+  );
+
   return (
     <>
       <CardHeader>
@@ -214,6 +260,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
             <CardTitle className="text-xl md:text-2xl">Canonical Items</CardTitle>
             <p className="text-sm text-muted-foreground">
               {items.length} canonical {items.length === 1 ? 'item' : 'items'}
+              {filterText && ` (${filteredItems.length} filtered)`}
             </p>
           </div>
           <AddButton onClick={handleAddClick} className="shrink-0" label="Add" />
@@ -221,22 +268,86 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       </CardHeader>
 
       <CardContent className="flex flex-col space-y-3 h-full px-0 md:px-6">
+        {/* Filter */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Filter items by name or synonym..."
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {/* Selection Actions */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between gap-2 p-2 border rounded-lg bg-muted/50">
+            <span className="text-sm text-muted-foreground">
+              {selectedIds.size} selected
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectNone}
+              >
+                Clear
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Delete ({selectedIds.size})
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Select All/None */}
+        {filteredItems.length > 0 && (
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSelectAll}
+              className="text-xs"
+            >
+              Select All
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSelectNone}
+              className="text-xs"
+            >
+              Select None
+            </Button>
+          </div>
+        )}
+
         {/* Items List */}
         <div className="flex-1 min-h-0">
-          {items.length === 0 ? (
+          {filteredItems.length === 0 ? (
             <div className="py-12 text-center border border-dashed rounded-lg">
               <p className="text-sm text-muted-foreground">
-                No canonical items yet. Add items above.
+                {items.length === 0 ? 'No canonical items yet. Add items above.' : 'No items match your filter.'}
               </p>
             </div>
           ) : (
             <ScrollArea className="h-full">
               <div className="space-y-2">
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-start gap-3 p-3 border rounded-lg bg-background shadow-sm hover:shadow-md transition-shadow"
                 >
+                  <Checkbox 
+                    checked={selectedIds.has(item.id)}
+                    onCheckedChange={() => handleToggleSelect(item.id)}
+                    className="shrink-0 mt-1"
+                  />
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm">{item.name}</p>
@@ -560,6 +671,29 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 {isDeleting ? 'Deleting...' : 'Delete Item'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Bulk Delete Confirmation Dialog */}
+        <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {selectedIds.size} Item{selectedIds.size === 1 ? '' : 's'}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {selectedIds.size} item{selectedIds.size === 1 ? '' : 's'}? 
+                This action cannot be undone and may affect recipes using these items.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isBulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Item${selectedIds.size === 1 ? '' : 's'}`}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
