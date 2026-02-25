@@ -85,9 +85,14 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
   };
 
   const handleAddSynonym = () => {
-    const trimmed = synonymInput.trim().toLowerCase();
-    if (trimmed && !synonyms.includes(trimmed)) {
-      setSynonyms([...synonyms, trimmed]);
+    // Split by comma, trim, lowercase, and filter duplicates/empty strings
+    const newSynonyms = synonymInput
+      .split(',')
+      .map(s => s.trim().toLowerCase())
+      .filter(s => s && !synonyms.includes(s));
+    
+    if (newSynonyms.length > 0) {
+      setSynonyms([...synonyms, ...newSynonyms]);
       setSynonymInput('');
     }
   };
@@ -397,19 +402,22 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
               </div>
             </ScrollArea>
 
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 variant="outline"
                 onClick={() => setShowAddDialog(false)}
                 disabled={isAdding}
+                className="flex-1"
               >
                 Cancel
               </Button>
-              <AddButton
+              <Button
                 onClick={handleAdd}
                 disabled={!name.trim() || isAdding}
-                label={isAdding ? 'Adding...' : 'Add Category'}
-              />
+                className="flex-1"
+              >
+                {isAdding ? 'Saving...' : 'Save'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -483,19 +491,21 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
               </div>
             </ScrollArea>
 
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 variant="outline"
                 onClick={() => setCategoryToEdit(null)}
                 disabled={isSaving}
+                className="flex-1"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleEditSave}
                 disabled={!name.trim() || isSaving}
+                className="flex-1"
               >
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {isSaving ? 'Saving...' : 'Save'}
               </Button>
             </DialogFooter>
           </DialogContent>
