@@ -3,7 +3,7 @@
 // -----------------------------
 
 // ⚠️ IMPORTANT: bump this on every deploy
-const BUILD_VERSION = "2024-02-25-01";
+const BUILD_VERSION = "2026-02-25-06";
 
 const CACHE_STATIC = `salt-static-${BUILD_VERSION}`;
 const CACHE_RUNTIME = `salt-runtime-${BUILD_VERSION}`;
