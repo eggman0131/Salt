@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle, Wrench } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle, Wrench, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import {
   Popover,
@@ -141,17 +141,38 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
           {recipe.ingredients.map((ingredient, idx) => (
             <li key={ingredient.id} className="flex items-start gap-2">
               <span className="text-muted-foreground mt-1">•</span>
-              <span>
-                {ingredient.quantity && ingredient.unit && (
-                  <span className="font-medium">
-                    {ingredient.quantity} {ingredient.unit}{' '}
-                  </span>
-                )}
-                {ingredient.ingredientName}
-                {ingredient.preparation && (
-                  <span className="text-muted-foreground">
-                    {' '}({ingredient.preparation})
-                  </span>
+              <span className="flex items-start gap-2">
+                <span>
+                  {ingredient.quantity && ingredient.unit && (
+                    <span className="font-medium">
+                      {ingredient.quantity} {ingredient.unit}{' '}
+                    </span>
+                  )}
+                  {ingredient.ingredientName}
+                  {ingredient.preparation && (
+                    <span className="text-muted-foreground">
+                      {' '}({ingredient.preparation})
+                    </span>
+                  )}
+                </span>
+                {ingredient.canonicalItemId ? (
+                  <div className="shrink-0 text-green-600 dark:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
+                    <Check className="h-4 w-4 mt-0.5" />
+                  </div>
+                ) : (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="shrink-0 text-amber-600 hover:text-amber-700 dark:text-amber-500 dark:hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
+                        <AlertTriangle className="h-4 w-4 mt-0.5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 text-sm">
+                      <div className="space-y-2">
+                        <p className="font-semibold text-amber-600 dark:text-amber-500">Not linked to kitchen database</p>
+                        <p className="text-muted-foreground">This ingredient isn't linked to a canonical item. Consider running the Recipe Repair function to relink ingredients.</p>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 )}
               </span>
             </li>
