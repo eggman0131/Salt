@@ -253,6 +253,7 @@ export const systemBackend = {
           id: firebaseUser.email,
           email: firebaseUser.email,
           displayName: userData.displayName || firebaseUser.displayName || firebaseUser.email,
+          avatarUrl: userData.avatarUrl,
         };
         return currentUser;
       }
