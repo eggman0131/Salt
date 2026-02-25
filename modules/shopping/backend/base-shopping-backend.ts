@@ -152,7 +152,7 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
         const aiResolution = resolved[i];
         
         if (aiResolution) {
-          const unitName = aiResolution.preferredUnit || '_item';
+          const unitName = aiResolution.preferredUnit || '';
           const aisleName = aiResolution.aisle || 'Other';
           const normalizedItemName = aiResolution.name.toLowerCase();
           
@@ -217,7 +217,7 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
   
   /**
    * Parse raw ingredient string → structured format
-   * Example: "2 large red onions, diced" → { quantity: 2, unit: '_item', ingredientName: 'red onion', preparation: 'diced' }
+   * Example: "2 large red onions, diced" → { quantity: 2, unit: '', ingredientName: 'red onion', preparation: 'diced' }
    */
   private parseIngredientString(raw: string): Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'> {
     let text = raw.toLowerCase().trim();
@@ -232,7 +232,7 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
     
     if (quantityMatch) {
       quantity = parseFloat(quantityMatch[1]);
-      unit = quantityMatch[2] || '_item'; // Default to countable if no unit specified
+      unit = quantityMatch[2] || ''; // Default to empty if no unit specified
       text = quantityMatch[3];
     }
     
@@ -327,7 +327,7 @@ ${ingredientNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
 For each ingredient, return:
 {
   "name": "Canonical item name (title case)",
-  "preferredUnit": "g|kg|ml|l|_item",
+  "preferredUnit": "g|kg|ml|l| (empty string for countable items)",
   "aisle": "Produce|Meat & Fish|Dairy|Bakery|Pantry|Frozen|Other",
   "isStaple": true/false,
   "synonyms": ["alternate name 1", "alternate name 2"]
@@ -336,7 +336,7 @@ For each ingredient, return:
 RULES:
 - Use British English (courgette not zucchini, aubergine not eggplant)
 - Use metric units only
-- Use _item for countable things (eggs, onions, cans)
+- Leave preferredUnit empty for countable things (eggs, onions, cans)
 - Keep culinary identity descriptors (red onion, beef mince, whole milk)
 - Remove size adjectives (small, medium, large)
 
