@@ -26,7 +26,7 @@ import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_CORE } from '../../../shared/backend/prompts';
-import { cookModeBackend } from '../../cook-mode/backend';
+import { assistModeBackend } from '../../assist-mode/backend';
 
 export class FirebaseRecipesBackend extends BaseRecipesBackend {
   private currentIdToken: string | null = null;
@@ -499,7 +499,7 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
       createdBy: auth.currentUser?.email || 'unknown'
     };
     
-    await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(newRecipe));
+    await setDoc(doc(db, 'recipes', id), this.cleanUndefinedValues(this.encodeRecipeForFirestore(newRecipe)));
     
     // Post-processing: Auto-categorise and process ingredients
     const categoryIds = await this.categorizeRecipe(newRecipe as Recipe);
@@ -513,6 +513,22 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     if (Array.isArray(newRecipe.ingredients) && newRecipe.ingredients.length > 0) {
       const processedIngredients = await this.processRecipeIngredients(newRecipe.ingredients as any, id);
       postProcessUpdates.ingredients = processedIngredients;
+      
+      // Update ingredients in instructions to reference processed versions
+      if (Array.isArray(newRecipe.instructions)) {
+        const ingredientMap = new Map(processedIngredients.map(ing => [ing.id, ing]));
+        postProcessUpdates.instructions = newRecipe.instructions.map((instr: any) => {
+          if (instr.ingredients && Array.isArray(instr.ingredients)) {
+            return {
+              ...instr,
+              ingredients: instr.ingredients
+                .map((ing: any) => ingredientMap.get(ing.id) || ing)
+                .filter((ing: any) => ing !== undefined)
+            };
+          }
+          return instr;
+        });
+      }
     }
     
     // Apply all post-processing updates in one write
@@ -542,7 +558,7 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     const normalizedUpdates = this.normalizeRecipeData({ ...existing, ...updates });
     
     const updated = { ...existing, ...normalizedUpdates, imagePath };
-    await setDoc(doc(db, 'recipes', id), this.encodeRecipeForFirestore(updated));
+    await setDoc(doc(db, 'recipes', id), this.cleanUndefinedValues(this.encodeRecipeForFirestore(updated)));
     
     // Post-processing: Auto-categorise and process ingredients
     const postProcessUpdates: any = {};
@@ -559,6 +575,22 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     if (updates.hasOwnProperty('ingredients') && Array.isArray(updated.ingredients) && updated.ingredients.length > 0) {
       const processedIngredients = await this.processRecipeIngredients(updated.ingredients as any, id);
       postProcessUpdates.ingredients = processedIngredients;
+      
+      // Update ingredients in instructions to reference processed versions
+      if (Array.isArray(updated.instructions)) {
+        const ingredientMap = new Map(processedIngredients.map(ing => [ing.id, ing]));
+        postProcessUpdates.instructions = updated.instructions.map((instr: any) => {
+          if (instr.ingredients && Array.isArray(instr.ingredients)) {
+            return {
+              ...instr,
+              ingredients: instr.ingredients
+                .map((ing: any) => ingredientMap.get(ing.id) || ing)
+                .filter((ing: any) => ing !== undefined)
+            };
+          }
+          return instr;
+        });
+      }
     }
     
     // Apply all post-processing updates in one write
@@ -573,9 +605,9 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
   
   async deleteRecipe(id: string): Promise<void> {
     // Delete associated cook guides first (cascade delete)
-    const cookGuides = await cookModeBackend.getCookGuidesForRecipe(id);
+    const cookGuides = await assistModeBackend.getCookGuidesForRecipe(id);
     for (const guide of cookGuides) {
-      await cookModeBackend.deleteCookGuide(guide.id);
+      await assistModeBackend.deleteCookGuide(guide.id);
     }
 
     // Then delete the recipe

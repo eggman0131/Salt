@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Stack } from '@/shared/components/primitives';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { List, MapPin, Ruler, Tags } from 'lucide-react';
@@ -40,7 +41,7 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
+    <Stack spacing="gap-6" className="animate-in fade-in duration-500 h-full flex-col">
       <Tabs defaultValue="categories" className="w-full flex flex-col flex-1 min-h-0">
         <TabsList className="w-full flex md:w-auto md:inline-flex h-11 bg-muted/50 p-1 border shadow-sm transition-all">
           <TabsTrigger 
@@ -94,6 +95,6 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({
           <AislesManagement onRefresh={handleRefresh} />
         </TabsContent>
       </Tabs>
-    </div>
+    </Stack>
   );
 };

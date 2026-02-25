@@ -1,8 +1,9 @@
 import React from 'react';
 import { Recipe } from '../../../../types/contract';
 import { Button } from '../../../../components/ui/button';
+import { Progress } from '../../../../components/ui/progress';
 import { Separator } from '../../../../components/ui/separator';
-import { ChevronLeft, ChevronRight, Lock, LockOpen } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Lock, LockOpen } from 'lucide-react';
 import { MiseEnPlaceContent, CookingStepContent } from './shared';
 import { CookTabScreenProps } from './types';
 
@@ -41,15 +42,6 @@ export const CookTabTablet: React.FC<CookTabScreenProps> = ({
 
     return (
       <div className="space-y-6">
-        {/* Step Header */}
-        <div className="space-y-2">
-          <div className="inline-block px-3 py-1 bg-primary/10 rounded-full">
-            <span className="text-xs font-bold uppercase tracking-wider text-primary">
-              Step {stepIndex + 1} of {recipe.instructions.length}
-            </span>
-          </div>
-        </div>
-
         {/* Ingredients */}
         {ingredients && (
           <div className="space-y-3">{ingredients}</div>
@@ -89,13 +81,10 @@ export const CookTabTablet: React.FC<CookTabScreenProps> = ({
       onTouchEnd={handleTouchEnd}
     >
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/50 dark:bg-gray-950/50 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 px-6 py-4">
-        <div className="flex items-center justify-between max-w-6xl mx-auto">
+      <div className="sticky top-0 z-10 bg-white/50 dark:bg-gray-950/50 backdrop-blur-sm px-6 py-4">
+        <div className="flex items-center justify-between max-w-6xl mx-auto mb-3">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{recipe.title}</h1>
-            <span className="text-sm font-bold text-muted-foreground">
-              {currentStep === 'miseEnPlace' ? '0' : `${(currentStep as number) + 1}`} / {recipe.instructions.length}
-            </span>
           </div>
           <button
             onClick={() => setKeepAwakeEnabled(!keepAwakeEnabled)}
@@ -118,6 +107,12 @@ export const CookTabTablet: React.FC<CookTabScreenProps> = ({
             )}
           </button>
         </div>
+        {/* Progress bar */}
+        <div className="max-w-6xl mx-auto mt-3">
+          {currentStep !== 'miseEnPlace' && (
+            <Progress value={((currentStep as number) / recipe.instructions.length) * 100} className="h-1 bg-gray-200 dark:bg-gray-800" />
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -137,18 +132,16 @@ export const CookTabTablet: React.FC<CookTabScreenProps> = ({
             disabled={isFirstStep}
             className="flex-1"
           >
-            <ChevronLeft className="w-5 h-5 mr-2" />
+            <ArrowLeft className="w-5 h-5 mr-2" />
             Back
           </Button>
           <Button
-            variant="default"
             size="lg"
             onClick={handleNext}
-            disabled={isLastStep}
             className="flex-1"
           >
-            Next
-            <ChevronRight className="w-5 h-5 ml-2" />
+            {currentStep === 'miseEnPlace' ? "Let's Start Cooking" : isLastStep ? 'Finish' : 'Next'}
+            <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
         </div>
       </div>

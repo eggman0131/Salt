@@ -6,12 +6,14 @@ import { Toaster } from '@/components/ui/sonner';
 import { softToast } from '@/lib/soft-toast';
 import { RecipesList } from './RecipesList';
 import { RecipeDetailView } from './RecipeDetailView';
+import { assistModeBackend } from '../../assist-mode';
 
 export const RecipesModule: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [assistGuideRecipeIds, setAssistGuideRecipeIds] = useState<Set<string>>(new Set());
 
   // Load recipes and categories
   useEffect(() => {
@@ -21,12 +23,14 @@ export const RecipesModule: React.FC = () => {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [recipesData, categoriesData] = await Promise.all([
+      const [recipesData, categoriesData, guidesData] = await Promise.all([
         recipesBackend.getRecipes(),
         kitchenDataBackend.getCategories(),
+        assistModeBackend.getAllCookGuides(),
       ]);
       setRecipes(recipesData);
       setCategories(categoriesData.filter(c => c.isApproved));
+      setAssistGuideRecipeIds(new Set(guidesData.map(guide => guide.recipeId)));
     } catch (error) {
       console.error('Failed to load recipes:', error);
       softToast.error('Failed to load recipes');
@@ -103,6 +107,7 @@ export const RecipesModule: React.FC = () => {
       <RecipesList
         recipes={recipes}
         categories={categories}
+        assistGuideRecipeIds={assistGuideRecipeIds}
         isLoading={isLoading}
         onSelectRecipe={setSelectedRecipe}
         onCreateRecipe={handleCreateRecipe}
