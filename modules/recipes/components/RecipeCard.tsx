@@ -47,11 +47,14 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, categories, onCl
     onUploadImage?.();
   };
 
-  const handleRegenerateClick = (e: React.MouseEvent) => {
+  const handleRegenerateClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsRegenerating(true);
-    onRegenerateImage?.();
-    setTimeout(() => setIsRegenerating(false), 1000);
+    try {
+      await onRegenerateImage?.();
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   return (

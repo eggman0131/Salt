@@ -10,12 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Download } from 'lucide-react';
+import { Upload, Download, Trash2 } from 'lucide-react';
 import { User, KitchenSettings, CollectionName } from '../../../types/contract';
 import { getActiveBackendMode } from '../../../shared/backend/system-backend';
 import { plannerBackend } from '../../planner';
 import { debugLogger } from '../../../shared/backend/debug-logger';
 import { softToast } from '@/lib/soft-toast';
+import { cleanupOrphanedRecipeImages, CleanupStats } from '../../admin/backend';
 
 interface AdminModuleProps {
   users: User[];
@@ -41,6 +42,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [selectedCollections, setSelectedCollections] = useState<Set<CollectionName>>(new Set());
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
+  const [cleanupStats, setCleanupStats] = useState<CleanupStats | null>(null);
+  const [isCleanupLoading, setIsCleanupLoading] = useState(false);
   const debounceTimerRef = useRef<number | null>(null);
 
   const kitchenSettings: KitchenSettings = {
@@ -110,6 +113,60 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       setShowCollectionSelector(true);
     } else {
       document.getElementById('admin-import')?.click();
+    }
+  };
+
+  const handleScanOrphanedFiles = async () => {
+    setIsCleanupLoading(true);
+    try {
+      const stats = await cleanupOrphanedRecipeImages(true);
+      setCleanupStats(stats);
+      
+      if (stats.errors.length > 0) {
+        softToast.error('Scan complete with errors', {
+          description: `${stats.orphanedFiles.length} orphaned files found`,
+        });
+      } else if (stats.orphanedFiles.length > 0) {
+        softToast.success('Scan complete', {
+          description: `Found ${stats.orphanedFiles.length} orphaned recipe images`,
+        });
+      } else {
+        softToast.info('No orphaned files', {
+          description: `All ${stats.totalFiles} recipe images are in use`,
+        });
+      }
+    } catch (error) {
+      softToast.error('Scan failed', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    } finally {
+      setIsCleanupLoading(false);
+    }
+  };
+
+  const handleDeleteOrphanedFiles = async () => {
+    if (!cleanupStats || cleanupStats.orphanedFiles.length === 0) return;
+    
+    setIsCleanupLoading(true);
+    try {
+      const stats = await cleanupOrphanedRecipeImages(false);
+      setCleanupStats(stats);
+      
+      if (stats.errors.length > 0) {
+        softToast.error('Deletion complete with errors', {
+          description: `Deleted ${stats.deletedCount} files, ${stats.errors.length} errors occurred`,
+        });
+      } else {
+        softToast.success('Cleanup complete', {
+          description: `Successfully deleted ${stats.deletedCount} orphaned image files`,
+        });
+      }
+    } catch (error) {
+      softToast.error('Deletion failed', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    } finally {
+      setIsCleanupLoading(false);
     }
   };
 
@@ -213,6 +270,84 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   <Download className="h-4 w-4 mr-2" />
                   Backup
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Storage Cleanup Card */}
+          <Card className="shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="p-4 md:p-6">
+              <div className="space-y-1">
+                <CardTitle className="text-xl md:text-2xl">Storage Cleanup</CardTitle>
+                <p className="text-sm text-muted-foreground">Remove unused recipe images from storage</p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 p-4 md:p-6">
+              <p className="text-sm text-muted-foreground">
+                Orphaned recipe images are removed when recipes are deleted or replaced. Scan and delete them to free up storage space.
+              </p>
+              
+              {cleanupStats && (
+                <div className="rounded-lg border p-4 bg-muted/50 space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total files:</span>
+                      <span className="font-semibold">{cleanupStats.totalFiles}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">In use:</span>
+                      <span className="font-semibold text-green-600 dark:text-green-400">{cleanupStats.referencedFiles.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Orphaned:</span>
+                      <span className={`font-semibold ${cleanupStats.orphanedFiles.length > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'}`}>
+                        {cleanupStats.orphanedFiles.length}
+                      </span>
+                    </div>
+                    {cleanupStats.deletedCount > 0 && (
+                      <div className="flex justify-between text-sm border-t pt-2">
+                        <span className="text-muted-foreground">Deleted:</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">{cleanupStats.deletedCount}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {cleanupStats.errors.length > 0 && (
+                    <div className="rounded-md bg-destructive/10 p-2">
+                      <p className="text-xs font-semibold text-destructive mb-1">Errors:</p>
+                      <ul className="text-xs text-destructive/80 space-y-1">
+                        {cleanupStats.errors.slice(0, 3).map((error, i) => (
+                          <li key={i}>• {error}</li>
+                        ))}
+                        {cleanupStats.errors.length > 3 && (
+                          <li>• ... and {cleanupStats.errors.length - 3} more error(s)</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleScanOrphanedFiles}
+                  disabled={isCleanupLoading}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {isCleanupLoading ? 'Scanning...' : 'Scan'}
+                </Button>
+                {cleanupStats && cleanupStats.orphanedFiles.length > 0 && (
+                  <Button
+                    onClick={handleDeleteOrphanedFiles}
+                    disabled={isCleanupLoading}
+                    variant="destructive"
+                    className="flex-1"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {isCleanupLoading ? 'Deleting...' : `Delete (${cleanupStats.orphanedFiles.length})`}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
