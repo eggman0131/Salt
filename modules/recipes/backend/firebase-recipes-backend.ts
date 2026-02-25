@@ -573,12 +573,20 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     
     // Process ingredients if they were updated
     if (updates.hasOwnProperty('ingredients') && Array.isArray(updated.ingredients) && updated.ingredients.length > 0) {
-      const processedIngredients = await this.processRecipeIngredients(updated.ingredients as any, id);
-      postProcessUpdates.ingredients = processedIngredients;
+      // Skip processing if ingredients are already processed (have canonicalItemId set)
+      const needsProcessing = !updated.ingredients.every((ing: any) => ing.canonicalItemId !== undefined);
+      
+      if (needsProcessing) {
+        const processedIngredients = await this.processRecipeIngredients(updated.ingredients as any, id);
+        postProcessUpdates.ingredients = processedIngredients;
+      } else {
+        // Ingredients already processed, just use as-is
+        postProcessUpdates.ingredients = updated.ingredients;
+      }
       
       // Update ingredients in instructions to reference processed versions
+      const ingredientMap = new Map((postProcessUpdates.ingredients || updated.ingredients).map((ing: any) => [ing.id, ing]));
       if (Array.isArray(updated.instructions)) {
-        const ingredientMap = new Map(processedIngredients.map(ing => [ing.id, ing]));
         postProcessUpdates.instructions = updated.instructions.map((instr: any) => {
           if (instr.ingredients && Array.isArray(instr.ingredients)) {
             return {
@@ -737,6 +745,31 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     return {
       ...newItem,
       id
+    } as CanonicalItem;
+  }
+
+  async updateCanonicalItem(id: string, updates: Partial<CanonicalItem>): Promise<CanonicalItem> {
+    const docRef = doc(db, 'canonical_items', id);
+    
+    // Remove undefined values from updates
+    const cleanUpdates: any = {};
+    Object.keys(updates).forEach(key => {
+      if (updates[key as keyof CanonicalItem] !== undefined) {
+        cleanUpdates[key] = updates[key as keyof CanonicalItem];
+      }
+    });
+    
+    await updateDoc(docRef, cleanUpdates);
+    
+    // Fetch the updated item
+    const updatedDoc = await getDoc(docRef);
+    if (!updatedDoc.exists()) {
+      throw new Error(`Canonical item ${id} not found`);
+    }
+    
+    return {
+      ...updatedDoc.data(),
+      id: updatedDoc.id
     } as CanonicalItem;
   }
 
