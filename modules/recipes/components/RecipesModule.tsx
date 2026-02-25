@@ -14,6 +14,7 @@ export const RecipesModule: React.FC = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [assistGuideRecipeIds, setAssistGuideRecipeIds] = useState<Set<string>>(new Set());
+  const [recipeIdToUploadImageFor, setRecipeIdToUploadImageFor] = useState<string | null>(null);
 
   // Load recipes and categories
   useEffect(() => {
@@ -88,13 +89,15 @@ export const RecipesModule: React.FC = () => {
   };
 
   const handleUploadRecipeImage = (recipe: Recipe) => {
-    // Navigate to detail view where image editor is available
+    // Navigate to detail view and signal to open image editor
     setSelectedRecipe(recipe);
+    setRecipeIdToUploadImageFor(recipe.id);
   };
 
   const handleRegenerateRecipeImage = async (recipe: Recipe) => {
     try {
-      await recipesBackend.generateRecipeImage(recipe.title, recipe.description);
+      const imageData = await recipesBackend.generateRecipeImage(recipe.title, recipe.description);
+      await recipesBackend.updateRecipe(recipe.id, {}, imageData);
       softToast.success('AI image generated');
       await loadData();
       
@@ -115,9 +118,14 @@ export const RecipesModule: React.FC = () => {
         <RecipeDetailView
           recipe={selectedRecipe}
           categories={categories}
-          onClose={() => setSelectedRecipe(null)}
+          onClose={() => {
+            setSelectedRecipe(null);
+            setRecipeIdToUploadImageFor(null);
+          }}
           onUpdate={handleUpdateRecipe}
           onDelete={handleDeleteRecipe}
+          autoOpenImageEditor={recipeIdToUploadImageFor === selectedRecipe.id}
+          onImageEditorOpened={() => setRecipeIdToUploadImageFor(null)}
         />
         <Toaster position="top-right" />
       </>

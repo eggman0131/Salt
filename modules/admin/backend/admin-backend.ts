@@ -41,12 +41,22 @@ export async function cleanupOrphanedRecipeImages(dryRun: boolean = true): Promi
   try {
     debugLogger.info('Admin', `Starting recipe image cleanup (dryRun: ${dryRun})`);
 
-    // Get all files in recipes folder
+    // Get all files in recipes folder (recursively through subdirectories)
     const recipesFolderRef = ref(storage, 'recipes');
-    const allFiles = await listAll(recipesFolderRef);
+    const listResult = await listAll(recipesFolderRef);
     
-    stats.totalFiles = allFiles.items.length;
-    debugLogger.info('Admin', `Found ${stats.totalFiles} files in recipes folder`);
+    // Collect all files from recipe subdirectories
+    const allFiles: any[] = [...listResult.items];
+    
+    // Recursively list files in all prefixes (subdirectories)
+    for (const prefixRef of listResult.prefixes) {
+      const subFolderResult = await listAll(prefixRef);
+      allFiles.push(...subFolderResult.items);
+      debugLogger.info('Admin', `Listed files in ${prefixRef.name}: ${subFolderResult.items.length} files`);
+    }
+    
+    stats.totalFiles = allFiles.length;
+    debugLogger.info('Admin', `Found ${stats.totalFiles} files across ${listResult.prefixes.length} recipe folders`);
 
     if (stats.totalFiles === 0) {
       debugLogger.info('Admin', 'No files to clean up');
@@ -67,7 +77,7 @@ export async function cleanupOrphanedRecipeImages(dryRun: boolean = true): Promi
     debugLogger.info('Admin', `Found ${referencedPaths.size} recipes with images`);
 
     // Identify orphaned files
-    for (const fileRef of allFiles.items) {
+    for (const fileRef of allFiles) {
       const filePath = fileRef.fullPath;
       
       if (referencedPaths.has(filePath)) {
