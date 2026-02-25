@@ -228,26 +228,9 @@ export interface EquipmentCandidate {
  * 2. Backup/restore will automatically include it
  */
 export const COLLECTION_REGISTRY = {
-  // Core domain collections
-  recipes: { 
-    schema: RecipeSchema, 
-    requiresEncoding: true, // Recipes need special encoding for Firestore
-    idField: 'id'
-  },
-  inventory: { 
-    schema: EquipmentSchema,
-    requiresEncoding: false,
-    idField: 'id'
-  },
-  plans: { 
-    schema: PlanSchema,
-    requiresEncoding: false,
-    idField: 'id'
-  },
-  
-  // Kitchen data collections
-  canonical_items: { 
-    schema: CanonicalItemSchema,
+  // Foundational collections - imported first (no dependencies)
+  categories: { 
+    schema: RecipeCategorySchema,
     requiresEncoding: false,
     idField: 'id'
   },
@@ -261,13 +244,29 @@ export const COLLECTION_REGISTRY = {
     requiresEncoding: false,
     idField: 'id'
   },
-  categories: { 
-    schema: RecipeCategorySchema,
+  canonical_items: { 
+    schema: CanonicalItemSchema,
     requiresEncoding: false,
     idField: 'id'
   },
+  inventory: { 
+    schema: EquipmentSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  users: { 
+    schema: UserSchema,
+    requiresEncoding: false,
+    idField: 'email' // Users use email as document ID, not 'id'
+  },
+  settings: {
+    schema: KitchenSettingsSchema,
+    requiresEncoding: false,
+    isSingleton: true, // Only one document: 'global'
+    documentId: 'global'
+  },
   
-  // Shopping collections
+  // Shopping collections (depends on canonical_items)
   shopping_lists: { 
     schema: ShoppingListSchema,
     requiresEncoding: false,
@@ -279,25 +278,24 @@ export const COLLECTION_REGISTRY = {
     idField: 'id'
   },
   
-  // Cook mode collections
+  // Core domain collections (recipes depend on categories)
+  recipes: { 
+    schema: RecipeSchema, 
+    requiresEncoding: true, // Recipes need special encoding for Firestore
+    idField: 'id'
+  },
+  plans: { 
+    schema: PlanSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  
+  // Cook mode collections (depends on recipes)
   cookGuides: {
     schema: z.any(), // CookGuide schema lives in assist-mode module
     requiresEncoding: false,
     idField: 'id'
   },
-  
-  // System collections
-  users: { 
-    schema: UserSchema,
-    requiresEncoding: false,
-    idField: 'email' // Users use email as document ID, not 'id'
-  },
-  settings: {
-    schema: KitchenSettingsSchema,
-    requiresEncoding: false,
-    isSingleton: true, // Only one document: 'global'
-    documentId: 'global'
-  }
 } as const;
 
 export type CollectionName = keyof typeof COLLECTION_REGISTRY;
