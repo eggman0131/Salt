@@ -301,6 +301,11 @@ export class FirebaseKitchenDataBackend extends BaseKitchenDataBackend {
   }
 
   async createCanonicalItem(item: Omit<CanonicalItem, 'id' | 'createdAt'>): Promise<CanonicalItem> {
+    // Validate item name doesn't conflict with existing synonyms
+    await this.validateItemNameUniqueness(item.name);
+    // Validate synonyms are unique
+    await this.validateUniqueSynonyms(item.synonyms);
+
     const now = new Date().toISOString();
     const newItem: any = {
       ...item,
@@ -328,6 +333,15 @@ export class FirebaseKitchenDataBackend extends BaseKitchenDataBackend {
   }
 
   async updateCanonicalItem(id: string, updates: Partial<CanonicalItem>): Promise<CanonicalItem> {
+    // Validate item name doesn't conflict with existing synonyms (if name is being updated)
+    if (updates.name !== undefined) {
+      await this.validateItemNameUniqueness(updates.name, id);
+    }
+    // Validate synonyms are unique (if synonyms are being updated)
+    if (updates.synonyms !== undefined) {
+      await this.validateUniqueSynonyms(updates.synonyms, id);
+    }
+
     const docRef = doc(db, 'canonical_items', id);
     
     // Remove undefined values
@@ -423,6 +437,11 @@ export class FirebaseKitchenDataBackend extends BaseKitchenDataBackend {
   }
 
   async createCategory(category: Omit<RecipeCategory, 'id' | 'createdAt'>): Promise<RecipeCategory> {
+    // Validate category name doesn't conflict with existing synonyms
+    await this.validateCategoryNameUniqueness(category.name);
+    // Validate synonyms are unique
+    await this.validateUniqueCategorySynonyms(category.synonyms);
+
     const now = new Date().toISOString();
     const newCat: any = {
       ...category,
@@ -446,6 +465,15 @@ export class FirebaseKitchenDataBackend extends BaseKitchenDataBackend {
   }
 
   async updateCategory(id: string, updates: Partial<RecipeCategory>): Promise<RecipeCategory> {
+    // Validate category name doesn't conflict with existing synonyms (if name is being updated)
+    if (updates.name !== undefined) {
+      await this.validateCategoryNameUniqueness(updates.name, id);
+    }
+    // Validate synonyms are unique (if synonyms are being updated)
+    if (updates.synonyms !== undefined) {
+      await this.validateUniqueCategorySynonyms(updates.synonyms, id);
+    }
+
     const docRef = doc(db, 'categories', id);
     
     // Remove undefined values

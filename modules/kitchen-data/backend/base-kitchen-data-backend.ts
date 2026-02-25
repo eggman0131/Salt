@@ -132,4 +132,126 @@ Return JSON array of category IDs: ["cat-id-1", "cat-id-2"]`
       return lastBrace !== -1 ? text.substring(firstBrace, lastBrace + 1) : text.trim();
     }
   }
+
+  /**
+   * Validate synonyms are unique across all canonical items
+   * Throws error if any synonym already exists on a different item
+   * 
+   * @param synonyms - Array of synonyms to validate
+   * @param currentItemId - ID of item being updated (undefined for new items)
+   * @throws Error if duplicate synonym found
+   */
+  protected async validateUniqueSynonyms(synonyms: string[] | undefined, currentItemId?: string): Promise<void> {
+    if (!synonyms || synonyms.length === 0) return;
+
+    const allItems = await this.getCanonicalItems();
+    const normalizedSynonyms = synonyms.map(s => s.toLowerCase().trim());
+
+    for (const syn of normalizedSynonyms) {
+      if (!syn) continue; // Skip empty strings
+
+      for (const item of allItems) {
+        // Skip the item we're currently updating
+        if (item.id === currentItemId) continue;
+
+        // Check if this synonym exists on another item
+        const itemSynonyms = (item.synonyms || []).map(s => s.toLowerCase().trim());
+        if (itemSynonyms.includes(syn)) {
+          throw new Error(`Synonym "${syn}" already exists on item "${item.name}"`);
+        }
+
+        // Also check against the item's main name
+        if (item.normalisedName === syn) {
+          throw new Error(`Synonym "${syn}" conflicts with canonical item "${item.name}"`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Validate item name doesn't conflict with existing synonyms
+   * Throws error if the item name matches a synonym on any other item
+   * 
+   * @param itemName - The item name to validate
+   * @param currentItemId - ID of item being updated (undefined for new items)
+   * @throws Error if name conflicts with an existing synonym
+   */
+  protected async validateItemNameUniqueness(itemName: string, currentItemId?: string): Promise<void> {
+    const normalizedName = itemName.toLowerCase().trim();
+    if (!normalizedName) return;
+
+    const allItems = await this.getCanonicalItems();
+
+    for (const item of allItems) {
+      // Skip the item we're currently updating
+      if (item.id === currentItemId) continue;
+
+      // Check if this name matches any synonym on another item
+      const itemSynonyms = (item.synonyms || []).map(s => s.toLowerCase().trim());
+      if (itemSynonyms.includes(normalizedName)) {
+        throw new Error(`Item name "${itemName}" conflicts with synonym on item "${item.name}"`);
+      }
+    }
+  }
+
+  /**
+   * Validate category synonyms are unique across all categories
+   * Throws error if any synonym already exists on a different category
+   * 
+   * @param synonyms - Array of synonyms to validate
+   * @param currentCategoryId - ID of category being updated (undefined for new categories)
+   * @throws Error if duplicate synonym found
+   */
+  protected async validateUniqueCategorySynonyms(synonyms: string[] | undefined, currentCategoryId?: string): Promise<void> {
+    if (!synonyms || synonyms.length === 0) return;
+
+    const allCategories = await this.getCategories();
+    const normalizedSynonyms = synonyms.map(s => s.toLowerCase().trim());
+
+    for (const syn of normalizedSynonyms) {
+      if (!syn) continue; // Skip empty strings
+
+      for (const category of allCategories) {
+        // Skip the category we're currently updating
+        if (category.id === currentCategoryId) continue;
+
+        // Check if this synonym exists on another category
+        const categorySynonyms = (category.synonyms || []).map(s => s.toLowerCase().trim());
+        if (categorySynonyms.includes(syn)) {
+          throw new Error(`Synonym "${syn}" already exists on category "${category.name}"`);
+        }
+
+        // Also check against the category's main name
+        if (category.name.toLowerCase() === syn) {
+          throw new Error(`Synonym "${syn}" conflicts with category "${category.name}"`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Validate category name doesn't conflict with existing synonyms
+   * Throws error if the category name matches a synonym on any other category
+   * 
+   * @param categoryName - The category name to validate
+   * @param currentCategoryId - ID of category being updated (undefined for new categories)
+   * @throws Error if name conflicts with an existing synonym
+   */
+  protected async validateCategoryNameUniqueness(categoryName: string, currentCategoryId?: string): Promise<void> {
+    const normalizedName = categoryName.toLowerCase().trim();
+    if (!normalizedName) return;
+
+    const allCategories = await this.getCategories();
+
+    for (const category of allCategories) {
+      // Skip the category we're currently updating
+      if (category.id === currentCategoryId) continue;
+
+      // Check if this name matches any synonym on another category
+      const categorySynonyms = (category.synonyms || []).map(s => s.toLowerCase().trim());
+      if (categorySynonyms.includes(normalizedName)) {
+        throw new Error(`Category name "${categoryName}" conflicts with synonym on category "${category.name}"`);
+      }
+    }
+  }
 }

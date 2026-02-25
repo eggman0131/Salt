@@ -425,11 +425,16 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
               
               // Only add if it's not already there (case-insensitive check)
               if (!currentSynonyms.some(syn => syn.toLowerCase() === ingredientNameLower)) {
-                const updatedSynonyms = [...currentSynonyms, unmatched[i].parsed.ingredientName];
-                await this.updateCanonicalItem(itemId, {
-                  synonyms: updatedSynonyms
-                });
-                debugLog(`  ↳ Added synonym "${unmatched[i].parsed.ingredientName}" to ${existingItem.name}`);
+                try {
+                  const updatedSynonyms = [...currentSynonyms, unmatched[i].parsed.ingredientName];
+                  await this.updateCanonicalItem(itemId, {
+                    synonyms: updatedSynonyms
+                  });
+                  debugLog(`  ↳ Added synonym "${unmatched[i].parsed.ingredientName}" to ${existingItem.name}`);
+                } catch (err) {
+                  // Duplicate synonym error - log warning but don't fail the import
+                  debugWarn(`  ⚠ Could not add synonym "${unmatched[i].parsed.ingredientName}": ${err instanceof Error ? err.message : 'unknown error'}`);
+                }
               }
             }
           } else {
