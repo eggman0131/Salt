@@ -20,7 +20,12 @@ if [ $? -eq 0 ]; then
 fi
 
 # Kill Firebase emulators (typically run on ports 4000-5000)
-echo "🔴 Killing Firebase emulators..."
+echo "🔴 Gracefully stopping Firebase emulators..."
+lsof -ti:4000,4400,4500,5000,5001,8080,9099,9150 | xargs -r kill 2>/dev/null
+sleep 2
+
+# Force kill only if graceful shutdown failed
+echo "🔴 Force killing stubborn emulators if needed..."
 lsof -ti:4000,4400,4500,5000,5001,8080,9099,9150 | xargs -r kill -9 2>/dev/null
 if [ $? -eq 0 ]; then
   echo "✅ Firebase emulators killed"
