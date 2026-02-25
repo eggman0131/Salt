@@ -22,7 +22,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Trash2, Pencil, GripVertical } from 'lucide-react';
+import { Trash2, Pencil, GripVertical, Search } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DndContext,
   closestCenter,
@@ -52,9 +53,11 @@ interface SortableUnitItemProps {
   unit: Unit;
   onEdit: (unit: Unit) => void;
   onDelete: (unit: Unit) => void;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
 }
 
-const SortableUnitItem: React.FC<SortableUnitItemProps> = ({ unit, onEdit, onDelete }) => {
+const SortableUnitItem: React.FC<SortableUnitItemProps> = ({ unit, onEdit, onDelete, isSelected, onToggleSelect }) => {
   const {
     attributes,
     listeners,
@@ -76,6 +79,11 @@ const SortableUnitItem: React.FC<SortableUnitItemProps> = ({ unit, onEdit, onDel
       style={style}
       className="flex items-center gap-3 p-3 border rounded-lg bg-background shadow-sm hover:shadow-md transition-shadow"
     >
+      <Checkbox 
+        checked={isSelected}
+        onCheckedChange={() => onToggleSelect(unit.id)}
+        className="shrink-0"
+      />
       <button
         className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
         {...attributes}
@@ -119,6 +127,10 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
   const [editName, setEditName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [filterText, setFilterText] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -239,6 +251,46 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
     }
   };
 
+  const handleToggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    setSelectedIds(new Set(filteredUnits.map(u => u.id)));
+  };
+
+  const handleSelectNone = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      await Promise.all(idsToDelete.map(id => kitchenDataBackend.deleteUnit(id)));
+      await loadUnits();
+      setSelectedIds(new Set());
+      setShowBulkDeleteDialog(false);
+      softToast.success(`Deleted ${idsToDelete.length} unit${idsToDelete.length === 1 ? '' : 's'}`);
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to bulk delete units', err);
+      softToast.error('Failed to delete units');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const filteredUnits = units.filter(unit =>
+    filterText === '' || unit.name.toLowerCase().includes(filterText.toLowerCase())
+  );
+
   return (
     <>
       <CardHeader>
@@ -247,11 +299,71 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
           <CardTitle className="text-xl md:text-2xl">Units</CardTitle>
           <p className="text-sm text-muted-foreground">
             {units.length} measurement {units.length === 1 ? 'unit' : 'units'}
+            {filterText && ` (${filteredUnits.length} filtered)`}
           </p>
         </div>
       </CardHeader>
 
       <CardContent className="flex flex-col space-y-3 h-full px-0 md:px-6">
+        {/* Filter */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Filter units..."
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {/* Selection Actions */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between gap-2 p-2 border rounded-lg bg-muted/50">
+            <span className="text-sm text-muted-foreground">
+              {selectedIds.size} selected
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectNone}
+              >
+                Clear
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Delete ({selectedIds.size})
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Select All/None */}
+        {filteredUnits.length > 0 && (
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSelectAll}
+              className="text-xs"
+            >
+              Select All
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSelectNone}
+              className="text-xs"
+            >
+              Select None
+            </Button>
+          </div>
+        )}
+
         {/* Add Unit Form */}
         <form onSubmit={handleAdd} className="space-y-4">
           <div className="flex gap-2">
@@ -277,10 +389,10 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
 
         {/* Unit List */}
         <div className="flex-1 min-h-0">
-          {units.length === 0 ? (
+          {filteredUnits.length === 0 ? (
           <div className="py-12 text-center border border-dashed rounded-lg">
             <p className="text-sm text-muted-foreground">
-              No units yet. Add measurement units above.
+              {units.length === 0 ? 'No units yet. Add measurement units above.' : 'No units match your filter.'}
             </p>
           </div>
         ) : (
@@ -290,16 +402,18 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={units.map(u => u.id)}
+              items={filteredUnits.map(u => u.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-2">
-                {units.map((unit) => (
+                {filteredUnits.map((unit) => (
                   <SortableUnitItem
                     key={unit.id}
                     unit={unit}
                     onEdit={handleEditClick}
                     onDelete={setUnitToDelete}
+                    isSelected={selectedIds.has(unit.id)}
+                    onToggleSelect={handleToggleSelect}
                   />
                 ))}
               </div>
@@ -375,6 +489,29 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 {isDeleting ? 'Deleting...' : 'Delete Unit'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Bulk Delete Confirmation Dialog */}
+        <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {selectedIds.size} Unit{selectedIds.size === 1 ? '' : 's'}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {selectedIds.size} unit{selectedIds.size === 1 ? '' : 's'}? 
+                This action cannot be undone and may affect items using these units.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isBulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Unit${selectedIds.size === 1 ? '' : 's'}`}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
