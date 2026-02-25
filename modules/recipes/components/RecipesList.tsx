@@ -17,6 +17,8 @@ interface RecipesListProps {
   isLoading: boolean;
   onSelectRecipe: (recipe: Recipe) => void;
   onCreateRecipe: (recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>) => Promise<void>;
+  onUploadRecipeImage?: (recipe: Recipe) => void;
+  onRegenerateRecipeImage?: (recipe: Recipe) => void;
 }
 
 export const RecipesList: React.FC<RecipesListProps> = ({
@@ -26,6 +28,8 @@ export const RecipesList: React.FC<RecipesListProps> = ({
   isLoading,
   onSelectRecipe,
   onCreateRecipe,
+  onUploadRecipeImage,
+  onRegenerateRecipeImage,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
@@ -193,6 +197,8 @@ export const RecipesList: React.FC<RecipesListProps> = ({
               recipe={recipe}
               categories={categories}
               onClick={() => onSelectRecipe(recipe)}
+              onUploadImage={() => onUploadRecipeImage?.(recipe)}
+              onRegenerateImage={() => onRegenerateRecipeImage?.(recipe)}
             />
           ))}
         </div>

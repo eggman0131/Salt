@@ -661,7 +661,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                     <div className="absolute top-3 right-3 flex gap-2 z-10">
                       <Button
                         size="icon"
-                        className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                        className="bg-white/50 hover:bg-white/70 text-black"
                         onClick={() => setIsImageEditorOpen(true)}
                         title="Upload new image"
                       >
@@ -669,7 +669,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                       </Button>
                       <Button
                         size="icon"
-                        className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                        className="bg-white/50 hover:bg-white/70 text-black"
                         onClick={handleRefreshImage}
                         disabled={isRefreshingImage}
                         title="Generate AI image"
@@ -687,7 +687,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                     <div className="absolute top-3 right-3 flex gap-2 z-10">
                       <Button
                         size="icon"
-                        className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                        className="bg-white/50 hover:bg-white/70 text-black"
                         onClick={() => setIsImageEditorOpen(true)}
                         title="Upload image"
                       >
@@ -695,7 +695,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                       </Button>
                       <Button
                         size="icon"
-                        className="bg-black/70 hover:bg-black/90 text-white shadow-lg backdrop-blur-sm"
+                        className="bg-white/50 hover:bg-white/70 text-black"
                         onClick={handleRefreshImage}
                         disabled={isRefreshingImage}
                         title="Generate AI image"

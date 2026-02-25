@@ -2,18 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Recipe, RecipeCategory } from '../../../types/contract';
 import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { Clock, ChefHat } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
+import { Clock, ChefHat, Upload, RefreshCw } from 'lucide-react';
 import { recipesBackend } from '../backend';
 
 interface RecipeCardProps {
   recipe: Recipe;
   categories: RecipeCategory[];
   onClick: () => void;
+  onUploadImage?: () => void;
+  onRegenerateImage?: () => void;
 }
 
-export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, categories, onClick }) => {
+export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, categories, onClick, onUploadImage, onRegenerateImage }) => {
   const [imageSrc, setImageSrc] = useState<string>('');
   const [isLoadingImage, setIsLoadingImage] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Load image if exists
   useEffect(() => {
@@ -38,6 +42,18 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, categories, onCl
     Advanced: 'destructive',
   }[recipe.complexity] as 'secondary' | 'outline' | 'destructive';
 
+  const handleUploadClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUploadImage?.();
+  };
+
+  const handleRegenerateClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsRegenerating(true);
+    onRegenerateImage?.();
+    setTimeout(() => setIsRegenerating(false), 1000);
+  };
+
   return (
     <Card 
       className="cursor-pointer hover:shadow-md transition-shadow group"
@@ -59,6 +75,32 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, categories, onCl
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <ChefHat className="w-12 h-12 text-muted-foreground/20" />
+            </div>
+          )}
+          {/* Image control buttons overlay */}
+          {(onUploadImage || onRegenerateImage) && (
+            <div className="absolute top-3 right-3 flex gap-2 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+              {onUploadImage && (
+                <Button
+                  size="icon"
+                  className="bg-white/50 hover:bg-white/70 text-black"
+                  onClick={handleUploadClick}
+                  title="Upload image"
+                >
+                  <Upload className="w-4 h-4" />
+                </Button>
+              )}
+              {onRegenerateImage && (
+                <Button
+                  size="icon"
+                  className="bg-white/50 hover:bg-white/70 text-black"
+                  onClick={handleRegenerateClick}
+                  disabled={isRegenerating}
+                  title="Generate AI image"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+                </Button>
+              )}
             </div>
           )}
         </div>
