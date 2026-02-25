@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
-import { Button, Input, Card, Label } from '../components/UI';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { systemBackend } from '../shared/backend/system-backend';
 import { User } from '../types/contract';
 
@@ -41,54 +43,55 @@ export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] flex items-center justify-center p-6">
-      <Card className="w-full max-sm p-10 border-0 shadow-2xl">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Salt Login</h2>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input 
-              id="email"
-              type="email" 
-              placeholder="chef@salt.eggyman.net" 
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (error) setError(null);
-                if (info) setInfo(null);
-              }}
-              required
-              className={error ? 'border-red-200 focus:ring-red-50' : ''}
-              autoFocus
-            />
-            {error && (
-              <p className="text-[11px] font-bold text-red-500 mt-2 text-center">
-                {error}
-              </p>
-            )}
-            {info && (
-              <p className="text-[11px] font-bold text-blue-600 mt-2 text-center">
-                {info}
-              </p>
-            )}
+    <div className="relative min-h-screen bg-background text-foreground overflow-hidden">
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-background via-muted to-background" />
+      <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+      <div className="absolute -bottom-28 left-0 h-80 w-80 rounded-full bg-accent/20 blur-3xl" />
+
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-4 py-12 sm:px-6">
+        <div className="w-full space-y-8 rounded-2xl border border-border bg-card/80 p-8 shadow-lg backdrop-blur">
+          <div className="space-y-2 text-center">
+            <h1 className="text-3xl font-black tracking-tight">SALT</h1>
+            <p className="text-sm text-muted-foreground">Kitchen Management</p>
           </div>
           
-          <div className="space-y-4">
-            <Button type="submit" fullWidth disabled={loading} className="py-4 shadow-xl shadow-blue-500/20">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-3">
+              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-widest">
+                Email Address
+              </Label>
+              <Input 
+                id="email"
+                type="email" 
+                placeholder="chef@kitchen.local" 
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError(null);
+                  if (info) setInfo(null);
+                }}
+                required
+                autoFocus
+                className="h-11"
+              />
+              {error && (
+                <p className="text-xs font-semibold text-destructive">
+                  {error}
+                </p>
+              )}
+              {info && (
+                <p className="text-xs font-semibold text-primary">
+                  {info}
+                </p>
+              )}
+            </div>
+            
+            <Button type="submit" disabled={loading} className="w-full h-11 font-semibold uppercase tracking-widest shadow-lg">
               {loading ? 'Sending Link...' : 'Send Sign-In Link'}
             </Button>
-          </div>
-        </form>
-
-        <div className="mt-10 pt-8 border-t border-gray-50 text-center">
-          <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">
-            SALT
-          </p>
+          </form>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
