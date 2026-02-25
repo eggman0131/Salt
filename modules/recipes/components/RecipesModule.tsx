@@ -87,6 +87,28 @@ export const RecipesModule: React.FC = () => {
     }
   };
 
+  const handleUploadRecipeImage = (recipe: Recipe) => {
+    // Navigate to detail view where image editor is available
+    setSelectedRecipe(recipe);
+  };
+
+  const handleRegenerateRecipeImage = async (recipe: Recipe) => {
+    try {
+      await recipesBackend.generateRecipeImage(recipe.title, recipe.description);
+      softToast.success('AI image generated');
+      await loadData();
+      
+      // Update selected recipe if viewing details
+      if (selectedRecipe?.id === recipe.id) {
+        const updated = await recipesBackend.getRecipe(recipe.id);
+        if (updated) setSelectedRecipe(updated);
+      }
+    } catch (error) {
+      console.error('Failed to generate image:', error);
+      softToast.error('Failed to generate image');
+    }
+  };
+
   if (selectedRecipe) {
     return (
       <>
@@ -111,6 +133,8 @@ export const RecipesModule: React.FC = () => {
         isLoading={isLoading}
         onSelectRecipe={setSelectedRecipe}
         onCreateRecipe={handleCreateRecipe}
+        onUploadRecipeImage={handleUploadRecipeImage}
+        onRegenerateRecipeImage={handleRegenerateRecipeImage}
       />
       <Toaster position="top-right" />
     </>
