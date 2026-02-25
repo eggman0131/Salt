@@ -340,9 +340,9 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
           )}
 
           <div className="flex items-center gap-2">
-            {saveStatus === 'saving' && <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" title="Saving" />}
+            {saveStatus === 'saving' && <div className="h-2 w-2 rounded-full bg-primary animate-pulse" title="Saving" />}
             {saveStatus === 'error' && <div className="h-2 w-2 rounded-full bg-destructive" title="Save failed" />}
-            {saveStatus === 'saved' && <div className="h-2 w-2 rounded-full bg-green-600" title="Saved" />}
+            {saveStatus === 'saved' && <div className="h-2 w-2 rounded-full bg-accent" title="Saved" />}
           </div>
         </div>
       </Stack>
@@ -594,7 +594,7 @@ const PeopleForDay: React.FC<{
                   onClick={() => onTogglePresence(user.id)}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                     isPresent
-                      ? 'bg-green-600/10 text-green-600 dark:bg-green-400/10 dark:text-green-400'
+                      ? 'bg-primary/10 text-primary'
                       : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
                 >
