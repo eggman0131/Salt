@@ -106,6 +106,21 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     setSynonyms(synonyms.filter(s => s !== syn));
   };
 
+  const handleRemoveSynonymFromCategory = async (category: RecipeCategory, synToRemove: string) => {
+    try {
+      const updatedSynonyms = (category.synonyms || []).filter(s => s !== synToRemove);
+      await kitchenDataBackend.updateCategory(category.id, {
+        synonyms: updatedSynonyms,
+      });
+      await loadCategories();
+      softToast.success('Synonym removed', { description: synToRemove });
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to remove synonym', err);
+      softToast.error('Failed to remove synonym');
+    }
+  };
+
   const handleAdd = async () => {
     if (!name.trim() || isAdding) return;
     
@@ -277,8 +292,15 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
           {category.synonyms && category.synonyms.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {category.synonyms.map((syn) => (
-                <Badge key={syn} variant="outline" className="text-xs">
-                  {syn}
+                <Badge key={syn} variant="outline" className="text-xs pl-2 pr-1 flex items-center gap-1">
+                  <span>{syn}</span>
+                  <button
+                    onClick={() => handleRemoveSynonymFromCategory(category, syn)}
+                    className="text-muted-foreground hover:text-destructive transition-colors ml-1"
+                    title={`Remove synonym "${syn}"`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </Badge>
               ))}
             </div>
