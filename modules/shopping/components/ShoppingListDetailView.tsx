@@ -337,8 +337,8 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
               <Select value={unit} onValueChange={setUnit}>
                 <SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger>
                 <SelectContent>
-                  {units.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
-                  {units.length === 0 && <SelectItem value="items">items</SelectItem>}
+                  {units.filter(u => u.name.trim()).map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                  {units.filter(u => u.name.trim()).length === 0 && <SelectItem value="items">items</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -349,7 +349,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
             <Select value={aisle} onValueChange={setAisle}>
               <SelectTrigger><SelectValue placeholder="Select aisle" /></SelectTrigger>
               <SelectContent>
-                {aisles.map(a => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
+                {aisles.filter(a => a.name.trim()).map(a => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -460,8 +460,8 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
               <Select value={unit} onValueChange={setUnit}>
                 <SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger>
                 <SelectContent>
-                  {units.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
-                  {units.length === 0 && <SelectItem value="items">items</SelectItem>}
+                  {units.filter(u => u.name.trim()).map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                  {units.filter(u => u.name.trim()).length === 0 && <SelectItem value="items">items</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -472,7 +472,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
             <Select value={aisle} onValueChange={setAisle}>
               <SelectTrigger><SelectValue placeholder="Select aisle" /></SelectTrigger>
               <SelectContent>
-                {aisles.map(a => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
+                {aisles.filter(a => a.name.trim()).map(a => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
