@@ -407,7 +407,7 @@ export class FirebaseShoppingBackend extends BaseShoppingBackend {
           canonicalItem = await kitchenDataBackend.createCanonicalItem({
             name: ingredient.ingredientName,
             normalisedName: normalizedName,
-            preferredUnit: ingredient.unit || '_item',
+            preferredUnit: ingredient.unit || '',
             aisle: '', // No aisle initially
             isStaple: false,
             synonyms: []
@@ -465,7 +465,7 @@ export class FirebaseShoppingBackend extends BaseShoppingBackend {
     // Find or create canonical item
     const existingItems = await kitchenDataBackend.getCanonicalItems();
     let canonicalItem = existingItems.find(item => item.normalisedName === normalizedName);
-    const unitToUse = unitInput || canonicalItem?.preferredUnit || '_item';
+    const unitToUse = unitInput || canonicalItem?.preferredUnit || '';
     const aisleToUse = canonicalItem ? (canonicalItem.aisle || '') : aisleInput;
 
     const units = await kitchenDataBackend.getUnits();

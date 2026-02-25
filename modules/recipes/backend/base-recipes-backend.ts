@@ -329,7 +329,7 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
         const aiResolution = resolved[i];
         
         if (aiResolution) {
-          const unitName = aiResolution.preferredUnit || '_item';
+          const unitName = aiResolution.preferredUnit || '';
           const aisleName = aiResolution.aisle || 'Other';
           const normalizedItemName = aiResolution.name.toLowerCase();
           
@@ -774,7 +774,7 @@ ${ingredientNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
 For each ingredient, return:
 {
   "name": "Canonical item name (title case)",
-  "preferredUnit": "g|kg|ml|l|_item",
+  "preferredUnit": "g|kg|ml|l| (empty string for countable items)",
   "aisle": "Produce|Meat & Fish|Dairy|Bakery|Pantry|Frozen|Other",
   "isStaple": true/false,
   "synonyms": ["alternate name 1", "alternate name 2"]
@@ -783,7 +783,7 @@ For each ingredient, return:
 RULES:
 - Use British English (courgette not zucchini, aubergine not eggplant)
 - Use metric units only
-- Use _item for countable things (eggs, onions, cans)
+- Leave preferredUnit empty for countable things (eggs, onions, cans)
 - Keep culinary identity descriptors (red onion, beef mince, whole milk)
 - Remove size adjectives (small, medium, large)
 
