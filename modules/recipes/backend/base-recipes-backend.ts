@@ -243,17 +243,7 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
       const existingId = typeof ingredient === 'object' && ingredient !== null ? ingredient.id : undefined;
       const ingredientId = existingId || crypto.randomUUID();
       
-      // If already a proper RecipeIngredient with all needed data, use it
-      if (typeof ingredient === 'object' && ingredient !== null && 
-          ingredient.ingredientName && ingredient.raw) {
-        // Skip if already has canonical item or is fully parsed
-        if (ingredient.canonicalItemId !== undefined) {
-          results.push(ingredient as RecipeIngredient);
-          continue;
-        }
-        // Otherwise proceed to match
-      }
-      
+      // Extract raw ingredient string
       const raw = typeof ingredient === 'string' 
         ? ingredient as string 
         : (ingredient as any).raw || '';
@@ -389,6 +379,56 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     }
 
     return results;
+  }
+
+  async repairRecipe(
+    recipeId: string,
+    options: { categorize?: boolean; relinkIngredients?: boolean }
+  ): Promise<Recipe> {
+    // Fetch the recipe
+    const recipe = await this.getRecipe(recipeId);
+    if (!recipe) {
+      throw new Error(`Recipe not found: ${recipeId}`);
+    }
+
+    const updates: Partial<Recipe> = {};
+
+    // Re-categorize if requested
+    if (options.categorize) {
+      const categoryIds = await this.categorizeRecipe(recipe);
+      if (categoryIds.length > 0) {
+        updates.categoryIds = categoryIds;
+      }
+    }
+
+    // Relink ingredients if requested
+    if (options.relinkIngredients && Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0) {
+      const processedIngredients = await this.processRecipeIngredients(recipe.ingredients, recipeId);
+      updates.ingredients = processedIngredients;
+
+      // Update ingredients in instructions to reference processed versions
+      if (Array.isArray(recipe.instructions)) {
+        const ingredientMap = new Map(processedIngredients.map(ing => [ing.id, ing]));
+        updates.instructions = recipe.instructions.map((instr: RecipeInstruction) => {
+          if (instr.ingredients && Array.isArray(instr.ingredients)) {
+            return {
+              ...instr,
+              ingredients: instr.ingredients
+                .map((ing: any) => ingredientMap.get(ing.id) || ing)
+                .filter((ing: any) => ing !== undefined)
+            };
+          }
+          return instr;
+        });
+      }
+    }
+
+    // Apply updates if any
+    if (Object.keys(updates).length > 0) {
+      return await this.updateRecipe(recipeId, updates);
+    }
+
+    return recipe;
   }
 
   // ==================== HELPER METHODS ====================

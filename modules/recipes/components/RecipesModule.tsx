@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { softToast } from '@/lib/soft-toast';
 import { RecipesList } from './RecipesList';
 import { RecipeDetailView } from './RecipeDetailView';
+import { RepairRecipeModal } from './RepairRecipeModal';
 import { assistModeBackend } from '../../assist-mode';
 
 export const RecipesModule: React.FC = () => {
@@ -15,6 +16,8 @@ export const RecipesModule: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [assistGuideRecipeIds, setAssistGuideRecipeIds] = useState<Set<string>>(new Set());
   const [recipeIdToUploadImageFor, setRecipeIdToUploadImageFor] = useState<string | null>(null);
+  const [recipeToRepair, setRecipeToRepair] = useState<Recipe | null>(null);
+  const [isRepairing, setIsRepairing] = useState(false);
 
   // Load recipes and categories
   useEffect(() => {
@@ -112,6 +115,39 @@ export const RecipesModule: React.FC = () => {
     }
   };
 
+  const handleOpenRepairModal = (recipe: Recipe) => {
+    setRecipeToRepair(recipe);
+  };
+
+  const handleRepairRecipe = async (options: { categorize: boolean; relinkIngredients: boolean }) => {
+    if (!recipeToRepair) return;
+
+    setIsRepairing(true);
+    try {
+      await recipesBackend.repairRecipe(recipeToRepair.id, options);
+      
+      const actions: string[] = [];
+      if (options.categorize) actions.push('re-categorized');
+      if (options.relinkIngredients) actions.push('relinked ingredients');
+      
+      softToast.success(`Recipe ${actions.join(' and ')}`);
+      await loadData();
+      
+      // Update selected recipe if viewing details
+      if (selectedRecipe?.id === recipeToRepair.id) {
+        const updated = await recipesBackend.getRecipe(recipeToRepair.id);
+        if (updated) setSelectedRecipe(updated);
+      }
+      
+      setRecipeToRepair(null);
+    } catch (error) {
+      console.error('Failed to repair recipe:', error);
+      softToast.error('Failed to repair recipe');
+    } finally {
+      setIsRepairing(false);
+    }
+  };
+
   if (selectedRecipe) {
     return (
       <>
@@ -143,6 +179,13 @@ export const RecipesModule: React.FC = () => {
         onCreateRecipe={handleCreateRecipe}
         onUploadRecipeImage={handleUploadRecipeImage}
         onRegenerateRecipeImage={handleRegenerateRecipeImage}
+        onRepairRecipe={handleOpenRepairModal}
+      />
+      <RepairRecipeModal
+        open={!!recipeToRepair}
+        onOpenChange={(open) => !open && setRecipeToRepair(null)}
+        onRepair={handleRepairRecipe}
+        isRepairing={isRepairing}
       />
       <Toaster position="top-right" />
     </>
