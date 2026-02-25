@@ -1,12 +1,12 @@
 /**
- * Firebase Cook Mode Backend
+ * Firebase Assist Mode Backend
  * 
  * Persistence layer for cook guides using Firestore.
  */
 
 import { Recipe } from '../../../types/contract';
 import { CookGuide } from '../types';
-import { BaseCookModeBackend } from './base-cook-mode-backend';
+import { BaseAssistModeBackend } from './base-assist-mode-backend';
 import {
   collection,
   query,
@@ -22,8 +22,10 @@ import { GenerateContentParameters, GenerateContentResponse } from '@google/gena
 import { auth, db, functions } from '../../../shared/backend/firebase';
 import { debugLogger } from '../../../shared/backend/debug-logger';
 
-export class FirebaseCookModeBackend extends BaseCookModeBackend {
+export class FirebaseAssistModeBackend extends BaseAssistModeBackend {
   private currentIdToken: string | null = null;
+  // Mutex to prevent concurrent guide generation for the same recipe
+  private generatingGuides = new Map<string, Promise<CookGuide>>();
 
   protected async callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse> {
     const user = auth.currentUser;
@@ -71,22 +73,42 @@ export class FirebaseCookModeBackend extends BaseCookModeBackend {
   private collectionName = 'cookGuides';
 
   async getOrGenerateCookGuide(recipe: Recipe): Promise<CookGuide> {
-    // Check if guide exists
-    const q = query(collection(db, this.collectionName), where('recipeId', '==', recipe.id));
-    const snapshot = await getDocs(q);
-
-    if (!snapshot.empty) {
-      const guide = snapshot.docs[0].data() as CookGuide;
-      const recipeVersion = this.hashRecipe(recipe);
-
-      // Return if version matches
-      if (guide.recipeVersion === recipeVersion) {
-        return guide;
-      }
+    // If already generating this recipe's guide, wait for it
+    if (this.generatingGuides.has(recipe.id)) {
+      return this.generatingGuides.get(recipe.id)!;
     }
 
-    // Generate new guide
-    return this.generateCookGuide(recipe);
+    // Set mutex immediately to prevent race condition
+    const workPromise = (async () => {
+      // Check if guide exists
+      const q = query(collection(db, this.collectionName), where('recipeId', '==', recipe.id));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const guide = snapshot.docs[0].data() as CookGuide;
+        const recipeVersion = this.hashRecipe(recipe);
+
+        // Return if version matches
+        if (guide.recipeVersion === recipeVersion) {
+          return guide;
+        }
+
+        // Delete outdated guides for this recipe before generating new one
+        await Promise.all(snapshot.docs.map(doc => deleteDoc(doc.ref)));
+      }
+
+      // Generate new guide
+      return await this.generateCookGuide(recipe);
+    })();
+
+    this.generatingGuides.set(recipe.id, workPromise);
+
+    try {
+      return await workPromise;
+    } finally {
+      // Remove from generating set when complete
+      this.generatingGuides.delete(recipe.id);
+    }
   }
 
   async generateCookGuide(recipe: Recipe): Promise<CookGuide> {
@@ -99,6 +121,12 @@ export class FirebaseCookModeBackend extends BaseCookModeBackend {
       generatedBy: 'system', // TODO: Use actual user ID from auth
     };
 
+    // Ensure all steps have persistent IDs
+    guide.steps = guide.steps.map((step, idx) => ({
+      ...step,
+      id: step.id || `step-${Date.now()}-${idx}`,
+    }));
+
     // Save to Firestore
     await setDoc(doc(db, this.collectionName, guide.id), guide);
 
@@ -107,19 +135,31 @@ export class FirebaseCookModeBackend extends BaseCookModeBackend {
 
   async getCookGuide(guideId: string): Promise<CookGuide | null> {
     const snapshot = await getDoc(doc(db, this.collectionName, guideId));
-    return snapshot.exists() ? (snapshot.data() as CookGuide) : null;
+    if (!snapshot.exists()) return null;
+    
+    const guide = snapshot.data() as CookGuide;
+    
+    // Populate missing IDs for backward compatibility
+    if (guide.steps.some(s => !s.id)) {
+      guide.steps = guide.steps.map((step, idx) => ({
+        ...step,
+        id: step.id || `step-${Date.now()}-${idx}`,
+      }));
+    }
+    
+    return guide;
   }
 
-  async updateCookingStep(guideId: string, stepNumber: number, updatedStep: Partial<CookGuide['steps'][0]>): Promise<CookGuide> {
+  async updateCookingStep(guideId: string, stepId: string, updatedStep: Partial<CookGuide['steps'][0]>): Promise<CookGuide> {
     const guide = await this.getCookGuide(guideId);
     if (!guide) {
       throw new Error(`Cook guide ${guideId} not found`);
     }
 
-    // Find and update the step
-    const stepIndex = guide.steps.findIndex(s => s.stepNumber === stepNumber);
+    // Find and update the step by persistent ID
+    const stepIndex = guide.steps.findIndex(s => s.id === stepId);
     if (stepIndex === -1) {
-      throw new Error(`Step ${stepNumber} not found in guide`);
+      throw new Error(`Step ${stepId} not found in guide`);
     }
 
     // Merge the updated step with existing data

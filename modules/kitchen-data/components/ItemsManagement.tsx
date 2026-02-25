@@ -182,14 +182,28 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     }
   };
 
-  const getAisleName = (aisleId?: string) => {
-    if (!aisleId) return 'None';
-    return aisles.find(a => a.id === aisleId)?.name || 'Unknown';
+  const getAisleName = (aisleNameOrId?: string) => {
+    if (!aisleNameOrId) return 'None';
+    // Try to find by ID first (for backwards compatibility)
+    const byId = aisles.find(a => a.id === aisleNameOrId);
+    if (byId) return byId.name;
+    // Then try by name (current schema)
+    const byName = aisles.find(a => a.name.toLowerCase() === aisleNameOrId.toLowerCase());
+    if (byName) return byName.name;
+    // If not found, return the value itself (it's likely already a name)
+    return aisleNameOrId;
   };
 
-  const getUnitName = (unitId?: string) => {
-    if (!unitId) return 'None';
-    return units.find(u => u.id === unitId)?.name || 'Unknown';
+  const getUnitName = (unitNameOrId?: string) => {
+    if (!unitNameOrId) return 'None';
+    // Try to find by ID first (for backwards compatibility)
+    const byId = units.find(u => u.id === unitNameOrId);
+    if (byId) return byId.name;
+    // Then try by name (current schema)
+    const byName = units.find(u => u.name.toLowerCase() === unitNameOrId.toLowerCase());
+    if (byName) return byName.name;
+    // If not found, return the value itself (it's likely already a name)
+    return unitNameOrId;
   };
 
   return (

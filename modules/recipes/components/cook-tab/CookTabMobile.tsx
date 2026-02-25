@@ -1,7 +1,8 @@
 import React from 'react';
 import { Recipe } from '../../../../types/contract';
 import { Button } from '../../../../components/ui/button';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Progress } from '../../../../components/ui/progress';
+import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { MiseEnPlaceContent, CookingStepContent } from './shared';
 import { CookTabScreenProps } from './types';
 
@@ -41,20 +42,6 @@ export const CookTabMobile: React.FC<CookTabScreenProps> = ({
 
     return (
       <div className="space-y-6">
-        {/* Step Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-block px-3 py-1 bg-primary/10 rounded-full">
-            <span className="text-xs font-bold uppercase tracking-wider text-primary">
-              Step {stepIndex + 1} of {recipe.instructions.length}
-            </span>
-          </div>
-        </div>
-
-        {/* Ingredients */}
-        {ingredients && (
-          <div className="space-y-3">{ingredients}</div>
-        )}
-
         {/* Instruction */}
         <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white text-center">{instruction}</h2>
 
@@ -81,8 +68,8 @@ export const CookTabMobile: React.FC<CookTabScreenProps> = ({
       onTouchEnd={handleTouchEnd}
     >
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 px-4 py-4">
-        <div className="flex items-center justify-between gap-3">
+      <div className="sticky top-0 z-10 bg-white dark:bg-gray-950 px-4 py-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <h1 className="text-lg font-bold text-gray-900 dark:text-white truncate flex-1">{recipe.title}</h1>
           {onClose && (
             <button
@@ -94,6 +81,10 @@ export const CookTabMobile: React.FC<CookTabScreenProps> = ({
             </button>
           )}
         </div>
+        {/* Progress bar */}
+        {currentStep !== 'miseEnPlace' && (
+          <Progress value={((currentStep as number) / recipe.instructions.length) * 100} className="h-1 bg-gray-200 dark:bg-gray-800" />
+        )}
       </div>
 
       {/* Content */}
@@ -103,24 +94,22 @@ export const CookTabMobile: React.FC<CookTabScreenProps> = ({
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-800 px-4 py-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 max-w-2xl mx-auto">
           <Button
             variant="outline"
             onClick={handlePrev}
             disabled={isFirstStep}
             className="flex-1"
           >
-            <ChevronLeft className="w-4 h-4 mr-1" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
           <Button
-            variant="default"
             onClick={handleNext}
-            disabled={isLastStep}
             className="flex-1"
           >
-            Next
-            <ChevronRight className="w-4 h-4 ml-1" />
+            {currentStep === 'miseEnPlace' ? "Let's Start Cooking" : isLastStep ? 'Finish' : 'Next'}
+            <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         </div>
       </div>

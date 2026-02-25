@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AddButton } from '@/components/ui/add-button';
 import { Badge } from '@/components/ui/badge';
+import { Stack } from '../../../shared/components/primitives';
 import {
   Dialog,
   DialogContent,
@@ -84,7 +85,7 @@ export const ShoppingListsView: React.FC<ShoppingListsViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <Stack spacing="gap-6" className="animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -244,6 +245,6 @@ export const ShoppingListsView: React.FC<ShoppingListsViewProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Stack>
   );
 };

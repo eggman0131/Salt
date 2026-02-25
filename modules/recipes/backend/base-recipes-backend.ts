@@ -230,11 +230,6 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
   }
 
   async processRecipeIngredients(ingredients: string[] | RecipeIngredient[], recipeId: string): Promise<RecipeIngredient[]> {
-    // If already structured, return as-is
-    if (ingredients.length > 0 && typeof ingredients[0] === 'object') {
-      return ingredients as RecipeIngredient[];
-    }
-
     // Get all canonical items for fuzzy matching
     const allItems = await this.getCanonicalItems();
     const results: RecipeIngredient[] = [];
@@ -242,8 +237,36 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
 
     // Step 1: Parse and fuzzy match each ingredient
     for (let idx = 0; idx < ingredients.length; idx++) {
-      const raw = typeof ingredients[idx] === 'string' ? ingredients[idx] as string : '';
-      const parsed = this.parseIngredientString(raw);
+      const ingredient = ingredients[idx];
+      
+      // Extract or preserve ID
+      const existingId = typeof ingredient === 'object' && ingredient !== null ? ingredient.id : undefined;
+      const ingredientId = existingId || crypto.randomUUID();
+      
+      // If already a proper RecipeIngredient with all needed data, use it
+      if (typeof ingredient === 'object' && ingredient !== null && 
+          ingredient.ingredientName && ingredient.raw) {
+        // Skip if already has canonical item or is fully parsed
+        if (ingredient.canonicalItemId !== undefined) {
+          results.push(ingredient as RecipeIngredient);
+          continue;
+        }
+        // Otherwise proceed to match
+      }
+      
+      const raw = typeof ingredient === 'string' 
+        ? ingredient as string 
+        : (ingredient as any).raw || '';
+      
+      // Parse if needed
+      const parsed = typeof ingredient === 'object' && (ingredient as any).ingredientName
+        ? {
+            quantity: (ingredient as any).quantity,
+            unit: (ingredient as any).unit,
+            ingredientName: (ingredient as any).ingredientName,
+            preparation: (ingredient as any).preparation
+          }
+        : this.parseIngredientString(raw);
       
       // Try fuzzy match to existing canonical items
       let bestMatch: CanonicalItem | null = null;
@@ -271,7 +294,7 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
       // If good match found (85%+), use it
       if (bestScore >= 0.85 && bestMatch) {
         results.push({
-          id: `ring-${recipeId}-${idx}`,
+          id: ingredientId,
           raw,
           ...parsed,
           canonicalItemId: bestMatch.id
@@ -279,7 +302,7 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
       } else {
         // Queue for AI resolution
         results.push({
-          id: `ring-${recipeId}-${idx}`,
+          id: ingredientId,
           raw,
           ...parsed,
           canonicalItemId: undefined
@@ -515,8 +538,41 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
       'text' in normalized.instructions[0] &&
       'ingredients' in normalized.instructions[0];
     
+    // CRITICAL: Ensure ingredients have IDs before migration
+    // Ingredients can be strings or objects - we need to ensure all have IDs
+    if (Array.isArray(normalized.ingredients)) {
+      normalized.ingredients = normalized.ingredients.map((ing: any) => {
+        // If already an object with an ID, keep it but remove undefined fields
+        if (typeof ing === 'object' && ing !== null && ing.id) {
+          const cleaned: any = { ...ing };
+          // Remove undefined fields
+          Object.keys(cleaned).forEach(key => {
+            if (cleaned[key] === undefined) delete cleaned[key];
+          });
+          return cleaned;
+        }
+        // If object without ID, assign one and remove undefined fields
+        if (typeof ing === 'object' && ing !== null) {
+          const cleaned: any = { ...ing, id: ing.id || crypto.randomUUID() };
+          Object.keys(cleaned).forEach(key => {
+            if (cleaned[key] === undefined) delete cleaned[key];
+          });
+          return cleaned;
+        }
+        // If string, create a minimal ingredient object
+        const ingredient: any = {
+          id: crypto.randomUUID(),
+          raw: ing,
+          quantity: null,
+          unit: null,
+          ingredientName: ing,
+        };
+        if (ing.preparation) ingredient.preparation = ing.preparation;
+        return ingredient;
+      });
+    }
+    
     if (instructionsAreAlreadyMigrated) {
-      // Instructions are already migrated - pass through as-is
       // (they already have embedded ingredients and warnings)
       return normalized;
     }

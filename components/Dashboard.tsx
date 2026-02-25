@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Stack, Section } from '@/shared/components/primitives';
 import { Card, Button } from './UI';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChefHat, BookOpen, ArrowRight } from 'lucide-react';
-import { User, Recipe, Plan } from '@/types/contract';
+import { User, Recipe, Plan, DayPlan } from '@/types/contract';
 import { cn } from '@/lib/utils';
+import { recipesBackend } from '@/modules/recipes/backend';
 
 interface DashboardProps {
   user: User;
-  todaysMeal: { date: string; cookId: string | null; presentIds: string[]; mealNotes: string } | undefined;
+  todaysMeal: DayPlan | undefined;
   currentPlan: Plan | null;
   nextPlan: Plan | null;
   allUsers: User[];
@@ -29,6 +31,45 @@ interface DashboardProps {
  * - Mobile-first responsive design (sm:, md:, lg: prefixes)
  * - Token-based spacing (space-y-6, gap-4, p-6, etc.)
  */
+
+/**
+ * RecipeImage - Helper component to resolve and display recipe images
+ */
+const RecipeImage: React.FC<{ imagePath: string; title: string }> = ({ imagePath, title }) => {
+  const [imageSrc, setImageSrc] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    recipesBackend.resolveImagePath(imagePath)
+      .then(setImageSrc)
+      .catch(() => setImageSrc(''))
+      .finally(() => setIsLoading(false));
+  }, [imagePath]);
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-32 bg-muted flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!imageSrc) {
+    return null;
+  }
+
+  return (
+    <div className="w-full h-32 bg-muted overflow-hidden border-b border-border">
+      <img
+        src={imageSrc}
+        alt={title}
+        className="w-full h-full object-cover"
+      />
+    </div>
+  );
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({
   user,
   todaysMeal,
@@ -52,18 +93,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const recentRecipes = recipes.slice(0, 3);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-
+    <Stack spacing="gap-6">
       {/* Section: Today's Meal */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Tonight's Service</h2>
+      <Section>
+        <Stack spacing="gap-4">
+          <h2 className="text-lg font-semibold">Tonight's Service</h2>
         
         {todaysMeal ? (
           <Card
             className="p-6 cursor-pointer transition-all duration-200 hover:shadow-lg"
             onClick={() => onTabChange('planner')}
           >
-            <div className="space-y-4">
+            <Stack spacing="gap-4">
               {/* Meal Name */}
               <div>
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Meal</p>
@@ -114,25 +155,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
               )}
-            </div>
+            </Stack>
           </Card>
         ) : (
           <Card className="p-6">
-            <div className="text-center space-y-3">
+            <Stack spacing="gap-3" className="text-center">
               <p className="text-sm text-muted-foreground">No meal planned for today</p>
               <Button
                 onClick={() => onTabChange('planner')}
               >
                 Plan Today's Meal
               </Button>
-            </div>
+            </Stack>
           </Card>
         )}
-      </section>
+        </Stack>
+      </Section>
 
       {/* Section: Quick Actions */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Quick Actions</h2>
+      <Section>
+        <Stack spacing="gap-4">
+          <h2 className="text-lg font-semibold">Quick Actions</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Import Recipe */}
@@ -141,10 +184,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
             className="text-left transition-all duration-200 hover:shadow-md"
           >
             <Card className="p-4 h-full hover:bg-muted/50">
-              <div className="space-y-2">
+              <Stack spacing="gap-2">
                 <p className="text-sm font-semibold">Import Recipe</p>
                 <p className="text-xs text-muted-foreground">From MyFitnessPal or URL</p>
-              </div>
+              </Stack>
             </Card>
           </button>
 
@@ -154,18 +197,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
             className="text-left transition-all duration-200 hover:shadow-md"
           >
             <Card className="p-4 h-full hover:bg-muted/50">
-              <div className="space-y-2">
+              <Stack spacing="gap-2">
                 <p className="text-sm font-semibold">Ask the Chef</p>
                 <p className="text-xs text-muted-foreground">Generate a recipe idea</p>
-              </div>
+              </Stack>
             </Card>
           </button>
         </div>
-      </section>
+        </Stack>
+      </Section>
 
       {/* Section: Recent Recipes */}
       {recentRecipes.length > 0 && (
-        <section className="space-y-4">
+        <Section>
+          <Stack spacing="gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Recent Recipes</h2>
             <button
@@ -186,38 +231,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <Card className="overflow-hidden h-full hover:bg-muted/50">
                   {/* Image */}
                   {recipe.imagePath && (
-                    <div className="w-full h-32 bg-muted overflow-hidden border-b border-border">
-                      <img
-                        src={recipe.imagePath}
-                        alt={recipe.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    </div>
+                    <RecipeImage imagePath={recipe.imagePath} title={recipe.title} />
                   )}
 
                   {/* Content */}
-                  <div className="p-4 space-y-2">
-                    <h3 className="font-medium text-sm line-clamp-2">{recipe.title}</h3>
+                  <div className="p-4">
+                    <Stack spacing="gap-2">
+                      <h3 className="font-medium text-sm line-clamp-2">{recipe.title}</h3>
                     
                     {/* Metadata */}
-                    <div className="flex gap-2 text-xs text-muted-foreground">
-                      {recipe.prepTime && <span>{recipe.prepTime}</span>}
-                      {recipe.servings && <span>•</span>}
-                      {recipe.servings && <span>{recipe.servings}</span>}
-                    </div>
+                      <div className="flex gap-2 text-xs text-muted-foreground">
+                        {recipe.prepTime && <span>{recipe.prepTime}</span>}
+                        {recipe.servings && <span>•</span>}
+                        {recipe.servings && <span>{recipe.servings}</span>}
+                      </div>
+                    </Stack>
                   </div>
                 </Card>
               </button>
             ))}
           </div>
-        </section>
+          </Stack>
+        </Section>
       )}
 
       {/* Section: Kitchen Overview */}
-      <section className="space-y-4">
+      <Section>
+        <Stack spacing="gap-4">
         <h2 className="text-lg font-semibold">Kitchen Overview</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -254,8 +294,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </Card>
           </button>
         </div>
-      </section>
+        </Stack>
+      </Section>
 
-    </div>
+    </Stack>
   );
 };

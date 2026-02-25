@@ -1,5 +1,5 @@
 /**
- * Cook Mode Base Backend
+ * Assist Mode Base Backend
  * 
  * Contains AI logic for generating cook guides and helper functions.
  * Shared between simulation and Firebase implementations.
@@ -8,7 +8,7 @@
 import { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 import { Recipe } from '../../../types/contract';
 import { CookGuide } from '../types';
-import { ICookModeBackend } from './cook-mode-backend.interface';
+import { IAssistModeBackend } from './assist-mode-backend.interface';
 import { COOK_GUIDE_SYSTEM_PROMPT, COOK_GUIDE_USER_PROMPT } from '../prompts';
 const HASH_HEX_LENGTH = 16;
 
@@ -22,7 +22,7 @@ const hashString = (value: string): string => {
   return hex.padStart(HASH_HEX_LENGTH, '0').slice(0, HASH_HEX_LENGTH);
 };
 
-export abstract class BaseCookModeBackend implements ICookModeBackend {
+export abstract class BaseAssistModeBackend implements IAssistModeBackend {
   protected abstract callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse>;
 
   /**
@@ -85,7 +85,7 @@ export abstract class BaseCookModeBackend implements ICookModeBackend {
   abstract getOrGenerateCookGuide(recipe: Recipe): Promise<CookGuide>;
   abstract generateCookGuide(recipe: Recipe): Promise<CookGuide>;
   abstract getCookGuide(guideId: string): Promise<CookGuide | null>;
-  abstract updateCookingStep(guideId: string, stepNumber: number, updatedStep: Partial<CookGuide['steps'][0]>): Promise<CookGuide>;
+  abstract updateCookingStep(guideId: string, stepId: string, updatedStep: Partial<CookGuide['steps'][0]>): Promise<CookGuide>;
   abstract updatePrepGroups(guideId: string, prepGroups: CookGuide['prepGroups']): Promise<CookGuide>;
   abstract deleteCookGuide(guideId: string): Promise<void>;
   abstract getCookGuidesForRecipe(recipeId: string): Promise<CookGuide[]>;

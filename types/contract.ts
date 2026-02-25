@@ -281,7 +281,7 @@ export const COLLECTION_REGISTRY = {
   
   // Cook mode collections
   cookGuides: {
-    schema: z.any(), // CookGuide schema lives in cook-mode module
+    schema: z.any(), // CookGuide schema lives in assist-mode module
     requiresEncoding: false,
     idField: 'id'
   },
