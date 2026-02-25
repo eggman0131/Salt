@@ -29,8 +29,6 @@ import { plannerBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
 import { useAvatarUrl } from '../../../shared/hooks/useAvatarUrl';
 
-type UserWithAvatarUrl = User & { avatarUrl?: string };
-
 interface PlannerModuleProps {
   users: User[];
   onRefresh: () => void;
@@ -401,9 +399,33 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
   );
 };
 
+const DayCookAvatar: React.FC<{ user: User | undefined }> = ({ user }) => {
+  const avatarUrl = useAvatarUrl(user?.avatarPath);
+  return (
+    <Avatar className="h-8 w-8">
+      {avatarUrl && <AvatarImage src={avatarUrl} alt={user?.displayName} />}
+      <AvatarFallback className="text-xs">
+        {user ? user.displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '—'}
+      </AvatarFallback>
+    </Avatar>
+  );
+};
+
+const PeopleAvatarDisplay: React.FC<{ user: User }> = ({ user }) => {
+  const avatarUrl = useAvatarUrl(user.avatarPath);
+  return (
+    <Avatar className="h-9 w-9">
+      {avatarUrl && <AvatarImage src={avatarUrl} alt={user.displayName} />}
+      <AvatarFallback className="text-xs">
+        {user.displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+      </AvatarFallback>
+    </Avatar>
+  );
+};
+
 const WeekHeader: React.FC<{
   days: DayPlan[];
-  users: UserWithAvatarUrl[];
+  users: User[];
   activeIndex: number;
   onSelect: (index: number) => void;
 }> = ({ days, users, activeIndex, onSelect }) => {
@@ -430,12 +452,7 @@ const WeekHeader: React.FC<{
                   <span className="text-xs text-muted-foreground">
                     {date.toLocaleDateString('en-GB', { weekday: 'short' })}
                   </span>
-                  <Avatar className="h-8 w-8">
-                    {cook?.avatarUrl && <AvatarImage src={cook.avatarUrl} alt={cook.displayName} />}
-                    <AvatarFallback className="text-xs">
-                      {cook ? cook.displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '—'}
-                    </AvatarFallback>
-                  </Avatar>
+                  <DayCookAvatar user={cook} />
                   <span className="text-xs text-muted-foreground truncate max-w-full">{firstLine}</span>
                 </button>
               );
@@ -468,7 +485,7 @@ const WeekHeader: React.FC<{
 
 const DayDetail: React.FC<{
   day: DayPlan;
-  users: UserWithAvatarUrl[];
+  users: User[];
   onChange: (updates: Partial<DayPlan>) => void;
 }> = ({ day, users, onChange }) => {
   const date = new Date(`${day.date}T00:00:00Z`);
@@ -524,12 +541,7 @@ const DayDetail: React.FC<{
                     : 'opacity-50 hover:opacity-100'
                 }`}
               >
-                <Avatar className="h-10 w-10">
-                  {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
-                  <AvatarFallback className="text-sm">
-                    {user.displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <DayCookAvatar user={user} />
               </button>
             ))}
           </div>
@@ -566,7 +578,7 @@ const DayDetail: React.FC<{
 };
 
 const PeopleForDay: React.FC<{
-  users: UserWithAvatarUrl[];
+  users: User[];
   presentIds: string[];
   userNotes: Record<string, string>;
   onTogglePresence: (userId: string) => void;
@@ -585,12 +597,7 @@ const PeopleForDay: React.FC<{
             <div key={user.id} className="rounded-md border border-border p-3 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-9 w-9">
-                    {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
-                    <AvatarFallback className="text-xs">
-                      {user.displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <PeopleAvatarDisplay user={user} />
                 </div>
                 <button
                   type="button"

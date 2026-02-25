@@ -21,8 +21,6 @@ import {
   LogOut,
 } from 'lucide-react';
 
-type UserWithAvatarUrl = User & { avatarUrl?: string };
-
 interface NavItem {
   label: string;
   id: string;

@@ -27,7 +27,6 @@ import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal'
 import { Dashboard } from './components/Dashboard';
 
 type AppState = 'landing' | 'login' | 'dashboard' | 'loading';
-type UserWithAvatarUrl = User & { avatarUrl?: string };
 
 /**
  * Robust helper to get YYYY-MM-DD in local time
@@ -41,12 +40,12 @@ const getLocalDateString = (date: Date = new Date()) => {
 
 const App: React.FC = () => {
   const [view, setView] = useState<AppState>('loading');
-  const [user, setUser] = useState<UserWithAvatarUrl | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [resetKey, setResetKey] = useState(0);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [inventory, setInventory] = useState<Equipment[]>([]);
-  const [allUsers, setAllUsers] = useState<UserWithAvatarUrl[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [currentPlan, setCurrentPlan] = useState<Plan | null>(null);
   const [nextPlan, setNextPlan] = useState<Plan | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -181,7 +180,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLoginSuccess = (loggedInUser: UserWithAvatarUrl) => {
+  const handleLoginSuccess = (loggedInUser: User) => {
     setUser(loggedInUser);
     setView('dashboard');
   };

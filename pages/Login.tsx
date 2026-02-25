@@ -4,10 +4,8 @@ import { Button, Input, Card, Label } from '../components/UI';
 import { systemBackend } from '../shared/backend/system-backend';
 import { User } from '../types/contract';
 
-type UserWithAvatarUrl = User & { avatarUrl?: string };
-
 interface LoginProps {
-  onLoginSuccess: (user: UserWithAvatarUrl) => void;
+  onLoginSuccess: (user: User) => void;
 }
 
 export const LoginPage: React.FC<LoginProps> = ({ onLoginSuccess }) => {

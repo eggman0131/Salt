@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/dialog';
 import { Trash2, Pencil, GripVertical, Camera } from 'lucide-react';
 import { ImageEditor } from '@/components/ImageEditor';
+import { useAvatarUrl } from '../../../shared/hooks/useAvatarUrl';
+import { useAvatarUrl } from '../../../shared/hooks/useAvatarUrl';
 import {
   DndContext,
   closestCenter,
@@ -45,21 +47,66 @@ import { CSS } from '@dnd-kit/utilities';
 import { User, KitchenSettings } from '../../../types/contract';
 import { systemBackend } from '../../../shared/backend/system-backend';
 
-type UserWithAvatarUrl = User & { avatarUrl?: string };
-
 interface UsersModuleProps {
-  users: UserWithAvatarUrl[];
+  users: User[];
   kitchenSettings: KitchenSettings;
   onRefresh: () => void;
   onSettingsChange: (settings: KitchenSettings) => void;
 }
 
 interface SortableUserItemProps {
-  user: UserWithAvatarUrl;
-  onEdit: (user: UserWithAvatarUrl) => void;
-  onDelete: (user: UserWithAvatarUrl) => void;
-  onEditAvatar?: (user: UserWithAvatarUrl) => void;
+  user: User;
+  onEdit: (user: User) => void;
+  onDelete: (user: User) => void;
+  onEditAvatar?: (user: User) => void;
 }
+
+const UserAvatarDisplay: React.FC<{ user: User }> = ({ user }) => {
+  const avatarUrl = useAvatarUrl(user.avatarPath);
+  return (
+    <Avatar className="h-9 w-9">
+      {avatarUrl && <AvatarImage src={avatarUrl} alt={user.displayName} />}
+      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+        {user.displayName[0].toUpperCase()}
+      </AvatarFallback>
+    </Avatar>
+  );
+};
+
+interface AvatarEditDialogProps {
+  user: User | null;
+  onSave: (imageData: string) => Promise<void>;
+  onClose: () => void;
+  isLoading?: boolean;
+}
+
+const AvatarEditDialog: React.FC<AvatarEditDialogProps> = ({ user, onSave, onClose, isLoading = false }) => {
+  const avatarUrl = useAvatarUrl(user?.avatarPath);
+
+  return (
+    <Dialog open={!!user} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] md:w-full">
+        <DialogHeader>
+          <DialogTitle>Edit Avatar</DialogTitle>
+          <DialogDescription>
+            Upload or edit avatar for {user?.displayName}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="py-4">
+          <ImageEditor
+            initialImage={avatarUrl}
+            onSave={onSave}
+            onCancel={onClose}
+            width={250}
+            height={250}
+            isCircle={true}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const SortableUserItem: React.FC<SortableUserItemProps> = ({ user, onEdit, onDelete, onEditAvatar }) => {
   const {
@@ -91,12 +138,7 @@ const SortableUserItem: React.FC<SortableUserItemProps> = ({ user, onEdit, onDel
         <GripVertical className="h-4 w-4" />
       </button>
 
-      <Avatar className="h-9 w-9">
-        {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
-        <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-          {user.displayName[0].toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
+      <UserAvatarDisplay user={user} />
 
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm truncate">
@@ -147,12 +189,12 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [userToDelete, setUserToDelete] = useState<UserWithAvatarUrl | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [userToEdit, setUserToEdit] = useState<UserWithAvatarUrl | null>(null);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [editName, setEditName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [userToEditAvatar, setUserToEditAvatar] = useState<UserWithAvatarUrl | null>(null);
+  const [userToEditAvatar, setUserToEditAvatar] = useState<User | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const sensors = useSensors(
@@ -247,12 +289,12 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
     }
   };
 
-  const handleEditClick = (user: UserWithAvatarUrl) => {
+  const handleEditClick = (user: User) => {
     setUserToEdit(user);
     setEditName(user.displayName);
   };
 
-  const handleEditAvatarClick = (user: UserWithAvatarUrl) => {
+  const handleEditAvatarClick = (user: User) => {
     setUserToEditAvatar(user);
   };
 
@@ -440,27 +482,12 @@ export const UsersModule: React.FC<UsersModuleProps> = ({
         </AlertDialog>
 
         {/* Edit Avatar Dialog - with viewport constraints from recipes module */}
-        <Dialog open={!!userToEditAvatar} onOpenChange={() => setUserToEditAvatar(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] md:w-full">
-            <DialogHeader>
-              <DialogTitle>Edit Avatar</DialogTitle>
-              <DialogDescription>
-                Upload or edit avatar for {userToEditAvatar?.displayName}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="py-4">
-              <ImageEditor
-                initialImage={userToEditAvatar?.avatarUrl}
-                onSave={handleAvatarSave}
-                onCancel={() => setUserToEditAvatar(null)}
-                width={250}
-                height={250}
-                isCircle={true}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+        <AvatarEditDialog
+          user={userToEditAvatar}
+          onSave={handleAvatarSave}
+          onClose={() => setUserToEditAvatar(null)}
+          isLoading={isUploadingAvatar}
+        />
       </CardContent>
     </>
   );
