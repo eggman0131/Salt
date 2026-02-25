@@ -160,8 +160,15 @@ export const RecipesModule: React.FC = () => {
           }}
           onUpdate={handleUpdateRecipe}
           onDelete={handleDeleteRecipe}
+          onRepair={handleOpenRepairModal}
           autoOpenImageEditor={recipeIdToUploadImageFor === selectedRecipe.id}
           onImageEditorOpened={() => setRecipeIdToUploadImageFor(null)}
+        />
+        <RepairRecipeModal
+          open={!!recipeToRepair}
+          onOpenChange={(open) => !open && setRecipeToRepair(null)}
+          onRepair={handleRepairRecipe}
+          isRepairing={isRepairing}
         />
         <Toaster position="top-right" />
       </>

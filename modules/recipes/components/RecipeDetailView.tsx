@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle, Wrench } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import {
   Popover,
@@ -278,6 +278,7 @@ interface RecipeDetailViewProps {
   onClose: () => void;
   onUpdate: (id: string, updates: Partial<Recipe>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onRepair?: (recipe: Recipe) => void;
   autoOpenImageEditor?: boolean;
   onImageEditorOpened?: () => void;
 }
@@ -288,6 +289,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   onClose,
   onUpdate,
   onDelete,
+  onRepair,
   autoOpenImageEditor = false,
   onImageEditorOpened,
 }) => {
@@ -535,6 +537,16 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                     >
                       <Clock className="w-5 h-5" />
                     </Button>
+                    {onRepair && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => onRepair(recipe)}
+                        className="h-9 w-9"
+                        title="Repair recipe"
+                      >
+                        <Wrench className="w-5 h-5" />
+                      </Button>
+                    )}
                     <Button 
                       variant="outline" 
                       onClick={() => setIsEditDialogOpen(true)}
@@ -632,6 +644,17 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                   <Clock className="w-5 h-5 md:mr-2" />
                   <span className="hidden md:inline">History</span>
                 </Button>
+                {onRepair && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => onRepair(recipe)}
+                    className="h-9 w-9 md:w-auto md:h-10 md:px-4"
+                    title="Repair recipe"
+                  >
+                    <Wrench className="w-5 h-5 md:mr-2" />
+                    <span className="hidden md:inline">Repair</span>
+                  </Button>
+                )}
                 <Button 
                   variant="outline" 
                   onClick={() => setIsEditDialogOpen(true)}
