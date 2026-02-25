@@ -26,7 +26,7 @@ export const CookTab: React.FC<CookTabProps> = ({ recipe, onClose }) => {
   const [deviceType, setDeviceType] = useState<DeviceType>('mobile');
 
   // All the state and logic from useCookTabLogic hook
-  const cookTabLogic = useCookTabLogic(recipe);
+  const cookTabLogic = useCookTabLogic(recipe, onClose);
   const { pendingResume, resumeProgress, restartProgress } = cookTabLogic;
 
   // Media query listener to determine device type

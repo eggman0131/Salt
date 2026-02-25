@@ -1,10 +1,10 @@
-# Cook Mode Module
+# Assist Mode Module
 
-The **cook mode domain** for Salt. Provides autism-friendly, sensory-rich cooking guides for recipes.
+The **assist mode domain** for Salt. Provides autism-friendly, sensory-rich cooking guides for recipes.
 
 ## Purpose
 
-Cook Mode generates detailed, step-by-step cooking guides with explicit sensory cues for neurodivergent users and anyone who benefits from detailed instructions:
+Assist Mode generates detailed, step-by-step cooking guides with explicit sensory cues for neurodivergent users and anyone who benefits from detailed instructions:
 - **Container-based prep** - Group and label ingredients for organized preparation
 - **Sensory guidance** - Explicit visual, audio, aroma, and texture cues for each step
 - **Temperature settings** - Exact heat dial positions and oven temperatures
@@ -14,11 +14,11 @@ Cook Mode generates detailed, step-by-step cooking guides with explicit sensory 
 ## Architecture
 
 ```
-modules/cook-mode/
+modules/assist-mode/
 ├── backend/
-│   ├── cook-mode-backend.interface.ts    (5 methods)
-│   ├── base-cook-mode-backend.ts         (AI generation logic)
-│   ├── firebase-cook-mode-backend.ts     (Firestore persistence)
+│   ├── assist-mode-backend.interface.ts  (5 methods)
+│   ├── base-assist-mode-backend.ts       (AI generation logic)
+│   ├── firebase-assist-mode-backend.ts   (Firestore persistence)
 │   └── index.ts                          (Public backend API)
 ├── components/
 │   ├── CookModeModule.tsx                (Main orchestrator, two-phase UI)
@@ -81,7 +81,7 @@ modules/cook-mode/
 ### 5 Methods
 
 ```typescript
-interface ICookModeBackend {
+interface IAssistModeBackend {
   // Get or generate a guide (cached if recipe unchanged)
   getOrGenerateCookGuide(recipe: Recipe): Promise<CookGuide>;
 
@@ -101,7 +101,7 @@ interface ICookModeBackend {
 
 ## AI Generation
 
-Cook Mode uses Gemini to generate sensory-rich guides from recipes.
+Assist Mode uses Gemini to generate sensory-rich guides from recipes.
 
 ### System Prompt
 Instructs Gemini to:
@@ -125,13 +125,13 @@ Passes recipe ingredients and instructions, requests JSON structure matching Coo
 ### Basic Usage
 
 ```typescript
-import { cookModeBackend, CookModeModule } from '@/modules/cook-mode';
+import { assistModeBackend, CookModeModule } from '@/modules/assist-mode';
 import { Recipe } from '@/types/contract';
 
 // In a recipe detail view:
 async function startCooking(recipe: Recipe) {
-  const guide = await cookModeBackend.getOrGenerateCookGuide(recipe);
-  // Navigate to cook mode with guide
+  const guide = await assistModeBackend.getOrGenerateCookGuide(recipe);
+  // Navigate to assist mode with guide
   <CookModeModule recipe={recipe} onClose={() => goBack()} />;
 }
 ```
@@ -153,11 +153,11 @@ async function startCooking(recipe: Recipe) {
 
 ### Integration Points
 
-**Where to expose cook mode:**
+**Where to expose assist mode:**
 
-1. **Recipe Detail View** - "Start Cooking" or "Cook Mode" button
+1. **Recipe Detail View** - "Start Cooking" or "Assist" tab
    ```tsx
-   <Button onClick={() => startCookMode(recipe)}>
+   <Button onClick={() => startAssistMode(recipe)}>
      <ChefHat className="h-4 w-4 mr-2" />
      Start Cooking
    </Button>

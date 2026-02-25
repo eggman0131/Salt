@@ -1,7 +1,7 @@
 /**
- * Cook Mode Backend Interface
+ * Assist Mode Backend Interface
  * 
- * Handles all cook mode operations:
+ * Handles all assist mode operations:
  * - Generate autism-friendly cooking guides from recipes
  * - Retrieve existing guides
  * - Manage guide lifecycle (create, update, delete)
@@ -10,7 +10,7 @@
 import { Recipe } from '../../../types/contract';
 import { CookGuide } from '../types';
 
-export interface ICookModeBackend {
+export interface IAssistModeBackend {
   /**
    * Get or generate a cook guide for a recipe.
    * If a guide exists and recipe hasn't changed, returns cached version.
@@ -31,9 +31,10 @@ export interface ICookModeBackend {
 
   /**
    * Update a cooking step within a guide.
+   * Uses persistent step ID instead of position-based stepNumber.
    * Preserves other steps and guide metadata.
    */
-  updateCookingStep: (guideId: string, stepNumber: number, updatedStep: Partial<CookGuide['steps'][0]>) => Promise<CookGuide>;
+  updateCookingStep: (guideId: string, stepId: string, updatedStep: Partial<CookGuide['steps'][0]>) => Promise<CookGuide>;
 
   /**
    * Update all prep groups in a guide.
