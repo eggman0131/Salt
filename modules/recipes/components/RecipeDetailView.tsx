@@ -278,6 +278,8 @@ interface RecipeDetailViewProps {
   onClose: () => void;
   onUpdate: (id: string, updates: Partial<Recipe>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  autoOpenImageEditor?: boolean;
+  onImageEditorOpened?: () => void;
 }
 
 export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
@@ -286,6 +288,8 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   onClose,
   onUpdate,
   onDelete,
+  autoOpenImageEditor = false,
+  onImageEditorOpened,
 }) => {
   const [imageSrc, setImageSrc] = useState<string>('');
   const [isLoadingImage, setIsLoadingImage] = useState(false);
@@ -332,6 +336,14 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
       })
       .catch(() => null);
   }, []);
+
+  // Auto-open image editor when navigating from list view upload button
+  useEffect(() => {
+    if (autoOpenImageEditor) {
+      setIsImageEditorOpen(true);
+      onImageEditorOpened?.();
+    }
+  }, [autoOpenImageEditor, onImageEditorOpened]);
 
   // Get category names for this recipe
   const recipeCategories = categories.filter(cat => 
@@ -437,11 +449,11 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const handleRefreshImage = async () => {
     try {
       setIsRefreshingImage(true);
-      const imagePath = await recipesBackend.generateRecipeImage(recipe.title, recipe.description);
-      const updatedRecipe = await recipesBackend.updateRecipe(recipe.id, { imagePath });
+      const imageData = await recipesBackend.generateRecipeImage(recipe.title, recipe.description);
+      const updatedRecipe = await recipesBackend.updateRecipe(recipe.id, {}, imageData);
       softToast.success('AI image generated');
       // Refresh the image
-      const newImageSrc = await recipesBackend.resolveImagePath(imagePath);
+      const newImageSrc = await recipesBackend.resolveImagePath(updatedRecipe.imagePath || '');
       setImageSrc(newImageSrc);
     } catch (error) {
       console.error('Failed to generate image:', error);
@@ -658,10 +670,10 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                         onLoad={updateChatTop}
                     />
                     {/* Image Actions - Always visible, overlaid on image */}
-                    <div className="absolute top-3 right-3 flex gap-2 z-10">
+                    <div className="absolute top-3 right-3 flex gap-2 z-10 pointer-events-auto">
                       <Button
                         size="icon"
-                        className="bg-white/50 hover:bg-white/70 text-black"
+                        className="bg-white/50 hover:bg-white/70 text-black min-w-10 min-h-10"
                         onClick={() => setIsImageEditorOpen(true)}
                         title="Upload new image"
                       >
@@ -669,7 +681,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                       </Button>
                       <Button
                         size="icon"
-                        className="bg-white/50 hover:bg-white/70 text-black"
+                        className="bg-white/50 hover:bg-white/70 text-black min-w-10 min-h-10"
                         onClick={handleRefreshImage}
                         disabled={isRefreshingImage}
                         title="Generate AI image"
@@ -684,10 +696,10 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                       <ChefHat className="w-16 h-16 text-muted-foreground/20" />
                     </div>
                     {/* Upload button for recipes without images */}
-                    <div className="absolute top-3 right-3 flex gap-2 z-10">
+                    <div className="absolute top-3 right-3 flex gap-2 z-10 pointer-events-auto">
                       <Button
                         size="icon"
-                        className="bg-white/50 hover:bg-white/70 text-black"
+                        className="bg-white/50 hover:bg-white/70 text-black min-w-10 min-h-10"
                         onClick={() => setIsImageEditorOpen(true)}
                         title="Upload image"
                       >
@@ -695,7 +707,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                       </Button>
                       <Button
                         size="icon"
-                        className="bg-white/50 hover:bg-white/70 text-black"
+                        className="bg-white/50 hover:bg-white/70 text-black min-w-10 min-h-10"
                         onClick={handleRefreshImage}
                         disabled={isRefreshingImage}
                         title="Generate AI image"
