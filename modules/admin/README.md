@@ -6,9 +6,12 @@ System administration panel for Salt: backup/restore, debug logging, kitchen dir
 
 ```
 modules/admin/
+  ├── backend/
+  │   ├── admin-backend.ts       # Storage cleanup and admin functions
+  │   └── index.ts               # Backend public API
   ├── components/
   │   └── AdminModule.tsx         # Main admin UI (system state, directives, users, debug)
-  ├── index.ts                    # Public API
+  ├── index.ts                    # Module public API
   └── README.md                   # This file
 ```
 
@@ -67,6 +70,36 @@ That's it! Backup/restore automatically includes it.
 - Embedded UsersModule for user CRUD
 - Add/edit/delete household members
 - Manage member preferences
+
+### Storage Cleanup
+- Remove orphaned recipe images from Firebase Storage
+- Orphaned files are images no longer referenced by any recipe
+- Occurs when recipes are deleted or new images replace old ones
+- Supports dry-run mode to identify files before deletion
+
+**Usage:**
+```typescript
+import { cleanupOrphanedRecipeImages } from '../modules/admin';
+
+// Dry run: identify orphaned files without deleting
+const stats = await cleanupOrphanedRecipeImages(true);
+console.log(`Found ${stats.orphanedFiles.length} orphaned files`);
+
+// Actually delete orphaned files
+const results = await cleanupOrphanedRecipeImages(false);
+console.log(`Deleted ${results.deletedCount} files`);
+```
+
+**Returns `CleanupStats`:**
+```typescript
+interface CleanupStats {
+  totalFiles: number;           // Total files in recipes folder
+  orphanedFiles: string[];      // Paths of orphaned image files
+  referencedFiles: string[];    // Paths of files still in use
+  deletedCount: number;         // Number of files deleted (dryRun=false only)
+  errors: string[];             // Any errors encountered
+}
+```
 
 ## Dependencies
 
