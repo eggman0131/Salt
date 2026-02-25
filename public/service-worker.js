@@ -1,132 +1,146 @@
-// SALT PWA Service Worker
-const CACHE_NAME = 'salt-v1';
-const RUNTIME_CACHE = 'salt-runtime-v1';
+// -----------------------------
+// SALT PWA — Modern Service Worker
+// -----------------------------
 
-// Assets to cache on install
+// ⚠️ IMPORTANT: bump this on every deploy
+const BUILD_VERSION = "2024-02-25-01";
+
+const CACHE_STATIC = `salt-static-${BUILD_VERSION}`;
+const CACHE_RUNTIME = `salt-runtime-${BUILD_VERSION}`;
+
+// Only cache immutable assets here
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  "/manifest.json",
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png"
 ];
 
-// Install event - precache essential assets
-self.addEventListener('install', (event) => {
+// -----------------------------
+// INSTALL — Precache static assets
+// -----------------------------
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches.open(CACHE_STATIC)
       .then((cache) => cache.addAll(PRECACHE_URLS))
       .then(() => self.skipWaiting())
   );
 });
 
-// Activate event - cleanup old caches
-self.addEventListener('activate', (event) => {
-  const currentCaches = [CACHE_NAME, RUNTIME_CACHE];
+// -----------------------------
+// ACTIVATE — Clean old caches + take control
+// -----------------------------
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return cacheNames.filter((cacheName) => !currentCaches.includes(cacheName));
-    }).then((cachesToDelete) => {
-      return Promise.all(cachesToDelete.map((cacheToDelete) => {
-        return caches.delete(cacheToDelete);
-      }));
-    }).then(() => self.clients.claim())
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => ![CACHE_STATIC, CACHE_RUNTIME].includes(key))
+          .map((key) => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
   );
 });
 
-// Fetch event - network first for API, cache first for assets
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+// -----------------------------
+// FETCH — Smart caching strategy
+// -----------------------------
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
 
-  // Skip cross-origin requests and chrome extensions
-  if (url.origin !== location.origin && !url.hostname.includes('firebasestorage')) {
-    return;
-  }
-
-  // Network first strategy for API/Firebase calls
-  if (
-    url.pathname.includes('firestore.googleapis.com') ||
-    url.pathname.includes('identitytoolkit.googleapis.com') ||
-    url.pathname.includes('firebasestorage.googleapis.com') ||
-    url.pathname.includes('/api/')
-  ) {
+  // 1. HTML → network-first (critical for updates)
+  if (req.mode === "navigate") {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Only cache successful responses
-          if (response && response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(RUNTIME_CACHE).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
+      fetch(req)
+        .then((res) => {
+          // Cache the fresh HTML
+          const clone = res.clone();
+          caches.open(CACHE_RUNTIME).then((cache) => cache.put(req, clone));
+          return res;
         })
-        .catch(() => {
-          // Try to serve from cache if network fails
-          return caches.match(request);
-        })
+        .catch(() => caches.match(req)) // fallback to cached HTML
     );
     return;
   }
 
-  // Cache first strategy for static assets
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+  // 2. Firebase / API → network-first
+  if (
+    url.hostname.includes("googleapis.com") ||
+    url.pathname.startsWith("/api/")
+  ) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res.status === 200) {
+            const clone = res.clone();
+            caches.open(CACHE_RUNTIME).then((cache) => cache.put(req, clone));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
 
-      return fetch(request).then((response) => {
-        // Don't cache if not a success
-        if (!response || response.status !== 200 || response.type === 'error') {
-          return response;
-        }
+  // 3. Static assets → stale-while-revalidate
+  if (req.destination === "script" ||
+      req.destination === "style" ||
+      req.destination === "image" ||
+      req.destination === "font") {
+    event.respondWith(
+      caches.match(req).then((cached) => {
+        const fetchPromise = fetch(req)
+          .then((res) => {
+            if (res.status === 200) {
+              const clone = res.clone();
+              caches.open(CACHE_RUNTIME).then((cache) => cache.put(req, clone));
+            }
+            return res;
+          })
+          .catch(() => cached);
 
-        const responseToCache = response.clone();
-        caches.open(RUNTIME_CACHE).then((cache) => {
-          cache.put(request, responseToCache);
-        });
+        return cached || fetchPromise;
+      })
+    );
+    return;
+  }
 
-        return response;
-      });
-    })
-  );
+  // Default: just fetch
+  event.respondWith(fetch(req));
 });
 
-// Background sync for offline recipe saves (future enhancement)
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-recipes') {
+// -----------------------------
+// OPTIONAL: Background Sync
+// -----------------------------
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-recipes") {
     event.waitUntil(syncRecipes());
   }
 });
 
 async function syncRecipes() {
-  // Placeholder for background sync logic
-  console.log('Background sync triggered');
+  console.log("Background sync triggered");
 }
 
-// Push notifications (future enhancement)
-self.addEventListener('push', (event) => {
+// -----------------------------
+// Push Notifications
+// -----------------------------
+self.addEventListener("push", (event) => {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'SALT Notification';
+  const title = data.title || "SALT Notification";
+
   const options = {
-    body: data.body || 'You have a new notification',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    body: data.body || "You have a new notification",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-72x72.png",
     vibrate: [200, 100, 200],
-    data: data.url || '/'
+    data: data.url || "/"
   };
 
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data)
-  );
+  event.waitUntil(clients.openWindow(event.notification.data));
 });
