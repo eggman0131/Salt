@@ -28,6 +28,12 @@ export interface IRecipesBackend {
   resolveImagePath: (path: string) => Promise<string>;
   deleteRecipe: (id: string) => Promise<void>;
   
+  // Repair recipe (re-categorize and/or relink ingredients)
+  repairRecipe: (
+    recipeId: string,
+    options: { categorize?: boolean; relinkIngredients?: boolean }
+  ) => Promise<Recipe>;
+  
   // ==================== AI-POWERED FEATURES ====================
   
   // Generate recipe from natural language prompt
