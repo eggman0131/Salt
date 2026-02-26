@@ -47,7 +47,30 @@ const ingredients = await canonBackend.processIngredients(
 ## Status
 
 ✅ **Phase 1 Complete**: Canon module structure created with backend logic  
-✅ **Phase 2 Complete**: Shopping module now delegates ingredient processing to canon
+✅ **Phase 2 Complete**: Shopping module now delegates ingredient processing to canon  
+✅ **Phase 3 Complete**: UI components (Units, Aisles, Items) migrated to canon
+
+## Components
+
+### Management UIs (Phase 3)
+- **UnitsManagement** - CRUD for units (g, kg, ml, etc.) with drag-and-drop sorting
+- **AislesManagement** - CRUD for aisles (Produce, Dairy, etc.) with reordering
+- **ItemsManagement** - Advanced canonical item management:
+  - Synonym drag-and-drop (move, swap, promote to title, create new items)
+  - Bulk operations (delete, aisle reassignment)
+  - AI-powered enrichment
+  - Impact assessment for recipe healing
+  - Search and filtering
+
+### Usage
+```typescript
+import { UnitsManagement, AislesManagement, ItemsManagement } from '@/modules/canon';
+
+// Use in tabs or pages
+<UnitsManagement onRefresh={handleRefresh} />
+<AislesManagement onRefresh={handleRefresh} />
+<ItemsManagement onRefresh={handleRefresh} />
+```
 
 ## Integration Points
 

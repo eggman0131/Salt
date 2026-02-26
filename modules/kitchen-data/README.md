@@ -4,31 +4,34 @@ The **foundational module** for all kitchen data in Salt. Provides units, aisles
 
 ## Purpose
 
-Kitchen Data is the bedrock of the Salt system. Every other module that deals with ingredients, recipes, or shopping depends on this module for:
+Kitchen Data is the **legacy module** being **phased out**. Items, units, and aisles have been migrated to the **Canon** module.
 
-- **Units**: Metric measurement units (g, kg, ml, l, etc.)
-- **Aisles**: Shop layout and organization (Produce, Pantry, Dairy, etc.)
-- **Canonical Items**: The master catalog of ingredients with synonyms
-- **Categories**: Recipe categorization (Mains, Desserts, etc.)
+**Current State:** Categories-only. Units, aisles, and canonical items are now managed by the Canon module.
+
+**Migration Status:**
+- ✅ Phase 1-3: Units, Aisles, Items → Canon module
+- 🔄 Phase 4: Categories will be extracted into separate module
+- 📦 Phase 5+: Kitchen-Data will be deprecated
+
+For new features, use the **Canon** module instead.
 
 ## Architecture
 
 ```
 modules/kitchen-data/
 ├── backend/
-│   ├── kitchen-data-backend.interface.ts       (21 methods)
+│   ├── kitchen-data-backend.interface.ts       (21 methods - DEPRECATED)
 │   ├── base-kitchen-data-backend.ts            (AI categorization logic)
 │   ├── firebase-kitchen-data-backend.ts        (Firestore persistence)
 │   └── index.ts                                (Public backend API)
 ├── components/
-│   ├── KitchenDataModule.tsx                   (Tab navigation)
-│   ├── CategoryManagement.tsx                  (Category CRUD + approval)
-│   ├── ItemsManagement.tsx                     (Canonical items CRUD)
-│   ├── UnitsManagement.tsx                     (Units CRUD)
-│   ├── AislesManagement.tsx                    (Aisles CRUD)
-│   └── UnitsAndAislesManagement.tsx            (Combined view)
+│   ├── KitchenDataModule.tsx                   (Tab navigation - imports from Canon)
+│   └── CategoriesManagement.tsx                (Category CRUD + approval)
 └── index.ts                                    (Public module API)
 ```
+
+**Note:** UnitsManagement, AislesManagement, and ItemsManagement have been **moved to Canon module** (Phase 3).  
+KitchenDataModule now imports these components from `@/modules/canon`.
 
 ## Backend Interface
 

@@ -41,23 +41,23 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Aisle } from '../../../types/contract';
-import { kitchenDataBackend } from '../backend';
+import { Unit } from '../../../types/contract';
+import { canonBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
 
-interface AislesManagementProps {
+interface UnitsManagementProps {
   onRefresh: () => void;
 }
 
-interface SortableAisleItemProps {
-  aisle: Aisle;
-  onEdit: (aisle: Aisle) => void;
-  onDelete: (aisle: Aisle) => void;
+interface SortableUnitItemProps {
+  unit: Unit;
+  onEdit: (unit: Unit) => void;
+  onDelete: (unit: Unit) => void;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
 }
 
-const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, onDelete, isSelected, onToggleSelect }) => {
+const SortableUnitItem: React.FC<SortableUnitItemProps> = ({ unit, onEdit, onDelete, isSelected, onToggleSelect }) => {
   const {
     attributes,
     listeners,
@@ -65,7 +65,7 @@ const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, on
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: aisle.id });
+  } = useSortable({ id: unit.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -81,7 +81,7 @@ const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, on
     >
       <Checkbox 
         checked={isSelected}
-        onCheckedChange={() => onToggleSelect(aisle.id)}
+        onCheckedChange={() => onToggleSelect(unit.id)}
         className="shrink-0"
       />
       <button
@@ -93,12 +93,12 @@ const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, on
       </button>
 
       <div className="flex-1">
-        <p className="font-medium text-sm">{aisle.name}</p>
+        <p className="font-medium text-sm">{unit.name}</p>
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
         <Button
-          onClick={() => onEdit(aisle)}
+          onClick={() => onEdit(unit)}
           variant="ghost"
           size="icon"
           className="text-muted-foreground hover:bg-primary/10 hover:text-primary"
@@ -106,7 +106,7 @@ const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, on
           <Pencil className="h-4 w-4" />
         </Button>
         <Button
-          onClick={() => onDelete(aisle)}
+          onClick={() => onDelete(unit)}
           variant="ghost"
           size="icon"
           className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
@@ -118,12 +118,12 @@ const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, on
   );
 };
 
-export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh }) => {
-  const [aisles, setAisles] = useState<Aisle[]>([]);
+export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) => {
+  const [units, setUnits] = useState<Unit[]>([]);
   const [name, setName] = useState('');
-  const [aisleToDelete, setAisleToDelete] = useState<Aisle | null>(null);
+  const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [aisleToEdit, setAisleToEdit] = useState<Aisle | null>(null);
+  const [unitToEdit, setUnitToEdit] = useState<Unit | null>(null);
   const [editName, setEditName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -140,16 +140,16 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
   );
 
   useEffect(() => {
-    loadAisles();
+    loadUnits();
   }, []);
 
-  const loadAisles = async () => {
+  const loadUnits = async () => {
     try {
-      const data = await kitchenDataBackend.getAisles();
-      setAisles(data);
+      const data = await canonBackend.getUnits();
+      setUnits(data);
     } catch (err) {
-      console.error('Failed to load aisles', err);
-      softToast.error('Failed to load aisles');
+      console.error('Failed to load units', err);
+      softToast.error('Failed to load units');
     }
   };
 
@@ -158,32 +158,32 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
 
     if (!over || active.id === over.id) return;
 
-    const oldIndex = aisles.findIndex(a => a.id === active.id);
-    const newIndex = aisles.findIndex(a => a.id === over.id);
+    const oldIndex = units.findIndex(u => u.id === active.id);
+    const newIndex = units.findIndex(u => u.id === over.id);
 
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const reordered = arrayMove(aisles, oldIndex, newIndex);
+    const reordered = arrayMove(units, oldIndex, newIndex);
     
-    // Update sortOrder for all aisles
-    const updates = reordered.map((aisle, index) => ({
-      ...aisle,
+    // Update sortOrder for all units
+    const updates = reordered.map((unit, index) => ({
+      ...unit,
       sortOrder: index,
     }));
 
-    setAisles(updates);
+    setUnits(updates);
 
     // Save to backend
     try {
-      for (const aisle of updates) {
-        await kitchenDataBackend.updateAisle(aisle.id, { sortOrder: aisle.sortOrder });
+      for (const unit of updates) {
+        await canonBackend.updateUnit(unit.id, { sortOrder: unit.sortOrder });
       }
-      softToast.success('Aisle order updated');
+      softToast.success('Unit order updated');
       onRefresh();
     } catch (err) {
-      console.error('Failed to save aisle order', err);
+      console.error('Failed to save unit order', err);
       softToast.error('Failed to update order');
-      loadAisles(); // Reload to revert
+      loadUnits(); // Reload to revert
     }
   };
 
@@ -193,59 +193,59 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
     
     setIsAdding(true);
     try {
-      await kitchenDataBackend.createAisle({
+      await canonBackend.createUnit({
         name: name.trim(),
-        sortOrder: aisles.length,
+        sortOrder: units.length,
       });
       setName('');
-      await loadAisles();
-      softToast.success('Aisle added', { description: name.trim() });
+      await loadUnits();
+      softToast.success('Unit added', { description: name.trim() });
       onRefresh();
     } catch (err) {
-      console.error('Failed to create aisle', err);
-      softToast.error('Failed to add aisle');
+      console.error('Failed to create unit', err);
+      softToast.error('Failed to add unit');
     } finally {
       setIsAdding(false);
     }
   };
 
   const handleDeleteConfirm = async () => {
-    if (!aisleToDelete) return;
+    if (!unitToDelete) return;
     
     setIsDeleting(true);
     try {
-      await kitchenDataBackend.deleteAisle(aisleToDelete.id);
-      await loadAisles();
-      softToast.success('Aisle deleted', { description: aisleToDelete.name });
+      await canonBackend.deleteUnit(unitToDelete.id);
+      await loadUnits();
+      softToast.success('Unit deleted', { description: unitToDelete.name });
       onRefresh();
     } catch (err) {
-      console.error('Failed to delete aisle', err);
-      softToast.error('Failed to delete aisle');
+      console.error('Failed to delete unit', err);
+      softToast.error('Failed to delete unit');
     } finally {
       setIsDeleting(false);
-      setAisleToDelete(null);
+      setUnitToDelete(null);
     }
   };
 
-  const handleEditClick = (aisle: Aisle) => {
-    setAisleToEdit(aisle);
-    setEditName(aisle.name);
+  const handleEditClick = (unit: Unit) => {
+    setUnitToEdit(unit);
+    setEditName(unit.name);
   };
 
   const handleEditSave = async () => {
-    if (!aisleToEdit || !editName.trim()) return;
+    if (!unitToEdit || !editName.trim()) return;
     
     setIsSaving(true);
     try {
-      await kitchenDataBackend.updateAisle(aisleToEdit.id, { name: editName.trim() });
-      await loadAisles();
-      setAisleToEdit(null);
+      await canonBackend.updateUnit(unitToEdit.id, { name: editName.trim() });
+      await loadUnits();
+      setUnitToEdit(null);
       setEditName('');
-      softToast.success('Aisle updated', { description: editName.trim() });
+      softToast.success('Unit updated', { description: editName.trim() });
       onRefresh();
     } catch (err) {
-      console.error('Failed to update aisle', err);
-      softToast.error('Failed to update aisle');
+      console.error('Failed to update unit', err);
+      softToast.error('Failed to update unit');
     } finally {
       setIsSaving(false);
     }
@@ -262,7 +262,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
   };
 
   const handleSelectAll = () => {
-    setSelectedIds(new Set(filteredAisles.map(a => a.id)));
+    setSelectedIds(new Set(filteredUnits.map(u => u.id)));
   };
 
   const handleSelectNone = () => {
@@ -273,22 +273,22 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
     setIsBulkDeleting(true);
     try {
       const idsToDelete = Array.from(selectedIds);
-      await Promise.all(idsToDelete.map(id => kitchenDataBackend.deleteAisle(id)));
-      await loadAisles();
+      await Promise.all(idsToDelete.map(id => canonBackend.deleteUnit(id)));
+      await loadUnits();
       setSelectedIds(new Set());
       setShowBulkDeleteDialog(false);
-      softToast.success(`Deleted ${idsToDelete.length} aisle${idsToDelete.length === 1 ? '' : 's'}`);
+      softToast.success(`Deleted ${idsToDelete.length} unit${idsToDelete.length === 1 ? '' : 's'}`);
       onRefresh();
     } catch (err) {
-      console.error('Failed to bulk delete aisles', err);
-      softToast.error('Failed to delete aisles');
+      console.error('Failed to bulk delete units', err);
+      softToast.error('Failed to delete units');
     } finally {
       setIsBulkDeleting(false);
     }
   };
 
-  const filteredAisles = aisles.filter(aisle =>
-    filterText === '' || aisle.name.toLowerCase().includes(filterText.toLowerCase())
+  const filteredUnits = units.filter(unit =>
+    filterText === '' || unit.name.toLowerCase().includes(filterText.toLowerCase())
   );
 
   return (
@@ -296,10 +296,10 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
       <CardHeader>
         <div className="space-y-1">
 
-          <CardTitle className="text-xl md:text-2xl">Aisles</CardTitle>
+          <CardTitle className="text-xl md:text-2xl">Units</CardTitle>
           <p className="text-sm text-muted-foreground">
-            {aisles.length} shop {aisles.length === 1 ? 'aisle' : 'aisles'}
-            {filterText && ` (${filteredAisles.length} filtered)`}
+            {units.length} measurement {units.length === 1 ? 'unit' : 'units'}
+            {filterText && ` (${filteredUnits.length} filtered)`}
           </p>
         </div>
       </CardHeader>
@@ -309,7 +309,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Filter aisles..."
+            placeholder="Filter units..."
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
             className="pl-9"
@@ -343,7 +343,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
         )}
 
         {/* Select All/None */}
-        {filteredAisles.length > 0 && (
+        {filteredUnits.length > 0 && (
           <div className="flex gap-2">
             <Button
               variant="ghost"
@@ -364,14 +364,14 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
           </div>
         )}
 
-        {/* Add Aisle Form */}
+        {/* Add Unit Form */}
         <form onSubmit={handleAdd} className="space-y-4">
           <div className="flex gap-2">
             <div className="flex-1 space-y-2">
-              <Label htmlFor="aisle-name">Aisle Name</Label>
+              <Label htmlFor="unit-name">Unit Name</Label>
               <Input 
-                id="aisle-name"
-                placeholder="e.g. Produce, Dairy, Bakery"
+                id="unit-name"
+                placeholder="e.g. g, kg, ml, l"
                 value={name} 
                 onChange={(e) => setName(e.target.value)}
                 disabled={isAdding}
@@ -387,12 +387,12 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
           </div>
         </form>
 
-        {/* Aisle List */}
+        {/* Unit List */}
         <div className="flex-1 min-h-0">
-          {filteredAisles.length === 0 ? (
+          {filteredUnits.length === 0 ? (
           <div className="py-12 text-center border border-dashed rounded-lg">
             <p className="text-sm text-muted-foreground">
-              {aisles.length === 0 ? 'No aisles yet. Add shop aisles above.' : 'No aisles match your filter.'}
+              {units.length === 0 ? 'No units yet. Add measurement units above.' : 'No units match your filter.'}
             </p>
           </div>
         ) : (
@@ -402,17 +402,17 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={filteredAisles.map(a => a.id)}
+              items={filteredUnits.map(u => u.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-2">
-                {filteredAisles.map((aisle) => (
-                  <SortableAisleItem
-                    key={aisle.id}
-                    aisle={aisle}
+                {filteredUnits.map((unit) => (
+                  <SortableUnitItem
+                    key={unit.id}
+                    unit={unit}
                     onEdit={handleEditClick}
-                    onDelete={setAisleToDelete}
-                    isSelected={selectedIds.has(aisle.id)}
+                    onDelete={setUnitToDelete}
+                    isSelected={selectedIds.has(unit.id)}
                     onToggleSelect={handleToggleSelect}
                   />
                 ))}
@@ -422,22 +422,22 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
             )}
         </div>
 
-        {/* Edit Aisle Dialog */}
-        <Dialog open={!!aisleToEdit} onOpenChange={() => setAisleToEdit(null)}>
+        {/* Edit Unit Dialog */}
+        <Dialog open={!!unitToEdit} onOpenChange={() => setUnitToEdit(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit Aisle</DialogTitle>
+              <DialogTitle>Edit Unit</DialogTitle>
               <DialogDescription>
-                Update the aisle name
+                Update the unit name
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-name">Aisle Name</Label>
+                <Label htmlFor="edit-name">Unit Name</Label>
                 <Input 
                   id="edit-name"
-                  placeholder="e.g. Produce, Dairy, Bakery" 
+                  placeholder="e.g. g, kg, ml, l" 
                   value={editName} 
                   onChange={(e) => setEditName(e.target.value)}
                   onKeyDown={(e) => {
@@ -452,7 +452,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => setAisleToEdit(null)}
+                onClick={() => setUnitToEdit(null)}
                 disabled={isSaving}
               >
                 Cancel
@@ -468,15 +468,15 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
         </Dialog>
 
         {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!aisleToDelete} onOpenChange={() => setAisleToDelete(null)}>
+        <AlertDialog open={!!unitToDelete} onOpenChange={() => setUnitToDelete(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Aisle?</AlertDialogTitle>
+              <AlertDialogTitle>Delete Unit?</AlertDialogTitle>
               <AlertDialogDescription>
-                {aisleToDelete && (
+                {unitToDelete && (
                   <>
-                    Are you sure you want to delete <strong>{aisleToDelete.name}</strong>? 
-                    This action cannot be undone and may affect items in this aisle.
+                    Are you sure you want to delete <strong>{unitToDelete.name}</strong>? 
+                    This action cannot be undone and may affect items using this unit.
                   </>
                 )}
               </AlertDialogDescription>
@@ -488,7 +488,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
                 disabled={isDeleting}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {isDeleting ? 'Deleting...' : 'Delete Aisle'}
+                {isDeleting ? 'Deleting...' : 'Delete Unit'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -498,10 +498,10 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
         <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete {selectedIds.size} Aisle{selectedIds.size === 1 ? '' : 's'}?</AlertDialogTitle>
+              <AlertDialogTitle>Delete {selectedIds.size} Unit{selectedIds.size === 1 ? '' : 's'}?</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete {selectedIds.size} aisle{selectedIds.size === 1 ? '' : 's'}? 
-                This action cannot be undone and may affect items in these aisles.
+                Are you sure you want to delete {selectedIds.size} unit{selectedIds.size === 1 ? '' : 's'}? 
+                This action cannot be undone and may affect items using these units.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -511,7 +511,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
                 disabled={isBulkDeleting}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {isBulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Aisle${selectedIds.size === 1 ? '' : 's'}`}
+                {isBulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Unit${selectedIds.size === 1 ? '' : 's'}`}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

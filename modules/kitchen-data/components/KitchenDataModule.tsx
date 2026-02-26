@@ -4,9 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { List, MapPin, Ruler, Tags } from 'lucide-react';
 import { kitchenDataBackend } from '../backend';
-import { UnitsManagement } from './UnitsManagement.js';
-import { AislesManagement } from './AislesManagement.js';
-import { ItemsManagement } from './ItemsManagement.js';
+import { UnitsManagement, AislesManagement, ItemsManagement } from '../../canon';
 import { CategoriesManagement } from './CategoriesManagement.js';
 
 interface KitchenDataModuleProps {
