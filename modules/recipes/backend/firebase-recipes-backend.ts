@@ -717,17 +717,24 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
   }
 
   async getKitchenSettings(): Promise<KitchenSettings> {
-    const docRef = doc(db, 'settings', 'global');
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data() as KitchenSettings;
-      return {
-        directives: data.directives || '',
-        debugEnabled: data.debugEnabled || false,
-        userOrder: data.userOrder
-      };
+    try {
+      const docRef = doc(db, 'settings', 'global');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data() as KitchenSettings;
+        return {
+          directives: data.directives || '',
+          debugEnabled: data.debugEnabled || false,
+          userOrder: data.userOrder
+        };
+      }
+      return { directives: '', debugEnabled: false };
+    } catch (error) {
+      // Firestore emulator connection issues (e.g., stale Listen channels) can cause
+      // non-blocking errors. Return defaults if fetch fails.
+      debugLogger.warn('getKitchenSettings', 'Failed to fetch settings, using defaults:', error);
+      return { directives: '', debugEnabled: false };
     }
-    return { directives: '', debugEnabled: false };
   }
 
   async getCategories(): Promise<RecipeCategory[]> {
