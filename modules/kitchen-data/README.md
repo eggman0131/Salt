@@ -11,7 +11,8 @@ Kitchen Data is the **legacy module** being **phased out**. Items, units, and ai
 **Migration Status:**
 - ✅ Phase 1-3: Units, Aisles, Items → **Canon** module
 - ✅ Phase 4: Categories → **Categories** module
-- 📋 Phase 5+: Shopping/Recipes backend hooks, then deprecate Kitchen-Data
+- ✅ Phase 5-7: Shopping/Recipes backend hooks implemented
+- ✅ Phase 8-10: Navigation updated, module fully deprecated
 
 For new features, use the **Canon** module (units, aisles, items) or **Categories** module (recipe categories).
 

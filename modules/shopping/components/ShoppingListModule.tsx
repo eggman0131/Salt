@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingList, ShoppingListItem, CanonicalItem, Unit, Aisle } from '../../../types/contract';
 import { shoppingBackend } from '../backend';
-import { kitchenDataBackend } from '../../kitchen-data';
+import { canonBackend } from '../../canon';
 import { Toaster } from '@/components/ui/sonner';
 import { softToast } from '@/lib/soft-toast';
 import { Loader2 } from 'lucide-react';
@@ -47,9 +47,9 @@ export const ShoppingListModule: React.FC<ShoppingListModuleProps> = ({ onRefres
       try {
         const [listsData, aislesData, unitsData, canonicalData] = await Promise.all([
           shoppingBackend.getShoppingLists(),
-          kitchenDataBackend.getAisles(),
-          kitchenDataBackend.getUnits(),
-          kitchenDataBackend.getCanonicalItems(),
+          canonBackend.getAisles(),
+          canonBackend.getUnits(),
+          canonBackend.getCanonicalItems(),
         ]);
 
         const sorted = listsData.sort((a, b) =>

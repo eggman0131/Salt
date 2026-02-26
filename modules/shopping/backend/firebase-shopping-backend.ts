@@ -16,7 +16,7 @@ import {
   RecipeIngredient,
 } from '../../../types/contract';
 import { db, auth, functions } from '../../../shared/backend/firebase';
-import { kitchenDataBackend } from '../../kitchen-data';
+import { canonBackend } from '../../canon';
 import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
@@ -433,17 +433,17 @@ export class FirebaseShoppingBackend extends BaseShoppingBackend {
       
       if (ingredient.canonicalItemId) {
         // Use existing link
-        const item = await kitchenDataBackend.getCanonicalItem(ingredient.canonicalItemId);
+        const item = await canonBackend.getCanonicalItem(ingredient.canonicalItemId);
         if (item) canonicalItem = item;
       } else {
         // Try to find by name
         const normalizedName = ingredient.ingredientName.toLowerCase().trim();
-        const existingItems = await kitchenDataBackend.getCanonicalItems();
+        const existingItems = await canonBackend.getCanonicalItems();
         canonicalItem = existingItems.find(item => item.normalisedName === normalizedName);
         
         // Create new canonical item if not found
         if (!canonicalItem) {
-          canonicalItem = await kitchenDataBackend.createCanonicalItem({
+          canonicalItem = await canonBackend.createCanonicalItem({
             name: ingredient.ingredientName,
             normalisedName: normalizedName,
             preferredUnit: ingredient.unit || '',
@@ -502,25 +502,25 @@ export class FirebaseShoppingBackend extends BaseShoppingBackend {
     const aisleInput = aisle?.trim() || '';
     
     // Find or create canonical item
-    const existingItems = await kitchenDataBackend.getCanonicalItems();
+    const existingItems = await canonBackend.getCanonicalItems();
     let canonicalItem = existingItems.find(item => item.normalisedName === normalizedName);
     const unitToUse = unitInput || canonicalItem?.preferredUnit || '';
     const aisleToUse = canonicalItem ? (canonicalItem.aisle || '') : aisleInput;
 
-    const units = await kitchenDataBackend.getUnits();
+    const units = await canonBackend.getUnits();
     const unitExists = units.some(existingUnit => existingUnit.name.toLowerCase() === unitToUse.toLowerCase());
     if (!unitExists) {
-      await kitchenDataBackend.createUnit({
+      await canonBackend.createUnit({
         name: unitToUse,
         sortOrder: units.length
       });
     }
 
     if (!canonicalItem && aisleToUse) {
-      const aisles = await kitchenDataBackend.getAisles();
+      const aisles = await canonBackend.getAisles();
       const aisleExists = aisles.some(existingAisle => existingAisle.name.toLowerCase() === aisleToUse.toLowerCase());
       if (!aisleExists) {
-        await kitchenDataBackend.createAisle({
+        await canonBackend.createAisle({
           name: aisleToUse,
           sortOrder: aisles.length
         });
@@ -529,7 +529,7 @@ export class FirebaseShoppingBackend extends BaseShoppingBackend {
     
     if (!canonicalItem) {
       // Create new canonical item
-      canonicalItem = await kitchenDataBackend.createCanonicalItem({
+      canonicalItem = await canonBackend.createCanonicalItem({
         name: trimmedName,
         normalisedName: normalizedName,
         preferredUnit: unitToUse,

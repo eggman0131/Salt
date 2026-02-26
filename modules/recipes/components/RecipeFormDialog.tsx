@@ -28,7 +28,7 @@ import { RecipeEquipmentInput } from './RecipeEquipmentInput';
 import { RecipeInstructionsInput } from './RecipeInstructionsInput';
 import { v4 as uuidv4 } from 'uuid';
 import { inventoryBackend } from '../../inventory';
-import { kitchenDataBackend } from '../../kitchen-data';
+import { canonBackend } from '../../canon';
 import type { Equipment, CanonicalItem } from '../../../types/contract';
 
 interface RecipeFormDialogProps {
@@ -137,7 +137,7 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
       try {
         const [equipment, ingredients] = await Promise.all([
           inventoryBackend.getInventory(),
-          kitchenDataBackend.getCanonicalItems()
+          canonBackend.getCanonicalItems()
         ]);
         setAvailableEquipment(equipment);
         setAvailableIngredients(ingredients);

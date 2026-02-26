@@ -20,7 +20,6 @@ import { AIModule } from './modules/ai';
 import { PlannerModule } from './modules/planner';
 import { plannerBackend } from './modules/planner';
 import { KitchenDataModule } from './modules/kitchen-data';
-import { kitchenDataBackend } from './modules/kitchen-data';
 import { ShoppingListModule } from './modules/shopping';
 import { shoppingBackend } from './modules/shopping';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
