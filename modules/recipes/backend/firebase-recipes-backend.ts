@@ -622,6 +622,83 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     await deleteDoc(doc(db, 'recipes', id));
   }
 
+  // ==================== NOTIFICATION HOOKS ====================
+
+  async onCanonItemsDeleted(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const idsSet = new Set(ids);
+    const recipesSnap = await getDocs(collection(db, 'recipes'));
+
+    let batch = writeBatch(db);
+    let batchCount = 0;
+
+    for (const recipeDoc of recipesSnap.docs) {
+      const rawData = this.decodeRecipeFromFirestore(this.convertTimestamps(recipeDoc.data()));
+      const recipe = rawData as Recipe;
+
+      if (!Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0) {
+        continue;
+      }
+
+      let ingredientsChanged = false;
+      const updatedIngredients = recipe.ingredients.map((ing: any) => {
+        if (ing && ing.canonicalItemId && idsSet.has(ing.canonicalItemId)) {
+          ingredientsChanged = true;
+          const { canonicalItemId, ...rest } = ing;
+          return rest;
+        }
+        return ing;
+      });
+
+      let instructionsChanged = false;
+      const updatedInstructions = Array.isArray(recipe.instructions)
+        ? recipe.instructions.map((instr: any) => {
+            if (!instr || !Array.isArray(instr.ingredients)) return instr;
+
+            let instrChanged = false;
+            const updatedInstrIngredients = instr.ingredients.map((ing: any) => {
+              if (ing && ing.canonicalItemId && idsSet.has(ing.canonicalItemId)) {
+                instrChanged = true;
+                const { canonicalItemId, ...rest } = ing;
+                return rest;
+              }
+              return ing;
+            });
+
+            if (instrChanged) {
+              instructionsChanged = true;
+              return { ...instr, ingredients: updatedInstrIngredients };
+            }
+
+            return instr;
+          })
+        : recipe.instructions;
+
+      if (!ingredientsChanged && !instructionsChanged) {
+        continue;
+      }
+
+      const updates: any = {};
+      if (ingredientsChanged) updates.ingredients = updatedIngredients;
+      if (instructionsChanged) updates.instructions = updatedInstructions;
+
+      const payload = this.encodeRecipeForFirestore(this.cleanUndefinedValues(updates));
+      batch.update(recipeDoc.ref, payload);
+      batchCount++;
+
+      if (batchCount >= 450) {
+        await batch.commit();
+        batch = writeBatch(db);
+        batchCount = 0;
+      }
+    }
+
+    if (batchCount > 0) {
+      await batch.commit();
+    }
+  }
+
   // ==================== DEPENDENCIES (Other Modules) ====================
   
   async getInventory(): Promise<Equipment[]> {

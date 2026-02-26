@@ -41,6 +41,11 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
   abstract updateRecipe(id: string, updates: Partial<Recipe>, imageData?: string): Promise<Recipe>;
   abstract deleteRecipe(id: string): Promise<void>;
   abstract resolveImagePath(path: string): Promise<string>;
+
+  // Notification Hooks
+  async onCanonItemsDeleted(ids: string[]): Promise<void> {
+    void ids;
+  }
   
   // Dependencies (read from other modules)
   abstract getInventory(): Promise<Equipment[]>;
