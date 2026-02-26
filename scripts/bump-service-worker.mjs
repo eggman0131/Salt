@@ -7,7 +7,9 @@
  * 
  * Format: YYYY-MM-DD-XX where XX is a daily counter (01-99)
  * 
- * Usage: node scripts/bump-service-worker.mjs
+ * Usage:
+ *   node scripts/bump-service-worker.mjs              (offline mode - no versioning)
+ *   node scripts/bump-service-worker.mjs --production (version for deployment)
  */
 
 import fs from 'fs';
@@ -140,5 +142,14 @@ function bumpVersion() {
   return newVersion;
 }
 
-const buildVersion = bumpVersion();
-bumpIconVersion(buildVersion);
+// Check if running in production mode (for deployment)
+const isProduction = process.argv.includes('--production');
+
+if (isProduction) {
+  const buildVersion = bumpVersion();
+  bumpIconVersion(buildVersion);
+  console.log('\n🚀 Ready for production deployment');
+} else {
+  console.log('ℹ️  Development build (no versioning)');
+  console.log('   Use --production flag for deployment: node scripts/bump-service-worker.mjs --production');
+}
