@@ -375,6 +375,45 @@ export class FirebaseShoppingBackend extends BaseShoppingBackend {
     const docRef = doc(db, 'shopping_list_items', id);
     await deleteDoc(docRef);
   }
+
+  // ==================== NOTIFICATION HOOKS ====================
+
+  async onCanonItemsDeleted(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const uniqueIds = Array.from(new Set(ids));
+    const chunks: string[][] = [];
+    for (let i = 0; i < uniqueIds.length; i += 10) {
+      chunks.push(uniqueIds.slice(i, i + 10));
+    }
+
+    for (const chunk of chunks) {
+      const snapshot = await getDocs(query(
+        collection(db, 'shopping_list_items'),
+        where('canonicalItemId', 'in', chunk)
+      ));
+
+      if (snapshot.empty) continue;
+
+      let batch = writeBatch(db);
+      let batchCount = 0;
+
+      for (const docSnap of snapshot.docs) {
+        batch.delete(docSnap.ref);
+        batchCount++;
+
+        if (batchCount >= 450) {
+          await batch.commit();
+          batch = writeBatch(db);
+          batchCount = 0;
+        }
+      }
+
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+    }
+  }
   
   // ==================== RECIPE INTEGRATION ====================
   

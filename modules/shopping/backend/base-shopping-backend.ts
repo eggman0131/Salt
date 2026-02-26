@@ -42,6 +42,11 @@ export abstract class BaseShoppingBackend implements IShoppingBackend {
   abstract createShoppingListItem(item: Omit<ShoppingListItem, 'id'>): Promise<ShoppingListItem>;
   abstract updateShoppingListItem(id: string, updates: Partial<ShoppingListItem>): Promise<ShoppingListItem>;
   abstract deleteShoppingListItem(id: string): Promise<void>;
+
+  // Notification Hooks
+  async onCanonItemsDeleted(ids: string[]): Promise<void> {
+    void ids;
+  }
   
   // Recipe Integration
   abstract addRecipeToShoppingList(recipeId: string, shoppingListId: string): Promise<void>;
