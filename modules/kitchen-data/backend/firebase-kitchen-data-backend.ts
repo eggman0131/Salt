@@ -303,15 +303,21 @@ export class FirebaseKitchenDataBackend extends BaseKitchenDataBackend {
   async createCanonicalItem(item: Omit<CanonicalItem, 'id' | 'createdAt'>): Promise<CanonicalItem> {
     // Validate item name doesn't conflict with existing synonyms
     await this.validateItemNameUniqueness(item.name);
-    // Validate synonyms are unique
-    await this.validateUniqueSynonyms(item.synonyms);
+    
+    // Filter out any conflicting synonyms (for AI-proposed synonyms that may conflict)
+    const validSynonyms = await this.filterValidSynonyms(item.synonyms);
+    
+    // Validate remaining synonyms are unique
+    if (validSynonyms.length > 0) {
+      await this.validateUniqueSynonyms(validSynonyms);
+    }
 
     const now = new Date().toISOString();
     const newItem: any = {
       ...item,
       createdAt: now,
       isStaple: item.isStaple ?? false,
-      synonyms: item.synonyms || []
+      synonyms: validSynonyms // Use filtered synonyms instead of original
     };
 
     // Remove undefined values
@@ -337,15 +343,18 @@ export class FirebaseKitchenDataBackend extends BaseKitchenDataBackend {
     if (updates.name !== undefined) {
       await this.validateItemNameUniqueness(updates.name, id);
     }
-    // Validate synonyms are unique (if synonyms are being updated)
+    
+    // Filter out conflicting synonyms (if synonyms are being updated)
+    let finalUpdates = { ...updates };
     if (updates.synonyms !== undefined) {
-      await this.validateUniqueSynonyms(updates.synonyms, id);
+      const validSynonyms = await this.filterValidSynonyms(updates.synonyms, id);
+      finalUpdates = { ...finalUpdates, synonyms: validSynonyms };
     }
 
     const docRef = doc(db, 'canonical_items', id);
     
     // Remove undefined values
-    const cleanUpdates: any = { ...updates };
+    const cleanUpdates: any = { ...finalUpdates };
     Object.keys(cleanUpdates).forEach(key => {
       if (cleanUpdates[key] === undefined) {
         delete cleanUpdates[key];
@@ -367,41 +376,53 @@ export class FirebaseKitchenDataBackend extends BaseKitchenDataBackend {
   }
 
   async deleteCanonicalItem(id: string): Promise<void> {
-    const batch = writeBatch(db);
-    batch.delete(doc(db, 'canonical_items', id));
+    // Delegate to bulk delete to avoid code duplication
+    await this.deleteCanonicalItems([id]);
+  }
 
-    // Note: Recipe unlinking will be handled by recipes module in future
+  async deleteCanonicalItems(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const batch = writeBatch(db);
+    const idsSet = new Set(ids);
+    
+    // Delete all canonical items
+    for (const id of ids) {
+      batch.delete(doc(db, 'canonical_items', id));
+    }
+
+    // Unlink ALL affected ingredients in ONE pass (prevents race conditions)
     const recipesSnap = await getDocs(collection(db, 'recipes'));
+    let recipesAffected = 0;
+    let ingredientsUnlinked = 0;
+
     recipesSnap.forEach((recipeDoc) => {
       const data = this.convertTimestamps(recipeDoc.data());
       const recipe = data as Recipe;
       if (!Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0) return;
 
-      let changed = false;
+      let recipeChanged = false;
       const updatedIngredients = recipe.ingredients.map(ing => {
-        if (ing.canonicalItemId === id) {
-          changed = true;
-          return { ...ing, canonicalItemId: undefined };
+        // Check if this ingredient links to ANY of the deleted items
+        if (ing.canonicalItemId && idsSet.has(ing.canonicalItemId)) {
+          recipeChanged = true;
+          ingredientsUnlinked++;
+          // Remove canonicalItemId field entirely (not just set to undefined)
+          const { canonicalItemId, ...rest } = ing;
+          return rest;
         }
         return ing;
       });
 
-      if (changed) {
-        // Remove undefined values
-        const cleanedIngredients = updatedIngredients.map(ing => {
-          const cleaned: any = {};
-          for (const [key, value] of Object.entries(ing)) {
-            if (value !== undefined) {
-              cleaned[key] = value;
-            }
-          }
-          return cleaned;
-        });
-        batch.update(recipeDoc.ref, { ingredients: cleanedIngredients });
+      if (recipeChanged) {
+        recipesAffected++;
+        batch.update(recipeDoc.ref, { ingredients: updatedIngredients });
       }
     });
 
     await batch.commit();
+    
+    console.log(`Deleted ${ids.length} item${ids.length === 1 ? '' : 's'}, unlinked ${ingredientsUnlinked} ingredient${ingredientsUnlinked === 1 ? '' : 's'} across ${recipesAffected} recipe${recipesAffected === 1 ? '' : 's'}`);
   }
   
   // ==================== CATEGORIES ====================
@@ -439,13 +460,20 @@ export class FirebaseKitchenDataBackend extends BaseKitchenDataBackend {
   async createCategory(category: Omit<RecipeCategory, 'id' | 'createdAt'>): Promise<RecipeCategory> {
     // Validate category name doesn't conflict with existing synonyms
     await this.validateCategoryNameUniqueness(category.name);
-    // Validate synonyms are unique
-    await this.validateUniqueCategorySynonyms(category.synonyms);
+    
+    // Filter out any conflicting synonyms (for AI-proposed synonyms that may conflict)
+    const validSynonyms = await this.filterValidCategorySynonyms(category.synonyms);
+    
+    // Validate remaining synonyms are unique
+    if (validSynonyms.length > 0) {
+      await this.validateUniqueCategorySynonyms(validSynonyms);
+    }
 
     const now = new Date().toISOString();
     const newCat: any = {
       ...category,
-      createdAt: now
+      createdAt: now,
+      synonyms: validSynonyms // Use filtered synonyms instead of original
     };
 
     // Remove undefined values
@@ -469,15 +497,18 @@ export class FirebaseKitchenDataBackend extends BaseKitchenDataBackend {
     if (updates.name !== undefined) {
       await this.validateCategoryNameUniqueness(updates.name, id);
     }
-    // Validate synonyms are unique (if synonyms are being updated)
+    
+    // Filter out conflicting synonyms (if synonyms are being updated)
+    let finalUpdates = { ...updates };
     if (updates.synonyms !== undefined) {
-      await this.validateUniqueCategorySynonyms(updates.synonyms, id);
+      const validSynonyms = await this.filterValidCategorySynonyms(updates.synonyms, id);
+      finalUpdates = { ...finalUpdates, synonyms: validSynonyms };
     }
 
     const docRef = doc(db, 'categories', id);
     
     // Remove undefined values
-    const cleanUpdates: any = { ...updates };
+    const cleanUpdates: any = { ...finalUpdates };
     Object.keys(cleanUpdates).forEach(key => {
       if (cleanUpdates[key] === undefined) {
         delete cleanUpdates[key];
