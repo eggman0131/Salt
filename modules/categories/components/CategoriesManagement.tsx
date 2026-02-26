@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { Trash2, Pencil, X, CheckCircle, AlertCircle, Search } from 'lucide-react';
 import { RecipeCategory } from '../../../types/contract';
-import { kitchenDataBackend } from '../backend';
+import { categoriesBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -68,8 +68,8 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
   const loadCategories = async () => {
     try {
       const [pending, all] = await Promise.all([
-        kitchenDataBackend.getPendingCategories(),
-        kitchenDataBackend.getCategories(),
+        categoriesBackend.getPendingCategories(),
+        categoriesBackend.getCategories(),
       ]);
       
       setPendingCategories(pending);
@@ -109,7 +109,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
   const handleRemoveSynonymFromCategory = async (category: RecipeCategory, synToRemove: string) => {
     try {
       const updatedSynonyms = (category.synonyms || []).filter(s => s !== synToRemove);
-      await kitchenDataBackend.updateCategory(category.id, {
+      await categoriesBackend.updateCategory(category.id, {
         synonyms: updatedSynonyms,
       });
       await loadCategories();
@@ -126,7 +126,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     
     setIsAdding(true);
     try {
-      await kitchenDataBackend.createCategory({
+      await categoriesBackend.createCategory({
         name: name.trim(),
         description: description.trim() || undefined,
         synonyms: synonyms.length > 0 ? synonyms : [],
@@ -148,7 +148,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
   const handleApprove = async (category: RecipeCategory) => {
     setApproving(category.id);
     try {
-      await kitchenDataBackend.approveCategory(category.id);
+      await categoriesBackend.approveCategory(category.id);
       await loadCategories();
       softToast.success('Category approved', { description: category.name });
       onRefresh();
@@ -165,7 +165,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     
     setIsDeleting(true);
     try {
-      await kitchenDataBackend.deleteCategory(categoryToDelete.id);
+      await categoriesBackend.deleteCategory(categoryToDelete.id);
       await loadCategories();
       softToast.success('Category deleted', { description: categoryToDelete.name });
       onRefresh();
@@ -191,7 +191,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     
     setIsSaving(true);
     try {
-      await kitchenDataBackend.updateCategory(categoryToEdit.id, {
+      await categoriesBackend.updateCategory(categoryToEdit.id, {
         name: name.trim(),
         description: description.trim() || undefined,
         synonyms: synonyms,
@@ -232,7 +232,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     setIsBulkDeleting(true);
     try {
       const idsToDelete = Array.from(selectedIds);
-      await Promise.all(idsToDelete.map(id => kitchenDataBackend.deleteCategory(id)));
+      await Promise.all(idsToDelete.map(id => categoriesBackend.deleteCategory(id)));
       await loadCategories();
       setSelectedIds(new Set());
       setShowBulkDeleteDialog(false);

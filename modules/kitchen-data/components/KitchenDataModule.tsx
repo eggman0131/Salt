@@ -3,9 +3,9 @@ import { Stack } from '@/shared/components/primitives';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { List, MapPin, Ruler, Tags } from 'lucide-react';
-import { kitchenDataBackend } from '../backend';
+import { categoriesBackend } from '../../categories';
 import { UnitsManagement, AislesManagement, ItemsManagement } from '../../canon';
-import { CategoriesManagement } from './CategoriesManagement.js';
+import { CategoriesManagement } from '../../categories';
 
 interface KitchenDataModuleProps {
   onRefresh?: () => void;
@@ -25,7 +25,7 @@ export const KitchenDataModule: React.FC<KitchenDataModuleProps> = ({
 
   const loadPendingCount = async () => {
     try {
-      const pending = await kitchenDataBackend.getPendingCategories();
+      const pending = await categoriesBackend.getPendingCategories();
       setPendingCount(pending.length);
       onSuggestionsChanged?.();
     } catch (err) {

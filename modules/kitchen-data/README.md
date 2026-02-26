@@ -1,19 +1,19 @@
 # Kitchen Data Module
 
-The **foundational module** for all kitchen data in Salt. Provides units, aisles, canonical items, and recipe categories.
+**DEPRECATED:** This module is being phased out. All functionality has been migrated to domain-specific modules.
 
 ## Purpose
 
 Kitchen Data is the **legacy module** being **phased out**. Items, units, and aisles have been migrated to the **Canon** module.
 
-**Current State:** Categories-only. Units, aisles, and canonical items are now managed by the Canon module.
+**Current State:** Orchestrator only. All domain logic migrated to Canon (units, aisles, items) and Categories (recipe taxonomy).
 
 **Migration Status:**
-- ✅ Phase 1-3: Units, Aisles, Items → Canon module
-- 🔄 Phase 4: Categories will be extracted into separate module
-- 📦 Phase 5+: Kitchen-Data will be deprecated
+- ✅ Phase 1-3: Units, Aisles, Items → **Canon** module
+- ✅ Phase 4: Categories → **Categories** module
+- 📋 Phase 5+: Shopping/Recipes backend hooks, then deprecate Kitchen-Data
 
-For new features, use the **Canon** module instead.
+For new features, use the **Canon** module (units, aisles, items) or **Categories** module (recipe categories).
 
 ## Architecture
 
@@ -24,14 +24,14 @@ modules/kitchen-data/
 │   ├── base-kitchen-data-backend.ts            (AI categorization logic)
 │   ├── firebase-kitchen-data-backend.ts        (Firestore persistence)
 │   └── index.ts                                (Public backend API)
-├── components/
-│   ├── KitchenDataModule.tsx                   (Tab navigation - imports from Canon)
-│   └── CategoriesManagement.tsx                (Category CRUD + approval)
-└── index.ts                                    (Public module API)
+└── components/
+  └── KitchenDataModule.tsx                   (Tab navigation - imports from Canon + Categories)
 ```
 
-**Note:** UnitsManagement, AislesManagement, and ItemsManagement have been **moved to Canon module** (Phase 3).  
-KitchenDataModule now imports these components from `@/modules/canon`.
+**Migration Notes:**
+- Units, Aisles, Items components → `@/modules/canon` (Phase 3)
+- CategoriesManagement component → `@/modules/categories` (Phase 4)
+- KitchenDataModule now imports from both Canon and Categories modules
 
 ## Backend Interface
 
@@ -56,7 +56,7 @@ The `IKitchenDataBackend` interface provides 21 methods across 4 domains:
 - `updateCanonicalItem(id, updates)` - Update item properties
 - `deleteCanonicalItem(id)` - Remove item (unlinks from recipes)
 
-### Categories (8 methods)
+### Categories (8 methods) - **MIGRATED TO CATEGORIES MODULE**
 - `getCategories()` - Fetch all categories
 - `getCategory(id)` - Fetch single category by ID
 - `createCategory(category)` - Create new category
@@ -66,36 +66,38 @@ The `IKitchenDataBackend` interface provides 21 methods across 4 domains:
 - `getPendingCategories()` - Fetch categories awaiting approval
 - `categorizeRecipe(recipe)` - AI suggests categories for a recipe
 
-## AI Features
+## Migration Guide
 
-### Recipe Categorization
-The base backend includes AI-powered `categorizeRecipe()`:
-- Analyzes recipe title, description, and ingredients
-- Suggests relevant categories from existing catalog
-- Returns category IDs with confidence scoring
-- Uses Gemini Flash model for fast inference
+### Using Categories (Phase 4)
+**OLD:**
+```typescript
+import { kitchenDataBackend } from '@/modules/kitchen-data';
+const categories = await kitchenDataBackend.getCategories();
+```
+
+**NEW:**
+```typescript
+import { categoriesBackend } from '@/modules/categories';
+const categories = await categoriesBackend.getCategories();
+```
 
 ## Usage
 
-### Import the Backend
+### DEPRECATED - Import the Backend
 
 ```typescript
 import { kitchenDataBackend } from '@/modules/kitchen-data';
 
-// Fetch units
-const units = await kitchenDataBackend.getUnits();
+// DEPRECATED - Use canonBackend instead
+import { canonBackend } from '@/modules/canon';
+const units = await canonBackend.getUnits();
 
-// Create canonical item
-const newItem = await kitchenDataBackend.createCanonicalItem({
-  name: 'Tomatoes',
-  defaultUnit: 'g',
-  aisleId: 'aisle-produce',
-  synonyms: ['tomato', 'plum tomatoes', 'cherry tomatoes'],
-  isStaple: false
-});
+// DEPRECATED - Use canonBackend instead
+const newItem = await canonBackend.createCanonicalItem({ ... });
 
-// AI categorization
-const suggestions = await kitchenDataBackend.categorizeRecipe(myRecipe);
+// DEPRECATED - Use categoriesBackend instead
+import { categoriesBackend } from '@/modules/categories';
+const suggestions = await categoriesBackend.categorizeRecipe(myRecipe);
 ```
 
 ### Import Components
