@@ -800,9 +800,6 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     // Remove size adjectives (non-identity descriptors)
     text = text.replace(/\b(small|medium|large)\b/g, '').trim();
     
-    // Basic singularization
-    text = text.replace(/ies$/, 'y').replace(/([^s])s$/, '$1');
-    
     // Normalize whitespace
     const ingredientName = text.replace(/\s+/g, ' ').trim();
     

@@ -31,11 +31,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Trash2, Pencil, X, Search } from 'lucide-react';
+import { Trash2, Pencil, X, Search, PlusCircle } from 'lucide-react';
 import { CanonicalItem, Unit, Aisle } from '../../../types/contract';
 import { kitchenDataBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  DndContext, 
+  DragEndEvent, 
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+  closestCenter,
+  rectIntersection,
+  PointerSensor,
+  useSensor,
+  useSensors
+} from '@dnd-kit/core';
 
 interface ItemsManagementProps {
   onRefresh: () => void;
@@ -55,6 +67,11 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [groupBy, setGroupBy] = useState<'none' | 'aisle' | 'staple'>('none');
+  const [isProcessingDrag, setIsProcessingDrag] = useState(false);
+  const [showBulkAisleDialog, setShowBulkAisleDialog] = useState(false);
+  const [bulkAisleTarget, setBulkAisleTarget] = useState<string>('none');
+  const [isBulkChangingAisle, setIsBulkChangingAisle] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -63,6 +80,17 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
   const [unitId, setUnitId] = useState<string>('none');
   const [synonyms, setSynonyms] = useState<string[]>([]);
   const [synonymInput, setSynonymInput] = useState('');
+
+  // Drag and drop state
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeDragSynonym, setActiveDragSynonym] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement required to start drag
+      },
+    })
+  );
 
   useEffect(() => {
     loadData();
@@ -118,6 +146,152 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     } catch (err) {
       console.error('Failed to remove synonym', err);
       softToast.error('Failed to remove synonym');
+    }
+  };
+
+  const handleDragStart = (event: DragEndEvent) => {
+    setActiveDragId(event.active.id as string);
+    const dragData = event.active.data.current;
+    if (dragData && dragData.type === 'synonym') {
+      setActiveDragSynonym(dragData.synonym);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    setActiveDragSynonym(null);
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    try {
+      // Get drag data from the draggable
+      const dragData = active.data.current;
+      if (!dragData || dragData.type !== 'synonym') {
+        return;
+      }
+
+      const sourceItemId = dragData.itemId;
+      const synonym = dragData.synonym;
+      const sourceItem = items.find(i => i.id === sourceItemId);
+      
+      if (!sourceItem) {
+        return;
+      }
+
+      // Check if dropped on "create new" zone
+      if (over.id === 'create-new-item') {
+        setIsProcessingDrag(true);
+        softToast.info('Creating new item...', { description: 'Analyzing with AI' });
+
+        // Remove synonym from source item FIRST (before validation runs on new item creation)
+        const updatedSynonyms = (sourceItem.synonyms || []).filter(s => s !== synonym);
+        await kitchenDataBackend.updateCanonicalItem(sourceItem.id, {
+          synonyms: updatedSynonyms,
+        });
+
+        // Enrich item with AI (proper capitalization, aisle, unit)
+        const enriched = await kitchenDataBackend.enrichCanonicalItem(synonym);
+
+        // Create new item with enriched data
+        await kitchenDataBackend.createCanonicalItem({
+          name: enriched.name,
+          normalisedName: enriched.name.toLowerCase(),
+          preferredUnit: enriched.preferredUnit,
+          aisle: enriched.aisle,
+          isStaple: enriched.isStaple,
+          synonyms: enriched.synonyms,
+        });
+
+        await loadData();
+        setIsProcessingDrag(false);
+        softToast.success('Item created', { description: enriched.name });
+        onRefresh();
+        return;
+      }
+
+      // Get drop target data
+      const overData = over.data.current;
+      
+      // Check if dropped on an item's title (swap synonym with title)
+      if (overData && overData.type === 'title') {
+        const targetItemId = overData.itemId;
+        
+        // Only allow swapping within the same item
+        if (sourceItemId === targetItemId) {
+          setIsProcessingDrag(true);
+          softToast.info('Swapping title...', { description: 'Analyzing with AI' });
+
+          const oldTitle = sourceItem.name;
+          // Capitalize the synonym when promoting to title
+          const enriched = await kitchenDataBackend.enrichCanonicalItem(synonym);
+          const newTitle = enriched.name;
+          
+          // Remove synonym from list and add old title as synonym
+          const updatedSynonyms = (sourceItem.synonyms || [])
+            .filter(s => s !== synonym)
+            .concat(oldTitle);
+          
+          await kitchenDataBackend.updateCanonicalItem(sourceItem.id, {
+            name: newTitle,
+            normalisedName: newTitle.toLowerCase(),
+            synonyms: updatedSynonyms,
+          });
+          
+          await loadData();
+          setIsProcessingDrag(false);
+          softToast.success('Title swapped', { 
+            description: `"${newTitle}" is now the main name` 
+          });
+          onRefresh();
+        }
+        return;
+      }
+
+      // Check if dropped on another item
+      if (!overData || overData.type !== 'item') {
+        return;
+      }
+
+      const targetItemId = overData.itemId;
+      const targetItem = items.find(i => i.id === targetItemId);
+
+      if (!targetItem) {
+        return;
+      }
+      
+      if (sourceItemId === targetItemId) {
+        softToast.info('Drop on title to swap, or on a different item to move');
+        return;
+      }
+
+      setIsProcessingDrag(true);
+
+      // Move synonym from source to target
+      const sourceSynonyms = (sourceItem.synonyms || []).filter(s => s !== synonym);
+      const targetSynonyms = [...(targetItem.synonyms || []), synonym];
+
+      await Promise.all([
+        kitchenDataBackend.updateCanonicalItem(sourceItem.id, {
+          synonyms: sourceSynonyms,
+        }),
+        kitchenDataBackend.updateCanonicalItem(targetItem.id, {
+          synonyms: targetSynonyms,
+        }),
+      ]);
+
+      await loadData();
+      setIsProcessingDrag(false);
+      softToast.success('Synonym moved', { 
+        description: `"${synonym}" moved to ${targetItem.name}` 
+      });
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to move synonym', err);
+      setIsProcessingDrag(false);
+      softToast.error('Failed to move synonym');
     }
   };
 
@@ -247,7 +421,8 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     setIsBulkDeleting(true);
     try {
       const idsToDelete = Array.from(selectedIds);
-      await Promise.all(idsToDelete.map(id => kitchenDataBackend.deleteCanonicalItem(id)));
+      // Use new bulk delete method to avoid race conditions
+      await kitchenDataBackend.deleteCanonicalItems(idsToDelete);
       await loadData();
       setSelectedIds(new Set());
       setShowBulkDeleteDialog(false);
@@ -261,14 +436,220 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     }
   };
 
+  const handleBulkAisleChange = async () => {
+    if (bulkAisleTarget === 'none') {
+      softToast.error('Please select an aisle');
+      return;
+    }
+
+    setIsBulkChangingAisle(true);
+    try {
+      const idsToUpdate = Array.from(selectedIds);
+      const targetAisle = aisles.find(a => a.name === bulkAisleTarget)?.name;
+      
+      await Promise.all(
+        idsToUpdate.map(id => 
+          kitchenDataBackend.updateCanonicalItem(id, {
+            aisle: targetAisle
+          })
+        )
+      );
+      
+      await loadData();
+      setSelectedIds(new Set());
+      setShowBulkAisleDialog(false);
+      setBulkAisleTarget('none');
+      softToast.success(`Moved ${idsToUpdate.length} item${idsToUpdate.length === 1 ? '' : 's'} to ${targetAisle}`);
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to bulk change aisle', err);
+      softToast.error('Failed to change aisle');
+    } finally {
+      setIsBulkChangingAisle(false);
+    }
+  };
+
+  // Helper component for draggable synonyms
+  const DraggableSynonym: React.FC<{
+    synonym: string;
+    itemId: string;
+    onRemove: () => void;
+  }> = ({ synonym, itemId, onRemove }) => {
+    const dragId = `synonym-${itemId}-${synonym}`;
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+      id: dragId,
+      data: {
+        type: 'synonym',
+        itemId,
+        synonym,
+      },
+    });
+
+    const style = transform ? {
+      transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      opacity: isDragging ? 0.5 : 1,
+    } : undefined;
+
+    return (
+      <Badge 
+        ref={setNodeRef}
+        variant="outline" 
+        className="text-xs pl-2 pr-1 flex items-center gap-1 cursor-grab active:cursor-grabbing"
+        style={style}
+        {...attributes}
+        {...listeners}
+      >
+        <span>{synonym}</span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="text-muted-foreground hover:text-destructive transition-colors ml-1"
+          title={`Remove synonym "${synonym}"`}
+          onPointerDown={(e) => e.stopPropagation()} // Prevent drag from starting
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </Badge>
+    );
+  };
+
+  // Helper component for droppable title (to swap with synonyms)
+  const DroppableTitle: React.FC<{
+    itemId: string;
+    title: string;
+  }> = ({ itemId, title }) => {
+    const { setNodeRef, isOver } = useDroppable({
+      id: `title-${itemId}`,
+      data: {
+        type: 'title',
+        itemId,
+      },
+    });
+
+    return (
+      <p 
+        ref={setNodeRef}
+        className={`font-medium text-sm transition-all ${
+          isOver ? 'ring-2 ring-primary ring-offset-1 rounded px-1 -mx-1' : ''
+        }`}
+      >
+        {title}
+      </p>
+    );
+  };
+
+  // Helper component for droppable items
+  const DroppableItem: React.FC<{
+    item: CanonicalItem;
+    children: React.ReactNode;
+  }> = ({ item, children }) => {
+    const { setNodeRef, isOver } = useDroppable({
+      id: `item-${item.id}`,
+      data: {
+        type: 'item',
+        itemId: item.id,
+      },
+    });
+
+    return (
+      <div
+        ref={setNodeRef}
+        className={`flex items-start gap-3 p-3 border rounded-lg bg-background shadow-sm hover:shadow-md transition-all ${
+          isOver ? 'ring-2 ring-primary ring-offset-2' : ''
+        }`}
+      >
+        {children}
+      </div>
+    );
+  };
+
+  // Helper component for "Create New Item" drop zone
+  const NewItemDropZone: React.FC = () => {
+    const { setNodeRef, isOver } = useDroppable({
+      id: 'create-new-item',
+    });
+
+    return (
+      <div
+        ref={setNodeRef}
+        className={`p-4 border-2 border-dashed rounded-lg transition-all mb-2 ${
+          isOver 
+            ? 'border-primary bg-primary/10' 
+            : 'border-muted-foreground/30 bg-muted/30'
+        }`}
+      >
+        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <PlusCircle className="h-4 w-4" />
+          <span>Drop synonym here to create new item</span>
+        </div>
+      </div>
+    );
+  };
+
   const filteredItems = items.filter(item =>
     filterText === '' || 
     item.name.toLowerCase().includes(filterText.toLowerCase()) ||
     (item.synonyms && item.synonyms.some(syn => syn.toLowerCase().includes(filterText.toLowerCase())))
   );
 
+  // Group items based on groupBy setting
+  const groupedItems = React.useMemo(() => {
+    if (groupBy === 'none') {
+      return [{ key: 'all', label: null, items: filteredItems }];
+    }
+
+    if (groupBy === 'aisle') {
+      const groups = new Map<string, CanonicalItem[]>();
+      
+      filteredItems.forEach(item => {
+        const aisleName = getAisleName(item.aisle) || 'No Aisle';
+        if (!groups.has(aisleName)) {
+          groups.set(aisleName, []);
+        }
+        groups.get(aisleName)!.push(item);
+      });
+
+      // Sort groups by aisle name
+      const sortedGroups = Array.from(groups.entries())
+        .sort(([a], [b]) => {
+          if (a === 'No Aisle') return 1;
+          if (b === 'No Aisle') return -1;
+          return a.localeCompare(b);
+        });
+
+      return sortedGroups.map(([aisleName, items]) => ({
+        key: aisleName,
+        label: aisleName,
+        items,
+      }));
+    }
+
+    if (groupBy === 'staple') {
+      const staples = filteredItems.filter(item => item.isStaple);
+      const nonStaples = filteredItems.filter(item => !item.isStaple);
+      
+      const groups = [];
+      if (staples.length > 0) {
+        groups.push({ key: 'staples', label: 'Staples', items: staples });
+      }
+      if (nonStaples.length > 0) {
+        groups.push({ key: 'non-staples', label: 'Non-Staples', items: nonStaples });
+      }
+      return groups;
+    }
+
+    return [{ key: 'all', label: null, items: filteredItems }];
+  }, [filteredItems, groupBy, aisles]);
+
   return (
-    <>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={rectIntersection}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -283,30 +664,49 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       </CardHeader>
 
       <CardContent className="flex flex-col space-y-3 h-full px-0 md:px-6">
-        {/* Filter */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Filter items by name or synonym..."
-            value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
-            className="pl-9"
-          />
+        {/* Filter and Group Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Filter items by name or synonym..."
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as typeof groupBy)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Group by..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No Grouping</SelectItem>
+              <SelectItem value="aisle">Group by Aisle</SelectItem>
+              <SelectItem value="staple">Group by Staple</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Selection Actions */}
         {selectedIds.size > 0 && (
-          <div className="flex items-center justify-between gap-2 p-2 border rounded-lg bg-muted/50">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2 border rounded-lg bg-muted/50">
             <span className="text-sm text-muted-foreground">
               {selectedIds.size} selected
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleSelectNone}
               >
                 Clear
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowBulkAisleDialog(true)}
+              >
+                Change Aisle ({selectedIds.size})
               </Button>
               <Button
                 variant="destructive"
@@ -343,7 +743,17 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
         )}
 
         {/* Items List */}
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 relative">
+          {/* Loading Overlay */}
+          {isProcessingDrag && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+              <div className="text-center space-y-2">
+                <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-sm text-muted-foreground">Processing...</p>
+              </div>
+            </div>
+          )}
+
           {filteredItems.length === 0 ? (
             <div className="py-12 text-center border border-dashed rounded-lg">
               <p className="text-sm text-muted-foreground">
@@ -352,12 +762,18 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
             </div>
           ) : (
             <ScrollArea className="h-full">
-              <div className="space-y-2">
-                {filteredItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-start gap-3 p-3 border rounded-lg bg-background shadow-sm hover:shadow-md transition-shadow"
-                >
+              <NewItemDropZone />
+              <div className="space-y-4">
+                {groupedItems.map((group) => (
+                  <div key={group.key}>
+                    {group.label && (
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-2 px-1">
+                        {group.label} ({group.items.length})
+                      </h3>
+                    )}
+                    <div className="space-y-2">
+                      {group.items.map((item) => (
+                        <DroppableItem key={item.id} item={item}>
                   <Checkbox 
                     checked={selectedIds.has(item.id)}
                     onCheckedChange={() => handleToggleSelect(item.id)}
@@ -365,7 +781,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                   />
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-sm">{item.name}</p>
+                      <DroppableTitle itemId={item.id} title={item.name} />
                       {item.isStaple && (
                         <Badge variant="secondary" className="text-xs">
                           Staple
@@ -383,16 +799,12 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                       {item.synonyms && item.synonyms.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {item.synonyms.map((syn) => (
-                            <Badge key={syn} variant="outline" className="text-xs pl-2 pr-1 flex items-center gap-1">
-                              <span>{syn}</span>
-                              <button
-                                onClick={() => handleRemoveSynonymFromItem(item, syn)}
-                                className="text-muted-foreground hover:text-destructive transition-colors ml-1"
-                                title={`Remove synonym "${syn}"`}
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </Badge>
+                            <DraggableSynonym
+                              key={syn}
+                              synonym={syn}
+                              itemId={item.id}
+                              onRemove={() => handleRemoveSynonymFromItem(item, syn)}
+                            />
                           ))}
                         </div>
                       )}
@@ -417,11 +829,14 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-            )}
+                </DroppableItem>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
         </div>
 
         {/* Add Item Dialog */}
@@ -720,7 +1135,67 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Bulk Aisle Change Dialog */}
+        <Dialog open={showBulkAisleDialog} onOpenChange={setShowBulkAisleDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change Aisle for {selectedIds.size} Item{selectedIds.size === 1 ? '' : 's'}</DialogTitle>
+              <DialogDescription>
+                Select the aisle to move {selectedIds.size} selected item{selectedIds.size === 1 ? '' : 's'} to.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="bulk-aisle">Target Aisle</Label>
+                <Select
+                  value={bulkAisleTarget}
+                  onValueChange={setBulkAisleTarget}
+                >
+                  <SelectTrigger id="bulk-aisle">
+                    <SelectValue placeholder="Select aisle..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select aisle...</SelectItem>
+                    {aisles.map((aisle) => (
+                      <SelectItem key={aisle.id} value={aisle.name}>
+                        {aisle.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBulkAisleDialog(false);
+                  setBulkAisleTarget('none');
+                }}
+                disabled={isBulkChangingAisle}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkAisleChange}
+                disabled={isBulkChangingAisle || bulkAisleTarget === 'none'}
+              >
+                {isBulkChangingAisle ? 'Moving...' : `Move ${selectedIds.size} Item${selectedIds.size === 1 ? '' : 's'}`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
-    </>
+
+      {/* Drag Overlay */}
+      <DragOverlay>
+        {activeDragSynonym ? (
+          <Badge variant="outline" className="text-xs pl-2 pr-1">
+            {activeDragSynonym}
+          </Badge>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 };
