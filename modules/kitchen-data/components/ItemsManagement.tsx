@@ -73,6 +73,20 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
   const [bulkAisleTarget, setBulkAisleTarget] = useState<string>('none');
   const [isBulkChangingAisle, setIsBulkChangingAisle] = useState(false);
 
+  // Impact assessment & healing
+  const [impactAssessment, setImpactAssessment] = useState<{ itemIds: string[]; affectedRecipes: { id: string; title: string; ingredientCount: number }[] } | null>(null);
+  const [showImpactDialog, setShowImpactDialog] = useState(false);
+  const [isAssessingImpact, setIsAssessingImpact] = useState(false);
+  const [isHealing, setIsHealing] = useState(false);
+  const [healingResult, setHealingResult] = useState<{
+    recipesFixed: number;
+    ingredientsProcessed: number;
+    ingredientsRematched: number;
+    ingredientsUnmatched: number;
+    newCanonicalItemsCreated: Array<{ name: string; id: string; aisle: string; unit: string }>;
+  } | null>(null);
+  const [showHealingResult, setShowHealingResult] = useState(false);
+
   // Form state
   const [name, setName] = useState('');
   const [isStaple, setIsStaple] = useState(false);
@@ -321,21 +335,57 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     }
   };
 
+  const handleDeleteClick = async (item: CanonicalItem) => {
+    // Skip the old confirmation dialog and go straight to impact assessment
+    setItemToDelete(item);
+    setIsAssessingImpact(true);
+    try {
+      console.log('🔍 Assessing impact for single item deletion:', item.id);
+      const assessment = await kitchenDataBackend.assessItemDeletion([item.id]);
+      console.log('✅ Impact assessment complete:', assessment);
+      setImpactAssessment(assessment);
+      setShowImpactDialog(true);
+    } catch (err) {
+      console.error('❌ Failed to assess impact', err);
+      softToast.error('Failed to assess deletion impact');
+      setItemToDelete(null);
+    } finally {
+      setIsAssessingImpact(false);
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!itemToDelete) return;
     
-    setIsDeleting(true);
     try {
-      await kitchenDataBackend.deleteCanonicalItem(itemToDelete.id);
+      setIsBulkDeleting(true); // Reuse bulk deleting state
+      const idToDelete = itemToDelete.id;
+      
+      // Delete the item using bulk method
+      console.log('🗑️ Deleting item:', idToDelete);
+      await kitchenDataBackend.deleteCanonicalItems([idToDelete]);
+      
+      // Heal references
+      setIsHealing(true);
+      console.log('🔧 Healing recipe references...');
+      const result = await kitchenDataBackend.healRecipeReferences([idToDelete], impactAssessment!);
+      console.log('✅ Healing complete:', result);
+      setHealingResult(result);
+      setShowHealingResult(true);
+      
+      // Cleanup
       await loadData();
-      softToast.success('Item deleted', { description: itemToDelete.name });
+      setItemToDelete(null);
+      setImpactAssessment(null);
+      setShowImpactDialog(false);
+      softToast.success('Item deleted & fixed', { description: itemToDelete.name });
       onRefresh();
     } catch (err) {
-      console.error('Failed to delete item', err);
+      console.error('❌ Failed to delete item', err);
       softToast.error('Failed to delete item');
     } finally {
-      setIsDeleting(false);
-      setItemToDelete(null);
+      setIsBulkDeleting(false);
+      setIsHealing(false);
     }
   };
 
@@ -417,22 +467,52 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     setSelectedIds(new Set());
   };
 
-  const handleBulkDelete = async () => {
-    setIsBulkDeleting(true);
+  const handleBulkDeleteClick = async () => {
+    // Step 1: Assess impact
+    setIsAssessingImpact(true);
     try {
       const idsToDelete = Array.from(selectedIds);
+      console.log('🔍 Assessing impact for deletion of:', idsToDelete);
+      const assessment = await kitchenDataBackend.assessItemDeletion(idsToDelete);
+      console.log('✅ Impact assessment complete:', assessment);
+      setImpactAssessment(assessment);
+      setShowBulkDeleteDialog(false);
+      setShowImpactDialog(true);
+    } catch (err) {
+      console.error('❌ Failed to assess impact', err);
+      softToast.error('Failed to assess deletion impact');
+    } finally {
+      setIsAssessingImpact(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    // Step 2: Delete items
+    setIsBulkDeleting(true);
+    try {
+      const idsToDelete = impactAssessment?.itemIds || Array.from(selectedIds);
       // Use new bulk delete method to avoid race conditions
       await kitchenDataBackend.deleteCanonicalItems(idsToDelete);
+      
+      // Step 3: Heal references
+      setShowImpactDialog(false);
+      setIsHealing(true);
+      const result = await kitchenDataBackend.healRecipeReferences(idsToDelete, impactAssessment!);
+      setHealingResult(result);
+      setShowHealingResult(true);
+      
+      // Cleanup
       await loadData();
       setSelectedIds(new Set());
-      setShowBulkDeleteDialog(false);
+      setImpactAssessment(null);
       softToast.success(`Deleted ${idsToDelete.length} item${idsToDelete.length === 1 ? '' : 's'}`);
       onRefresh();
     } catch (err) {
-      console.error('Failed to bulk delete items', err);
+      console.error('Failed to delete and heal', err);
       softToast.error('Failed to delete items');
     } finally {
       setIsBulkDeleting(false);
+      setIsHealing(false);
     }
   };
 
@@ -711,7 +791,8 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => setShowBulkDeleteDialog(true)}
+                onClick={handleBulkDeleteClick}
+                disabled={isAssessingImpact}
               >
                 <Trash2 className="h-3 w-3 mr-1" />
                 Delete ({selectedIds.size})
@@ -821,7 +902,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
-                      onClick={() => setItemToDelete(item)}
+                      onClick={() => handleDeleteClick(item)}
                       variant="ghost"
                       size="icon"
                       className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
@@ -1086,8 +1167,8 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!itemToDelete} onOpenChange={() => setItemToDelete(null)}>
+        {/* Delete Confirmation Dialog - DISABLED, use impact assessment flow instead */}
+        <AlertDialog open={false} onOpenChange={() => setItemToDelete(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Item?</AlertDialogTitle>
@@ -1113,28 +1194,119 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Bulk Delete Confirmation Dialog */}
-        <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
-          <AlertDialogContent>
+        {/* Impact Assessment Dialog */}
+        <AlertDialog open={showImpactDialog} onOpenChange={setShowImpactDialog}>
+          <AlertDialogContent className="max-h-[80vh] overflow-y-auto">
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete {selectedIds.size} Item{selectedIds.size === 1 ? '' : 's'}?</AlertDialogTitle>
+              <AlertDialogTitle>Impact Assessment</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete {selectedIds.size} item{selectedIds.size === 1 ? '' : 's'}? 
-                This action cannot be undone and may affect recipes using these items.
+                {impactAssessment && impactAssessment.affectedRecipes.length === 0
+                  ? 'Good news! No recipes are using these items.'
+                  : `${impactAssessment?.affectedRecipes.length} recipe${impactAssessment?.affectedRecipes.length === 1 ? '' : 's'} will be affected by this deletion.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            
+            {impactAssessment && impactAssessment.affectedRecipes.length > 0 && (
+              <div className="space-y-3 py-4">
+                <p className="text-sm text-muted-foreground">
+                  The following recipes use these items:
+                </p>
+                <ScrollArea className="max-h-48 border rounded-lg p-3">
+                  <div className="space-y-2">
+                    {impactAssessment.affectedRecipes.map((recipe) => (
+                      <div key={recipe.id} className="text-sm border-l-2 border-destructive pl-3 py-1">
+                        <p className="font-medium">{recipe.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {recipe.ingredientCount} ingredient{recipe.ingredientCount === 1 ? '' : 's'} affected
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+                <p className="text-sm font-medium text-destructive">
+                  Affected ingredients will be unlinked and automatically re-matched to similar items. 
+                  Any unmatched ingredients will remain in your recipes for manual review.
+                </p>
+              </div>
+            )}
+            
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={isBulkDeleting || isHealing}>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                onClick={handleBulkDelete}
-                disabled={isBulkDeleting}
+                onClick={handleConfirmDelete}
+                disabled={isBulkDeleting || isHealing}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {isBulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Item${selectedIds.size === 1 ? '' : 's'}`}
+                {isBulkDeleting || isHealing ? 'Processing...' : 'Delete & Fix'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Healing Result Dialog */}
+        <Dialog open={showHealingResult} onOpenChange={setShowHealingResult}>
+          <DialogContent className="max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>✅ Deletion Complete & Fixed</DialogTitle>
+              <DialogDescription>
+                Your recipes have been automatically healed.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {healingResult && (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 border rounded-lg bg-muted/30">
+                    <p className="text-2xl font-bold text-green-600">{healingResult.recipesFixed}</p>
+                    <p className="text-xs text-muted-foreground">Recipes Fixed</p>
+                  </div>
+                  <div className="p-3 border rounded-lg bg-muted/30">
+                    <p className="text-2xl font-bold text-blue-600">{healingResult.ingredientsRematched}</p>
+                    <p className="text-xs text-muted-foreground">Rematched</p>
+                  </div>
+                  <div className="p-3 border rounded-lg bg-muted/30">
+                    <p className="text-2xl font-bold text-orange-600">{healingResult.ingredientsUnmatched}</p>
+                    <p className="text-xs text-muted-foreground">Unmatched</p>
+                  </div>
+                  <div className="p-3 border rounded-lg bg-muted/30">
+                    <p className="text-2xl font-bold text-purple-600">{healingResult.ingredientsProcessed}</p>
+                    <p className="text-xs text-muted-foreground">Total Processed</p>
+                  </div>
+                </div>
+                
+                {healingResult.ingredientsUnmatched > 0 && (
+                  <div className="p-3 border border-orange-200 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+                    <p className="text-sm font-medium text-orange-900 dark:text-orange-200">
+                      ⚠️ {healingResult.ingredientsUnmatched} ingredient{healingResult.ingredientsUnmatched === 1 ? '' : 's'} could not be automatically matched.
+                    </p>
+                    <p className="text-xs text-orange-800 dark:text-orange-300 mt-1">
+                      These ingredients remain unlinked in your recipes. You can manually link them or leave them as-is.
+                    </p>
+                  </div>
+                )}
+                
+                {healingResult.ingredientsRematched > 0 && (
+                  <div className="p-3 border border-green-200 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                    <p className="text-sm font-medium text-green-900 dark:text-green-200">
+                      ✓ {healingResult.ingredientsRematched} ingredient{healingResult.ingredientsRematched === 1 ? '' : 's'} successfully re-matched to similar items.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  setShowHealingResult(false);
+                  setHealingResult(null);
+                }}
+              >
+                Done
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Bulk Aisle Change Dialog */}
         <Dialog open={showBulkAisleDialog} onOpenChange={setShowBulkAisleDialog}>

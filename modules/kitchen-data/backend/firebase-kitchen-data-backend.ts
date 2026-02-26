@@ -424,6 +424,184 @@ export class FirebaseKitchenDataBackend extends BaseKitchenDataBackend {
     
     console.log(`Deleted ${ids.length} item${ids.length === 1 ? '' : 's'}, unlinked ${ingredientsUnlinked} ingredient${ingredientsUnlinked === 1 ? '' : 's'} across ${recipesAffected} recipe${recipesAffected === 1 ? '' : 's'}`);
   }
+
+  // ==================== IMPACT ASSESSMENT & HEALING ====================
+
+  async assessItemDeletion(ids: string[]): Promise<{
+    itemIds: string[];
+    affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[];
+  }> {
+    const idsSet = new Set(ids);
+    const affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[] = [];
+
+    const recipesSnap = await getDocs(collection(db, 'recipes'));
+    recipesSnap.forEach((recipeDoc) => {
+      const data = this.convertTimestamps(recipeDoc.data());
+      const recipe = data as Recipe;
+      if (!recipe.ingredients?.length) return;
+
+      const affectedIndices: number[] = [];
+      recipe.ingredients.forEach((ing, idx) => {
+        if (ing.canonicalItemId && idsSet.has(ing.canonicalItemId)) {
+          affectedIndices.push(idx);
+        }
+      });
+
+      if (affectedIndices.length > 0) {
+        affectedRecipes.push({
+          id: recipeDoc.id,
+          title: recipe.title || '(Untitled)',
+          ingredientCount: affectedIndices.length,
+          affectedIndices
+        });
+      }
+    });
+
+    return {
+      itemIds: ids,
+      affectedRecipes
+    };
+  }
+
+  async healRecipeReferences(ids: string[], assessment: {
+    itemIds: string[];
+    affectedRecipes: { id: string; title: string; ingredientCount: number }[];
+  }): Promise<{
+    recipesFixed: number;
+    ingredientsProcessed: number;
+    ingredientsRematched: number;
+    ingredientsUnmatched: number;
+    newCanonicalItemsCreated: Array<{ name: string; id: string; aisle: string; unit: string }>;
+  }> {
+    const allItems = await this.getCanonicalItems();
+    const affectedRecipeIds = new Set(assessment.affectedRecipes.map(r => r.id));
+
+    let recipesFixed = 0;
+    let ingredientsProcessed = 0;
+    let ingredientsRematched = 0;
+    let ingredientsUnmatched = 0;
+    const newItemsCreated: Array<{ name: string; id: string; aisle: string; unit: string }> = [];
+
+    const batch = writeBatch(db);
+
+    // Only process recipes that were affected by the deletion
+    for (const assessedRecipe of assessment.affectedRecipes) {
+      const recipeRef = doc(db, 'recipes', assessedRecipe.id);
+      const recipeDoc = await getDoc(recipeRef);
+      
+      if (!recipeDoc.exists()) continue;
+      
+      const data = this.convertTimestamps(recipeDoc.data());
+      const recipe = data as Recipe;
+      if (!recipe.ingredients?.length) continue;
+
+      let recipeChanged = false;
+      let unlinkedCount = 0;
+
+      // Step 1: Find unlinked ingredients (no canonicalItemId)
+      const updatedIngredients = recipe.ingredients.map((ing, idx) => {
+        // Only try to re-match if ingredient is unlinked (no canonicalItemId)
+        if (!ing.canonicalItemId) {
+          unlinkedCount++;
+          ingredientsProcessed++;
+          
+          // Step 2: Try to fuzzy match
+          let bestMatch: CanonicalItem | null = null;
+          let bestScore = 0;
+
+          for (const candidate of allItems) {
+            const score = this.fuzzyMatch(
+              ing.ingredientName.toLowerCase(),
+              candidate.normalisedName
+            );
+            if (score > bestScore) {
+              bestScore = score;
+              bestMatch = candidate;
+            }
+
+            if (candidate.synonyms) {
+              for (const syn of candidate.synonyms) {
+                const synScore = this.fuzzyMatch(
+                  ing.ingredientName.toLowerCase(),
+                  syn.toLowerCase()
+                );
+                if (synScore > bestScore) {
+                  bestScore = synScore;
+                  bestMatch = candidate;
+                }
+              }
+            }
+          }
+
+          // Re-link if good match (85%+)
+          if (bestScore >= 0.85 && bestMatch) {
+            ingredientsRematched++;
+            recipeChanged = true;
+            return { ...ing, canonicalItemId: bestMatch.id };
+          } else {
+            // Leave unlinked for manual review
+            ingredientsUnmatched++;
+            recipeChanged = true;
+            return ing;
+          }
+        }
+        return ing;
+      });
+
+      if (recipeChanged && unlinkedCount > 0) {
+        recipesFixed++;
+        batch.update(recipeRef, { ingredients: updatedIngredients });
+      }
+    }
+
+    await batch.commit();
+
+    console.log(`✅ Healed ${recipesFixed} recipes: ${ingredientsRematched} rematched, ${ingredientsUnmatched} unmatched`);
+
+    return {
+      recipesFixed,
+      ingredientsProcessed,
+      ingredientsRematched,
+      ingredientsUnmatched,
+      newCanonicalItemsCreated: newItemsCreated
+    };
+  }
+
+  private fuzzyMatch(a: string, b: string): number {
+    const longer = a.length > b.length ? a : b;
+    const shorter = a.length > b.length ? b : a;
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = this.levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+
+  private levenshteinDistance(a: string, b: string): number {
+    const matrix: number[][] = [];
+    
+    for (let i = 0; i <= b.length; i++) {
+      matrix[i] = [i];
+    }
+    for (let j = 0; j <= a.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    
+    return matrix[b.length][a.length];
+  }
   
   // ==================== CATEGORIES ====================
   
