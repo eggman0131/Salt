@@ -32,8 +32,28 @@ modules/canon/
 ```typescript
 import { canonBackend } from '@/modules/canon';
 
+// Get catalogue data
 const items = await canonBackend.getCanonicalItems();
+const units = await canonBackend.getUnits();
+const aisles = await canonBackend.getAisles();
+
+// Process ingredients (used by recipes and shopping modules)
+const ingredients = await canonBackend.processIngredients(
+  ["2 large red onions, diced", "500g beef mince"],
+  "recipe-123"
+);
 ```
+
+## Status
+
+✅ **Phase 1 Complete**: Canon module structure created with backend logic  
+✅ **Phase 2 Complete**: Shopping module now delegates ingredient processing to canon
+
+## Integration Points
+
+- **Shopping Module**: Uses `processIngredients()` to parse recipe ingredients  
+- **Recipes Module**: Will use ingredient processing for recipe creation (future)  
+- **Kitchen-Data Module**: Migration in progress (canon will replace it)
 
 ## Notes
 
