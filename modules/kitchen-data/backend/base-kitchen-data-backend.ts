@@ -44,6 +44,22 @@ export abstract class BaseKitchenDataBackend implements IKitchenDataBackend {
   abstract deleteCanonicalItem(id: string): Promise<void>;
   abstract deleteCanonicalItems(ids: string[]): Promise<void>;
   
+  // Impact Assessment & Healing
+  abstract assessItemDeletion(ids: string[]): Promise<{
+    itemIds: string[];
+    affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[];
+  }>;
+  abstract healRecipeReferences(ids: string[], assessment: {
+    itemIds: string[];
+    affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[];
+  }): Promise<{
+    recipesFixed: number;
+    ingredientsProcessed: number;
+    ingredientsRematched: number;
+    ingredientsUnmatched: number;
+    newCanonicalItemsCreated: Array<{ name: string; id: string; aisle: string; unit: string }>;
+  }>;
+  
   // Categories (CRUD)
   abstract getCategories(): Promise<RecipeCategory[]>;
   abstract getCategory(id: string): Promise<RecipeCategory | null>;

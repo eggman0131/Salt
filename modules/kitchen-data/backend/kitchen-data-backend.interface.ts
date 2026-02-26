@@ -47,6 +47,22 @@ export interface IKitchenDataBackend {
   deleteCanonicalItem: (id: string) => Promise<void>;
   deleteCanonicalItems: (ids: string[]) => Promise<void>; // Bulk delete to avoid race conditions
 
+  // Impact assessment and healing
+  assessItemDeletion: (ids: string[]) => Promise<{
+    itemIds: string[];
+    affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[];
+  }>;
+  healRecipeReferences: (ids: string[], assessment: {
+    itemIds: string[];
+    affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[];
+  }) => Promise<{
+    recipesFixed: number;
+    ingredientsProcessed: number;
+    ingredientsRematched: number;
+    ingredientsUnmatched: number;
+    newCanonicalItemsCreated: Array<{ name: string; id: string; aisle: string; unit: string }>;
+  }>;
+
   // AI-powered: Enrich item name with proper capitalization, aisle, and unit
   enrichCanonicalItem: (rawName: string) => Promise<{
     name: string;
