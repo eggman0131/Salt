@@ -45,6 +45,16 @@ export interface IKitchenDataBackend {
   createCanonicalItem: (item: Omit<CanonicalItem, 'id' | 'createdAt'>) => Promise<CanonicalItem>;
   updateCanonicalItem: (id: string, updates: Partial<CanonicalItem>) => Promise<CanonicalItem>;
   deleteCanonicalItem: (id: string) => Promise<void>;
+  deleteCanonicalItems: (ids: string[]) => Promise<void>; // Bulk delete to avoid race conditions
+
+  // AI-powered: Enrich item name with proper capitalization, aisle, and unit
+  enrichCanonicalItem: (rawName: string) => Promise<{
+    name: string;
+    preferredUnit?: string;
+    aisle?: string;
+    isStaple: boolean;
+    synonyms: string[];
+  }>;
   
   // ==================== CATEGORIES ====================
   // Recipe categorization (Breakfast, Dinner, Vegetarian, etc.)

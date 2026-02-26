@@ -42,6 +42,7 @@ export abstract class BaseKitchenDataBackend implements IKitchenDataBackend {
   abstract createCanonicalItem(item: Omit<CanonicalItem, 'id' | 'createdAt'>): Promise<CanonicalItem>;
   abstract updateCanonicalItem(id: string, updates: Partial<CanonicalItem>): Promise<CanonicalItem>;
   abstract deleteCanonicalItem(id: string): Promise<void>;
+  abstract deleteCanonicalItems(ids: string[]): Promise<void>;
   
   // Categories (CRUD)
   abstract getCategories(): Promise<RecipeCategory[]>;
@@ -112,6 +113,92 @@ Return JSON array of category IDs: ["cat-id-1", "cat-id-2"]`
     const sanitized = this.sanitizeJson(response.text || '[]');
     const parsed = JSON.parse(sanitized);
     return Array.isArray(parsed) ? parsed : [];
+  }
+
+  /**
+   * AI-powered canonical item enrichment
+   * Takes a raw item name and returns proper capitalization, aisle, and preferred unit
+   * Also creates any missing units/aisles automatically
+   */
+  async enrichCanonicalItem(rawName: string): Promise<{
+    name: string;
+    preferredUnit?: string;
+    aisle?: string;
+    isStaple: boolean;
+    synonyms: string[];
+  }> {
+    const instruction = await this.getSystemInstruction(
+      "You are the Head Chef resolving ingredient names to canonical items."
+    );
+
+    const response = await this.callGenerateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: `Resolve this ingredient name to a canonical item database entry.
+
+INGREDIENT: ${rawName}
+
+Return JSON object with:
+{
+  "name": "Canonical item name (title case)",
+  "preferredUnit": "g|kg|ml|l| (empty string for countable items)",
+  "aisle": "Produce|Meat & Fish|Dairy|Bakery|Pantry|Frozen|Other",
+  "isStaple": true/false,
+  "synonyms": ["alternate name 1", "alternate name 2"]
+}
+
+RULES:
+- Use British English (courgette not zucchini, aubergine not eggplant)
+- Use metric units only
+- Leave preferredUnit empty for countable things (eggs, onions, cans)
+- Keep culinary identity descriptors (red onion, beef mince, whole milk)
+- Remove size adjectives (small, medium, large)
+- Capitalize properly (e.g., "Extra Virgin Olive Oil")
+
+Return JSON object:`
+        }]
+      }],
+      config: {
+        systemInstruction: instruction,
+        responseMimeType: "application/json",
+      }
+    });
+
+    const sanitized = this.sanitizeJson(response.text || '{}');
+    const parsed = JSON.parse(sanitized);
+
+    // Ensure units and aisles exist (create if missing)
+    if (parsed.preferredUnit) {
+      const units = await this.getUnits();
+      const unitExists = units.some(u => u.name.toLowerCase() === parsed.preferredUnit.toLowerCase());
+      if (!unitExists) {
+        await this.createUnit({
+          name: parsed.preferredUnit,
+          sortOrder: units.length
+        });
+      }
+    }
+
+    if (parsed.aisle) {
+      const aisles = await this.getAisles();
+      const aisleExists = aisles.some(a => a.name.toLowerCase() === parsed.aisle.toLowerCase());
+      if (!aisleExists) {
+        await this.createAisle({
+          name: parsed.aisle,
+          sortOrder: aisles.length
+        });
+      }
+    }
+
+    return {
+      name: parsed.name || rawName,
+      preferredUnit: parsed.preferredUnit || undefined,
+      aisle: parsed.aisle || undefined,
+      isStaple: parsed.isStaple || false,
+      synonyms: parsed.synonyms || []
+    };
   }
   
   // ==================== HELPER METHODS ====================
@@ -195,6 +282,57 @@ Return JSON array of category IDs: ["cat-id-1", "cat-id-2"]`
   }
 
   /**
+   * Filter out conflicting canonical item synonyms without throwing an error
+   * Returns only the synonyms that don't conflict with existing items
+   * (for AI-proposed synonyms that may have conflicts)
+   * 
+   * @param synonyms - Array of synonyms to filter
+   * @param currentItemId - ID of item being updated (undefined for new items)
+   * @returns Filtered array containing only valid synonyms
+   */
+  protected async filterValidSynonyms(
+    synonyms: string[] | undefined,
+    currentItemId?: string
+  ): Promise<string[]> {
+    if (!synonyms || synonyms.length === 0) return [];
+
+    const allItems = await this.getCanonicalItems();
+    const validSynonyms: string[] = [];
+
+    for (const syn of synonyms) {
+      const normalizedSyn = syn.toLowerCase().trim();
+      if (!normalizedSyn) continue; // Skip empty strings
+
+      let isValid = true;
+
+      for (const item of allItems) {
+        // Skip the item we're currently updating
+        if (item.id === currentItemId) continue;
+
+        // Check if this synonym exists on another item
+        const itemSynonyms = (item.synonyms || []).map(s => s.toLowerCase().trim());
+        if (itemSynonyms.includes(normalizedSyn)) {
+          isValid = false;
+          break;
+        }
+
+        // Also check against the item's main name
+        if (item.normalisedName === normalizedSyn) {
+          isValid = false;
+          break;
+        }
+      }
+
+      // Only add if valid
+      if (isValid) {
+        validSynonyms.push(syn);
+      }
+    }
+
+    return validSynonyms;
+  }
+
+  /**
    * Validate category synonyms are unique across all categories
    * Throws error if any synonym already exists on a different category
    * 
@@ -253,5 +391,56 @@ Return JSON array of category IDs: ["cat-id-1", "cat-id-2"]`
         throw new Error(`Category name "${categoryName}" conflicts with synonym on category "${category.name}"`);
       }
     }
+  }
+
+  /**
+   * Filter out conflicting category synonyms without throwing an error
+   * Returns only the synonyms that don't conflict with existing categories
+   * (for AI-proposed synonyms that may have conflicts)
+   * 
+   * @param synonyms - Array of synonyms to filter
+   * @param currentCategoryId - ID of category being updated (undefined for new categories)
+   * @returns Filtered array containing only valid synonyms
+   */
+  protected async filterValidCategorySynonyms(
+    synonyms: string[] | undefined, 
+    currentCategoryId?: string
+  ): Promise<string[]> {
+    if (!synonyms || synonyms.length === 0) return [];
+
+    const allCategories = await this.getCategories();
+    const validSynonyms: string[] = [];
+
+    for (const syn of synonyms) {
+      const normalizedSyn = syn.toLowerCase().trim();
+      if (!normalizedSyn) continue; // Skip empty strings
+
+      let isValid = true;
+
+      for (const category of allCategories) {
+        // Skip the category we're currently updating
+        if (category.id === currentCategoryId) continue;
+
+        // Check if this synonym exists on another category
+        const categorySynonyms = (category.synonyms || []).map(s => s.toLowerCase().trim());
+        if (categorySynonyms.includes(normalizedSyn)) {
+          isValid = false;
+          break;
+        }
+
+        // Also check against the category's main name
+        if (category.name.toLowerCase() === normalizedSyn) {
+          isValid = false;
+          break;
+        }
+      }
+
+      // Only add if valid
+      if (isValid) {
+        validSynonyms.push(syn);
+      }
+    }
+
+    return validSynonyms;
   }
 }
