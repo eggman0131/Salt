@@ -11,6 +11,8 @@ import {
   CanonicalItem,
 } from '../../../types/contract';
 import { db, auth, functions } from '../../../shared/backend/firebase';
+import { shoppingBackend } from '../../shopping';
+import { recipesBackend } from '../../recipes';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, orderBy, query, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
@@ -359,5 +361,11 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     }
 
     await batch.commit();
+
+    // Notify dependent modules to unlink references
+    await Promise.all([
+      shoppingBackend.onCanonItemsDeleted(ids),
+      recipesBackend.onCanonItemsDeleted(ids),
+    ]);
   }
 }
