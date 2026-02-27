@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Recipe, RecipeCategory } from '../../../types/contract';
 import { recipesBackend } from '../backend';
-import { kitchenDataBackend } from '../../kitchen-data';
+import { categoriesBackend } from '../../categories';
 import { Toaster } from '@/components/ui/sonner';
 import { softToast } from '@/lib/soft-toast';
 import { RecipesList } from './RecipesList';
@@ -29,7 +29,7 @@ export const RecipesModule: React.FC = () => {
       setIsLoading(true);
       const [recipesData, categoriesData, guidesData] = await Promise.all([
         recipesBackend.getRecipes(),
-        kitchenDataBackend.getCategories(),
+        categoriesBackend.getCategories(),
         assistModeBackend.getAllCookGuides(),
       ]);
       setRecipes(recipesData);

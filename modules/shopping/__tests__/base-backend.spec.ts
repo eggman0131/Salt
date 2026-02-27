@@ -111,7 +111,7 @@ class TestShoppingBackend implements IShoppingBackend {
 
     if (quantityMatch) {
       quantity = parseFloat(quantityMatch[1]);
-      unit = quantityMatch[2] || '_item';
+      unit = quantityMatch[2] || '';
       text = quantityMatch[3];
     }
 
@@ -372,7 +372,7 @@ describe('Shopping Backend - Domain Logic', () => {
       const result = backend.parseIngredientString('3 garlic cloves');
 
       expect(result.quantity).toBe(3);
-      expect(result.unit).toBe('_item');
+      expect(result.unit).toBe('');
       expect(result.ingredientName).toBe('garlic clove');
     });
 
