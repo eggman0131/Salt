@@ -202,8 +202,9 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
       softToast.success('Unit added', { description: name.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to add unit';
       console.error('Failed to create unit', err);
-      softToast.error('Failed to add unit');
+      softToast.error(errMessage);
     } finally {
       setIsAdding(false);
     }
@@ -244,8 +245,9 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
       softToast.success('Unit updated', { description: editName.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to update unit';
       console.error('Failed to update unit', err);
-      softToast.error('Failed to update unit');
+      softToast.error(errMessage);
     } finally {
       setIsSaving(false);
     }

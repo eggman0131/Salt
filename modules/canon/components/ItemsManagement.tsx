@@ -328,8 +328,9 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       softToast.success('Item added', { description: name.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to add item';
       console.error('Failed to create item', err);
-      softToast.error('Failed to add item');
+      softToast.error(errMessage);
     } finally {
       setIsAdding(false);
     }
@@ -418,8 +419,9 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       softToast.success('Item updated', { description: name.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to update item';
       console.error('Failed to update item', err);
-      softToast.error('Failed to update item');
+      softToast.error(errMessage);
     } finally {
       setIsSaving(false);
     }

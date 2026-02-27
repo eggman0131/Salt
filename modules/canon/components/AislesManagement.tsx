@@ -202,8 +202,9 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
       softToast.success('Aisle added', { description: name.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to add aisle';
       console.error('Failed to create aisle', err);
-      softToast.error('Failed to add aisle');
+      softToast.error(errMessage);
     } finally {
       setIsAdding(false);
     }
@@ -244,8 +245,9 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
       softToast.success('Aisle updated', { description: editName.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to update aisle';
       console.error('Failed to update aisle', err);
-      softToast.error('Failed to update aisle');
+      softToast.error(errMessage);
     } finally {
       setIsSaving(false);
     }
