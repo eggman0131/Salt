@@ -3,6 +3,7 @@ import { Stack } from '@/shared/components/primitives';
 import { UsersModule } from './UsersModule';
 import { AssistModeGuidesList } from './AssistModeGuidesList';
 import { CollectionSelector } from './CollectionSelector';
+import { CoFIDImport } from './CoFIDImport';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AddButton } from '@/components/ui/add-button';
@@ -351,6 +352,9 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               </div>
             </CardContent>
           </Card>
+
+          {/* CoFID Import Card */}
+          <CoFIDImport />
 
           {/* Development Card */}
           <Card className="shadow-sm hover:shadow-md transition-shadow">

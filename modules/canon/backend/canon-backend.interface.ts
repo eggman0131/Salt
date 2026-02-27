@@ -71,4 +71,11 @@ export interface ICanonBackend {
     ingredients: string[] | RecipeIngredient[],
     contextId: string
   ) => Promise<RecipeIngredient[]>;
+
+  // ==================== COFID DATA IMPORT ====================
+
+  importCoFIDData: (data: any[]) => Promise<{
+    itemsImported: number;
+    errors: string[];
+  }>;
 }
