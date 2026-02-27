@@ -774,7 +774,7 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     
     if (quantityMatch) {
       quantity = parseFloat(quantityMatch[1]);
-      unit = quantityMatch[4] || quantityMatch[2] || '_item';
+      unit = quantityMatch[4] || quantityMatch[2] || '';
       text = quantityMatch[5];
     } else {
       // Try simple quantity pattern with optional space before unit
@@ -782,7 +782,7 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
       quantityMatch = text.match(simpleRegex);
       if (quantityMatch) {
         quantity = parseFloat(quantityMatch[1]);
-        unit = quantityMatch[2] || '_item';
+        unit = quantityMatch[2] || '';
         text = quantityMatch[3];
       }
     }

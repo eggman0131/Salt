@@ -61,6 +61,7 @@ export interface IKitchenDataBackend {
     ingredientsRematched: number;
     ingredientsUnmatched: number;
     newCanonicalItemsCreated: Array<{ name: string; id: string; aisle: string; unit: string }>;
+
   }>;
 
   // AI-powered: Enrich item name with proper capitalization, aisle, and unit

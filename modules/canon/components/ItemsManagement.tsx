@@ -1292,6 +1292,21 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                     </p>
                   </div>
                 )}
+                
+                {healingResult.recipesWithUnlinkedItems && healingResult.recipesWithUnlinkedItems.length > 0 && (
+                  <div className="p-3 border border-amber-200 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-2">
+                      ⚠️ {healingResult.recipesWithUnlinkedItems.length} recipe{healingResult.recipesWithUnlinkedItems.length === 1 ? '' : 's'} have unlinked items
+                    </p>
+                    <ul className="space-y-1">
+                      {healingResult.recipesWithUnlinkedItems.map(recipe => (
+                        <li key={recipe.id} className="text-xs text-amber-800 dark:text-amber-300">
+                          • <strong>{recipe.title}</strong> ({recipe.unlinkedCount} unlinked)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
             

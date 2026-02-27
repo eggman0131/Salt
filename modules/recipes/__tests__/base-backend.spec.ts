@@ -79,7 +79,7 @@ class TestRecipesBackend {
 
     if (quantityMatch) {
       quantity = parseFloat(quantityMatch[1]);
-      unit = quantityMatch[2] || '_item';
+      unit = quantityMatch[2] || '';
       text = quantityMatch[3];
     }
 
@@ -339,7 +339,7 @@ describe('Recipes Backend - Domain Logic', () => {
     it('should parse ingredient with preparation instruction', () => {
       const result = backend.parseIngredientString('2 large red onions, diced fine');
       expect(result.quantity).toBe(2);
-      expect(result.unit).toBe('_item');
+      expect(result.unit).toBe('');
       expect(result.ingredientName).toBe('red onion');
       expect(result.preparation).toContain('diced');
     });
@@ -347,7 +347,7 @@ describe('Recipes Backend - Domain Logic', () => {
     it('should handle ingredient without unit', () => {
       const result = backend.parseIngredientString('1 garlic clove');
       expect(result.quantity).toBe(1);
-      expect(result.unit).toBe('_item');
+      expect(result.unit).toBe('');
       expect(result.ingredientName).toBe('garlic clove');
     });
 
@@ -523,7 +523,7 @@ describe('Recipes Backend - Contract Compliance', () => {
         id: 'ri-2',
         raw: '2 large red onions, diced',
         quantity: 2,
-        unit: '_item',
+        unit: '',
         ingredientName: 'red onion',
         canonicalItemId: 'item-onion',
         preparation: 'diced fine',

@@ -368,4 +368,278 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
       recipesBackend.onCanonItemsDeleted(ids),
     ]);
   }
+
+  // ==================== IMPACT ASSESSMENT & HEALING ====================
+
+  async assessItemDeletion(ids: string[]): Promise<{
+    itemIds: string[];
+    affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[];
+  }> {
+    const idsSet = new Set(ids);
+    const affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[] = [];
+
+    const recipesSnap = await getDocs(collection(db, 'recipes'));
+    recipesSnap.forEach((recipeDoc) => {
+      const data = this.convertTimestamps(recipeDoc.data());
+      const recipe = data as any; // Recipe type
+      if (!recipe.ingredients?.length) return;
+
+      const affectedIndices: number[] = [];
+      recipe.ingredients.forEach((ing: any, idx: number) => {
+        if (ing.canonicalItemId && idsSet.has(ing.canonicalItemId)) {
+          affectedIndices.push(idx);
+        }
+      });
+
+      if (affectedIndices.length > 0) {
+        affectedRecipes.push({
+          id: recipeDoc.id,
+          title: recipe.title || '(Untitled)',
+          ingredientCount: affectedIndices.length,
+          affectedIndices
+        });
+      }
+    });
+
+    return {
+      itemIds: ids,
+      affectedRecipes
+    };
+  }
+
+  async healRecipeReferences(ids: string[], assessment: {
+    itemIds: string[];
+    affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[];
+  }): Promise<{
+    recipesFixed: number;
+    ingredientsProcessed: number;
+    ingredientsRematched: number;
+    ingredientsUnmatched: number;
+    newCanonicalItemsCreated: Array<{ name: string; id: string; aisle: string; unit: string }>;
+    recipesWithUnlinkedItems: Array<{ id: string; title: string; unlinkedCount: number }>;
+  }> {
+    const allItems = await this.getCanonicalItems();
+
+    let recipesFixed = 0;
+    let ingredientsProcessed = 0;
+    let ingredientsRematched = 0;
+    let ingredientsUnmatched = 0;
+    const newItemsCreated: Array<{ name: string; id: string; aisle: string; unit: string }> = [];
+    const recipesWithUnlinkedItems: Array<{ id: string; title: string; unlinkedCount: number }> = [];
+
+    const batch = writeBatch(db);
+
+    // Only process recipes that were affected by the deletion
+    for (const assessedRecipe of assessment.affectedRecipes) {
+      const recipeRef = doc(db, 'recipes', assessedRecipe.id);
+      const recipeDoc = await getDoc(recipeRef);
+      
+      if (!recipeDoc.exists()) continue;
+      
+      const data = this.convertTimestamps(recipeDoc.data());
+      const recipe = data as any; // Recipe type
+      if (!recipe.ingredients?.length) continue;
+
+      let recipeChanged = false;
+      let unlinkedCount = 0;
+      let finalUnlinkedCount = 0;
+
+      // Step 1: Find unlinked ingredients (no canonicalItemId)
+      const updatedIngredients = recipe.ingredients.map((ing: any) => {
+        // Only try to re-match if ingredient is unlinked (no canonicalItemId)
+        if (!ing.canonicalItemId) {
+          unlinkedCount++;
+          ingredientsProcessed++;
+          
+          // Step 2: Try to fuzzy match
+          let bestMatch: CanonicalItem | null = null;
+          let bestScore = 0;
+
+          for (const candidate of allItems) {
+            const score = this.fuzzyMatch(
+              ing.ingredientName.toLowerCase(),
+              candidate.normalisedName
+            );
+            if (score > bestScore) {
+              bestScore = score;
+              bestMatch = candidate;
+            }
+
+            if (candidate.synonyms) {
+              for (const syn of candidate.synonyms) {
+                const synScore = this.fuzzyMatch(
+                  ing.ingredientName.toLowerCase(),
+                  syn.toLowerCase()
+                );
+                if (synScore > bestScore) {
+                  bestScore = synScore;
+                  bestMatch = candidate;
+                }
+              }
+            }
+          }
+
+          // Re-link if good match (85%+)
+          if (bestScore >= 0.85 && bestMatch) {
+            ingredientsRematched++;
+            recipeChanged = true;
+            return { ...ing, canonicalItemId: bestMatch.id };
+          } else {
+            // Leave unlinked for manual review
+            ingredientsUnmatched++;
+            finalUnlinkedCount++;
+            recipeChanged = true;
+            return ing;
+          }
+        }
+        return ing;
+      });
+
+      if (recipeChanged && unlinkedCount > 0) {
+        recipesFixed++;
+        batch.update(recipeRef, { ingredients: updatedIngredients });
+        
+        // Track this recipe if it still has unlinked items
+        if (finalUnlinkedCount > 0) {
+          recipesWithUnlinkedItems.push({
+            id: recipeDoc.id,
+            title: recipe.title || '(Untitled)',
+            unlinkedCount: finalUnlinkedCount
+          });
+        }
+      }
+    }
+
+    await batch.commit();
+
+    console.log(`✅ Healed ${recipesFixed} recipes: ${ingredientsRematched} rematched, ${ingredientsUnmatched} unmatched`);
+
+    return {
+      recipesFixed,
+      ingredientsProcessed,
+      ingredientsRematched,
+      ingredientsUnmatched,
+      newCanonicalItemsCreated: newItemsCreated,
+      recipesWithUnlinkedItems
+    };
+  }
+
+  private fuzzyMatch(a: string, b: string): number {
+    const longer = a.length > b.length ? a : b;
+    const shorter = a.length > b.length ? b : a;
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = this.levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+
+  private levenshteinDistance(a: string, b: string): number {
+    const matrix: number[][] = [];
+    
+    for (let i = 0; i <= b.length; i++) {
+      matrix[i] = [i];
+    }
+    for (let j = 0; j <= a.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    
+    return matrix[b.length][a.length];
+  }
+
+  // ==================== AI ENRICHMENT ====================
+
+  async enrichCanonicalItem(rawName: string): Promise<{
+    name: string;
+    preferredUnit?: string;
+    aisle?: string;
+    isStaple: boolean;
+    synonyms: string[];
+  }> {
+    const instruction = await this.getSystemInstruction(
+      "You are the Head Chef resolving ingredient names to canonical items."
+    );
+
+    const response = await this.callGenerateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: `Resolve this ingredient name to a canonical item database entry.
+
+INGREDIENT: ${rawName}
+
+Return JSON object with:
+{
+  "name": "Canonical item name (title case)",
+  "preferredUnit": "g|kg|ml|l| (empty string for countable items)",
+  "aisle": "Produce|Meat & Fish|Dairy|Bakery|Pantry|Frozen|Other",
+  "isStaple": true/false,
+  "synonyms": ["alternate name 1", "alternate name 2"]
+}
+
+RULES:
+- Use British English (courgette not zucchini, aubergine not eggplant)
+- Use metric units only
+- Leave preferredUnit empty for countable things (eggs, onions, cans)
+- Keep culinary identity descriptors (red onion, beef mince, whole milk)
+- Remove size adjectives (small, medium, large)
+- Capitalize properly (e.g., "Extra Virgin Olive Oil")
+
+Return JSON object:`
+        }]
+      }],
+      config: {
+        systemInstruction: instruction,
+        responseMimeType: "application/json",
+      }
+    });
+
+    const sanitized = this.sanitizeJson(response.text || '{}');
+    const parsed = JSON.parse(sanitized);
+
+    // Ensure units and aisles exist (create if missing)
+    if (parsed.preferredUnit) {
+      const units = await this.getUnits();
+      const unitExists = units.some((u: Unit) => u.name.toLowerCase() === parsed.preferredUnit.toLowerCase());
+      if (!unitExists) {
+        await this.createUnit({
+          name: parsed.preferredUnit,
+          sortOrder: units.length
+        });
+      }
+    }
+
+    if (parsed.aisle) {
+      const aisles = await this.getAisles();
+      const aisleExists = aisles.some((a: Aisle) => a.name.toLowerCase() === parsed.aisle.toLowerCase());
+      if (!aisleExists) {
+        await this.createAisle({
+          name: parsed.aisle,
+          sortOrder: aisles.length
+        });
+      }
+    }
+
+    return {
+      name: parsed.name || rawName,
+      preferredUnit: parsed.preferredUnit || undefined,
+      aisle: parsed.aisle || undefined,
+      isStaple: parsed.isStaple || false,
+      synonyms: parsed.synonyms || []
+    };
+  }
 }

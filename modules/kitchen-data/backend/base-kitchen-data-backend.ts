@@ -58,6 +58,7 @@ export abstract class BaseKitchenDataBackend implements IKitchenDataBackend {
     ingredientsRematched: number;
     ingredientsUnmatched: number;
     newCanonicalItemsCreated: Array<{ name: string; id: string; aisle: string; unit: string }>;
+
   }>;
   
   // Categories (CRUD)

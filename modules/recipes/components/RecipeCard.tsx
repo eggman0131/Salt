@@ -3,7 +3,7 @@ import { Recipe, RecipeCategory } from '../../../types/contract';
 import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
-import { Clock, ChefHat, Upload, RefreshCw, Wrench } from 'lucide-react';
+import { Clock, ChefHat, Upload, RefreshCw, Wrench, AlertTriangle } from 'lucide-react';
 import { recipesBackend } from '../backend';
 
 interface RecipeCardProps {
@@ -35,6 +35,12 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, categories, onCl
   const recipeCategories = categories.filter(cat => 
     recipe.categoryIds?.includes(cat.id)
   );
+
+  // Check for unlinked ingredients
+  const unlinkedIngredientCount = recipe.ingredients?.reduce((count, ing) => {
+    return count + (ing.canonicalItemId ? 0 : 1);
+  }, 0) || 0;
+  const hasUnlinkedItems = unlinkedIngredientCount > 0;
 
   // Complexity badge color
   const complexityVariant = {
@@ -119,6 +125,14 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, categories, onCl
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-semibold line-clamp-2 flex-1">{recipe.title}</h3>
           <div className="flex items-center gap-2 shrink-0">
+            {hasUnlinkedItems && (
+              <div 
+                className="text-amber-600 dark:text-amber-400" 
+                title={`${unlinkedIngredientCount} unlinked ingredient${unlinkedIngredientCount === 1 ? '' : 's'}`}
+              >
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+            )}
             {onRepair && (
               <Button
                 size="icon"

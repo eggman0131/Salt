@@ -39,6 +39,32 @@ export interface ICanonBackend {
   deleteCanonicalItem: (id: string) => Promise<void>;
   deleteCanonicalItems: (ids: string[]) => Promise<void>;
 
+  // Impact assessment and healing
+  assessItemDeletion: (ids: string[]) => Promise<{
+    itemIds: string[];
+    affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[];
+  }>;
+  healRecipeReferences: (ids: string[], assessment: {
+    itemIds: string[];
+    affectedRecipes: { id: string; title: string; ingredientCount: number; affectedIndices: number[] }[];
+  }) => Promise<{
+    recipesFixed: number;
+    ingredientsProcessed: number;
+    ingredientsRematched: number;
+    ingredientsUnmatched: number;
+    newCanonicalItemsCreated: Array<{ name: string; id: string; aisle: string; unit: string }>;
+    recipesWithUnlinkedItems: Array<{ id: string; title: string; unlinkedCount: number }>;
+  }>;
+
+  // AI-powered: Enrich item name with proper capitalization, aisle, and unit
+  enrichCanonicalItem: (rawName: string) => Promise<{
+    name: string;
+    preferredUnit?: string;
+    aisle?: string;
+    isStaple: boolean;
+    synonyms: string[];
+  }>;
+
   // ==================== INGREDIENT PROCESSING ====================
 
   processIngredients: (
