@@ -642,4 +642,103 @@ Return JSON object:`
       synonyms: parsed.synonyms || []
     };
   }
+
+  // ==================== COFID DATA IMPORT ====================
+
+  async importCoFIDData(data: any[]): Promise<{
+    itemsImported: number;
+    errors: string[];
+  }> {
+    const errors: string[] = [];
+    let itemsImported = 0;
+
+    try {
+      // Step 1: Clear existing CoFID collection
+      const existingDocs = await getDocs(collection(db, 'cofid'));
+      
+      if (existingDocs.size > 0) {
+        const deleteBatches: any[] = [];
+        let currentBatch = writeBatch(db);
+        let batchCount = 0;
+
+        existingDocs.forEach((docSnap) => {
+          currentBatch.delete(doc(db, 'cofid', docSnap.id));
+          batchCount++;
+
+          if (batchCount === 500) {
+            deleteBatches.push(currentBatch);
+            currentBatch = writeBatch(db);
+            batchCount = 0;
+          }
+        });
+
+        if (batchCount > 0) {
+          deleteBatches.push(currentBatch);
+        }
+
+        for (const batch of deleteBatches) {
+          await batch.commit();
+        }
+      }
+
+      // Step 2: Import new data in batches (500 doc limit per batch)
+      const importBatches: any[] = [];
+      let currentBatch = writeBatch(db);
+      let batchCount = 0;
+
+      const now = new Date().toISOString();
+
+      for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        
+        try {
+          // Generate ID from FoodCode if available, otherwise use index
+          const foodCode = item.FoodCode || item.foodCode || item.code;
+          const id = foodCode 
+            ? `cofid-${foodCode}-${Math.random().toString(36).substr(2, 9)}`
+            : `cofid-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`;
+
+          // Add import timestamp
+          const itemWithTimestamp = {
+            ...item,
+            importedAt: now
+          };
+
+          currentBatch.set(doc(db, 'cofid', id), itemWithTimestamp);
+          batchCount++;
+          itemsImported++;
+
+          if (batchCount === 500) {
+            importBatches.push(currentBatch);
+            currentBatch = writeBatch(db);
+            batchCount = 0;
+          }
+        } catch (err) {
+          const errorMsg = `Item ${i}: ${err instanceof Error ? err.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+          console.error('CoFID import error:', errorMsg);
+        }
+      }
+
+      if (batchCount > 0) {
+        importBatches.push(currentBatch);
+      }
+
+      // Commit all batches
+      for (const batch of importBatches) {
+        await batch.commit();
+      }
+
+      console.log(`✅ CoFID import complete: ${itemsImported} items imported, ${errors.length} errors`);
+
+      return {
+        itemsImported,
+        errors
+      };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error during import';
+      errors.push(errorMsg);
+      throw new Error(`CoFID import failed: ${errorMsg}`);
+    }
+  }
 }
