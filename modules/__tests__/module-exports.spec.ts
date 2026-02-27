@@ -109,61 +109,6 @@ describe('Inventory Module Exports', () => {
 });
 
 // ============================================================================
-// Kitchen Data Module
-// ============================================================================
-
-describe('Kitchen Data Module Exports', () => {
-  it('should export kitchenDataBackend', async () => {
-    const kitchenDataModule = await import('../kitchen-data');
-    expect(kitchenDataModule.kitchenDataBackend).toBeDefined();
-    expect(typeof kitchenDataModule.kitchenDataBackend).toBe('object');
-  });
-
-  it('should export getKitchenDataBackend function', async () => {
-    const kitchenDataModule = await import('../kitchen-data');
-    expect(kitchenDataModule.getKitchenDataBackend).toBeDefined();
-    expect(typeof kitchenDataModule.getKitchenDataBackend).toBe('function');
-  });
-
-  it('should export KitchenDataModule component', async () => {
-    const kitchenDataModule = await import('../kitchen-data');
-    expect(kitchenDataModule.KitchenDataModule).toBeDefined();
-    expect(typeof kitchenDataModule.KitchenDataModule).toBe('function');
-  });
-
-  it('should export management subcomponents', async () => {
-    const kitchenDataModule = await import('../kitchen-data');
-    
-    // After from-scratch rebuild, only main module is exported
-    // Sub-components are internal implementation details
-    expect(kitchenDataModule.KitchenDataModule).toBeDefined();
-    expect(typeof kitchenDataModule.KitchenDataModule).toBe('function');
-  });
-
-  it('should have all expected exports', async () => {
-    const kitchenDataModule = await import('../kitchen-data');
-    const exports = Object.keys(kitchenDataModule);
-    
-    const expectedExports = [
-      'kitchenDataBackend',
-      'getKitchenDataBackend',
-      'KitchenDataModule',
-    ];
-    
-    expectedExports.forEach(exp => {
-      expect(exports).toContain(exp);
-    });
-    
-    expect(exports.length).toBe(expectedExports.length);
-  });
-
-  it('should not export internal backend implementations', async () => {
-    const kitchenDataModule = await import('../kitchen-data');
-    
-    expect((kitchenDataModule as any).FirebaseKitchenDataBackend).toBeUndefined();
-    expect((kitchenDataModule as any).BaseKitchenDataBackend).toBeUndefined();
-  });
-});
 
 // ============================================================================
 // Planner Module

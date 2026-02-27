@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { getActiveBackendMode } from '../shared/backend/system-backend';
-import { kitchenDataBackend } from '../modules/kitchen-data';
 import { useTheme } from '../shared/providers/ThemeProvider';
 import { User } from '../types/contract';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,7 +11,8 @@ import {
   BookOpen, 
   Puzzle, 
   ShoppingCart, 
-  ClipboardList, 
+  Database,
+  Tag,
   Settings,
   Moon, 
   Sun,
@@ -58,7 +58,6 @@ const menuItems: NavItem[] = [
   { label: 'Recipes', id: 'recipes', icon: BookOpen },
   { label: 'Equipment', id: 'inventory', icon: Puzzle },
   { label: 'Shopping', id: 'shopping', icon: ShoppingCart },
-  { label: 'Kitchen Data', id: 'kitchendata', icon: ClipboardList },
 ];
 
 const adminItem: NavItem = { label: 'Admin', id: 'admin', icon: Settings };
@@ -101,11 +100,6 @@ const AppSidebarContent: React.FC<{
                 >
                   <item.icon className="h-4 w-4" />
                   <span>{item.label}</span>
-                  {item.id === 'kitchendata' && suggestionsCount > 0 && (
-                    <SidebarMenuBadge className="ml-auto bg-red-600 text-white">
-                      {suggestionsCount}
-                    </SidebarMenuBadge>
-                  )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -123,6 +117,26 @@ const AppSidebarContent: React.FC<{
             >
               <adminItem.icon className="h-4 w-4" />
               <span>{adminItem.label}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => handleMenuClick('canon')}
+              isActive={activeTab === 'canon'}
+              className="font-semibold"
+            >
+              <Database className="h-4 w-4" />
+              <span>Canon Items</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => handleMenuClick('categories')}
+              isActive={activeTab === 'categories'}
+              className="font-semibold"
+            >
+              <Tag className="h-4 w-4" />
+              <span>Categories</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -177,42 +191,6 @@ export const DashboardLayout: React.FC<LayoutProps> = ({
   onLogout, 
   suggestionsCountRef 
 }) => {
-  const [suggestionsCount, setSuggestionsCount] = useState(0);
-
-  // Load suggestions count
-  const loadSuggestionsCount = async () => {
-    try {
-      const pending = await kitchenDataBackend.getPendingCategories();
-      setSuggestionsCount(pending.length);
-    } catch (err) {
-      console.error('Failed to load suggestions count:', err);
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    loadSuggestionsCount();
-  }, []);
-
-  // Refresh count when tab changes
-  useEffect(() => {
-    if (activeTab === 'kitchendata') {
-      loadSuggestionsCount();
-    }
-  }, [activeTab]);
-
-  // Expose refresh function via ref
-  useEffect(() => {
-    if (suggestionsCountRef) {
-      suggestionsCountRef.current = loadSuggestionsCount;
-    }
-    return () => {
-      if (suggestionsCountRef) {
-        suggestionsCountRef.current = null;
-      }
-    };
-  }, [suggestionsCountRef]);
-
   const getActiveTitle = () => {
     switch(activeTab) {
       case 'dashboard': return 'Home Kitchen';
@@ -221,8 +199,9 @@ export const DashboardLayout: React.FC<LayoutProps> = ({
       case 'recipes': return 'Recipes';
       case 'inventory': return 'Equipment';
       case 'shopping': return 'Shopping';
-      case 'kitchendata': return 'Kitchen Data';
       case 'admin': return 'Admin';
+      case 'canon': return 'Canon Items';
+      case 'categories': return 'Categories';
       default: return 'Salt';
     }
   };

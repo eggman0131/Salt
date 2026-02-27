@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Stack, Section } from '@/shared/components/primitives';
-import { Card } from './UI';
+import { Card } from '@/components/ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';

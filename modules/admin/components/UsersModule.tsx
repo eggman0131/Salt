@@ -24,7 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Trash2, Pencil, GripVertical, Camera } from 'lucide-react';
-import { ImageEditor } from '@/components/ImageEditor';
+import { ImageEditor } from '@/shared/components/ImageEditor';
 import {
   DndContext,
   closestCenter,

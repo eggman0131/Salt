@@ -19,9 +19,10 @@ import { AdminModule } from './modules/admin';
 import { AIModule } from './modules/ai';
 import { PlannerModule } from './modules/planner';
 import { plannerBackend } from './modules/planner';
-import { KitchenDataModule } from './modules/kitchen-data';
 import { ShoppingListModule } from './modules/shopping';
 import { shoppingBackend } from './modules/shopping';
+import { CanonModule } from './modules/canon';
+import { CategoriesManagement } from './modules/categories';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
 import { Dashboard } from './components/Dashboard';
 
@@ -281,8 +282,12 @@ const App: React.FC = () => {
           />
         )}
 
-        {activeTab === 'kitchendata' && (
-          <KitchenDataModule key={`kitchendata-${resetKey}`} onRefresh={loadData} onSuggestionsChanged={refreshSuggestionsCount} />
+        {activeTab === 'canon' && (
+          <CanonModule key={`canon-${resetKey}`} onRefresh={loadData} />
+        )}
+
+        {activeTab === 'categories' && (
+          <CategoriesManagement key={`categories-${resetKey}`} onRefresh={loadData} />
         )}
 
         {activeTab === 'ai' && (
