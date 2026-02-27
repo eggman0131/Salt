@@ -13,11 +13,12 @@ import {
   BookOpen,
   Puzzle,
   ShoppingCart,
-  ClipboardList,
   Settings,
   Moon,
   Sun,
   LogOut,
+  Database,
+  Tag,
 } from 'lucide-react';
 
 interface NavItem {
@@ -41,7 +42,6 @@ const menuItems: NavItem[] = [
   { label: 'Recipes', id: 'recipes', icon: BookOpen },
   { label: 'Chef', id: 'ai', icon: Lightbulb },
   { label: 'Equipment', id: 'inventory', icon: Puzzle },
-  { label: 'Kitchen Data', id: 'kitchendata', icon: ClipboardList },
 ];
 
 const adminItem: NavItem = { label: 'Admin', id: 'admin', icon: Settings };
@@ -79,11 +79,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <item.icon className="h-4 w-4 shrink-0" />
                 <span className="truncate">{item.label}</span>
-                {item.id === 'kitchendata' && suggestionsCount > 0 && (
-                  <span className="ml-auto min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-xs text-white">
-                    {suggestionsCount}
-                  </span>
-                )}
               </button>
             </li>
           ))}
@@ -104,6 +99,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <adminItem.icon className="h-4 w-4 shrink-0" />
           <span>{adminItem.label}</span>
+        </button>
+
+        {/* Canon Items */}
+        <button
+          onClick={() => onTabChange('canon')}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-colors',
+            activeTab === 'canon'
+              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+          )}
+        >
+          <Database className="h-4 w-4 shrink-0" />
+          <span>Canon Items</span>
+        </button>
+
+        {/* Categories */}
+        <button
+          onClick={() => onTabChange('categories')}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-colors',
+            activeTab === 'categories'
+              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+          )}
+        >
+          <Tag className="h-4 w-4 shrink-0" />
+          <span>Categories</span>
         </button>
 
         <Separator className="my-1" />

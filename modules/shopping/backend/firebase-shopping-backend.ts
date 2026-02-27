@@ -16,7 +16,7 @@ import {
   RecipeIngredient,
 } from '../../../types/contract';
 import { db, auth, functions } from '../../../shared/backend/firebase';
-import { kitchenDataBackend } from '../../kitchen-data';
+import { canonBackend } from '../../canon';
 import { collection, doc, getDoc, getDocs, setDoc, query, where, updateDoc, deleteDoc, orderBy, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
@@ -375,6 +375,45 @@ export class FirebaseShoppingBackend extends BaseShoppingBackend {
     const docRef = doc(db, 'shopping_list_items', id);
     await deleteDoc(docRef);
   }
+
+  // ==================== NOTIFICATION HOOKS ====================
+
+  async onCanonItemsDeleted(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const uniqueIds = Array.from(new Set(ids));
+    const chunks: string[][] = [];
+    for (let i = 0; i < uniqueIds.length; i += 10) {
+      chunks.push(uniqueIds.slice(i, i + 10));
+    }
+
+    for (const chunk of chunks) {
+      const snapshot = await getDocs(query(
+        collection(db, 'shopping_list_items'),
+        where('canonicalItemId', 'in', chunk)
+      ));
+
+      if (snapshot.empty) continue;
+
+      let batch = writeBatch(db);
+      let batchCount = 0;
+
+      for (const docSnap of snapshot.docs) {
+        batch.delete(docSnap.ref);
+        batchCount++;
+
+        if (batchCount >= 450) {
+          await batch.commit();
+          batch = writeBatch(db);
+          batchCount = 0;
+        }
+      }
+
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+    }
+  }
   
   // ==================== RECIPE INTEGRATION ====================
   
@@ -394,17 +433,17 @@ export class FirebaseShoppingBackend extends BaseShoppingBackend {
       
       if (ingredient.canonicalItemId) {
         // Use existing link
-        const item = await kitchenDataBackend.getCanonicalItem(ingredient.canonicalItemId);
+        const item = await canonBackend.getCanonicalItem(ingredient.canonicalItemId);
         if (item) canonicalItem = item;
       } else {
         // Try to find by name
         const normalizedName = ingredient.ingredientName.toLowerCase().trim();
-        const existingItems = await kitchenDataBackend.getCanonicalItems();
+        const existingItems = await canonBackend.getCanonicalItems();
         canonicalItem = existingItems.find(item => item.normalisedName === normalizedName);
         
         // Create new canonical item if not found
         if (!canonicalItem) {
-          canonicalItem = await kitchenDataBackend.createCanonicalItem({
+          canonicalItem = await canonBackend.createCanonicalItem({
             name: ingredient.ingredientName,
             normalisedName: normalizedName,
             preferredUnit: ingredient.unit || '',
@@ -463,25 +502,25 @@ export class FirebaseShoppingBackend extends BaseShoppingBackend {
     const aisleInput = aisle?.trim() || '';
     
     // Find or create canonical item
-    const existingItems = await kitchenDataBackend.getCanonicalItems();
+    const existingItems = await canonBackend.getCanonicalItems();
     let canonicalItem = existingItems.find(item => item.normalisedName === normalizedName);
     const unitToUse = unitInput || canonicalItem?.preferredUnit || '';
     const aisleToUse = canonicalItem ? (canonicalItem.aisle || '') : aisleInput;
 
-    const units = await kitchenDataBackend.getUnits();
+    const units = await canonBackend.getUnits();
     const unitExists = units.some(existingUnit => existingUnit.name.toLowerCase() === unitToUse.toLowerCase());
     if (!unitExists) {
-      await kitchenDataBackend.createUnit({
+      await canonBackend.createUnit({
         name: unitToUse,
         sortOrder: units.length
       });
     }
 
     if (!canonicalItem && aisleToUse) {
-      const aisles = await kitchenDataBackend.getAisles();
+      const aisles = await canonBackend.getAisles();
       const aisleExists = aisles.some(existingAisle => existingAisle.name.toLowerCase() === aisleToUse.toLowerCase());
       if (!aisleExists) {
-        await kitchenDataBackend.createAisle({
+        await canonBackend.createAisle({
           name: aisleToUse,
           sortOrder: aisles.length
         });
@@ -490,7 +529,7 @@ export class FirebaseShoppingBackend extends BaseShoppingBackend {
     
     if (!canonicalItem) {
       // Create new canonical item
-      canonicalItem = await kitchenDataBackend.createCanonicalItem({
+      canonicalItem = await canonBackend.createCanonicalItem({
         name: trimmedName,
         normalisedName: normalizedName,
         preferredUnit: unitToUse,

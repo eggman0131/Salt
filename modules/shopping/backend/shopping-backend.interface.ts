@@ -32,6 +32,10 @@ export interface IShoppingBackend {
   createShoppingListItem: (item: Omit<ShoppingListItem, 'id'>) => Promise<ShoppingListItem>;
   updateShoppingListItem: (id: string, updates: Partial<ShoppingListItem>) => Promise<ShoppingListItem>;
   deleteShoppingListItem: (id: string) => Promise<void>;
+
+  // ==================== NOTIFICATION HOOKS ====================
+
+  onCanonItemsDeleted: (ids: string[]) => Promise<void>;
   
   // ==================== RECIPE INTEGRATION ====================
   

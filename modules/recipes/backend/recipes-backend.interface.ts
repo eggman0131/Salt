@@ -27,6 +27,10 @@ export interface IRecipesBackend {
   ) => Promise<Recipe>;
   resolveImagePath: (path: string) => Promise<string>;
   deleteRecipe: (id: string) => Promise<void>;
+
+  // ==================== NOTIFICATION HOOKS ====================
+
+  onCanonItemsDeleted: (ids: string[]) => Promise<void>;
   
   // Repair recipe (re-categorize and/or relink ingredients)
   repairRecipe: (

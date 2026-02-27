@@ -89,6 +89,7 @@ export type Aisle = z.infer<typeof AisleSchema>;
 
 // CanonicalItem Schema (Universal Shopping Item Catalog)
 // Items can be food ingredients OR household goods (toilet paper, cleaning supplies)
+// Schema is extensible for future integrations (CoFID, Open Food Facts, barcode scanning)
 export const CanonicalItemSchema = z.object({
   id: z.string(),
   name: z.string(), // e.g., "Onion" (singular form preferred)
@@ -100,6 +101,13 @@ export const CanonicalItemSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
   createdAt: z.string(),
   createdBy: z.string().optional(),
+  
+  // Future integration fields (all optional for backwards compatibility)
+  source: z.enum(['user', 'cofid', 'open-food-facts']).default('user').optional(), // Source tracking
+  externalId: z.string().optional(), // CoFID ID, Open Food Facts product ID, etc.
+  barcodes: z.array(z.string()).optional(), // EAN-13, UPC, etc. for barcode scanning
+  itemType: z.enum(['ingredient', 'product', 'household']).default('ingredient').optional(), // Item categorization
+  lastSyncedAt: z.string().optional(), // Last sync with external database
 });
 export type CanonicalItem = z.infer<typeof CanonicalItemSchema>;
 
