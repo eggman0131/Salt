@@ -54,6 +54,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkApproving, setIsBulkApproving] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -246,6 +247,25 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     }
   };
 
+  const handleBulkApprove = async () => {
+    setIsBulkApproving(true);
+    try {
+      const pendingIds = Array.from(selectedIds).filter(id =>
+        pendingCategories.some(cat => cat.id === id)
+      );
+      await Promise.all(pendingIds.map(id => categoriesBackend.approveCategory(id)));
+      await loadCategories();
+      setSelectedIds(new Set());
+      softToast.success(`Approved ${pendingIds.length} categor${pendingIds.length === 1 ? 'y' : 'ies'}`);
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to bulk approve categories', err);
+      softToast.error('Failed to approve categories');
+    } finally {
+      setIsBulkApproving(false);
+    }
+  };
+
   const filteredPendingCategories = pendingCategories.filter(cat =>
     filterText === '' || 
     cat.name.toLowerCase().includes(filterText.toLowerCase()) ||
@@ -382,30 +402,51 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
         </div>
 
         {/* Selection Actions */}
-        {selectedIds.size > 0 && (
-          <div className="flex items-center justify-between gap-2 p-2 border rounded-lg bg-muted/50">
-            <span className="text-sm text-muted-foreground">
-              {selectedIds.size} selected
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSelectNone}
-              >
-                Clear
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowBulkDeleteDialog(true)}
-              >
-                <Trash2 className="h-3 w-3 mr-1" />
-                Delete ({selectedIds.size})
-              </Button>
+        {selectedIds.size > 0 && (() => {
+          const selectedPendingCount = Array.from(selectedIds).filter(id =>
+            pendingCategories.some(cat => cat.id === id)
+          ).length;
+          
+          return (
+            <div className="flex items-center justify-between gap-2 p-2 border rounded-lg bg-muted/50">
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.size} selected
+                {selectedPendingCount > 0 && (
+                  <span className="text-warning ml-1">({selectedPendingCount} pending)</span>
+                )}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectNone}
+                >
+                  Clear
+                </Button>
+                {selectedPendingCount > 0 && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleBulkApprove}
+                    disabled={isBulkApproving}
+                    className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    {isBulkApproving ? 'Approving...' : `Approve (${selectedPendingCount})`}
+                  </Button>
+                )}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowBulkDeleteDialog(true)}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete ({selectedIds.size})
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Select All/None */}
         {(filteredPendingCategories.length > 0 || filteredApprovedCategories.length > 0) && (
