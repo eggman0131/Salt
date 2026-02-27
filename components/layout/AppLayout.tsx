@@ -4,7 +4,6 @@ import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
 import { Content } from './Content';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { kitchenDataBackend } from '../../modules/kitchen-data';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -29,10 +28,12 @@ const getActiveTitle = (tab: string): string => {
       return 'Equipment';
     case 'shopping':
       return 'Shopping';
-    case 'kitchendata':
-      return 'Kitchen Data';
     case 'admin':
       return 'Admin';
+    case 'canon':
+      return 'Canon Items';
+    case 'categories':
+      return 'Categories';
     default:
       return 'Salt';
   }
@@ -52,37 +53,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [suggestionsCount, setSuggestionsCount] = useState(0);
-
-  const loadSuggestionsCount = async () => {
-    try {
-      const pending = await kitchenDataBackend.getPendingCategories();
-      setSuggestionsCount(pending.length);
-    } catch (err) {
-      console.error('Failed to load suggestions count:', err);
-    }
-  };
-
-  useEffect(() => {
-    loadSuggestionsCount();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'kitchendata') {
-      loadSuggestionsCount();
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (suggestionsCountRef) {
-      suggestionsCountRef.current = loadSuggestionsCount;
-    }
-    return () => {
-      if (suggestionsCountRef) {
-        suggestionsCountRef.current = null;
-      }
-    };
-  }, [suggestionsCountRef]);
 
   const showSidebar = isMd && (sidebarOpen || isXl);
 
@@ -105,7 +75,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       onTabChange={handleMenuClick}
       user={user}
       onLogout={onLogout}
-      suggestionsCount={suggestionsCount}
+      suggestionsCount={0}
     />
   );
 

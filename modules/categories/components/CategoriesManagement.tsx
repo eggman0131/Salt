@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { Trash2, Pencil, X, CheckCircle, AlertCircle, Search } from 'lucide-react';
 import { RecipeCategory } from '../../../types/contract';
-import { kitchenDataBackend } from '../backend';
+import { categoriesBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -54,6 +54,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkApproving, setIsBulkApproving] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -68,8 +69,8 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
   const loadCategories = async () => {
     try {
       const [pending, all] = await Promise.all([
-        kitchenDataBackend.getPendingCategories(),
-        kitchenDataBackend.getCategories(),
+        categoriesBackend.getPendingCategories(),
+        categoriesBackend.getCategories(),
       ]);
       
       setPendingCategories(pending);
@@ -109,7 +110,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
   const handleRemoveSynonymFromCategory = async (category: RecipeCategory, synToRemove: string) => {
     try {
       const updatedSynonyms = (category.synonyms || []).filter(s => s !== synToRemove);
-      await kitchenDataBackend.updateCategory(category.id, {
+      await categoriesBackend.updateCategory(category.id, {
         synonyms: updatedSynonyms,
       });
       await loadCategories();
@@ -126,7 +127,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     
     setIsAdding(true);
     try {
-      await kitchenDataBackend.createCategory({
+      await categoriesBackend.createCategory({
         name: name.trim(),
         description: description.trim() || undefined,
         synonyms: synonyms.length > 0 ? synonyms : [],
@@ -148,7 +149,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
   const handleApprove = async (category: RecipeCategory) => {
     setApproving(category.id);
     try {
-      await kitchenDataBackend.approveCategory(category.id);
+      await categoriesBackend.approveCategory(category.id);
       await loadCategories();
       softToast.success('Category approved', { description: category.name });
       onRefresh();
@@ -165,7 +166,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     
     setIsDeleting(true);
     try {
-      await kitchenDataBackend.deleteCategory(categoryToDelete.id);
+      await categoriesBackend.deleteCategory(categoryToDelete.id);
       await loadCategories();
       softToast.success('Category deleted', { description: categoryToDelete.name });
       onRefresh();
@@ -191,7 +192,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     
     setIsSaving(true);
     try {
-      await kitchenDataBackend.updateCategory(categoryToEdit.id, {
+      await categoriesBackend.updateCategory(categoryToEdit.id, {
         name: name.trim(),
         description: description.trim() || undefined,
         synonyms: synonyms,
@@ -232,7 +233,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
     setIsBulkDeleting(true);
     try {
       const idsToDelete = Array.from(selectedIds);
-      await Promise.all(idsToDelete.map(id => kitchenDataBackend.deleteCategory(id)));
+      await Promise.all(idsToDelete.map(id => categoriesBackend.deleteCategory(id)));
       await loadCategories();
       setSelectedIds(new Set());
       setShowBulkDeleteDialog(false);
@@ -243,6 +244,25 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
       softToast.error('Failed to delete categories');
     } finally {
       setIsBulkDeleting(false);
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    setIsBulkApproving(true);
+    try {
+      const pendingIds = Array.from(selectedIds).filter(id =>
+        pendingCategories.some(cat => cat.id === id)
+      );
+      await Promise.all(pendingIds.map(id => categoriesBackend.approveCategory(id)));
+      await loadCategories();
+      setSelectedIds(new Set());
+      softToast.success(`Approved ${pendingIds.length} categor${pendingIds.length === 1 ? 'y' : 'ies'}`);
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to bulk approve categories', err);
+      softToast.error('Failed to approve categories');
+    } finally {
+      setIsBulkApproving(false);
     }
   };
 
@@ -382,30 +402,51 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
         </div>
 
         {/* Selection Actions */}
-        {selectedIds.size > 0 && (
-          <div className="flex items-center justify-between gap-2 p-2 border rounded-lg bg-muted/50">
-            <span className="text-sm text-muted-foreground">
-              {selectedIds.size} selected
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSelectNone}
-              >
-                Clear
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowBulkDeleteDialog(true)}
-              >
-                <Trash2 className="h-3 w-3 mr-1" />
-                Delete ({selectedIds.size})
-              </Button>
+        {selectedIds.size > 0 && (() => {
+          const selectedPendingCount = Array.from(selectedIds).filter(id =>
+            pendingCategories.some(cat => cat.id === id)
+          ).length;
+          
+          return (
+            <div className="flex items-center justify-between gap-2 p-2 border rounded-lg bg-muted/50">
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.size} selected
+                {selectedPendingCount > 0 && (
+                  <span className="text-warning ml-1">({selectedPendingCount} pending)</span>
+                )}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectNone}
+                >
+                  Clear
+                </Button>
+                {selectedPendingCount > 0 && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleBulkApprove}
+                    disabled={isBulkApproving}
+                    className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    {isBulkApproving ? 'Approving...' : `Approve (${selectedPendingCount})`}
+                  </Button>
+                )}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowBulkDeleteDialog(true)}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete ({selectedIds.size})
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Select All/None */}
         {(filteredPendingCategories.length > 0 || filteredApprovedCategories.length > 0) && (

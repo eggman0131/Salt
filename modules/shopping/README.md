@@ -11,7 +11,7 @@ The Shopping module handles shopping list creation, management, and item trackin
 - **Mobile Experience** - Touch-optimized UI with swipe gestures
 - **Desktop Experience** - Mouse/keyboard-optimized UI with hover states
 - **Recipe Integration** - AI-powered shopping list generation from recipes
-- **Kitchen Data Integration** - Imports units, aisles, and canonical items from `kitchen-data` module (read-only)
+- **Canon Integration** - Ingredient processing delegated to canon module (Phase 2 complete)
 
 ## Architecture
 

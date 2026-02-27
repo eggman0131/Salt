@@ -42,7 +42,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Unit } from '../../../types/contract';
-import { kitchenDataBackend } from '../backend';
+import { canonBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
 
 interface UnitsManagementProps {
@@ -145,7 +145,7 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
 
   const loadUnits = async () => {
     try {
-      const data = await kitchenDataBackend.getUnits();
+      const data = await canonBackend.getUnits();
       setUnits(data);
     } catch (err) {
       console.error('Failed to load units', err);
@@ -176,7 +176,7 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
     // Save to backend
     try {
       for (const unit of updates) {
-        await kitchenDataBackend.updateUnit(unit.id, { sortOrder: unit.sortOrder });
+        await canonBackend.updateUnit(unit.id, { sortOrder: unit.sortOrder });
       }
       softToast.success('Unit order updated');
       onRefresh();
@@ -193,7 +193,7 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
     
     setIsAdding(true);
     try {
-      await kitchenDataBackend.createUnit({
+      await canonBackend.createUnit({
         name: name.trim(),
         sortOrder: units.length,
       });
@@ -202,8 +202,9 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
       softToast.success('Unit added', { description: name.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to add unit';
       console.error('Failed to create unit', err);
-      softToast.error('Failed to add unit');
+      softToast.error(errMessage);
     } finally {
       setIsAdding(false);
     }
@@ -214,7 +215,7 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
     
     setIsDeleting(true);
     try {
-      await kitchenDataBackend.deleteUnit(unitToDelete.id);
+      await canonBackend.deleteUnit(unitToDelete.id);
       await loadUnits();
       softToast.success('Unit deleted', { description: unitToDelete.name });
       onRefresh();
@@ -237,15 +238,16 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
     
     setIsSaving(true);
     try {
-      await kitchenDataBackend.updateUnit(unitToEdit.id, { name: editName.trim() });
+      await canonBackend.updateUnit(unitToEdit.id, { name: editName.trim() });
       await loadUnits();
       setUnitToEdit(null);
       setEditName('');
       softToast.success('Unit updated', { description: editName.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to update unit';
       console.error('Failed to update unit', err);
-      softToast.error('Failed to update unit');
+      softToast.error(errMessage);
     } finally {
       setIsSaving(false);
     }
@@ -273,7 +275,7 @@ export const UnitsManagement: React.FC<UnitsManagementProps> = ({ onRefresh }) =
     setIsBulkDeleting(true);
     try {
       const idsToDelete = Array.from(selectedIds);
-      await Promise.all(idsToDelete.map(id => kitchenDataBackend.deleteUnit(id)));
+      await Promise.all(idsToDelete.map(id => canonBackend.deleteUnit(id)));
       await loadUnits();
       setSelectedIds(new Set());
       setShowBulkDeleteDialog(false);

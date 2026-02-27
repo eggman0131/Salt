@@ -42,7 +42,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Aisle } from '../../../types/contract';
-import { kitchenDataBackend } from '../backend';
+import { canonBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
 
 interface AislesManagementProps {
@@ -145,7 +145,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
 
   const loadAisles = async () => {
     try {
-      const data = await kitchenDataBackend.getAisles();
+      const data = await canonBackend.getAisles();
       setAisles(data);
     } catch (err) {
       console.error('Failed to load aisles', err);
@@ -176,7 +176,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
     // Save to backend
     try {
       for (const aisle of updates) {
-        await kitchenDataBackend.updateAisle(aisle.id, { sortOrder: aisle.sortOrder });
+        await canonBackend.updateAisle(aisle.id, { sortOrder: aisle.sortOrder });
       }
       softToast.success('Aisle order updated');
       onRefresh();
@@ -193,7 +193,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
     
     setIsAdding(true);
     try {
-      await kitchenDataBackend.createAisle({
+      await canonBackend.createAisle({
         name: name.trim(),
         sortOrder: aisles.length,
       });
@@ -202,8 +202,9 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
       softToast.success('Aisle added', { description: name.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to add aisle';
       console.error('Failed to create aisle', err);
-      softToast.error('Failed to add aisle');
+      softToast.error(errMessage);
     } finally {
       setIsAdding(false);
     }
@@ -214,7 +215,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
     
     setIsDeleting(true);
     try {
-      await kitchenDataBackend.deleteAisle(aisleToDelete.id);
+      await canonBackend.deleteAisle(aisleToDelete.id);
       await loadAisles();
       softToast.success('Aisle deleted', { description: aisleToDelete.name });
       onRefresh();
@@ -237,15 +238,16 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
     
     setIsSaving(true);
     try {
-      await kitchenDataBackend.updateAisle(aisleToEdit.id, { name: editName.trim() });
+      await canonBackend.updateAisle(aisleToEdit.id, { name: editName.trim() });
       await loadAisles();
       setAisleToEdit(null);
       setEditName('');
       softToast.success('Aisle updated', { description: editName.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to update aisle';
       console.error('Failed to update aisle', err);
-      softToast.error('Failed to update aisle');
+      softToast.error(errMessage);
     } finally {
       setIsSaving(false);
     }
@@ -273,7 +275,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
     setIsBulkDeleting(true);
     try {
       const idsToDelete = Array.from(selectedIds);
-      await Promise.all(idsToDelete.map(id => kitchenDataBackend.deleteAisle(id)));
+      await Promise.all(idsToDelete.map(id => canonBackend.deleteAisle(id)));
       await loadAisles();
       setSelectedIds(new Set());
       setShowBulkDeleteDialog(false);

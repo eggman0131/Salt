@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/dialog';
 import { Trash2, Pencil, X, Search, PlusCircle } from 'lucide-react';
 import { CanonicalItem, Unit, Aisle } from '../../../types/contract';
-import { kitchenDataBackend } from '../backend';
+import { canonBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
@@ -113,9 +113,9 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
   const loadData = async () => {
     try {
       const [itemsData, unitsData, aislesData] = await Promise.all([
-        kitchenDataBackend.getCanonicalItems(),
-        kitchenDataBackend.getUnits(),
-        kitchenDataBackend.getAisles(),
+        canonBackend.getCanonicalItems(),
+        canonBackend.getUnits(),
+        canonBackend.getAisles(),
       ]);
       setItems(itemsData);
       setUnits(unitsData);
@@ -151,7 +151,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
   const handleRemoveSynonymFromItem = async (item: CanonicalItem, synToRemove: string) => {
     try {
       const updatedSynonyms = (item.synonyms || []).filter(s => s !== synToRemove);
-      await kitchenDataBackend.updateCanonicalItem(item.id, {
+      await canonBackend.updateCanonicalItem(item.id, {
         synonyms: updatedSynonyms,
       });
       await loadData();
@@ -202,15 +202,15 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
 
         // Remove synonym from source item FIRST (before validation runs on new item creation)
         const updatedSynonyms = (sourceItem.synonyms || []).filter(s => s !== synonym);
-        await kitchenDataBackend.updateCanonicalItem(sourceItem.id, {
+        await canonBackend.updateCanonicalItem(sourceItem.id, {
           synonyms: updatedSynonyms,
         });
 
         // Enrich item with AI (proper capitalization, aisle, unit)
-        const enriched = await kitchenDataBackend.enrichCanonicalItem(synonym);
+        const enriched = await canonBackend.enrichCanonicalItem(synonym);
 
         // Create new item with enriched data
-        await kitchenDataBackend.createCanonicalItem({
+        await canonBackend.createCanonicalItem({
           name: enriched.name,
           normalisedName: enriched.name.toLowerCase(),
           preferredUnit: enriched.preferredUnit,
@@ -240,7 +240,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
 
           const oldTitle = sourceItem.name;
           // Capitalize the synonym when promoting to title
-          const enriched = await kitchenDataBackend.enrichCanonicalItem(synonym);
+          const enriched = await canonBackend.enrichCanonicalItem(synonym);
           const newTitle = enriched.name;
           
           // Remove synonym from list and add old title as synonym
@@ -248,7 +248,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
             .filter(s => s !== synonym)
             .concat(oldTitle);
           
-          await kitchenDataBackend.updateCanonicalItem(sourceItem.id, {
+          await canonBackend.updateCanonicalItem(sourceItem.id, {
             name: newTitle,
             normalisedName: newTitle.toLowerCase(),
             synonyms: updatedSynonyms,
@@ -288,10 +288,10 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       const targetSynonyms = [...(targetItem.synonyms || []), synonym];
 
       await Promise.all([
-        kitchenDataBackend.updateCanonicalItem(sourceItem.id, {
+        canonBackend.updateCanonicalItem(sourceItem.id, {
           synonyms: sourceSynonyms,
         }),
-        kitchenDataBackend.updateCanonicalItem(targetItem.id, {
+        canonBackend.updateCanonicalItem(targetItem.id, {
           synonyms: targetSynonyms,
         }),
       ]);
@@ -314,7 +314,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     
     setIsAdding(true);
     try {
-      await kitchenDataBackend.createCanonicalItem({
+      await canonBackend.createCanonicalItem({
         name: name.trim(),
         normalisedName: name.trim().toLowerCase(),
         isStaple,
@@ -328,8 +328,9 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       softToast.success('Item added', { description: name.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to add item';
       console.error('Failed to create item', err);
-      softToast.error('Failed to add item');
+      softToast.error(errMessage);
     } finally {
       setIsAdding(false);
     }
@@ -341,7 +342,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     setIsAssessingImpact(true);
     try {
       console.log('🔍 Assessing impact for single item deletion:', item.id);
-      const assessment = await kitchenDataBackend.assessItemDeletion([item.id]);
+      const assessment = await canonBackend.assessItemDeletion([item.id]);
       console.log('✅ Impact assessment complete:', assessment);
       setImpactAssessment(assessment);
       setShowImpactDialog(true);
@@ -363,12 +364,12 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       
       // Delete the item using bulk method
       console.log('🗑️ Deleting item:', idToDelete);
-      await kitchenDataBackend.deleteCanonicalItems([idToDelete]);
+      await canonBackend.deleteCanonicalItems([idToDelete]);
       
       // Heal references
       setIsHealing(true);
       console.log('🔧 Healing recipe references...');
-      const result = await kitchenDataBackend.healRecipeReferences([idToDelete], impactAssessment!);
+      const result = await canonBackend.healRecipeReferences([idToDelete], impactAssessment!);
       console.log('✅ Healing complete:', result);
       setHealingResult(result);
       setShowHealingResult(true);
@@ -404,7 +405,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     
     setIsSaving(true);
     try {
-      await kitchenDataBackend.updateCanonicalItem(itemToEdit.id, {
+      await canonBackend.updateCanonicalItem(itemToEdit.id, {
         name: name.trim(),
         normalisedName: name.trim().toLowerCase(),
         isStaple,
@@ -418,8 +419,9 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       softToast.success('Item updated', { description: name.trim() });
       onRefresh();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Failed to update item';
       console.error('Failed to update item', err);
-      softToast.error('Failed to update item');
+      softToast.error(errMessage);
     } finally {
       setIsSaving(false);
     }
@@ -473,7 +475,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     try {
       const idsToDelete = Array.from(selectedIds);
       console.log('🔍 Assessing impact for deletion of:', idsToDelete);
-      const assessment = await kitchenDataBackend.assessItemDeletion(idsToDelete);
+      const assessment = await canonBackend.assessItemDeletion(idsToDelete);
       console.log('✅ Impact assessment complete:', assessment);
       setImpactAssessment(assessment);
       setShowBulkDeleteDialog(false);
@@ -492,12 +494,12 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     try {
       const idsToDelete = impactAssessment?.itemIds || Array.from(selectedIds);
       // Use new bulk delete method to avoid race conditions
-      await kitchenDataBackend.deleteCanonicalItems(idsToDelete);
+      await canonBackend.deleteCanonicalItems(idsToDelete);
       
       // Step 3: Heal references
       setShowImpactDialog(false);
       setIsHealing(true);
-      const result = await kitchenDataBackend.healRecipeReferences(idsToDelete, impactAssessment!);
+      const result = await canonBackend.healRecipeReferences(idsToDelete, impactAssessment!);
       setHealingResult(result);
       setShowHealingResult(true);
       
@@ -529,7 +531,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       
       await Promise.all(
         idsToUpdate.map(id => 
-          kitchenDataBackend.updateCanonicalItem(id, {
+          canonBackend.updateCanonicalItem(id, {
             aisle: targetAisle
           })
         )
@@ -1290,6 +1292,21 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                     <p className="text-sm font-medium text-green-900 dark:text-green-200">
                       ✓ {healingResult.ingredientsRematched} ingredient{healingResult.ingredientsRematched === 1 ? '' : 's'} successfully re-matched to similar items.
                     </p>
+                  </div>
+                )}
+                
+                {healingResult.recipesWithUnlinkedItems && healingResult.recipesWithUnlinkedItems.length > 0 && (
+                  <div className="p-3 border border-amber-200 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-2">
+                      ⚠️ {healingResult.recipesWithUnlinkedItems.length} recipe{healingResult.recipesWithUnlinkedItems.length === 1 ? '' : 's'} have unlinked items
+                    </p>
+                    <ul className="space-y-1">
+                      {healingResult.recipesWithUnlinkedItems.map(recipe => (
+                        <li key={recipe.id} className="text-xs text-amber-800 dark:text-amber-300">
+                          • <strong>{recipe.title}</strong> ({recipe.unlinkedCount} unlinked)
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>

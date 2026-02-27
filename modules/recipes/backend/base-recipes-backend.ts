@@ -41,6 +41,11 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
   abstract updateRecipe(id: string, updates: Partial<Recipe>, imageData?: string): Promise<Recipe>;
   abstract deleteRecipe(id: string): Promise<void>;
   abstract resolveImagePath(path: string): Promise<string>;
+
+  // Notification Hooks
+  async onCanonItemsDeleted(ids: string[]): Promise<void> {
+    void ids;
+  }
   
   // Dependencies (read from other modules)
   abstract getInventory(): Promise<Equipment[]>;
@@ -769,7 +774,7 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     
     if (quantityMatch) {
       quantity = parseFloat(quantityMatch[1]);
-      unit = quantityMatch[4] || quantityMatch[2] || '_item';
+      unit = quantityMatch[4] || quantityMatch[2] || '';
       text = quantityMatch[5];
     } else {
       // Try simple quantity pattern with optional space before unit
@@ -777,7 +782,7 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
       quantityMatch = text.match(simpleRegex);
       if (quantityMatch) {
         quantity = parseFloat(quantityMatch[1]);
-        unit = quantityMatch[2] || '_item';
+        unit = quantityMatch[2] || '';
         text = quantityMatch[3];
       }
     }
