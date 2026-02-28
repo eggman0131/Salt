@@ -14,6 +14,7 @@ import {
   CanonicalItem,
   RecipeIngredient,
   CoFIDGroupAisleMapping,
+  IngredientMatchingConfig,
 } from '../../../types/contract';
 
 export interface ICanonBackend {
@@ -30,6 +31,11 @@ export interface ICanonBackend {
   createAisle: (aisle: Omit<Aisle, 'id' | 'createdAt'>) => Promise<Aisle>;
   updateAisle: (id: string, updates: Partial<Aisle>) => Promise<Aisle>;
   deleteAisle: (id: string) => Promise<void>;
+
+  // ==================== INGREDIENT MATCHING CONFIG ====================
+
+  getIngredientMatchingConfig: () => Promise<IngredientMatchingConfig>;
+  updateIngredientMatchingConfig: (updates: Partial<IngredientMatchingConfig>) => Promise<IngredientMatchingConfig>;
 
   // ==================== CANONICAL ITEMS ====================
 
