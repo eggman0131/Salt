@@ -4,6 +4,7 @@ import { UsersModule } from './UsersModule';
 import { AssistModeGuidesList } from './AssistModeGuidesList';
 import { CollectionSelector } from './CollectionSelector';
 import { CoFIDImport } from './CoFIDImport';
+import { FirestoreBrowser } from './FirestoreBrowser';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AddButton } from '@/components/ui/add-button';
@@ -491,6 +492,19 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
       {/* Assist Mode Guides Management */}
       <AssistModeGuidesList onRefresh={onRefresh} />
+
+      {/* Firestore Browser */}
+      <Card className="shadow-sm hover:shadow-md transition-shadow">
+        <CardHeader className="p-4 md:p-6 border-b">
+          <div className="space-y-1">
+            <CardTitle className="text-xl md:text-2xl">Firestore Browser</CardTitle>
+            <p className="text-sm text-muted-foreground">Browse collections and export documents as JSON</p>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 md:p-6">
+          <FirestoreBrowser />
+        </CardContent>
+      </Card>
     </div>
   );
 };

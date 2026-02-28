@@ -34,6 +34,11 @@ export const CollectionSelector: React.FC<CollectionSelectorProps> = ({
         const collectionInfos: CollectionInfo[] = [];
 
         for (const [collectionName, config] of Object.entries(COLLECTION_REGISTRY)) {
+          // CoFID has a dedicated backup/import flow in Admin and is excluded here.
+          if (collectionName === 'cofid') {
+            continue;
+          }
+
           let count = 0;
           const displayName = collectionName
             .split('_')
