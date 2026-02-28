@@ -10,6 +10,7 @@ import {
   Aisle,
   CanonicalItem,
   CoFIDGroupAisleMapping,
+  IngredientMatchingConfig,
 } from '../../../types/contract';
 import { db, auth, functions } from '../../../shared/backend/firebase';
 import { shoppingBackend } from '../../shopping';
@@ -17,6 +18,7 @@ import { recipesBackend } from '../../recipes';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, orderBy, query, writeBatch, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
+import { debugLogger } from '../../../shared/backend/debug-logger';
 
 const EMBED_BATCH_SIZE = 100;
 const EMBED_DEBUG_LIMIT_TO_ONE_BATCH = false;
@@ -369,6 +371,108 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
   }
 
   /**
+   * Load ingredient matching configuration from Firestore
+   * Returns default config if not found
+   */
+  async getMatchingConfig(): Promise<IngredientMatchingConfig> {
+    try {
+      const configDoc = await getDoc(doc(db, 'config', 'ingredientMatching'));
+      if (configDoc.exists()) {
+        const data = configDoc.data();
+        debugLogger.log('Ingredient Matching', `Loaded config from Firestore: ${JSON.stringify(data)}`);
+        return {
+          fuzzyHighConfidenceThreshold: data.fuzzyHighConfidenceThreshold ?? 0.85,
+          semanticHighThreshold: data.semanticHighThreshold ?? 0.90,
+          semanticLowThreshold: data.semanticLowThreshold ?? 0.70,
+          semanticGapThreshold: data.semanticGapThreshold ?? 0.10,
+          semanticClusterWindow: data.semanticClusterWindow ?? 0.05,
+          semanticCandidateCount: data.semanticCandidateCount ?? 5,
+          llmBiasForExistingCanon: data.llmBiasForExistingCanon ?? 0.05,
+          allowNewCanonItems: data.allowNewCanonItems ?? true,
+        };
+      }
+    } catch (error) {
+      debugLogger.warn('Ingredient Matching', 'Config not found, using defaults:', error);
+    }
+
+    // Default config
+    const defaultConfig = {
+      fuzzyHighConfidenceThreshold: 0.85,
+      semanticHighThreshold: 0.90,
+      semanticLowThreshold: 0.70,
+      semanticGapThreshold: 0.10,
+      semanticClusterWindow: 0.05,
+      semanticCandidateCount: 5,
+      llmBiasForExistingCanon: 0.05,
+      allowNewCanonItems: true,
+    };
+    debugLogger.log('Ingredient Matching', `Using default config: ${JSON.stringify(defaultConfig)}`);
+    return defaultConfig;
+  }
+
+  /**
+   * Search for semantic matches across Canon and CoFID items
+   * Returns top N candidates sorted by cosine similarity
+   */
+  async searchSemanticCandidates(
+    queryEmbedding: number[],
+    candidateCount: number
+  ): Promise<Array<{
+    id: string;
+    name: string;
+    source: 'canon' | 'cofid';
+    score: number;
+    item: CanonicalItem | any;
+  }>> {
+    debugLogger.log('Ingredient Matching', `Searching semantic candidates (top ${candidateCount})`);
+
+    const candidates: Array<{ id: string; name: string; source: 'canon' | 'cofid'; score: number; item: any }> = [];
+
+    // Search Canon items
+    const canonItems = await this.getCanonicalItems();
+    for (const item of canonItems) {
+      if (item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0) {
+        const score = this.cosineSimilarity(queryEmbedding, item.embedding);
+        candidates.push({
+          id: item.id,
+          name: item.name,
+          source: 'canon',
+          score,
+          item,
+        });
+      }
+    }
+
+    // Search CoFID items
+    const cofidItems = await this.getCofidItemsWithEmbeddings();
+    for (const item of cofidItems) {
+      const score = this.cosineSimilarity(queryEmbedding, item.embedding);
+      candidates.push({
+        id: item.id,
+        name: item.name || item.Name || item.FoodName,
+        source: 'cofid',
+        score,
+        item,
+      });
+    }
+
+    // Sort by score descending and take top N
+    candidates.sort((a, b) => b.score - a.score);
+    const topCandidates = candidates.slice(0, candidateCount);
+
+    debugLogger.log(
+      'Ingredient Matching',
+      `Found ${candidates.length} total candidates (${canonItems.filter(i => i.embedding).length} Canon, ${cofidItems.length} CoFID)`
+    );
+    debugLogger.log(
+      'Ingredient Matching',
+      `Top ${topCandidates.length} candidates: ${topCandidates.map(c => `${c.name} (${c.source}, ${(c.score * 100).toFixed(1)}%)`).join(', ')}`
+    );
+
+    return topCandidates;
+  }
+
+  /**
    * Create canonical item from CoFID item (unapproved state)
    * Uses group->aisle mapping to determine aisle
    */
@@ -395,12 +499,17 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
       aisle: finalAisle,
       preferredUnit: '', // Empty for now, can be enriched later
       isStaple: false,
-      source: 'cofid',
-      externalId: cofidItem.id,
+      externalSources: [{
+        source: 'cofid',
+        externalId: cofidItem.id,
+        confidence: 1.0, // Direct import, 100% confidence
+        syncedAt: new Date().toISOString(),
+      }],
       approved: false, // Requires human review
       embedding: cofidItem.embedding,
       embeddingModel: cofidItem.embeddingModel || EMBED_MODEL,
       embeddedAt: cofidItem.embeddedAt || new Date().toISOString(),
+      lastSyncedAt: new Date().toISOString(),
     });
 
     return newItem;
@@ -568,6 +677,54 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
 
   async deleteAisle(id: string): Promise<void> {
     await deleteDoc(doc(db, 'aisles', id));
+  }
+
+  // ==================== INGREDIENT MATCHING CONFIG ====================
+
+  async getIngredientMatchingConfig(): Promise<IngredientMatchingConfig> {
+    try {
+      const docSnap = await getDoc(doc(db, 'ingredient_matching_config', 'global'));
+      if (docSnap.exists()) {
+        return docSnap.data() as IngredientMatchingConfig;
+      }
+    } catch (e) {
+      debugLogger.log('Canon.getIngredientMatchingConfig', 'Config fetch error:', e);
+    }
+
+    // Return hardcoded defaults if not found
+    const defaults: IngredientMatchingConfig = {
+      fuzzyHighConfidenceThreshold: 0.85,
+      semanticHighThreshold: 0.90,
+      semanticLowThreshold: 0.70,
+      semanticGapThreshold: 0.10,
+      semanticClusterWindow: 0.05,
+      semanticCandidateCount: 5,
+      llmBiasForExistingCanon: 0.05,
+      allowNewCanonItems: true,
+    };
+    return defaults;
+  }
+
+  async updateIngredientMatchingConfig(updates: Partial<IngredientMatchingConfig>): Promise<IngredientMatchingConfig> {
+    // Fetch current config first
+    const current = await this.getIngredientMatchingConfig();
+
+    // Merge updates
+    const updated: IngredientMatchingConfig = {
+      ...current,
+      ...updates,
+    };
+
+    // Save to Firestore
+    await setDoc(doc(db, 'ingredient_matching_config', 'global'), updated, { merge: false });
+
+    debugLogger.log('Canon.updateIngredientMatchingConfig', 'Config updated', {
+      fuzzyThreshold: updated.fuzzyHighConfidenceThreshold,
+      semanticHighThreshold: updated.semanticHighThreshold,
+      semanticLowThreshold: updated.semanticLowThreshold,
+    });
+
+    return updated;
   }
 
   // ==================== CANONICAL ITEMS ====================
@@ -897,6 +1054,8 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     isStaple: boolean;
     synonyms: string[];
   }> {
+    debugLogger.log('Ingredient Matching', `Enriching canonical item: "${rawName}"`);
+
     const instruction = await this.getSystemInstruction(
       "You are the Head Chef resolving ingredient names to canonical items."
     );
@@ -939,11 +1098,14 @@ Return JSON object:`
     const sanitized = this.sanitizeJson(response.text || '{}');
     const parsed = JSON.parse(sanitized);
 
+    debugLogger.log('Ingredient Matching', `Enriched "${rawName}" -> "${parsed.name}" (unit: "${parsed.preferredUnit || 'countable'}", aisle: "${parsed.aisle || 'Other'}", staple: ${parsed.isStaple})`);
+
     // Ensure units and aisles exist (create if missing)
     if (parsed.preferredUnit) {
       const units = await this.getUnits();
       const unitExists = units.some((u: Unit) => u.name.toLowerCase() === parsed.preferredUnit.toLowerCase());
       if (!unitExists) {
+        debugLogger.log('Ingredient Matching', `Creating unit "${parsed.preferredUnit}" during enrichment`);
         await this.createUnit({
           name: parsed.preferredUnit,
           sortOrder: units.length
@@ -955,6 +1117,7 @@ Return JSON object:`
       const aisles = await this.getAisles();
       const aisleExists = aisles.some((a: Aisle) => a.name.toLowerCase() === parsed.aisle.toLowerCase());
       if (!aisleExists) {
+        debugLogger.log('Ingredient Matching', `Creating aisle "${parsed.aisle}" during enrichment`);
         await this.createAisle({
           name: parsed.aisle,
           sortOrder: aisles.length

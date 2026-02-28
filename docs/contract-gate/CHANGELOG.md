@@ -18,6 +18,30 @@ Each entry must follow this structure:
 
 ## Entries
 
+### [2026-02-28] - Multi-Source External Link Support for Canonical Items
+**Impact:** Canonical items can now link to multiple external databases simultaneously (CoFID, Open Food Facts, USDA, etc.) with individual confidence scores and extensible property storage for source-specific data.
+**Changes:**
+- Added `ExternalSourceLinkSchema` defining structure for external database links:
+  - `source`: Enum identifying the external system
+  - `externalId`: ID in that system
+  - `confidence`: Optional match confidence (0-1)
+  - `properties`: Extensible key-value storage for source-specific data (nutrition, brands, pricing, etc.)
+  - `syncedAt`: Per-source sync timestamp
+- Modified `CanonicalItemSchema`:
+  - **Removed:** `source` (single enum field)
+  - **Removed:** `externalId` (single string field)
+  - **Added:** `externalSources` (optional array of ExternalSourceLink objects)
+  - **Kept:** `lastSyncedAt` (now represents max sync time across all sources), `barcodes`, `itemType`
+**Rationale:** Single-source tracking was insufficient for the planned semantic matching pipeline where ingredients may match against multiple nutrition databases. Supporting multiple sources enables:
+- Aggregating nutrition data from CoFID + Open Food Facts + USDA simultaneously
+- Tracking confidence scores per-source for prioritization
+- Storing source-specific metadata in extensible `properties` field (different schemas per source)
+- Individual sync timestamps for staleness detection
+- Future-proofing for multi-database integrations
+**Migration:** **Breaking change** - existing Canon items with CoFID links will lose `source` and `externalId` fields. No automated migration provided. Canon module data is disposable during development phase. After stable release, CoFID items should be re-imported or manually migrated to `externalSources: [{ source: 'cofid', externalId: '...' }]` format.
+
+---
+
 ### [2026-02-28] - Include CoFID Group Mappings In Kitchen Backup
 **Impact:** Main backup/restore now includes CoFID group-to-aisle mapping records while still excluding raw CoFID food data.
 **Changes:**

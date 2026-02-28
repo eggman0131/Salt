@@ -87,9 +87,30 @@ export const AisleSchema = z.object({
 });
 export type Aisle = z.infer<typeof AisleSchema>;
 
+// External Source Link Schema (for multi-source item tracking)
+// Allows canonical items to link to multiple external databases
+export const ExternalSourceLinkSchema = z.object({
+  source: z.enum(['cofid', 'open-food-facts', 'usda', 'tesco', 'user']), // Extensible enum
+  externalId: z.string(), // ID in the external system
+  confidence: z.number().min(0).max(1).optional(), // Match confidence (0-1)
+  
+  // Extensible property storage for source-specific data
+  // Each source can store completely different properties:
+  // - CoFID: { nutrition: { energy_kcal: 100, protein_g: 5 }, food_group: "..." }
+  // - Open Food Facts: { brands: "...", ingredients_text: "...", nutriscore_grade: "a" }
+  // - USDA: { ndb_number: "...", nutrient_data: {...} }
+  // - Tesco: { price: 2.50, currency: "GBP", sku: "...", availability: true }
+  // - User: { notes: "...", custom_tags: [...] }
+  properties: z.record(z.string(), z.unknown()).optional(),
+  
+  syncedAt: z.string().optional(), // ISO timestamp of last sync for this source
+});
+export type ExternalSourceLink = z.infer<typeof ExternalSourceLinkSchema>;
+
 // CanonicalItem Schema (Universal Shopping Item Catalog)
 // Items can be food ingredients OR household goods (toilet paper, cleaning supplies)
 // Schema is extensible for future integrations (CoFID, Open Food Facts, barcode scanning)
+// Supports linking to multiple external data sources simultaneously
 export const CanonicalItemSchema = z.object({
   id: z.string(),
   name: z.string(), // e.g., "Onion" (singular form preferred)
@@ -102,12 +123,11 @@ export const CanonicalItemSchema = z.object({
   createdAt: z.string(),
   createdBy: z.string().optional(),
   
-  // Future integration fields (all optional for backwards compatibility)
-  source: z.enum(['user', 'cofid', 'open-food-facts']).default('user').optional(), // Source tracking
-  externalId: z.string().optional(), // CoFID ID, Open Food Facts product ID, etc.
+  // External data source integration (all optional for backwards compatibility)
+  externalSources: z.array(ExternalSourceLinkSchema).optional(), // Links to external databases (CoFID, Open Food Facts, etc.)
   barcodes: z.array(z.string()).optional(), // EAN-13, UPC, etc. for barcode scanning
   itemType: z.enum(['ingredient', 'product', 'household']).default('ingredient').optional(), // Item categorization
-  lastSyncedAt: z.string().optional(), // Last sync with external database
+  lastSyncedAt: z.string().optional(), // Latest sync timestamp across all external sources
   
   // Semantic matching fields
   embedding: z.array(z.number()).optional(), // Vector embedding for semantic similarity search (text-embedding-005)
@@ -130,6 +150,25 @@ export const CoFIDGroupAisleMappingSchema = z.object({
   createdBy: z.string().optional(),
 });
 export type CoFIDGroupAisleMapping = z.infer<typeof CoFIDGroupAisleMappingSchema>;
+
+// Ingredient Matching Configuration Schema
+// Admin-editable thresholds for the multi-stage ingredient identity resolution pipeline
+export const IngredientMatchingConfigSchema = z.object({
+  // Stage 1: Fuzzy matching threshold (fast pass)
+  fuzzyHighConfidenceThreshold: z.number().min(0).max(1).default(0.85),
+  
+  // Stage 2: Semantic matching thresholds
+  semanticHighThreshold: z.number().min(0).max(1).default(0.90), // Confident match, accept immediately
+  semanticLowThreshold: z.number().min(0).max(1).default(0.70),  // Weak match, requires LLM
+  semanticGapThreshold: z.number().min(0).max(1).default(0.10),  // Min gap between top 2 for confident match
+  semanticClusterWindow: z.number().min(0).max(1).default(0.05), // Max score difference within cluster
+  semanticCandidateCount: z.number().min(1).max(20).default(5),  // How many top candidates to consider
+  
+  // Stage 3: LLM arbitration settings
+  llmBiasForExistingCanon: z.number().min(0).max(1).default(0.05), // Slight preference for existing Canon items
+  allowNewCanonItems: z.boolean().default(true), // Allow creation of new Canon items
+});
+export type IngredientMatchingConfig = z.infer<typeof IngredientMatchingConfigSchema>;
 
 // RecipeIngredient Schema (Recipe Context - Culinary Domain)
 // Note: This represents an ingredient IN A RECIPE, which links to the universal item catalog
@@ -276,6 +315,12 @@ export const COLLECTION_REGISTRY = {
     schema: CoFIDGroupAisleMappingSchema,
     requiresEncoding: false,
     idField: 'id'
+  },
+  ingredient_matching_config: {
+    schema: IngredientMatchingConfigSchema,
+    requiresEncoding: false,
+    isSingleton: true, // Only one document: 'global'
+    documentId: 'global'
   },
   canonical_items: { 
     schema: CanonicalItemSchema,

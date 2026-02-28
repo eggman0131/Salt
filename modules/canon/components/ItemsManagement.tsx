@@ -36,6 +36,7 @@ import { CanonicalItem, Unit, Aisle } from '../../../types/contract';
 import { canonBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { 
   DndContext, 
   DragEndEvent, 
@@ -999,7 +1000,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                                       Staple
                                     </Badge>
                                   )}
-                                  {item.source === 'cofid' && (
+                                  {item.externalSources?.some(s => s.source === 'cofid') && (
                                     <Badge variant="outline" className="text-xs border-warning/50 text-warning">
                                       CoFID
                                     </Badge>
