@@ -23,6 +23,7 @@ import {
 import { IRecipesBackend } from './recipes-backend.interface';
 import { RECIPE_PROMPTS } from '../../../shared/backend/prompts';
 import { debugLogger } from '../../../shared/backend/debug-logger';
+import { canonBackend } from '../../canon';
 
 export abstract class BaseRecipesBackend implements IRecipesBackend {
   
@@ -53,8 +54,6 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
   abstract createCategory(category: Omit<RecipeCategory, 'id' | 'createdAt'>): Promise<RecipeCategory>;
   abstract getCanonicalItems(): Promise<CanonicalItem[]>;
   abstract getCanonicalItem(id: string): Promise<CanonicalItem | null>;
-  abstract createCanonicalItem(item: Omit<CanonicalItem, 'id' | 'createdAt'>): Promise<CanonicalItem>;
-  abstract updateCanonicalItem(id: string, updates: Partial<CanonicalItem>): Promise<CanonicalItem>;
   abstract getUnits(): Promise<Unit[]>;
   abstract createUnit(unit: Omit<Unit, 'id' | 'createdAt'>): Promise<Unit>;
   abstract getAisles(): Promise<Aisle[]>;
@@ -237,234 +236,46 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
   }
 
   async processRecipeIngredients(ingredients: string[] | RecipeIngredient[], recipeId: string): Promise<RecipeIngredient[]> {
-    // Get all canonical items for fuzzy matching
-    const allItems = await this.getCanonicalItems();
-    const results: RecipeIngredient[] = [];
-    const unmatched: { index: number; parsed: any }[] = [];
-    
-    // Check actual debug setting from kitchen settings (not the stale singleton)
-    const kitchenSettings = await this.getKitchenSettings();
-    const debugEnabled = kitchenSettings.debugEnabled || false;
-    const debugLog = (msg: string) => {
-      if (debugEnabled) console.log(`[ingredientMatch] ${msg}`);
-    };
-    const debugWarn = (msg: string) => {
-      if (debugEnabled) console.warn(`[ingredientMatch-DEBUG] ${msg}`);
-      else console.warn(`[ingredientMatch-WARN] ${msg}`);
-    };
-
-    // Step 1: Parse and fuzzy match each ingredient
-    for (let idx = 0; idx < ingredients.length; idx++) {
-      if (idx === 0) {
-        console.warn(`[recipe-debug] Processing ${ingredients.length} ingredients (debugEnabled=${debugEnabled})`);
-      }
-      const ingredient = ingredients[idx];
-      
-      // Extract or preserve ID
-      const existingId = typeof ingredient === 'object' && ingredient !== null ? ingredient.id : undefined;
-      const ingredientId = existingId || crypto.randomUUID();
-      
-      // Extract raw ingredient string
-      const raw = typeof ingredient === 'string' 
-        ? ingredient as string 
-        : (ingredient as any).raw || '';
-      
-      // Parse if needed - ALWAYS parse from raw string if available, to extract quantities properly
-      let parsed;
-      if (raw && raw.length > 0) {
-        // Parse from raw string (handles quantity extraction)
-        parsed = this.parseIngredientString(raw);
-      } else if (typeof ingredient === 'object' && (ingredient as any).ingredientName) {
-        // Fallback to existing parsed object
-        parsed = {
-          quantity: (ingredient as any).quantity,
-          unit: (ingredient as any).unit,
-          ingredientName: (ingredient as any).ingredientName,
-          preparation: (ingredient as any).preparation
-        };
-      } else {
-        // Final fallback: parse empty
-        parsed = this.parseIngredientString('');
-      }
-      
-      // Try fuzzy match to existing canonical items
-      let bestMatch: CanonicalItem | null = null;
-      let bestScore = 0;
-      const nearMisses: Array<{item: CanonicalItem; score: number}> = []; // Track items scoring 0.5-0.85
-      
-      debugLog(`Processing: "${raw}" → "${parsed.ingredientName}"`);
-      
-      for (const item of allItems) {
-        const score = this.fuzzyMatch(parsed.ingredientName.toLowerCase(), item.normalisedName);
-        if (score > bestScore) {
-          bestScore = score;
-          bestMatch = item;
-        }
-        if (score >= 0.5 && score < 0.85) {
-          nearMisses.push({item, score});
-        }
-        debugLog(`  vs "${item.name}" (norm: "${item.normalisedName}"): ${score.toFixed(2)}`);
-        
-        // Also check synonyms
-        if (item.synonyms && item.synonyms.length > 0) {
-          for (const syn of item.synonyms) {
-            const synLower = syn.toLowerCase();
-            let synScore = this.fuzzyMatch(parsed.ingredientName.toLowerCase(), synLower);
-            debugLog(`    + syn "${syn}": ${synScore.toFixed(2)}`);
-            
-            // PREFIX-MATCH FALLBACK: If ingredient starts with synonym + single trailing word, score 0.9
-            // E.g., "maris piper potato" vs synonym "maris piper" → 0.9 (instead of ~0.56)
-            if (synScore < 0.85 && parsed.ingredientName.startsWith(synLower + ' ')) {
-              const remaining = parsed.ingredientName.slice(synLower.length + 1).trim();
-              const wordCount = remaining.split(/\s+/).length;
-              if (wordCount === 1) {
-                synScore = 0.9;
-                debugLog(`      ↪ prefix-match: "${synLower}" + "${remaining}" → 0.90`);
-              }
-            }
-            
-            if (synScore > bestScore) {
-              bestScore = synScore;
-              bestMatch = item;
-            }
-            if (synScore >= 0.5 && synScore < 0.85) {
-              const existing = nearMisses.find(nm => nm.item.id === item.id);
-              if (!existing || synScore > existing.score) {
-                nearMisses.push({item, score: synScore});
-              }
-            }
-          }
-        }
-      }
-      
-      debugLog(`  ✓ Best: ${bestMatch?.name || 'NONE'} (${bestScore.toFixed(2)})`);
-      
-      // If good match found (85%+), use it
-      if (bestScore >= 0.85 && bestMatch) {
-        debugLog(`  → LINKED to ${bestMatch.name}`);
-        results.push({
-          id: ingredientId,
-          raw,
-          ...parsed,
-          canonicalItemId: bestMatch.id
-        });
-      } else {
-        // Queue for AI resolution (with near-misses for context)
-        debugWarn(`  → AI needed (${bestScore.toFixed(2)} < 0.85)`);
-        console.warn(`[ingredientMatch-WARN] "${parsed.ingredientName}" scoring ${bestScore.toFixed(2)} best match "${bestMatch?.name}" - will use AI`);
-        results.push({
-          id: ingredientId,
-          raw,
-          ...parsed,
-          canonicalItemId: undefined
-        });
-        unmatched.push({ index: idx, parsed, nearMisses: nearMisses.sort((a, b) => b.score - a.score) });
-      }
+    if (ingredients.length === 0) {
+      return [];
     }
 
-    // Step 2: Batch resolve unmatched items via AI
-    const matchedCount = results.filter(r => r.canonicalItemId).length;
-    debugLog(`\nStep 1 Complete: ${matchedCount} matched, ${unmatched.length} unmatched`);
-    
-    if (unmatched.length > 0) {
-      debugLog(`Step 2: Running AI resolution for ${unmatched.length} unmatched ingredients...`);
-      // Get existing units and aisles (needed for both AI and creating missing ones)
-      const [existingUnits, existingAisles] = await Promise.all([
-        this.getUnits(),
-        this.getAisles()
-      ]);
-      
-      const resolved = await this.resolveUnmatchedIngredients(unmatched, existingAisles);
-      
-      const unitNames = new Set(existingUnits.map(u => u.name.toLowerCase()));
-      const aisleNames = new Set(existingAisles.map(a => a.name.toLowerCase()));
-      
-      // Track existing canonical items to avoid duplicates
-      const canonicalItemNames = new Map<string, string>(); // normalized name -> item ID
-      for (const item of allItems) {
-        canonicalItemNames.set(item.normalisedName, item.id);
-      }
-      
-      let nextUnitSortOrder = existingUnits.length;
-      let nextAisleSortOrder = existingAisles.length;
-      
-      // Create new canonical items and update results
-      for (let i = 0; i < unmatched.length; i++) {
-        const { index } = unmatched[i];
-        const aiResolution = resolved[i];
-        
-        if (aiResolution) {
-          const unitName = aiResolution.preferredUnit || '';
-          const aisleName = aiResolution.aisle || 'Other';
-          const normalizedItemName = aiResolution.name.toLowerCase();
-          
-          // Ensure unit exists (reuse if found, create if missing)
-          if (!unitNames.has(unitName.toLowerCase())) {
-            await this.createUnit({
-              name: unitName,
-              sortOrder: nextUnitSortOrder++
-            });
-            unitNames.add(unitName.toLowerCase());
-          }
-          
-          // Ensure aisle exists (reuse if found, create if missing)
-          if (!aisleNames.has(aisleName.toLowerCase())) {
-            await this.createAisle({
-              name: aisleName,
-              sortOrder: nextAisleSortOrder++
-            });
-            aisleNames.add(aisleName.toLowerCase());
-          }
-          
-          // Check if canonical item already exists (reuse if found, create if missing)
-          let itemId: string;
-          if (canonicalItemNames.has(normalizedItemName)) {
-            // Reuse existing item - and add the ingredient name as a synonym if it's new
-            itemId = canonicalItemNames.get(normalizedItemName)!;
-            
-            // Find the existing item to get its current synonyms
-            const existingItem = allItems.find(item => item.id === itemId);
-            if (existingItem) {
-              const currentSynonyms = existingItem.synonyms || [];
-              const ingredientNameLower = unmatched[i].parsed.ingredientName.toLowerCase();
-              
-              // Only add if it's not already there (case-insensitive check)
-              if (!currentSynonyms.some(syn => syn.toLowerCase() === ingredientNameLower)) {
-                try {
-                  const updatedSynonyms = [...currentSynonyms, unmatched[i].parsed.ingredientName];
-                  await this.updateCanonicalItem(itemId, {
-                    synonyms: updatedSynonyms
-                  });
-                  debugLog(`  ↳ Added synonym "${unmatched[i].parsed.ingredientName}" to ${existingItem.name}`);
-                } catch (err) {
-                  // Duplicate synonym error - log warning but don't fail the import
-                  debugWarn(`  ⚠ Could not add synonym "${unmatched[i].parsed.ingredientName}": ${err instanceof Error ? err.message : 'unknown error'}`);
-                }
-              }
-            }
-          } else {
-            // Create new canonical item
-            const newItem = await this.createCanonicalItem({
-              name: aiResolution.name,
-              normalisedName: normalizedItemName,
-              preferredUnit: unitName,
-              aisle: aisleName,
-              isStaple: aiResolution.isStaple || false,
-              synonyms: aiResolution.synonyms || [],
-              metadata: {}
-            });
-            itemId = newItem.id;
-            // Track to prevent duplicates within this batch
-            canonicalItemNames.set(normalizedItemName, itemId);
-          }
-          
-          // Update the result with canonical link
-          results[index].canonicalItemId = itemId;
+    // Canon owns all ingredient matching and canonical item creation/updating.
+    // Recipes only prepares input and applies returned links back onto recipe data.
+    if (typeof ingredients[0] !== 'string') {
+      const structured = ingredients as RecipeIngredient[];
+      const rawIngredients = structured.map((ingredient) => {
+        const existingRaw = ingredient.raw?.trim();
+        if (existingRaw) {
+          return existingRaw;
         }
-      }
+
+        const parts: string[] = [];
+        if (typeof ingredient.quantity === 'number' && Number.isFinite(ingredient.quantity)) {
+          parts.push(String(ingredient.quantity));
+        }
+        if (ingredient.unit?.trim()) {
+          parts.push(ingredient.unit.trim());
+        }
+        if (ingredient.ingredientName?.trim()) {
+          parts.push(ingredient.ingredientName.trim());
+        }
+
+        let raw = parts.join(' ').trim();
+        if (ingredient.preparation?.trim()) {
+          raw = raw ? `${raw}, ${ingredient.preparation.trim()}` : ingredient.preparation.trim();
+        }
+        return raw;
+      });
+
+      const matched = await canonBackend.processIngredients(rawIngredients, recipeId);
+      return matched.map((ingredient, idx) => ({
+        ...ingredient,
+        id: structured[idx]?.id || ingredient.id,
+      }));
     }
 
-    return results;
+    return canonBackend.processIngredients(ingredients as string[], recipeId);
   }
 
   async repairRecipe(
@@ -751,177 +562,4 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     return inventory.map(i => i.name).join(', ');
   }
 
-  /**
-   * Parse a raw ingredient string into structured components.
-   * Examples:
-   *   "500g beef mince" → {quantity: 500, unit: "g", ingredientName: "beef mince", preparation: null}
-   *   "1 red onion, finely diced" → {quantity: 1, unit: "_item", ingredientName: "red onion", preparation: "finely diced"}
-   */
-  private parseIngredientString(raw: string): Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'> {
-    let text = raw.toLowerCase().trim();
-    
-    // Extract quantity and unit
-    const knownUnits = ['g', 'kg', 'mg', 'ml', 'l', 'tsp', 'tbsp', 'piece', 'pinch'];
-    const unitPattern = knownUnits.join('|');
-    
-    let quantityMatch: RegExpMatchArray | null = null;
-    let quantity: number | null = null;
-    let unit: string | null = null;
-    
-    // Try range pattern first (e.g., "300g-350g", "300-350g", "300 - 350 g")
-    const rangeRegex = new RegExp(`^(\\d+\\.?\\d*)\\s*(${unitPattern})?\\s*-\\s*(\\d+\\.?\\d*)\\s*(${unitPattern})\\s+(.+)$`);
-    quantityMatch = text.match(rangeRegex);
-    
-    if (quantityMatch) {
-      quantity = parseFloat(quantityMatch[1]);
-      unit = quantityMatch[4] || quantityMatch[2] || '';
-      text = quantityMatch[5];
-    } else {
-      // Try simple quantity pattern with optional space before unit
-      const simpleRegex = new RegExp(`^(\\d+\\.?\\d*|\\d*\\.\\d+)\\s*(${unitPattern})?\\s+(.+)$`);
-      quantityMatch = text.match(simpleRegex);
-      if (quantityMatch) {
-        quantity = parseFloat(quantityMatch[1]);
-        unit = quantityMatch[2] || '';
-        text = quantityMatch[3];
-      }
-    }
-    
-    let prepMatch = text.match(/\s*\(([^)]+)\)$/);
-    let preparation = prepMatch ? prepMatch[1].trim() : null;
-    if (prepMatch) {
-      text = text.substring(0, prepMatch.index).trim();
-    }
-    
-    // Also check for comma-separated prep if not already found
-    if (!preparation) {
-      prepMatch = text.match(/,\s*(.+)$/);
-      preparation = prepMatch ? prepMatch[1].trim() : null;
-      if (prepMatch) {
-        text = text.substring(0, prepMatch.index).trim();
-      }
-    }
-    
-    // Remove size adjectives (non-identity descriptors)
-    text = text.replace(/\b(small|medium|large)\b/g, '').trim();
-    
-    // Normalize whitespace
-    const ingredientName = text.replace(/\s+/g, ' ').trim();
-    
-    return {
-      quantity,
-      unit,
-      ingredientName,
-      preparation: preparation || undefined
-    };
-  }
-
-  /**
-   * Levenshtein distance for fuzzy string matching.
-   * Returns similarity score 0.0 - 1.0 (1.0 = exact match)
-   */
-  private fuzzyMatch(a: string, b: string): number {
-    const longer = a.length > b.length ? a : b;
-    const shorter = a.length > b.length ? b : a;
-    if (longer.length === 0) return 1.0;
-    
-    const editDistance = this.levenshteinDistance(longer, shorter);
-    return (longer.length - editDistance) / longer.length;
-  }
-
-  private levenshteinDistance(a: string, b: string): number {
-    const matrix: number[][] = [];
-    
-    for (let i = 0; i <= b.length; i++) {
-      matrix[i] = [i];
-    }
-    for (let j = 0; j <= a.length; j++) {
-      matrix[0][j] = j;
-    }
-    
-    for (let i = 1; i <= b.length; i++) {
-      for (let j = 1; j <= a.length; j++) {
-        if (b.charAt(i - 1) === a.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          );
-        }
-      }
-    }
-    
-    return matrix[b.length][a.length];
-  }
-
-  /**
-   * Batch resolve unmatched ingredient names via AI.
-   * Sends all unmatched items in ONE prompt to minimize API calls.
-   * Includes near-misses (items scoring 0.5-0.85) for context.
-   */
-  private async resolveUnmatchedIngredients(
-    unmatched: Array<{index: number; parsed: any; nearMisses: Array<{item: any; score: number}>}>,
-    aisles: any[] = []
-  ): Promise<any[]> {
-    if (unmatched.length === 0) return [];
-    
-    // Build aisle list from kitchen or use defaults
-    const aisleSuggestions = aisles.length > 0 
-      ? aisles.map(a => a.name).join('|')
-      : 'Produce|Meat & Fish|Dairy|Bakery|Pantry|Frozen|Other';
-    
-    const instruction = await this.getSystemInstruction("You are the Head Chef resolving ingredient names to canonical items.");
-    
-    // Build ingredient descriptions with context
-    const ingredientTexts = unmatched.map((u, i) => {
-      let text = `${i + 1}. "${u.parsed.ingredientName}"`;
-      if (u.nearMisses && u.nearMisses.length > 0) {
-        text += ` [considered: ${u.nearMisses.map(nm => `${nm.item.name} (${(nm.score * 100).toFixed(0)}%)`).join(', ')}]`;
-      }
-      return text;
-    }).join('\n');
-    
-    const response = await this.callGenerateContent({
-      model: 'gemini-3-flash-preview',
-      contents: [{
-        role: 'user',
-        parts: [{
-          text: `Resolve these recipe ingredients to canonical item database entries. Return JSON array with one entry per ingredient.
-
-INGREDIENTS TO RESOLVE:
-${ingredientTexts}
-
-For each ingredient, return:
-{
-  "name": "Canonical item name (title case)",
-  "preferredUnit": "g|kg|ml|l| (empty string for countable items)",
-  "aisle": "${aisleSuggestions}",
-  "isStaple": true/false,
-  "synonyms": ["alternate name 1", "alternate name 2"]
-}
-
-RULES:
-- Use British English (courgette not zucchini, aubergine not eggplant)
-- Use metric units only
-- Leave preferredUnit empty for countable things (eggs, onions, cans)
-- Keep culinary identity descriptors (red onion, beef mince, whole milk)
-- Remove size adjectives (small, medium, large)
-- CHOOSE FROM PROVIDED AISLES when possible (don't create new ones unless necessary)
-- The items in square brackets were close matches but scored below the auto-link threshold (85%)
-- Use that context to make your decision, but don't blindly accept - make your own judgment
-
-Return JSON array: [item1, item2, ...]`
-        }]
-      }],
-      config: {
-        systemInstruction: instruction,
-        responseMimeType: "application/json",
-      }
-    });
-
-    const parsed = JSON.parse(this.sanitizeJson(response.text || '[]'));
-    return Array.isArray(parsed) ? parsed : [];
-  }
 }

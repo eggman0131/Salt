@@ -78,7 +78,7 @@ The `IRecipesBackend` interface provides 12 methods:
 - **Context-aware**: Uses kitchen inventory for equipment suggestions
 - **Iterative**: Chat with AI to refine ingredients, instructions, timing
 - **Auto-categorization**: AI suggests recipe categories post-creation
-- **Ingredient linking**: Auto-links ingredients to canonical items with fuzzy matching
+- **Ingredient linking**: Delegates matching and linking to the Canon module
 
 ### Recipe Chat
 - **Streaming responses** for real-time interaction
@@ -101,9 +101,9 @@ The `IRecipesBackend` interface provides 12 methods:
 
 ### Post-Processing
 - **Recipe categorization** - AI suggests categories based on title, ingredients, instructions
-- **Ingredient resolution** - Matches ingredient names to canonical items via fuzzy matching
-- **Auto-creation** - Creates missing units, aisles, and canonical items
-- **Batch processing** - Resolves unmatched ingredients in single AI call
+- **Ingredient resolution** - Sends recipe ingredients to the Canon module for matching/linking
+- **Canonical item lifecycle** - Canon module handles canonical item creation, synonym updates, approvals, and embeddings
+- **Batch processing** - Canon module handles unmatched ingredient resolution in a single AI call
 
 ## Usage
 

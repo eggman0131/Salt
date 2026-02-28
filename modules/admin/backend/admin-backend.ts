@@ -297,6 +297,12 @@ export async function importCofidBackup(payload: CofidBackupData): Promise<{ ite
   }
 
   try {
+    // Keep well below Firestore's practical write payload limits to avoid 413 errors
+    // when backup rows contain large embedding vectors.
+    // Conservative thresholds: 50 ops/batch, 1MB/batch for safety margin
+    const MAX_WRITE_OPS_PER_BATCH = 50;
+    const MAX_WRITE_BYTES_PER_BATCH = 1_000_000;
+
     const existingSnapshot = await getDocs(collection(db, 'cofid'));
 
     let deleteBatch = writeBatch(db);
@@ -319,6 +325,7 @@ export async function importCofidBackup(payload: CofidBackupData): Promise<{ ite
 
     let importBatch = writeBatch(db);
     let importCount = 0;
+    let importBytes = 0;
     let imported = 0;
 
     for (const row of payload.documents) {
@@ -326,15 +333,30 @@ export async function importCofidBackup(payload: CofidBackupData): Promise<{ ite
         continue;
       }
 
-      importBatch.set(doc(db, 'cofid', row.id), row.data);
-      importCount += 1;
-      imported += 1;
+      const rowPayload = JSON.stringify(row.data);
+      const rowBytes = rowPayload.length;
 
-      if (importCount >= 450) {
+      if (rowBytes > MAX_WRITE_BYTES_PER_BATCH) {
+        throw new Error(
+          `CoFID backup row ${row.id} is too large to import (${rowBytes} bytes)`
+        );
+      }
+
+      // Commit the current batch before adding a row that would exceed limits.
+      if (
+        importCount > 0 &&
+        (importCount >= MAX_WRITE_OPS_PER_BATCH || importBytes + rowBytes > MAX_WRITE_BYTES_PER_BATCH)
+      ) {
         await importBatch.commit();
         importBatch = writeBatch(db);
         importCount = 0;
+        importBytes = 0;
       }
+
+      importBatch.set(doc(db, 'cofid', row.id), row.data);
+      importCount += 1;
+      importBytes += rowBytes;
+      imported += 1;
     }
 
     if (importCount > 0) {

@@ -17,6 +17,7 @@
     "emulators:functions:restart": "bash -lc 'lsof -ti:5001 | xargs -r kill -9; firebase emulators:start --only functions --import=./emulator-data --export-on-exit=./emulator-data'",
     "data": "node scripts/import-test-data.mjs",
     "auth": "node scripts/create-auth-user.mjs",
+    "seed:cofid-mappings": "node scripts/seed-cofid-mappings.mjs",
     "check-contract": "node scripts/check-contract.mjs",
     "update-contract-snapshot": "node scripts/update-contract-snapshot.mjs",
     "deploy": "npm run build:prod && firebase deploy --only hosting"
