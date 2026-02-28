@@ -12,6 +12,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { GoogleGenAI, GenerateContentParameters, GenerateContentResponse } from '@google/genai';
+import { embedBatch } from './embedBatch';
 
 // Initialize Firebase Admin SDK
 const app = admin.initializeApp();
@@ -477,3 +478,6 @@ export const cloudFetchRecipeUrlHttp = functions.https.onRequest(
     }
   }
 );
+
+// Re-export embedBatch from separate module
+export { embedBatch };

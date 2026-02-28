@@ -17,6 +17,43 @@ import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, orderBy
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 
+const EMBED_BATCH_SIZE = 100;
+const EMBED_DEBUG_LIMIT_TO_ONE_BATCH = true;
+const EMBED_MODEL = 'text-embedding-005';
+const FIRESTORE_BATCH_LIMIT = 500;
+
+type CofidEmbeddingCandidate = {
+  docId: string;
+  sourceId: string;
+  text: string;
+};
+
+type EmbedBatchResult = {
+  id: string;
+  embedding: number[];
+  modelVersion: string;
+};
+
+function normalizeEmbeddingArray(value: unknown): number[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is number => typeof item === 'number' && Number.isFinite(item));
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => /^\d+$/.test(key))
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([, item]) => item)
+      .filter((item): item is number => typeof item === 'number' && Number.isFinite(item));
+
+    if (entries.length > 0) {
+      return entries;
+    }
+  }
+
+  return [];
+}
+
 export class FirebaseCanonBackend extends BaseCanonBackend {
   private currentIdToken: string | null = null;
 
@@ -84,6 +121,205 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
 
   protected async getSystemInstruction(customContext?: string): Promise<string> {
     return customContext || 'You are the Head Chef managing the canon of items, units, and aisles.';
+  }
+
+  private async getAuthTokenForHttp(): Promise<string> {
+    const user = auth.currentUser;
+    let idToken = this.currentIdToken;
+
+    if (!idToken && !user) {
+      throw new Error('User not authenticated. Cannot call embedding endpoint.');
+    }
+
+    if (user) {
+      try {
+        idToken = await user.getIdToken(true);
+        this.currentIdToken = idToken;
+      } catch (e) {
+        if (!idToken) throw e;
+      }
+    }
+
+    if (!idToken) {
+      throw new Error('Failed to obtain authentication token for embedding.');
+    }
+
+    return idToken;
+  }
+
+  private getEmbedBatchEndpointUrl(): string {
+    const projectId = 'gen-lang-client-0015061880';
+    const region = 'europe-west2';
+    const host = location.hostname;
+
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const isCloudIDE = host.endsWith('.cloudworkstations.dev');
+
+    if (isLocalhost) {
+      return `http://127.0.0.1:5001/${projectId}/${region}/embedBatch`;
+    }
+
+    if (isCloudIDE) {
+      return `${location.origin}/${projectId}/${region}/embedBatch`;
+    }
+
+    return `https://${region}-${projectId}.cloudfunctions.net/embedBatch`;
+  }
+
+  private chunkArray<T>(items: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < items.length; i += size) {
+      chunks.push(items.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  private async embedCofidCandidates(candidates: CofidEmbeddingCandidate[]): Promise<{
+    totalToEmbed: number;
+    updatedCount: number;
+    failureCount: number;
+    failures: string[];
+  }> {
+    if (candidates.length === 0) {
+      return {
+        totalToEmbed: 0,
+        updatedCount: 0,
+        failureCount: 0,
+        failures: [],
+      };
+    }
+
+    const idToken = await this.getAuthTokenForHttp();
+    const endpointUrl = this.getEmbedBatchEndpointUrl();
+    const allEmbedChunks = this.chunkArray(candidates, EMBED_BATCH_SIZE);
+    const embedChunks = EMBED_DEBUG_LIMIT_TO_ONE_BATCH
+      ? allEmbedChunks.slice(0, 1)
+      : allEmbedChunks;
+    const idToDocIds = new Map<string, string[]>();
+    const failures: string[] = [];
+    const totalCandidates = embedChunks.reduce((count, chunk) => count + chunk.length, 0);
+    let processedCount = 0;
+    const startTime = Date.now();
+
+    console.log(`🔤 Starting CoFID embedding: ${totalCandidates} items in ${embedChunks.length} batches`);
+    if (EMBED_DEBUG_LIMIT_TO_ONE_BATCH) {
+      console.warn('⚠️ EMBED_DEBUG_LIMIT_TO_ONE_BATCH is enabled: only the first embedding batch will be processed.');
+    }
+
+    for (const candidate of candidates) {
+      const existing = idToDocIds.get(candidate.sourceId) ?? [];
+      existing.push(candidate.docId);
+      idToDocIds.set(candidate.sourceId, existing);
+    }
+
+    const updates: Array<{ docId: string; embedding: number[]; modelVersion: string }> = [];
+
+    for (let chunkIndex = 0; chunkIndex < embedChunks.length; chunkIndex++) {
+      const chunk = embedChunks[chunkIndex];
+      const response = await fetch(endpointUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          idToken,
+          items: chunk.map((item) => ({ id: item.sourceId, text: item.text })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`embedBatch failed: HTTP ${response.status} ${response.statusText}`);
+      }
+
+      const payload = await response.json() as {
+        results?: EmbedBatchResult[];
+        failures?: Array<{ id: string; error: string }>;
+      };
+
+      if (Array.isArray(payload.failures) && payload.failures.length > 0) {
+        const failureSummary = payload.failures
+          .slice(0, 3)
+          .map((f) => `${f.id}: ${f.error}`)
+          .join('; ');
+        console.warn(`embedBatch partial failures (${payload.failures.length}): ${failureSummary}`);
+        for (const failure of payload.failures) {
+          failures.push(`Embedding failed for ${failure.id}: ${failure.error}`);
+        }
+      }
+
+      for (const result of payload.results ?? []) {
+        const embedding = result.embedding as unknown;
+        console.log(`[EMBED] Result ${result.id}: type=${typeof embedding}, isArray=${Array.isArray(embedding)}, keys=${Array.isArray(embedding) ? `length=${embedding.length}` : Object.keys(embedding as any)?.length ?? '?'}`);
+        
+        const normalizedEmbedding = normalizeEmbeddingArray(embedding);
+        if (normalizedEmbedding.length === 0) {
+          console.error(`[EMBED] Rejected ${result.id}: normalization returned ${normalizedEmbedding.length} values`);
+          failures.push(`Embedding failed for ${result.id}: invalid embedding vector format returned`);
+          continue;
+        }
+
+        console.log(`[EMBED] Accepted ${result.id}: normalized to ${normalizedEmbedding.length}-d vector`);
+        const docIds = idToDocIds.get(result.id) ?? [];
+        for (const docId of docIds) {
+          updates.push({
+            docId,
+            embedding: normalizedEmbedding,
+            modelVersion: result.modelVersion || EMBED_MODEL,
+          });
+        }
+      }
+
+      processedCount += chunk.length;
+      const progressPercent = Math.round((processedCount / totalCandidates) * 100);
+      console.log(`⏳ Embedding progress: ${processedCount}/${totalCandidates} (${progressPercent}%) - batch ${chunkIndex + 1}/${embedChunks.length}`);
+    }
+
+    const updateChunks = this.chunkArray(updates, FIRESTORE_BATCH_LIMIT);
+    let firestoreUpdateCount = 0;
+
+    for (let chunkIndex = 0; chunkIndex < updateChunks.length; chunkIndex++) {
+      const updateChunk = updateChunks[chunkIndex];
+      const batch = writeBatch(db);
+      for (const update of updateChunk) {
+        // CRITICAL: Force embedding to be a pure array before Firestore write
+        // Array.isArray() can return true for array-like objects with numeric keys
+        // that still serialize as maps, so always use Array.from() to guarantee a pure array
+        let finalEmbedding: number[];
+        if (Array.isArray(update.embedding)) {
+          finalEmbedding = Array.from(update.embedding); // Force into pure array
+        } else if (typeof update.embedding === 'object' && update.embedding !== null) {
+          // Numeric-keyed object—convert
+          finalEmbedding = Object.keys(update.embedding)
+            .sort((a, b) => Number(a) - Number(b))
+            .map((k) => (update.embedding as Record<string, any>)[k])
+            .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+        } else {
+          finalEmbedding = [];
+        }
+        
+        batch.update(doc(db, 'cofid', update.docId), {
+          embedding: finalEmbedding,
+          embeddingModel: update.modelVersion,
+        });
+      }
+      await batch.commit();
+      firestoreUpdateCount += updateChunk.length;
+
+      if (updateChunks.length > 1) {
+        const updatePercent = Math.round((firestoreUpdateCount / updates.length) * 100);
+        console.log(`💾 Firestore updates: ${firestoreUpdateCount}/${updates.length} (${updatePercent}%) - batch ${chunkIndex + 1}/${updateChunks.length}`);
+      }
+    }
+
+    const elapsedMs = Date.now() - startTime;
+    console.log(`✅ CoFID embedding complete: ${updates.length} records updated in ${(elapsedMs / 1000).toFixed(1)}s`);
+
+    return {
+      totalToEmbed: totalCandidates,
+      updatedCount: updates.length,
+      failureCount: failures.length,
+      failures,
+    };
   }
 
   // ==================== HELPER METHODS ====================
@@ -685,6 +921,7 @@ Return JSON object:`
       const importBatches: any[] = [];
       let currentBatch = writeBatch(db);
       let batchCount = 0;
+      const embeddingCandidates: CofidEmbeddingCandidate[] = [];
 
       const now = new Date().toISOString();
 
@@ -705,6 +942,22 @@ Return JSON object:`
           };
 
           currentBatch.set(doc(db, 'cofid', id), itemWithTimestamp);
+
+          const sourceId = item.id;
+          const sourceName = item.name;
+
+          if (typeof sourceId === 'string' && sourceId.trim() && typeof sourceName === 'string' && sourceName.trim()) {
+            embeddingCandidates.push({
+              docId: id,
+              sourceId: sourceId.trim(),
+              text: sourceName.trim(),
+            });
+          } else {
+            const reason = !sourceId ? 'missing id' : !sourceName ? 'missing name' : 'empty strings';
+            errors.push(`Item ${i}: skipped embedding (${reason})`);
+            console.debug(`CoFID item ${i} skipped for embedding: id=${sourceId}, name=${sourceName}`);
+          }
+
           batchCount++;
           itemsImported++;
 
@@ -727,6 +980,22 @@ Return JSON object:`
       // Commit all batches
       for (const batch of importBatches) {
         await batch.commit();
+      }
+
+      // Step 3: Embed imported records by name using unique item id.
+      console.log(`🔍 Checking for embedding candidates: ${embeddingCandidates.length} items collected`);
+      if (embeddingCandidates.length > 0) {
+        try {
+          const embeddingResult = await this.embedCofidCandidates(embeddingCandidates);
+          errors.push(...embeddingResult.failures);
+          console.log(`📋 Embedding summary: ${embeddingResult.updatedCount}/${embeddingResult.totalToEmbed} records embedded, ${embeddingResult.failureCount} failures`);
+        } catch (embedError) {
+          const errorMsg = embedError instanceof Error ? embedError.message : 'Unknown embedding error';
+          errors.push(`Embedding phase failed: ${errorMsg}`);
+          console.error('❌ CoFID embedding failed:', errorMsg);
+        }
+      } else {
+        console.warn('⚠️ No embedding candidates found. Check that CoFID records have valid `id` and `name` string fields.');
       }
 
       console.log(`✅ CoFID import complete: ${itemsImported} items imported, ${errors.length} errors`);
