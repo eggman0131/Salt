@@ -464,6 +464,7 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
   /**
    * Create canonical item from CoFID item (unapproved state)
    * Uses group->aisle mapping to determine aisle
+   * Phase 5: Enriches externalSources.properties with full CoFID metadata
    */
   async createCanonicalItemFromCofid(cofidItem: any): Promise<CanonicalItem> {
     // Extract group code (CoFID uses 1-3 letter codes)
@@ -482,6 +483,9 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
       });
     }
 
+    // Phase 5: Extract rich CoFID metadata for externalSources.properties
+    const cofidProperties = this.extractCofidProperties(cofidItem);
+
     const newItem = await this.createCanonicalItem({
       name: cofidItem.name || cofidItem.Name || cofidItem.FoodName,
       normalisedName: (cofidItem.name || cofidItem.Name || cofidItem.FoodName).toLowerCase(),
@@ -492,6 +496,7 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
         source: 'cofid',
         externalId: cofidItem.id,
         confidence: 1.0, // Direct import, 100% confidence
+        properties: cofidProperties, // Phase 5: Rich metadata storage
         syncedAt: new Date().toISOString(),
       }],
       approved: false, // Requires human review
@@ -502,6 +507,48 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     });
 
     return newItem;
+  }
+
+  /**
+   * Phase 5: Extract comprehensive CoFID metadata for externalSources.properties
+   * Captures all useful fields beyond basic identifiers (id, name, group, embedding)
+   * 
+   * Returns a structured object containing:
+   * - Raw CoFID data (all source fields except system/internal ones)
+   * - Organized access points for common use cases
+   */
+  private extractCofidProperties(cofidItem: any): Record<string, unknown> {
+    // Fields to exclude (already stored elsewhere in Canon schema or system fields)
+    const excludedFields = new Set([
+      'id', 'name', 'Name', 'FoodName', 'normalisedName',
+      'group', 'Group', 'FoodGroup',
+      'embedding', 'embeddingModel', 'embeddedAt',
+      'importedAt', // System field from import process
+    ]);
+
+    // Extract all non-excluded fields
+    const rawData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(cofidItem)) {
+      if (!excludedFields.has(key) && value !== undefined && value !== null) {
+        rawData[key] = value;
+      }
+    }
+
+    // Structured properties for common access patterns
+    const properties: Record<string, unknown> = {
+      // All raw CoFID data (nutrition, descriptors, metadata, etc.)
+      raw: rawData,
+      
+      // Quick-access normalized fields (populated if present in source)
+      foodCode: cofidItem.FoodCode || cofidItem.foodCode || cofidItem.code || null,
+      foodGroup: cofidItem.group || cofidItem.Group || cofidItem.FoodGroup || null,
+      
+      // Metadata tracking
+      extractedAt: new Date().toISOString(),
+      extractionVersion: '1.0', // Version enrichment logic for future migrations
+    };
+
+    return properties;
   }
 
   // ==================== HELPER METHODS ====================
