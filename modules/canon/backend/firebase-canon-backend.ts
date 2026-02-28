@@ -18,9 +18,10 @@ import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 
 const EMBED_BATCH_SIZE = 100;
-const EMBED_DEBUG_LIMIT_TO_ONE_BATCH = true;
+const EMBED_DEBUG_LIMIT_TO_ONE_BATCH = false;
 const EMBED_MODEL = 'text-embedding-005';
-const FIRESTORE_BATCH_LIMIT = 500;
+const FIRESTORE_BATCH_LIMIT = 100;
+const COFID_IMPORT_BATCH_LIMIT = 100;
 
 type CofidEmbeddingCandidate = {
   docId: string;
@@ -901,7 +902,7 @@ Return JSON object:`
           currentBatch.delete(doc(db, 'cofid', docSnap.id));
           batchCount++;
 
-          if (batchCount === 500) {
+          if (batchCount === COFID_IMPORT_BATCH_LIMIT) {
             deleteBatches.push(currentBatch);
             currentBatch = writeBatch(db);
             batchCount = 0;
@@ -917,7 +918,7 @@ Return JSON object:`
         }
       }
 
-      // Step 2: Import new data in batches (500 doc limit per batch)
+      // Step 2: Import new data in smaller batches to avoid transport payload errors.
       const importBatches: any[] = [];
       let currentBatch = writeBatch(db);
       let batchCount = 0;
@@ -961,7 +962,7 @@ Return JSON object:`
           batchCount++;
           itemsImported++;
 
-          if (batchCount === 500) {
+          if (batchCount === COFID_IMPORT_BATCH_LIMIT) {
             importBatches.push(currentBatch);
             currentBatch = writeBatch(db);
             batchCount = 0;

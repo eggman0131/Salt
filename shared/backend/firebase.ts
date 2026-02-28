@@ -59,7 +59,7 @@ if (isLocalhost) {
   // named database, ensuring frontend and functions read/write the same data.
   try {
     db = initializeFirestore(app, {
-      host: '127.0.0.1:8080',
+      host: 'localhost:8080',
       ssl: false,
       experimentalForceLongPolling: true
     }, 'saltstore');
@@ -74,14 +74,14 @@ if (isLocalhost) {
     db = getFirestore(app, 'saltstore');
   }
   
-  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  connectFirestoreEmulator(db, 'localhost', 8080);
 
-  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
 
-  connectStorageEmulator(storage, '127.0.0.1', 9199);
+  connectStorageEmulator(storage, 'localhost', 9199);
 
   functions = getFunctions(app, 'europe-west2');
-  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+  connectFunctionsEmulator(functions, 'localhost', 5001);
 }
 
 // ---------------------------------------------------------------------------
