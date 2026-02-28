@@ -180,6 +180,17 @@ export const RecipeIngredientSchema = z.object({
   ingredientName: z.string(), // The ingredient name in cooking context
   preparation: z.string().optional(), // e.g., "diced", "chopped"
   canonicalItemId: z.string().optional(), // Links to CanonicalItem
+  matchingAudit: z.object({
+    stage: z.enum(['fuzzy', 'semantic', 'arbitration']).optional(),
+    decisionAction: z.enum(['use_existing_canon', 'create_from_cofid', 'create_new_canon', 'no_match']).optional(),
+    decisionSource: z.enum(['rule', 'llm', 'fallback']).optional(),
+    candidateId: z.string().optional(),
+    matchedSource: z.enum(['canon', 'cofid', 'new-canon', 'unlinked']).optional(),
+    topScore: z.number().optional(),
+    scoreGap: z.number().optional(),
+    reason: z.string().optional(),
+    recordedAt: z.string().optional(),
+  }).optional(),
 });
 export type RecipeIngredient = z.infer<typeof RecipeIngredientSchema>;
 

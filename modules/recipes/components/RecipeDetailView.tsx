@@ -174,6 +174,51 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
                     </PopoverContent>
                   </Popover>
                 )}
+                {ingredient.matchingAudit && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        className="shrink-0 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+                        aria-label="Show ingredient match trace"
+                      >
+                        <Book className="h-4 w-4 mt-0.5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 text-sm">
+                      <div className="space-y-2">
+                        <p className="font-semibold">Match Trace</p>
+                        <div className="grid grid-cols-[auto,1fr] gap-x-2 gap-y-1 text-xs">
+                          <span className="text-muted-foreground">Stage</span>
+                          <span>{ingredient.matchingAudit.stage || '-'}</span>
+                          <span className="text-muted-foreground">Action</span>
+                          <span>{ingredient.matchingAudit.decisionAction || '-'}</span>
+                          <span className="text-muted-foreground">Source</span>
+                          <span>{ingredient.matchingAudit.decisionSource || '-'}</span>
+                          <span className="text-muted-foreground">Matched</span>
+                          <span>{ingredient.matchingAudit.matchedSource || '-'}</span>
+                          <span className="text-muted-foreground">Candidate</span>
+                          <span className="truncate" title={ingredient.matchingAudit.candidateId || ''}>
+                            {ingredient.matchingAudit.candidateId || '-'}
+                          </span>
+                          <span className="text-muted-foreground">Top score</span>
+                          <span>
+                            {typeof ingredient.matchingAudit.topScore === 'number'
+                              ? `${(ingredient.matchingAudit.topScore * 100).toFixed(1)}%`
+                              : '-'}
+                          </span>
+                          <span className="text-muted-foreground">Score gap</span>
+                          <span>
+                            {typeof ingredient.matchingAudit.scoreGap === 'number'
+                              ? `${(ingredient.matchingAudit.scoreGap * 100).toFixed(1)}%`
+                              : '-'}
+                          </span>
+                          <span className="text-muted-foreground">Reason</span>
+                          <span className="wrap-break-word">{ingredient.matchingAudit.reason || '-'}</span>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
               </span>
             </li>
           ))}
