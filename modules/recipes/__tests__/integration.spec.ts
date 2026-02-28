@@ -130,16 +130,7 @@ class IntegrationRecipesBackend extends BaseRecipesBackend {
 
   async getKitchenSettings(): Promise<KitchenSettings> {
     return {
-      id: 'settings-default',
-      userId: 'test-user',
-      kitchenName: 'Test Kitchen',
-      householdSize: 2,
-      onboardingCompleted: true,
-      preferredMeasurementSystem: 'metric',
-      generateMiseEnPlace: true,
-      requireTechnicalWarnings: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      directives: 'Test kitchen directives',
       debugEnabled: false,
     };
   }
@@ -252,7 +243,7 @@ describe('Recipes-Canon Integration', () => {
       cookTime: '30 mins',
       totalTime: '40 mins',
       servings: '4',
-      complexity: 'Easy',
+      complexity: 'Simple',
       categoryIds: [],
     });
 

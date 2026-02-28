@@ -89,14 +89,14 @@ describe('searchBySemantic', () => {
   const createMockItem = (id: string, name: string, embedding: number[]): CanonicalItem => ({
     id,
     name,
-    categoryId: 'cat-1',
+    normalisedName: name.toLowerCase(),
+    isStaple: false,
+    aisle: 'produce',
+    preferredUnit: 'g',
     synonyms: [],
-    aisle: null,
-    unit: null,
     embedding,
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    status: 'approved',
+    approved: true,
   });
 
   const mockItems: CanonicalItem[] = [
