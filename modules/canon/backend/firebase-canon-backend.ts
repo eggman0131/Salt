@@ -9,11 +9,12 @@ import {
   Unit,
   Aisle,
   CanonicalItem,
+  CoFIDGroupAisleMapping,
 } from '../../../types/contract';
 import { db, auth, functions } from '../../../shared/backend/firebase';
 import { shoppingBackend } from '../../shopping';
 import { recipesBackend } from '../../recipes';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, orderBy, query, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, orderBy, query, writeBatch, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 
@@ -53,6 +54,21 @@ function normalizeEmbeddingArray(value: unknown): number[] {
   }
 
   return [];
+}
+
+/**
+ * Computes cosine similarity between two vectors
+ */
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length === 0 || b.length === 0) return 0;
+  if (a.length !== b.length) return 0;
+
+  const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
+  const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+  const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+
+  if (magnitudeA === 0 || magnitudeB === 0) return 0;
+  return dotProduct / (magnitudeA * magnitudeB);
 }
 
 export class FirebaseCanonBackend extends BaseCanonBackend {
@@ -323,6 +339,73 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     };
   }
 
+  // ==================== SEMANTIC MATCHING HELPERS ====================
+
+  /**
+   * Embed a single text string using the embedBatch function
+   */
+  async embedText(text: string): Promise<{ embedding: number[] } | null> {
+    try {
+      const embedBatchFn = httpsCallable(functions, 'embedBatch');
+      const result = await embedBatchFn({ texts: [text] }) as { data: EmbedBatchResult[] };
+      
+      if (result.data && result.data[0]?.embedding) {
+        return { embedding: Array.from(result.data[0].embedding) };
+      }
+    } catch (error) {
+      console.error('Error embedding text:', error);
+    }
+    return null;
+  }
+
+  /**
+   * Get CoFID items that have embeddings
+   */
+  async getCofidItemsWithEmbeddings(): Promise<any[]> {
+    const snapshot = await getDocs(collection(db, 'cofid'));
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(item => item.embedding && Array.isArray(item.embedding));
+  }
+
+  /**
+   * Create canonical item from CoFID item (unapproved state)
+   * Uses group->aisle mapping to determine aisle
+   */
+  async createCanonicalItemFromCofid(cofidItem: any): Promise<CanonicalItem> {
+    // Extract group code (CoFID uses 1-3 letter codes)
+    const cofidGroup = cofidItem.group || cofidItem.Group || cofidItem.FoodGroup || '';
+    const aisle = await this.getAisleForCofidGroup(cofidGroup);
+
+    // If no mapping found, use 'Other' as fallback
+    const finalAisle = aisle || 'Other';
+
+    // Ensure 'Other' aisle exists
+    const aisles = await this.getAisles();
+    if (!aisles.some(a => a.name === 'Other')) {
+      await this.createAisle({
+        name: 'Other',
+        sortOrder: aisles.length
+      });
+    }
+
+    const newItem = await this.createCanonicalItem({
+      name: cofidItem.name || cofidItem.Name || cofidItem.FoodName,
+      normalisedName: (cofidItem.name || cofidItem.Name || cofidItem.FoodName).toLowerCase(),
+      aisle: finalAisle,
+      preferredUnit: '', // Empty for now, can be enriched later
+      isStaple: false,
+      source: 'cofid',
+      externalId: cofidItem.id,
+      approved: false, // Requires human review
+      embedding: cofidItem.embedding,
+      embeddingModel: cofidItem.embeddingModel || EMBED_MODEL,
+      embeddedAt: cofidItem.embeddedAt || new Date().toISOString(),
+    });
+
+    return newItem;
+  }
+
   // ==================== HELPER METHODS ====================
 
   private convertTimestamps(data: any): any {
@@ -532,6 +615,7 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
       ...item,
       createdAt: now,
       isStaple: item.isStaple ?? false,
+      approved: item.approved ?? true, // User-created items are approved by default
       synonyms: validSynonyms,
     };
 
@@ -544,10 +628,17 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     const id = `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     await setDoc(doc(db, 'canonical_items', id), newItem);
 
-    return {
+    const createdItem = {
       ...newItem,
       id,
     } as CanonicalItem;
+
+    // Embed the item asynchronously
+    this.embedCanonicalItems([id]).catch(error => {
+      console.error(`Failed to embed item ${id}:`, error);
+    });
+
+    return createdItem;
   }
 
   async updateCanonicalItem(id: string, updates: Partial<CanonicalItem>): Promise<CanonicalItem> {
@@ -878,6 +969,204 @@ Return JSON object:`
       isStaple: parsed.isStaple || false,
       synonyms: parsed.synonyms || []
     };
+  }
+
+  /**
+   * Embed a batch of canonical items using Vertex AI
+   * Stores embedding + model + timestamp back to Firestore
+   */
+  async embedCanonicalItems(itemIds: string[]): Promise<{ itemsEmbedded: number; itemsSkipped: number }> {
+    if (itemIds.length === 0) return { itemsEmbedded: 0, itemsSkipped: 0 };
+
+    const itemsToEmbed: { id: string; name: string }[] = [];
+    
+    for (const itemId of itemIds) {
+      const item = await this.getCanonicalItem(itemId);
+      if (item && !item.embedding) {
+        itemsToEmbed.push({ id: itemId, name: item.name });
+      }
+    }
+
+    if (itemsToEmbed.length === 0) {
+      return { itemsEmbedded: 0, itemsSkipped: itemIds.length };
+    }
+
+    let itemsEmbedded = 0;
+    const embedBatchFn = httpsCallable(functions, 'embedBatch');
+
+    // Embed in batches
+    for (let i = 0; i < itemsToEmbed.length; i += EMBED_BATCH_SIZE) {
+      const batch = itemsToEmbed.slice(i, i + EMBED_BATCH_SIZE);
+      const textToEmbed = batch.map(item => item.name);
+
+      try {
+        const result = await embedBatchFn({
+          texts: textToEmbed,
+        }) as { data: EmbedBatchResult[] };
+
+        const now = new Date().toISOString();
+        const updateBatch = writeBatch(db);
+
+        for (let j = 0; j < batch.length; j++) {
+          const item = batch[j];
+          const embeddingResult = result.data[j];
+
+          if (embeddingResult?.embedding) {
+            const embedding = Array.from(embeddingResult.embedding);
+            updateBatch.update(
+              doc(db, 'canonical_items', item.id),
+              {
+                embedding,
+                embeddingModel: EMBED_MODEL,
+                embeddedAt: now,
+              }
+            );
+            itemsEmbedded++;
+          }
+        }
+
+        await updateBatch.commit();
+      } catch (error) {
+        console.error('Error embedding batch:', error);
+        // Continue with next batch on error
+      }
+    }
+
+    return { itemsEmbedded, itemsSkipped: itemIds.length - itemsEmbedded };
+  }
+
+  // ==================== COFID GROUP AISLE MAPPINGS ====================
+
+  async getCofidGroupMappings(): Promise<CoFIDGroupAisleMapping[]> {
+    const snapshot = await getDocs(collection(db, 'cofid_group_aisle_mappings'));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CoFIDGroupAisleMapping));
+  }
+
+  async createCofidGroupMapping(
+    mapping: Omit<CoFIDGroupAisleMapping, 'id' | 'createdAt'>
+  ): Promise<CoFIDGroupAisleMapping> {
+    const id = `mapping-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+    const newMapping = { ...mapping, createdAt: now };
+    
+    await setDoc(doc(db, 'cofid_group_aisle_mappings', id), newMapping);
+    return { id, ...newMapping };
+  }
+
+  async updateCofidGroupMapping(
+    id: string,
+    updates: Partial<CoFIDGroupAisleMapping>
+  ): Promise<CoFIDGroupAisleMapping> {
+    await updateDoc(doc(db, 'cofid_group_aisle_mappings', id), updates);
+    const updated = await getDoc(doc(db, 'cofid_group_aisle_mappings', id));
+    return { id, ...updated.data() } as CoFIDGroupAisleMapping;
+  }
+
+  async deleteCofidGroupMapping(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'cofid_group_aisle_mappings', id));
+  }
+
+  async importCoFIDGroupMappings(
+    mappings: Array<Omit<CoFIDGroupAisleMapping, 'id' | 'createdAt'>>
+  ): Promise<{
+    mappingsImported: number;
+    errors: string[];
+  }> {
+    const errors: string[] = [];
+    let mappingsImported = 0;
+
+    try {
+      const now = new Date().toISOString();
+      const batches: any[] = [];
+      let currentBatch = writeBatch(db);
+      let batchCount = 0;
+
+      // Get all existing aisles to check for duplicates
+      const existingAisles = await this.getAisles();
+      const aisleNames = new Map(existingAisles.map(a => [a.name.toLowerCase(), a]));
+      let nextAisleSortOrder = existingAisles.length;
+
+      // Iterate through mappings and add to batch
+      for (const mapping of mappings) {
+        try {
+          // Step 1: Always ensure aisle exists (create if missing) - regardless of mapping status
+          const aisleLower = mapping.aisle.toLowerCase();
+          let aisle = aisleNames.get(aisleLower);
+
+          if (!aisle) {
+            // Aisle doesn't exist, create it
+            const newAisleId = `aisle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const newAisle = {
+              name: mapping.aisle,
+              sortOrder: nextAisleSortOrder++,
+              createdAt: now,
+            };
+            currentBatch.set(doc(db, 'aisles', newAisleId), newAisle);
+            aisle = { ...newAisle, id: newAisleId } as Aisle;
+            aisleNames.set(aisleLower, aisle);
+            console.log(`Created new aisle "${mapping.aisle}" for CoFID group ${mapping.cofidGroup}`);
+            batchCount++;
+          }
+
+          // Step 2: Check if mapping already exists (to avoid duplicates)
+          const existingQuery = query(
+            collection(db, 'cofid_group_aisle_mappings'),
+            where('cofidGroup', '==', mapping.cofidGroup)
+          );
+          const existingDocs = await getDocs(existingQuery);
+
+          if (existingDocs.empty) {
+            // Create mapping
+            const mappingId = `mapping-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const newMapping = { ...mapping, createdAt: now };
+            currentBatch.set(doc(db, 'cofid_group_aisle_mappings', mappingId), newMapping);
+            batchCount++;
+            mappingsImported++;
+          } else {
+            // Skip duplicate (already exists)
+            console.log(`CoFID group ${mapping.cofidGroup} already mapped, skipping`);
+          }
+
+          // Commit batch when it reaches the limit (Firestore limit is 500 operations)
+          if (batchCount === 100) {
+            batches.push(currentBatch);
+            currentBatch = writeBatch(db);
+            batchCount = 0;
+          }
+        } catch (err) {
+          errors.push(
+            `Failed to import mapping for ${mapping.cofidGroup}: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+      }
+
+      // Commit remaining batch
+      if (batchCount > 0) {
+        batches.push(currentBatch);
+      }
+
+      // Execute all batches
+      for (const batch of batches) {
+        await batch.commit();
+      }
+
+      console.log(`Successfully imported ${mappingsImported} CoFID group mappings (${errors.length} errors)`);
+      return { mappingsImported, errors };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      errors.push(`CoFID group mapping import failed: ${errorMsg}`);
+      console.error('CoFID group mapping import error:', err);
+      return { mappingsImported, errors };
+    }
+  }
+
+  /**
+   * Get aisle for a CoFID group code, returns null if no mapping found
+   */
+  private async getAisleForCofidGroup(cofidGroup: string): Promise<string | null> {
+    const mappings = await this.getCofidGroupMappings();
+    const mapping = mappings.find(m => m.cofidGroup.toLowerCase() === cofidGroup.toLowerCase());
+    return mapping?.aisle || null;
   }
 
   // ==================== COFID DATA IMPORT ====================

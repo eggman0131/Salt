@@ -22,8 +22,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Trash2, Pencil, GripVertical, Search } from 'lucide-react';
+import { Trash2, Pencil, GripVertical, Search, Tag } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   DndContext,
   closestCenter,
@@ -41,7 +48,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Aisle } from '../../../types/contract';
+import { Aisle, CoFIDGroupAisleMapping } from '../../../types/contract';
 import { canonBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
 
@@ -55,9 +62,10 @@ interface SortableAisleItemProps {
   onDelete: (aisle: Aisle) => void;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
+  cofidGroupName?: string;
 }
 
-const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, onDelete, isSelected, onToggleSelect }) => {
+const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, onDelete, isSelected, onToggleSelect, cofidGroupName }) => {
   const {
     attributes,
     listeners,
@@ -94,6 +102,12 @@ const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, on
 
       <div className="flex-1">
         <p className="font-medium text-sm">{aisle.name}</p>
+        {cofidGroupName && (
+          <div className="flex items-center gap-1 mt-1">
+            <Tag className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">CoFID: {cofidGroupName}</span>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
@@ -120,11 +134,13 @@ const SortableAisleItem: React.FC<SortableAisleItemProps> = ({ aisle, onEdit, on
 
 export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh }) => {
   const [aisles, setAisles] = useState<Aisle[]>([]);
+  const [cofidMappings, setCofidMappings] = useState<CoFIDGroupAisleMapping[]>([]);
   const [name, setName] = useState('');
   const [aisleToDelete, setAisleToDelete] = useState<Aisle | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [aisleToEdit, setAisleToEdit] = useState<Aisle | null>(null);
   const [editName, setEditName] = useState('');
+  const [editCofidGroup, setEditCofidGroup] = useState<string>('none');
   const [isSaving, setIsSaving] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [filterText, setFilterText] = useState('');
@@ -145,8 +161,12 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
 
   const loadAisles = async () => {
     try {
-      const data = await canonBackend.getAisles();
-      setAisles(data);
+      const [aislesData, mappingsData] = await Promise.all([
+        canonBackend.getAisles(),
+        canonBackend.getCofidGroupMappings(),
+      ]);
+      setAisles(aislesData);
+      setCofidMappings(mappingsData);
     } catch (err) {
       console.error('Failed to load aisles', err);
       softToast.error('Failed to load aisles');
@@ -231,6 +251,9 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
   const handleEditClick = (aisle: Aisle) => {
     setAisleToEdit(aisle);
     setEditName(aisle.name);
+    // Find the CoFID group mapping for this aisle
+    const mapping = cofidMappings.find(m => m.aisle === aisle.name);
+    setEditCofidGroup(mapping?.cofidGroupName || 'none');
   };
 
   const handleEditSave = async () => {
@@ -238,11 +261,62 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
     
     setIsSaving(true);
     try {
-      await canonBackend.updateAisle(aisleToEdit.id, { name: editName.trim() });
+      // Update aisle name if changed
+      if (editName.trim() !== aisleToEdit.name) {
+        await canonBackend.updateAisle(aisleToEdit.id, { name: editName.trim() });
+        
+        // Update any mappings that reference the old aisle name
+        const mapping = cofidMappings.find(m => m.aisle === aisleToEdit.name);
+        if (mapping) {
+          await canonBackend.updateCofidGroupMapping(mapping.id, {
+            aisle: editName.trim(),
+          });
+        }
+      }
+      
+      // Handle CoFID mapping changes
+      const finalAisleName = editName.trim();
+      const currentMapping = cofidMappings.find(m => m.aisle === finalAisleName || m.aisle === aisleToEdit.name);
+      
+      if (editCofidGroup === 'none') {
+        // Remove mapping if exists
+        if (currentMapping) {
+          await canonBackend.deleteCofidGroupMapping(currentMapping.id);
+        }
+      } else {
+        // Find the selected group details from any existing mapping with that name
+        const selectedGroupTemplate = cofidMappings.find(m => m.cofidGroupName === editCofidGroup);
+        
+        if (selectedGroupTemplate) {
+          if (currentMapping) {
+            // Update existing mapping
+            await canonBackend.updateCofidGroupMapping(currentMapping.id, {
+              cofidGroup: selectedGroupTemplate.cofidGroup,
+              cofidGroupName: selectedGroupTemplate.cofidGroupName,
+              aisle: finalAisleName,
+            });
+          } else {
+            // Create new mapping using the group details from the template
+            await canonBackend.createCofidGroupMapping({
+              cofidGroup: selectedGroupTemplate.cofidGroup,
+              cofidGroupName: selectedGroupTemplate.cofidGroupName,
+              aisle: finalAisleName,
+            });
+          }
+        } else {
+          // This shouldn't happen if the dropdown is populated correctly
+          console.error('Selected CoFID group not found:', editCofidGroup);
+          softToast.error('Selected CoFID group not found');
+          setIsSaving(false);
+          return;
+        }
+      }
+      
       await loadAisles();
       setAisleToEdit(null);
       setEditName('');
-      softToast.success('Aisle updated', { description: editName.trim() });
+      setEditCofidGroup('none');
+      softToast.success('Aisle updated', { description: finalAisleName });
       onRefresh();
     } catch (err) {
       const errMessage = err instanceof Error ? err.message : 'Failed to update aisle';
@@ -408,16 +482,20 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-2">
-                {filteredAisles.map((aisle) => (
-                  <SortableAisleItem
-                    key={aisle.id}
-                    aisle={aisle}
-                    onEdit={handleEditClick}
-                    onDelete={setAisleToDelete}
-                    isSelected={selectedIds.has(aisle.id)}
-                    onToggleSelect={handleToggleSelect}
-                  />
-                ))}
+                {filteredAisles.map((aisle) => {
+                  const mapping = cofidMappings.find(m => m.aisle === aisle.name);
+                  return (
+                    <SortableAisleItem
+                      key={aisle.id}
+                      aisle={aisle}
+                      onEdit={handleEditClick}
+                      onDelete={setAisleToDelete}
+                      isSelected={selectedIds.has(aisle.id)}
+                      onToggleSelect={handleToggleSelect}
+                      cofidGroupName={mapping?.cofidGroupName}
+                    />
+                  );
+                })}
               </div>
             </SortableContext>
           </DndContext>
@@ -430,7 +508,7 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
             <DialogHeader>
               <DialogTitle>Edit Aisle</DialogTitle>
               <DialogDescription>
-                Update the aisle name
+                Update the aisle name and optional CoFID group mapping
               </DialogDescription>
             </DialogHeader>
             
@@ -448,6 +526,26 @@ export const AislesManagement: React.FC<AislesManagementProps> = ({ onRefresh })
                     }
                   }}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-cofid-group">CoFID Group (Optional)</Label>
+                <Select value={editCofidGroup} onValueChange={setEditCofidGroup}>
+                  <SelectTrigger id="edit-cofid-group">
+                    <SelectValue placeholder="Select CoFID group..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {[...new Set(cofidMappings.map(m => m.cofidGroupName))].map((groupName) => (
+                      <SelectItem key={groupName} value={groupName}>
+                        {groupName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Map this aisle to a CoFID food group for auto-created items
+                </p>
               </div>
             </div>
 
