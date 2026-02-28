@@ -12,6 +12,13 @@ import {
   CoFIDGroupAisleMapping,
   IngredientMatchingConfig,
 } from '../../../types/contract';
+import {
+  searchBySemantic,
+  analyzeScoreClusters,
+  normalizeEmbedding,
+  SemanticCandidate,
+  ScoreCluster,
+} from './semantic-matching';
 import { db, auth, functions } from '../../../shared/backend/firebase';
 import { shoppingBackend } from '../../shopping';
 import { recipesBackend } from '../../recipes';
@@ -725,6 +732,65 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     });
 
     return updated;
+  }
+
+  // ==================== SEMANTIC SEARCH (Phase 2) ====================
+
+  async searchSemanticCandidates(embedding: number[], maxCandidates: number = 5): Promise<SemanticCandidate[]> {
+    try {
+      // Fetch all canonical items (necessary for semantic search)
+      const snapshot = await getDocs(collection(db, 'canonical_items'));
+      const items: CanonicalItem[] = [];
+
+      snapshot.forEach((docSnap) => {
+        const data = this.convertTimestamps(docSnap.data());
+        items.push({
+          ...data,
+          id: docSnap.id,
+        } as CanonicalItem);
+      });
+
+      debugLogger.log('Canon.searchSemanticCandidates', `Searching ${items.length} items for semantic matches`, {
+        embeddingDimensions: embedding.length,
+        maxCandidates,
+      });
+
+      // Use semantic matching utility
+      const candidates = searchBySemantic(embedding, items, maxCandidates, 0);
+
+      debugLogger.log('Canon.searchSemanticCandidates', `Found ${candidates.length} candidates`, {
+        topScores: candidates.slice(0, 3).map((c) => ({ name: c.itemName, score: c.score })),
+      });
+
+      return candidates;
+    } catch (e) {
+      debugLogger.log('Canon.searchSemanticCandidates', 'Search error:', e);
+      return [];
+    }
+  }
+
+  async analyzeSemanticMatch(
+    candidates: SemanticCandidate[],
+    config?: { gapThreshold?: number; clusterWindow?: number }
+  ): Promise<ScoreCluster> {
+    const gapThreshold = config?.gapThreshold ?? 0.10;
+    const clusterWindow = config?.clusterWindow ?? 0.05;
+
+    debugLogger.log('Canon.analyzeSemanticMatch', `Analyzing ${candidates.length} candidates`, {
+      gapThreshold,
+      clusterWindow,
+    });
+
+    const analysis = analyzeScoreClusters(candidates, gapThreshold, clusterWindow);
+
+    debugLogger.log('Canon.analyzeSemanticMatch', 'Analysis complete', {
+      topScore: analysis.topScore,
+      clusterSize: analysis.clusterSize,
+      scoreGap: analysis.scoreGap,
+      isAmbiguous: analysis.isAmbiguous,
+    });
+
+    return analysis;
   }
 
   // ==================== CANONICAL ITEMS ====================
