@@ -24,7 +24,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true,
+    open: false,
     proxy: {
       // Proxy Firebase Auth Emulator requests
       // Attempts to authenticate against the local emulator via the frontend dev server
