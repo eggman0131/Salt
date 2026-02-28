@@ -31,7 +31,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Trash2, Pencil, X, Search, PlusCircle, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Trash2, Pencil, X, Search, PlusCircle, CheckCircle, AlertCircle, Database } from 'lucide-react';
 import { CanonicalItem, Unit, Aisle } from '../../../types/contract';
 import { canonBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
@@ -1000,11 +1005,81 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                                       Staple
                                     </Badge>
                                   )}
-                                  {item.externalSources?.some(s => s.source === 'cofid') && (
-                                    <Badge variant="outline" className="text-xs border-warning/50 text-warning">
-                                      CoFID
-                                    </Badge>
-                                  )}
+                                  {item.externalSources?.some(s => s.source === 'cofid') && (() => {
+                                    const cofidSource = item.externalSources?.find(s => s.source === 'cofid');
+                                    const hasProperties = cofidSource?.properties && Object.keys(cofidSource.properties).length > 0;
+                                    
+                                    if (!hasProperties) {
+                                      return (
+                                        <Badge variant="outline" className="text-xs border-warning/50 text-warning">
+                                          CoFID
+                                        </Badge>
+                                      );
+                                    }
+                                    
+                                    return (
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <button className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-warning/50 text-warning rounded-full hover:bg-warning/10 transition-colors">
+                                            CoFID
+                                            <Database className="h-3 w-3" />
+                                          </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-96 max-h-100 overflow-y-auto" align="start">
+                                          <div className="space-y-3">
+                                            <div>
+                                              <h4 className="font-semibold text-sm">CoFID Data</h4>
+                                              <p className="text-xs text-muted-foreground mt-1">
+                                                Enriched metadata from Canadian Food Database
+                                              </p>
+                                            </div>
+                                            
+                                            {cofidSource.properties && (
+                                              <div className="space-y-2 text-xs">
+                                                {cofidSource.properties.foodCode && (
+                                                  <div className="grid grid-cols-[120px_1fr] gap-2">
+                                                    <span className="font-medium text-muted-foreground">Food Code:</span>
+                                                    <span className="font-mono">{String(cofidSource.properties.foodCode)}</span>
+                                                  </div>
+                                                )}
+                                                {cofidSource.properties.foodGroup && (
+                                                  <div className="grid grid-cols-[120px_1fr] gap-2">
+                                                    <span className="font-medium text-muted-foreground">Food Group:</span>
+                                                    <span>{String(cofidSource.properties.foodGroup)}</span>
+                                                  </div>
+                                                )}
+                                                {cofidSource.properties.extractedAt && (
+                                                  <div className="grid grid-cols-[120px_1fr] gap-2">
+                                                    <span className="font-medium text-muted-foreground">Extracted:</span>
+                                                    <span className="text-muted-foreground">
+                                                      {new Date(String(cofidSource.properties.extractedAt)).toLocaleDateString()}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                                
+                                                {cofidSource.properties.raw && typeof cofidSource.properties.raw === 'object' && (
+                                                  <>
+                                                    <Separator className="my-2" />
+                                                    <div>
+                                                      <p className="font-medium text-muted-foreground mb-1">Raw CoFID Fields:</p>
+                                                      <div className="space-y-1 pl-2 max-h-50 overflow-y-auto">
+                                                        {Object.entries(cofidSource.properties.raw as Record<string, unknown>).map(([key, value]) => (
+                                                          <div key={key} className="grid grid-cols-[100px_1fr] gap-2">
+                                                            <span className="font-mono text-muted-foreground truncate">{key}:</span>
+                                                            <span className="wrap-break-word">{JSON.stringify(value)}</span>
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    </div>
+                                                  </>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    );
+                                  })()}
                                 </div>
                                 
                                 <div className="text-xs text-muted-foreground space-y-1">
@@ -1109,6 +1184,81 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                                       Staple
                                     </Badge>
                                   )}
+                                  {item.externalSources?.some(s => s.source === 'cofid') && (() => {
+                                    const cofidSource = item.externalSources?.find(s => s.source === 'cofid');
+                                    const hasProperties = cofidSource?.properties && Object.keys(cofidSource.properties).length > 0;
+                                    
+                                    if (!hasProperties) {
+                                      return (
+                                        <Badge variant="outline" className="text-xs border-warning/50 text-warning">
+                                          CoFID
+                                        </Badge>
+                                      );
+                                    }
+                                    
+                                    return (
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <button className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-warning/50 text-warning rounded-full hover:bg-warning/10 transition-colors">
+                                            CoFID
+                                            <Database className="h-3 w-3" />
+                                          </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-96 max-h-100 overflow-y-auto" align="start">
+                                          <div className="space-y-3">
+                                            <div>
+                                              <h4 className="font-semibold text-sm">CoFID Data</h4>
+                                              <p className="text-xs text-muted-foreground mt-1">
+                                                Enriched metadata from Canadian Food Database
+                                              </p>
+                                            </div>
+                                            
+                                            {cofidSource.properties && (
+                                              <div className="space-y-2 text-xs">
+                                                {cofidSource.properties.foodCode && (
+                                                  <div className="grid grid-cols-[120px_1fr] gap-2">
+                                                    <span className="font-medium text-muted-foreground">Food Code:</span>
+                                                    <span className="font-mono">{String(cofidSource.properties.foodCode)}</span>
+                                                  </div>
+                                                )}
+                                                {cofidSource.properties.foodGroup && (
+                                                  <div className="grid grid-cols-[120px_1fr] gap-2">
+                                                    <span className="font-medium text-muted-foreground">Food Group:</span>
+                                                    <span>{String(cofidSource.properties.foodGroup)}</span>
+                                                  </div>
+                                                )}
+                                                {cofidSource.properties.extractedAt && (
+                                                  <div className="grid grid-cols-[120px_1fr] gap-2">
+                                                    <span className="font-medium text-muted-foreground">Extracted:</span>
+                                                    <span className="text-muted-foreground">
+                                                      {new Date(String(cofidSource.properties.extractedAt)).toLocaleDateString()}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                                
+                                                {cofidSource.properties.raw && typeof cofidSource.properties.raw === 'object' && (
+                                                  <>
+                                                    <Separator className="my-2" />
+                                                    <div>
+                                                      <p className="font-medium text-muted-foreground mb-1">Raw CoFID Fields:</p>
+                                                      <div className="space-y-1 pl-2 max-h-50 overflow-y-auto">
+                                                        {Object.entries(cofidSource.properties.raw as Record<string, unknown>).map(([key, value]) => (
+                                                          <div key={key} className="grid grid-cols-[100px_1fr] gap-2">
+                                                            <span className="font-mono text-muted-foreground truncate">{key}:</span>
+                                                            <span className="wrap-break-word">{JSON.stringify(value)}</span>
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    </div>
+                                                  </>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    );
+                                  })()}
                                 </div>
                                 
                                 <div className="text-xs text-muted-foreground space-y-1">
