@@ -12,13 +12,7 @@ import {
   CoFIDGroupAisleMapping,
   IngredientMatchingConfig,
 } from '../../../types/contract';
-import {
-  searchBySemantic,
-  analyzeScoreClusters,
-  normalizeEmbedding,
-  SemanticCandidate,
-  ScoreCluster,
-} from './semantic-matching';
+import { IngredientSemanticCandidate, SemanticScoreCluster } from './canon-backend.interface';
 import { db, auth, functions } from '../../../shared/backend/firebase';
 import { shoppingBackend } from '../../shopping';
 import { recipesBackend } from '../../recipes';
@@ -373,48 +367,8 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
   async getCofidItemsWithEmbeddings(): Promise<any[]> {
     const snapshot = await getDocs(collection(db, 'cofid'));
     return snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(item => item.embedding && Array.isArray(item.embedding));
-  }
-
-  /**
-   * Load ingredient matching configuration from Firestore
-   * Returns default config if not found
-   */
-  async getMatchingConfig(): Promise<IngredientMatchingConfig> {
-    try {
-      const configDoc = await getDoc(doc(db, 'config', 'ingredientMatching'));
-      if (configDoc.exists()) {
-        const data = configDoc.data();
-        debugLogger.log('Ingredient Matching', `Loaded config from Firestore: ${JSON.stringify(data)}`);
-        return {
-          fuzzyHighConfidenceThreshold: data.fuzzyHighConfidenceThreshold ?? 0.85,
-          semanticHighThreshold: data.semanticHighThreshold ?? 0.90,
-          semanticLowThreshold: data.semanticLowThreshold ?? 0.70,
-          semanticGapThreshold: data.semanticGapThreshold ?? 0.10,
-          semanticClusterWindow: data.semanticClusterWindow ?? 0.05,
-          semanticCandidateCount: data.semanticCandidateCount ?? 5,
-          llmBiasForExistingCanon: data.llmBiasForExistingCanon ?? 0.05,
-          allowNewCanonItems: data.allowNewCanonItems ?? true,
-        };
-      }
-    } catch (error) {
-      debugLogger.warn('Ingredient Matching', 'Config not found, using defaults:', error);
-    }
-
-    // Default config
-    const defaultConfig = {
-      fuzzyHighConfidenceThreshold: 0.85,
-      semanticHighThreshold: 0.90,
-      semanticLowThreshold: 0.70,
-      semanticGapThreshold: 0.10,
-      semanticClusterWindow: 0.05,
-      semanticCandidateCount: 5,
-      llmBiasForExistingCanon: 0.05,
-      allowNewCanonItems: true,
-    };
-    debugLogger.log('Ingredient Matching', `Using default config: ${JSON.stringify(defaultConfig)}`);
-    return defaultConfig;
+      .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
+      .filter((item: any) => item.embedding && Array.isArray(item.embedding));
   }
 
   /**
@@ -424,16 +378,10 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
   async searchSemanticCandidates(
     queryEmbedding: number[],
     candidateCount: number
-  ): Promise<Array<{
-    id: string;
-    name: string;
-    source: 'canon' | 'cofid';
-    score: number;
-    item: CanonicalItem | any;
-  }>> {
+  ): Promise<IngredientSemanticCandidate[]> {
     debugLogger.log('Ingredient Matching', `Searching semantic candidates (top ${candidateCount})`);
 
-    const candidates: Array<{ id: string; name: string; source: 'canon' | 'cofid'; score: number; item: any }> = [];
+    const candidates: IngredientSemanticCandidate[] = [];
 
     // Search Canon items
     const canonItems = await this.getCanonicalItems();
@@ -477,6 +425,40 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     );
 
     return topCandidates;
+  }
+
+  async analyzeSemanticMatch(
+    candidates: IngredientSemanticCandidate[],
+    config?: { gapThreshold?: number; clusterWindow?: number }
+  ): Promise<SemanticScoreCluster> {
+    const gapThreshold = config?.gapThreshold ?? 0.10;
+    const clusterWindow = config?.clusterWindow ?? 0.05;
+
+    if (candidates.length === 0) {
+      return {
+        topScore: 0,
+        topCandidates: [],
+        nextScore: null,
+        scoreGap: 1,
+        isAmbiguous: false,
+        clusterSize: 0,
+      };
+    }
+
+    const sorted = [...candidates].sort((a, b) => b.score - a.score);
+    const topScore = sorted[0].score;
+    const topCandidates = sorted.filter((c) => topScore - c.score <= clusterWindow);
+    const next = sorted.find((c) => topScore - c.score > clusterWindow) || null;
+    const scoreGap = next ? topScore - next.score : 1;
+
+    return {
+      topScore,
+      topCandidates,
+      nextScore: next?.score ?? null,
+      scoreGap,
+      isAmbiguous: scoreGap < gapThreshold,
+      clusterSize: topCandidates.length,
+    };
   }
 
   /**
@@ -734,65 +716,6 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     return updated;
   }
 
-  // ==================== SEMANTIC SEARCH (Phase 2) ====================
-
-  async searchSemanticCandidates(embedding: number[], maxCandidates: number = 5): Promise<SemanticCandidate[]> {
-    try {
-      // Fetch all canonical items (necessary for semantic search)
-      const snapshot = await getDocs(collection(db, 'canonical_items'));
-      const items: CanonicalItem[] = [];
-
-      snapshot.forEach((docSnap) => {
-        const data = this.convertTimestamps(docSnap.data());
-        items.push({
-          ...data,
-          id: docSnap.id,
-        } as CanonicalItem);
-      });
-
-      debugLogger.log('Canon.searchSemanticCandidates', `Searching ${items.length} items for semantic matches`, {
-        embeddingDimensions: embedding.length,
-        maxCandidates,
-      });
-
-      // Use semantic matching utility
-      const candidates = searchBySemantic(embedding, items, maxCandidates, 0);
-
-      debugLogger.log('Canon.searchSemanticCandidates', `Found ${candidates.length} candidates`, {
-        topScores: candidates.slice(0, 3).map((c) => ({ name: c.itemName, score: c.score })),
-      });
-
-      return candidates;
-    } catch (e) {
-      debugLogger.log('Canon.searchSemanticCandidates', 'Search error:', e);
-      return [];
-    }
-  }
-
-  async analyzeSemanticMatch(
-    candidates: SemanticCandidate[],
-    config?: { gapThreshold?: number; clusterWindow?: number }
-  ): Promise<ScoreCluster> {
-    const gapThreshold = config?.gapThreshold ?? 0.10;
-    const clusterWindow = config?.clusterWindow ?? 0.05;
-
-    debugLogger.log('Canon.analyzeSemanticMatch', `Analyzing ${candidates.length} candidates`, {
-      gapThreshold,
-      clusterWindow,
-    });
-
-    const analysis = analyzeScoreClusters(candidates, gapThreshold, clusterWindow);
-
-    debugLogger.log('Canon.analyzeSemanticMatch', 'Analysis complete', {
-      topScore: analysis.topScore,
-      clusterSize: analysis.clusterSize,
-      scoreGap: analysis.scoreGap,
-      isAmbiguous: analysis.isAmbiguous,
-    });
-
-    return analysis;
-  }
-
   // ==================== CANONICAL ITEMS ====================
 
   async getCanonicalItems(): Promise<CanonicalItem[]> {
@@ -1007,7 +930,7 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
           let bestScore = 0;
 
           for (const candidate of allItems) {
-            const score = this.fuzzyMatch(
+            const score = this.fuzzyMatchLocal(
               ing.ingredientName.toLowerCase(),
               candidate.normalisedName
             );
@@ -1018,7 +941,7 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
 
             if (candidate.synonyms) {
               for (const syn of candidate.synonyms) {
-                const synScore = this.fuzzyMatch(
+                const synScore = this.fuzzyMatchLocal(
                   ing.ingredientName.toLowerCase(),
                   syn.toLowerCase()
                 );
@@ -1075,16 +998,16 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     };
   }
 
-  private fuzzyMatch(a: string, b: string): number {
+  private fuzzyMatchLocal(a: string, b: string): number {
     const longer = a.length > b.length ? a : b;
     const shorter = a.length > b.length ? b : a;
     if (longer.length === 0) return 1.0;
     
-    const editDistance = this.levenshteinDistance(longer, shorter);
+    const editDistance = this.levenshteinDistanceLocal(longer, shorter);
     return (longer.length - editDistance) / longer.length;
   }
 
-  private levenshteinDistance(a: string, b: string): number {
+  private levenshteinDistanceLocal(a: string, b: string): number {
     const matrix: number[][] = [];
     
     for (let i = 0; i <= b.length; i++) {

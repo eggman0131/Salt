@@ -16,7 +16,23 @@ import {
   CoFIDGroupAisleMapping,
   IngredientMatchingConfig,
 } from '../../../types/contract';
-import { SemanticCandidate, ScoreCluster } from './semantic-matching';
+
+export type IngredientSemanticCandidate = {
+  id: string;
+  name: string;
+  source: 'canon' | 'cofid';
+  score: number;
+  item: CanonicalItem | any;
+};
+
+export type SemanticScoreCluster = {
+  topScore: number;
+  topCandidates: IngredientSemanticCandidate[];
+  nextScore: number | null;
+  scoreGap: number;
+  isAmbiguous: boolean;
+  clusterSize: number;
+};
 
 export interface ICanonBackend {
   // ==================== UNITS ====================
@@ -49,7 +65,7 @@ export interface ICanonBackend {
   searchSemanticCandidates: (
     embedding: number[],
     maxCandidates?: number
-  ) => Promise<SemanticCandidate[]>;
+  ) => Promise<IngredientSemanticCandidate[]>;
 
   /**
    * Analyzes score distribution of semantic candidates.
@@ -58,9 +74,9 @@ export interface ICanonBackend {
    * Used to determine if LLM arbitration is needed (Phase 3).
    */
   analyzeSemanticMatch: (
-    candidates: SemanticCandidate[],
+    candidates: IngredientSemanticCandidate[],
     config?: { gapThreshold?: number; clusterWindow?: number }
-  ) => Promise<ScoreCluster>;
+  ) => Promise<SemanticScoreCluster>;
 
   // ==================== CANONICAL ITEMS ====================
 
