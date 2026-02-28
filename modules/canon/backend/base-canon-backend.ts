@@ -13,9 +13,15 @@ import {
   RecipeIngredient,
   IngredientMatchingConfig,
 } from '../../../types/contract';
-import { SemanticCandidate, ScoreCluster } from './semantic-matching';
-import { ICanonBackend } from './canon-backend.interface';
+import { ICanonBackend, IngredientSemanticCandidate, SemanticScoreCluster } from './canon-backend.interface';
 import { debugLogger } from '../../../shared/backend/debug-logger';
+
+type ArbitrationDecision = {
+  action: 'use_existing_canon' | 'create_from_cofid' | 'create_new_canon' | 'no_match';
+  candidateId?: string;
+  confidence?: number;
+  reason?: string;
+};
 
 export abstract class BaseCanonBackend implements ICanonBackend {
   // ==================== ABSTRACT METHODS ====================
@@ -24,6 +30,8 @@ export abstract class BaseCanonBackend implements ICanonBackend {
   protected abstract callGenerateContent(params: GenerateContentParameters): Promise<GenerateContentResponse>;
   protected abstract callGenerateContentStream(params: GenerateContentParameters): Promise<AsyncIterable<GenerateContentResponse>>;
   protected abstract getSystemInstruction(customContext?: string): Promise<string>;
+  protected abstract embedText(text: string): Promise<{ embedding: number[] } | null>;
+  protected abstract createCanonicalItemFromCofid(cofidItem: any): Promise<CanonicalItem>;
 
   // Units (CRUD)
   abstract getUnits(): Promise<Unit[]>;
@@ -42,8 +50,8 @@ export abstract class BaseCanonBackend implements ICanonBackend {
   abstract updateIngredientMatchingConfig(updates: Partial<IngredientMatchingConfig>): Promise<IngredientMatchingConfig>;
 
   // Semantic Search (Phase 2: Embedding-based matching)
-  abstract searchSemanticCandidates(embedding: number[], maxCandidates?: number): Promise<SemanticCandidate[]>;
-  abstract analyzeSemanticMatch(candidates: SemanticCandidate[], config?: { gapThreshold?: number; clusterWindow?: number }): Promise<ScoreCluster>;
+  abstract searchSemanticCandidates(embedding: number[], maxCandidates?: number): Promise<IngredientSemanticCandidate[]>;
+  abstract analyzeSemanticMatch(candidates: IngredientSemanticCandidate[], config?: { gapThreshold?: number; clusterWindow?: number }): Promise<SemanticScoreCluster>;
 
   // Canonical Items (CRUD)
   abstract getCanonicalItems(): Promise<CanonicalItem[]>;
@@ -79,6 +87,15 @@ export abstract class BaseCanonBackend implements ICanonBackend {
     synonyms: string[];
   }>;
 
+  // CoFID + embeddings
+  abstract importCoFIDData(data: any[]): Promise<{ itemsImported: number; errors: string[] }>;
+  abstract getCofidGroupMappings(): Promise<import('../../../types/contract').CoFIDGroupAisleMapping[]>;
+  abstract createCofidGroupMapping(mapping: Omit<import('../../../types/contract').CoFIDGroupAisleMapping, 'id' | 'createdAt'>): Promise<import('../../../types/contract').CoFIDGroupAisleMapping>;
+  abstract updateCofidGroupMapping(id: string, updates: Partial<import('../../../types/contract').CoFIDGroupAisleMapping>): Promise<import('../../../types/contract').CoFIDGroupAisleMapping>;
+  abstract deleteCofidGroupMapping(id: string): Promise<void>;
+  abstract importCoFIDGroupMappings(mappings: Array<Omit<import('../../../types/contract').CoFIDGroupAisleMapping, 'id' | 'createdAt'>>): Promise<{ mappingsImported: number; errors: string[] }>;
+  abstract embedCanonicalItems(itemIds: string[]): Promise<{ itemsEmbedded: number; itemsSkipped: number }>;
+
   // ==================== INGREDIENT PROCESSING ====================
 
   /**
@@ -102,7 +119,7 @@ export abstract class BaseCanonBackend implements ICanonBackend {
     }
 
     // Load matching configuration (with defaults if not found)
-    const config = await this.getMatchingConfig();
+    const config = await this.getIngredientMatchingConfig();
     debugLogger.log('Ingredient Matching', `📋 Matching Config: fuzzy=${config.fuzzyHighConfidenceThreshold}, semantic high=${config.semanticHighThreshold}, low=${config.semanticLowThreshold}, gap=${config.semanticGapThreshold}, cluster=${config.semanticClusterWindow}`);
 
     const allCanonItems = await this.getCanonicalItems();
@@ -259,7 +276,7 @@ export abstract class BaseCanonBackend implements ICanonBackend {
 
             // LLM arbitration
             const decision = await this.arbitrateSemanticMatch(parsed.ingredientName, cluster, config);
-            await this.applyArbitrationDecision(index, parsed, decision, results);
+            await this.applyArbitrationDecision(index, parsed, decision, results, cluster);
           } else {
             // High score but clear winner (treat as Case A)
             debugLogger.log('Ingredient Matching', `[${index}] 🎯 High score with clear winner, treating as Case A`);
@@ -284,7 +301,7 @@ export abstract class BaseCanonBackend implements ICanonBackend {
 
           // LLM arbitration
           const decision = await this.arbitrateSemanticMatch(parsed.ingredientName, candidates, config);
-          await this.applyArbitrationDecision(index, parsed, decision, results);
+          await this.applyArbitrationDecision(index, parsed, decision, results, candidates);
         }
         // No semantic match
         else {
@@ -308,6 +325,144 @@ export abstract class BaseCanonBackend implements ICanonBackend {
     debugLogger.log('Ingredient Matching', `━━━━━ Final result: ${results.filter(r => r.canonicalItemId).length}/${results.length} ingredients linked ━━━━━`);
 
     return results;
+  }
+
+  private async arbitrateSemanticMatch(
+    ingredientName: string,
+    candidates: IngredientSemanticCandidate[],
+    config: IngredientMatchingConfig
+  ): Promise<ArbitrationDecision> {
+    const trimmed = candidates.slice(0, Math.max(1, config.semanticCandidateCount));
+
+    const instruction = await this.getSystemInstruction(
+      'You are the Head Chef arbitration layer for ingredient-to-catalogue matching.'
+    );
+
+    const response = await this.callGenerateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: `Choose the best matching outcome for one ingredient.
+
+INGREDIENT: ${ingredientName}
+
+CANDIDATES:
+${trimmed.map((c, i) => `${i + 1}. id=${c.id} | name=${c.name} | source=${c.source} | score=${c.score.toFixed(4)}`).join('\n')}
+
+CONFIG:
+${JSON.stringify({
+  llmBiasForExistingCanon: config.llmBiasForExistingCanon,
+  allowNewCanonItems: config.allowNewCanonItems,
+})}
+
+RULES:
+- Prefer existing Canon candidates where fit is close.
+- Use CoFID when clearly a stronger fit.
+- If nothing is suitable and allowNewCanonItems is true, choose create_new_canon.
+- Use no_match only if confidence is too poor.
+
+Return JSON only:
+{
+  "action": "use_existing_canon" | "create_from_cofid" | "create_new_canon" | "no_match",
+  "candidateId": "candidate id when action selects candidate",
+  "confidence": 0.0,
+  "reason": "short reason"
+}`,
+        }],
+      }],
+      config: {
+        systemInstruction: instruction,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    try {
+      const parsed = JSON.parse(this.sanitizeJson(response.text || '{}')) as ArbitrationDecision;
+      if (!parsed.action) {
+        throw new Error('Arbitration result missing action');
+      }
+      return parsed;
+    } catch (error) {
+      debugLogger.warn('Ingredient Matching', 'Arbitration parse failed, using fallback', error);
+      const top = trimmed[0];
+      if (!top) {
+        return { action: config.allowNewCanonItems ? 'create_new_canon' : 'no_match', reason: 'fallback-empty' };
+      }
+      if (top.source === 'canon') {
+        return { action: 'use_existing_canon', candidateId: top.id, confidence: top.score, reason: 'fallback-top-canon' };
+      }
+      return { action: 'create_from_cofid', candidateId: top.id, confidence: top.score, reason: 'fallback-top-cofid' };
+    }
+  }
+
+  private async applyArbitrationDecision(
+    index: number,
+    parsed: Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'>,
+    decision: ArbitrationDecision,
+    results: RecipeIngredient[],
+    candidates: IngredientSemanticCandidate[]
+  ): Promise<void> {
+    debugLogger.log('Ingredient Matching', `[${index}] Arbitration decision: ${decision.action}`);
+
+    if (decision.action === 'use_existing_canon' && decision.candidateId) {
+      const selected = candidates.find((c) => c.id === decision.candidateId && c.source === 'canon');
+      if (!selected) return;
+
+      const canonItem = selected.item as CanonicalItem;
+      const normalizedIngredient = parsed.ingredientName.toLowerCase();
+      if (
+        normalizedIngredient !== canonItem.normalisedName &&
+        (!canonItem.synonyms || !canonItem.synonyms.some((s) => s.toLowerCase() === normalizedIngredient))
+      ) {
+        await this.updateCanonicalItem(canonItem.id, { synonyms: [...(canonItem.synonyms || []), parsed.ingredientName] });
+      }
+      results[index].canonicalItemId = canonItem.id;
+      return;
+    }
+
+    if (decision.action === 'create_from_cofid' && decision.candidateId) {
+      const selected = candidates.find((c) => c.id === decision.candidateId && c.source === 'cofid');
+      if (!selected) return;
+      const created = await this.createCanonicalItemFromCofid(selected.item);
+      results[index].canonicalItemId = created.id;
+      return;
+    }
+
+    if (decision.action === 'create_new_canon') {
+      await this.createNewCanonItemViaAI(index, parsed, results);
+    }
+  }
+
+  private async createNewCanonItemViaAI(
+    index: number,
+    parsed: Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'>,
+    results: RecipeIngredient[]
+  ): Promise<void> {
+    try {
+      const enriched = await this.enrichCanonicalItem(parsed.ingredientName);
+      const aisles = await this.getAisles();
+      const aisleName = enriched.aisle || 'Other';
+
+      if (!aisles.some((a) => a.name.toLowerCase() === aisleName.toLowerCase())) {
+        await this.createAisle({ name: aisleName, sortOrder: aisles.length + 1 });
+      }
+
+      const created = await this.createCanonicalItem({
+        name: enriched.name,
+        normalisedName: enriched.name.toLowerCase(),
+        aisle: aisleName,
+        preferredUnit: enriched.preferredUnit || '',
+        isStaple: enriched.isStaple,
+        synonyms: enriched.synonyms,
+        approved: false,
+      });
+
+      results[index].canonicalItemId = created.id;
+      debugLogger.log('Ingredient Matching', `[${index}] Created new Canon item via AI: ${created.name}`);
+    } catch (error) {
+      debugLogger.warn('Ingredient Matching', `[${index}] Failed to create new Canon item via AI`, error);
+    }
   }
 
   // ==================== HELPER METHODS ====================
