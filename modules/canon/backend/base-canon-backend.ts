@@ -13,6 +13,7 @@ import {
   RecipeIngredient,
   IngredientMatchingConfig,
 } from '../../../types/contract';
+import { SemanticCandidate, ScoreCluster } from './semantic-matching';
 import { ICanonBackend } from './canon-backend.interface';
 import { debugLogger } from '../../../shared/backend/debug-logger';
 
@@ -39,6 +40,10 @@ export abstract class BaseCanonBackend implements ICanonBackend {
   // Ingredient Matching Config (admin settable thresholds)
   abstract getIngredientMatchingConfig(): Promise<IngredientMatchingConfig>;
   abstract updateIngredientMatchingConfig(updates: Partial<IngredientMatchingConfig>): Promise<IngredientMatchingConfig>;
+
+  // Semantic Search (Phase 2: Embedding-based matching)
+  abstract searchSemanticCandidates(embedding: number[], maxCandidates?: number): Promise<SemanticCandidate[]>;
+  abstract analyzeSemanticMatch(candidates: SemanticCandidate[], config?: { gapThreshold?: number; clusterWindow?: number }): Promise<ScoreCluster>;
 
   // Canonical Items (CRUD)
   abstract getCanonicalItems(): Promise<CanonicalItem[]>;
