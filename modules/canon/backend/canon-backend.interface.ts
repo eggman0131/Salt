@@ -16,6 +16,7 @@ import {
   CoFIDGroupAisleMapping,
   IngredientMatchingConfig,
 } from '../../../types/contract';
+import { SemanticCandidate, ScoreCluster } from './semantic-matching';
 
 export interface ICanonBackend {
   // ==================== UNITS ====================
@@ -36,6 +37,30 @@ export interface ICanonBackend {
 
   getIngredientMatchingConfig: () => Promise<IngredientMatchingConfig>;
   updateIngredientMatchingConfig: (updates: Partial<IngredientMatchingConfig>) => Promise<IngredientMatchingConfig>;
+
+  // ==================== SEMANTIC SEARCH (Phase 2) ====================
+
+  /**
+   * Searches canonical items by semantic similarity to the given embedding.
+   * Returns top candidates ranked by cosine similarity score.
+   * 
+   * Used in Stage 2 of ingredient matching pipeline.
+   */
+  searchSemanticCandidates: (
+    embedding: number[],
+    maxCandidates?: number
+  ) => Promise<SemanticCandidate[]>;
+
+  /**
+   * Analyzes score distribution of semantic candidates.
+   * Detects ambiguous matches where multiple items have similar confidence.
+   * 
+   * Used to determine if LLM arbitration is needed (Phase 3).
+   */
+  analyzeSemanticMatch: (
+    candidates: SemanticCandidate[],
+    config?: { gapThreshold?: number; clusterWindow?: number }
+  ) => Promise<ScoreCluster>;
 
   // ==================== CANONICAL ITEMS ====================
 
