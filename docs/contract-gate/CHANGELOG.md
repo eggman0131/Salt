@@ -18,6 +18,16 @@ Each entry must follow this structure:
 
 ## Entries
 
+### [2026-02-28] - Add Recipe Ingredient Matching Audit Trail
+**Impact:** Recipe ingredients can now persist compact matching provenance so semantic/arbitration decisions are traceable beyond runtime logs.
+**Changes:**
+- Added optional `matchingAudit` object to `RecipeIngredientSchema`.
+- `matchingAudit` stores compact decision metadata: `stage`, `decisionAction`, `decisionSource`, `candidateId`, `matchedSource`, `topScore`, `scoreGap`, `reason`, `recordedAt`.
+**Rationale:** Phase 4 matching hardening requires durable decision traceability for diagnosis and tuning. Logs alone are ephemeral; storing a compact audit payload on each ingredient supports review, debugging, and future analytics.
+**Migration:** Backwards-compatible addition. Existing ingredients remain valid; `matchingAudit` is optional and only present for newly processed ingredients.
+
+---
+
 ### [2026-02-28] - Multi-Source External Link Support for Canonical Items
 **Impact:** Canonical items can now link to multiple external databases simultaneously (CoFID, Open Food Facts, USDA, etc.) with individual confidence scores and extensible property storage for source-specific data.
 **Changes:**

@@ -21,6 +21,7 @@ type ArbitrationDecision = {
   candidateId?: string;
   confidence?: number;
   reason?: string;
+  decisionSource?: 'llm' | 'fallback';
 };
 
 export abstract class BaseCanonBackend implements ICanonBackend {
@@ -183,6 +184,16 @@ export abstract class BaseCanonBackend implements ICanonBackend {
           raw,
           ...parsed,
           canonicalItemId: bestMatch.id,
+          matchingAudit: {
+            stage: 'fuzzy',
+            decisionAction: 'use_existing_canon',
+            decisionSource: 'rule',
+            candidateId: bestMatch.id,
+            matchedSource: 'canon',
+            topScore: bestScore,
+            reason: 'fuzzy-high-confidence',
+            recordedAt: new Date().toISOString(),
+          },
         });
       } else {
         debugLogger.log('Ingredient Matching', `[${idx}] ✗ Fuzzy MISS: "${parsed.ingredientName}" (best: ${(bestScore * 100).toFixed(1)}% < ${(config.fuzzyHighConfidenceThreshold * 100).toFixed(0)}%)`);
@@ -255,11 +266,33 @@ export abstract class BaseCanonBackend implements ICanonBackend {
             }
 
             results[index].canonicalItemId = canonItem.id;
+            results[index].matchingAudit = {
+              stage: 'semantic',
+              decisionAction: 'use_existing_canon',
+              decisionSource: 'rule',
+              candidateId: canonItem.id,
+              matchedSource: 'canon',
+              topScore,
+              scoreGap,
+              reason: 'semantic-high-confidence-clear-gap',
+              recordedAt: new Date().toISOString(),
+            };
           } else {
             // Create new Canon item from CoFID
             debugLogger.log('Ingredient Matching', `[${index}] Creating new Canon item from CoFID: "${topCandidate.name}"`);
             const newCanonItem = await this.createCanonicalItemFromCofid(topCandidate.item);
             results[index].canonicalItemId = newCanonItem.id;
+            results[index].matchingAudit = {
+              stage: 'semantic',
+              decisionAction: 'create_from_cofid',
+              decisionSource: 'rule',
+              candidateId: topCandidate.id,
+              matchedSource: 'cofid',
+              topScore,
+              scoreGap,
+              reason: 'semantic-high-confidence-clear-gap',
+              recordedAt: new Date().toISOString(),
+            };
           }
         }
         // CASE B: Ambiguous Cluster
@@ -285,9 +318,31 @@ export abstract class BaseCanonBackend implements ICanonBackend {
             if (topCandidate.source === 'canon') {
               const canonItem = topCandidate.item as CanonicalItem;
               results[index].canonicalItemId = canonItem.id;
+              results[index].matchingAudit = {
+                stage: 'semantic',
+                decisionAction: 'use_existing_canon',
+                decisionSource: 'rule',
+                candidateId: canonItem.id,
+                matchedSource: 'canon',
+                topScore,
+                scoreGap,
+                reason: 'semantic-high-confidence-single-winner',
+                recordedAt: new Date().toISOString(),
+              };
             } else {
               const newCanonItem = await this.createCanonicalItemFromCofid(topCandidate.item);
               results[index].canonicalItemId = newCanonItem.id;
+              results[index].matchingAudit = {
+                stage: 'semantic',
+                decisionAction: 'create_from_cofid',
+                decisionSource: 'rule',
+                candidateId: topCandidate.id,
+                matchedSource: 'cofid',
+                topScore,
+                scoreGap,
+                reason: 'semantic-high-confidence-single-winner',
+                recordedAt: new Date().toISOString(),
+              };
             }
           }
         }
@@ -313,8 +368,28 @@ export abstract class BaseCanonBackend implements ICanonBackend {
           if (config.allowNewCanonItems) {
             debugLogger.log('Ingredient Matching', `[${index}] → Creating new Canon item via AI enrichment`);
             await this.createNewCanonItemViaAI(index, parsed, results);
+            results[index].matchingAudit = {
+              stage: 'semantic',
+              decisionAction: 'create_new_canon',
+              decisionSource: 'rule',
+              matchedSource: 'new-canon',
+              topScore,
+              scoreGap,
+              reason: 'semantic-below-low-threshold-create-new',
+              recordedAt: new Date().toISOString(),
+            };
           } else {
             debugLogger.log('Ingredient Matching', `[${index}] ⚠️  New Canon items disabled, leaving unlinked`);
+            results[index].matchingAudit = {
+              stage: 'semantic',
+              decisionAction: 'no_match',
+              decisionSource: 'rule',
+              matchedSource: 'unlinked',
+              topScore,
+              scoreGap,
+              reason: 'semantic-below-low-threshold-no-create',
+              recordedAt: new Date().toISOString(),
+            };
           }
         }
       }
@@ -332,7 +407,17 @@ export abstract class BaseCanonBackend implements ICanonBackend {
     candidates: IngredientSemanticCandidate[],
     config: IngredientMatchingConfig
   ): Promise<ArbitrationDecision> {
-    const trimmed = candidates.slice(0, Math.max(1, config.semanticCandidateCount));
+    const trimmed = candidates
+      .slice(0, Math.max(1, config.semanticCandidateCount))
+      .sort((a, b) => b.score - a.score);
+
+    const candidateMap = new Map(trimmed.map((c) => [c.id, c]));
+    const topCanon = trimmed.find((c) => c.source === 'canon');
+    const topCofid = trimmed.find((c) => c.source === 'cofid');
+    const canonBias = config.llmBiasForExistingCanon ?? 0;
+
+    // Deterministic fallback preference to keep behaviour stable when LLM output is invalid.
+    const fallback = this.selectFallbackArbitrationDecision(trimmed, config);
 
     const instruction = await this.getSystemInstruction(
       'You are the Head Chef arbitration layer for ingredient-to-catalogue matching.'
@@ -361,6 +446,9 @@ RULES:
 - Use CoFID when clearly a stronger fit.
 - If nothing is suitable and allowNewCanonItems is true, choose create_new_canon.
 - Use no_match only if confidence is too poor.
+- candidateId MUST be one of: [${trimmed.map((c) => c.id).join(', ')}]
+- If action is use_existing_canon, candidateId must refer to a canon candidate.
+- If action is create_from_cofid, candidateId must refer to a cofid candidate.
 
 Return JSON only:
 {
@@ -382,17 +470,55 @@ Return JSON only:
       if (!parsed.action) {
         throw new Error('Arbitration result missing action');
       }
-      return parsed;
+
+      const action = parsed.action;
+      const needsCandidate = action === 'use_existing_canon' || action === 'create_from_cofid';
+      if (needsCandidate && !parsed.candidateId) {
+        throw new Error(`Arbitration action ${action} missing candidateId`);
+      }
+
+      if (parsed.candidateId) {
+        const selected = candidateMap.get(parsed.candidateId);
+        if (!selected) {
+          throw new Error(`Arbitration candidateId not in provided candidates: ${parsed.candidateId}`);
+        }
+        if (action === 'use_existing_canon' && selected.source !== 'canon') {
+          throw new Error(`Arbitration candidate/source mismatch: expected canon for ${parsed.candidateId}`);
+        }
+        if (action === 'create_from_cofid' && selected.source !== 'cofid') {
+          throw new Error(`Arbitration candidate/source mismatch: expected cofid for ${parsed.candidateId}`);
+        }
+      }
+
+      debugLogger.log('Ingredient Matching', '[Arbitration] LLM decision accepted', {
+        ingredientName,
+        action,
+        candidateId: parsed.candidateId,
+        confidence: parsed.confidence,
+        reason: parsed.reason,
+        candidateCount: trimmed.length,
+        topCanonScore: topCanon?.score,
+        topCofidScore: topCofid?.score,
+        canonBias,
+      });
+
+      return {
+        ...parsed,
+        decisionSource: 'llm',
+      };
     } catch (error) {
-      debugLogger.warn('Ingredient Matching', 'Arbitration parse failed, using fallback', error);
-      const top = trimmed[0];
-      if (!top) {
-        return { action: config.allowNewCanonItems ? 'create_new_canon' : 'no_match', reason: 'fallback-empty' };
-      }
-      if (top.source === 'canon') {
-        return { action: 'use_existing_canon', candidateId: top.id, confidence: top.score, reason: 'fallback-top-canon' };
-      }
-      return { action: 'create_from_cofid', candidateId: top.id, confidence: top.score, reason: 'fallback-top-cofid' };
+      debugLogger.warn('Ingredient Matching', '[Arbitration] Invalid LLM decision, applying fallback', {
+        ingredientName,
+        error,
+        rawResponse: response.text,
+        fallback,
+        candidateCount: trimmed.length,
+      });
+
+      return {
+        ...fallback,
+        decisionSource: 'fallback',
+      };
     }
   }
 
@@ -403,11 +529,23 @@ Return JSON only:
     results: RecipeIngredient[],
     candidates: IngredientSemanticCandidate[]
   ): Promise<void> {
-    debugLogger.log('Ingredient Matching', `[${index}] Arbitration decision: ${decision.action}`);
+    debugLogger.log('Ingredient Matching', `[${index}] Arbitration decision`, {
+      ingredientName: parsed.ingredientName,
+      action: decision.action,
+      candidateId: decision.candidateId,
+      confidence: decision.confidence,
+      reason: decision.reason,
+      decisionSource: decision.decisionSource,
+    });
 
     if (decision.action === 'use_existing_canon' && decision.candidateId) {
       const selected = candidates.find((c) => c.id === decision.candidateId && c.source === 'canon');
-      if (!selected) return;
+      if (!selected) {
+        debugLogger.warn('Ingredient Matching', `[${index}] Arbitration selected missing canon candidate`, {
+          candidateId: decision.candidateId,
+        });
+        return;
+      }
 
       const canonItem = selected.item as CanonicalItem;
       const normalizedIngredient = parsed.ingredientName.toLowerCase();
@@ -418,20 +556,64 @@ Return JSON only:
         await this.updateCanonicalItem(canonItem.id, { synonyms: [...(canonItem.synonyms || []), parsed.ingredientName] });
       }
       results[index].canonicalItemId = canonItem.id;
+      results[index].matchingAudit = {
+        stage: 'arbitration',
+        decisionAction: 'use_existing_canon',
+        decisionSource: decision.decisionSource || 'llm',
+        candidateId: canonItem.id,
+        matchedSource: 'canon',
+        topScore: selected.score,
+        reason: decision.reason,
+        recordedAt: new Date().toISOString(),
+      };
       return;
     }
 
     if (decision.action === 'create_from_cofid' && decision.candidateId) {
       const selected = candidates.find((c) => c.id === decision.candidateId && c.source === 'cofid');
-      if (!selected) return;
+      if (!selected) {
+        debugLogger.warn('Ingredient Matching', `[${index}] Arbitration selected missing cofid candidate`, {
+          candidateId: decision.candidateId,
+        });
+        return;
+      }
       const created = await this.createCanonicalItemFromCofid(selected.item);
       results[index].canonicalItemId = created.id;
+      results[index].matchingAudit = {
+        stage: 'arbitration',
+        decisionAction: 'create_from_cofid',
+        decisionSource: decision.decisionSource || 'llm',
+        candidateId: decision.candidateId,
+        matchedSource: 'cofid',
+        topScore: selected.score,
+        reason: decision.reason,
+        recordedAt: new Date().toISOString(),
+      };
       return;
     }
 
     if (decision.action === 'create_new_canon') {
       await this.createNewCanonItemViaAI(index, parsed, results);
+      results[index].matchingAudit = {
+        stage: 'arbitration',
+        decisionAction: 'create_new_canon',
+        decisionSource: decision.decisionSource || 'llm',
+        matchedSource: 'new-canon',
+        reason: decision.reason,
+        recordedAt: new Date().toISOString(),
+      };
+      return;
     }
+
+    results[index].matchingAudit = {
+      stage: 'arbitration',
+      decisionAction: 'no_match',
+      decisionSource: decision.decisionSource || 'llm',
+      matchedSource: 'unlinked',
+      reason: decision.reason || 'arbitration-no-match',
+      recordedAt: new Date().toISOString(),
+    };
+    debugLogger.log('Ingredient Matching', `[${index}] Arbitration chose no_match; ingredient left unlinked`);
   }
 
   private async createNewCanonItemViaAI(
@@ -463,6 +645,63 @@ Return JSON only:
     } catch (error) {
       debugLogger.warn('Ingredient Matching', `[${index}] Failed to create new Canon item via AI`, error);
     }
+  }
+
+  private selectFallbackArbitrationDecision(
+    candidates: IngredientSemanticCandidate[],
+    config: IngredientMatchingConfig
+  ): ArbitrationDecision {
+    if (candidates.length === 0) {
+      return {
+        action: config.allowNewCanonItems ? 'create_new_canon' : 'no_match',
+        reason: 'fallback-no-candidates',
+      };
+    }
+
+    const topCanon = candidates.find((c) => c.source === 'canon');
+    const topCofid = candidates.find((c) => c.source === 'cofid');
+    const bias = config.llmBiasForExistingCanon ?? 0;
+
+    if (topCanon && topCofid) {
+      if (topCanon.score + bias >= topCofid.score) {
+        return {
+          action: 'use_existing_canon',
+          candidateId: topCanon.id,
+          confidence: topCanon.score,
+          reason: 'fallback-bias-existing-canon',
+        };
+      }
+
+      return {
+        action: 'create_from_cofid',
+        candidateId: topCofid.id,
+        confidence: topCofid.score,
+        reason: 'fallback-top-cofid',
+      };
+    }
+
+    if (topCanon) {
+      return {
+        action: 'use_existing_canon',
+        candidateId: topCanon.id,
+        confidence: topCanon.score,
+        reason: 'fallback-top-canon',
+      };
+    }
+
+    if (topCofid) {
+      return {
+        action: 'create_from_cofid',
+        candidateId: topCofid.id,
+        confidence: topCofid.score,
+        reason: 'fallback-top-cofid',
+      };
+    }
+
+    return {
+      action: config.allowNewCanonItems ? 'create_new_canon' : 'no_match',
+      reason: 'fallback-unresolvable',
+    };
   }
 
   // ==================== HELPER METHODS ====================
