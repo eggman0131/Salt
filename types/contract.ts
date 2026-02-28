@@ -108,8 +108,28 @@ export const CanonicalItemSchema = z.object({
   barcodes: z.array(z.string()).optional(), // EAN-13, UPC, etc. for barcode scanning
   itemType: z.enum(['ingredient', 'product', 'household']).default('ingredient').optional(), // Item categorization
   lastSyncedAt: z.string().optional(), // Last sync with external database
+  
+  // Semantic matching fields
+  embedding: z.array(z.number()).optional(), // Vector embedding for semantic similarity search (text-embedding-005)
+  embeddingModel: z.string().optional(), // Model used for embedding (e.g., "text-embedding-005")
+  embeddedAt: z.string().optional(), // ISO timestamp when embedding was generated
+  
+  // Approval workflow (auto-created items from CoFID require human review)
+  approved: z.boolean().default(true).optional(), // True for user-created, false for auto-created from external sources
 });
 export type CanonicalItem = z.infer<typeof CanonicalItemSchema>;
+
+// CoFID Group to Aisle Mapping Schema
+// Maps CoFID food groups (1-3 letter codes) to kitchen aisles for auto-created canonical items
+export const CoFIDGroupAisleMappingSchema = z.object({
+  id: z.string(),
+  cofidGroup: z.string(), // CoFID group code (1-3 letters, e.g., "A", "B", "C")
+  cofidGroupName: z.string(), // Full name of CoFID group (e.g., "Cereals and cereal products")
+  aisle: z.string(), // Target aisle name from Aisle table
+  createdAt: z.string(),
+  createdBy: z.string().optional(),
+});
+export type CoFIDGroupAisleMapping = z.infer<typeof CoFIDGroupAisleMappingSchema>;
 
 // RecipeIngredient Schema (Recipe Context - Culinary Domain)
 // Note: This represents an ingredient IN A RECIPE, which links to the universal item catalog
@@ -249,6 +269,11 @@ export const COLLECTION_REGISTRY = {
   },
   aisles: { 
     schema: AisleSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  cofid_group_aisle_mappings: {
+    schema: CoFIDGroupAisleMappingSchema,
     requiresEncoding: false,
     idField: 'id'
   },

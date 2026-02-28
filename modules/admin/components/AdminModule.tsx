@@ -4,6 +4,7 @@ import { UsersModule } from './UsersModule';
 import { AssistModeGuidesList } from './AssistModeGuidesList';
 import { CollectionSelector } from './CollectionSelector';
 import { CoFIDImport } from './CoFIDImport';
+import { ImportCoFIDGroupMappings } from './ImportCoFIDGroupMappings';
 import { FirestoreBrowser } from './FirestoreBrowser';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -356,6 +357,9 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
           {/* CoFID Import Card */}
           <CoFIDImport />
+
+          {/* CoFID Group Mappings Import Card */}
+          <ImportCoFIDGroupMappings />
 
           {/* Development Card */}
           <Card className="shadow-sm hover:shadow-md transition-shadow">

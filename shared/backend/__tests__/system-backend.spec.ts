@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { User, KitchenSettings, UserSchema, KitchenSettingsSchema } from '../../../types/contract';
+import { User, KitchenSettings, UserSchema, KitchenSettingsSchema, COLLECTION_REGISTRY } from '../../../types/contract';
 
 // ============================================================
 // SECTION 1: Mock System Backend Implementation
@@ -819,5 +819,33 @@ describe('System Backend - Integration Workflows', () => {
     const settings = await backend.getKitchenSettings();
     const settingsResult = KitchenSettingsSchema.safeParse(settings);
     expect(settingsResult.success).toBe(true);
+  });
+});
+
+// ============================================================
+// SECTION 9: Backup Registry Coverage
+// ============================================================
+
+describe('System Backend - Backup Registry Coverage', () => {
+  it('should include CoFID aisle mappings in main backup registry', () => {
+    const registryCollections = Object.keys(COLLECTION_REGISTRY);
+
+    expect(registryCollections).toContain('cofid_group_aisle_mappings');
+  });
+
+  it('should exclude raw CoFID data from main backup registry', () => {
+    const registryCollections = Object.keys(COLLECTION_REGISTRY);
+
+    expect(registryCollections).not.toContain('cofid');
+  });
+
+  it('should expose cofid_group_aisle_mappings in backup payload keys', () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      ...Object.fromEntries(Object.keys(COLLECTION_REGISTRY).map((name) => [name, []])),
+    };
+
+    expect(payload).toHaveProperty('cofid_group_aisle_mappings');
+    expect(payload).not.toHaveProperty('cofid');
   });
 });

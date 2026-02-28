@@ -805,58 +805,6 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     } as CanonicalItem;
   }
 
-  async createCanonicalItem(item: Omit<CanonicalItem, 'id' | 'createdAt'>): Promise<CanonicalItem> {
-    const now = new Date().toISOString();
-    const newItem: any = {
-      ...item,
-      createdAt: now,
-      isStaple: item.isStaple ?? false,
-      synonyms: item.synonyms || []
-    };
-
-    // Remove undefined values
-    Object.keys(newItem).forEach(key => {
-      if (newItem[key] === undefined) {
-        delete newItem[key];
-      }
-    });
-
-    // Generate ID with 'item-' prefix
-    const id = `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const docRef = doc(db, 'canonical_items', id);
-    await setDoc(docRef, newItem);
-
-    return {
-      ...newItem,
-      id
-    } as CanonicalItem;
-  }
-
-  async updateCanonicalItem(id: string, updates: Partial<CanonicalItem>): Promise<CanonicalItem> {
-    const docRef = doc(db, 'canonical_items', id);
-    
-    // Remove undefined values from updates
-    const cleanUpdates: any = {};
-    Object.keys(updates).forEach(key => {
-      if (updates[key as keyof CanonicalItem] !== undefined) {
-        cleanUpdates[key] = updates[key as keyof CanonicalItem];
-      }
-    });
-    
-    await updateDoc(docRef, cleanUpdates);
-    
-    // Fetch the updated item
-    const updatedDoc = await getDoc(docRef);
-    if (!updatedDoc.exists()) {
-      throw new Error(`Canonical item ${id} not found`);
-    }
-    
-    return {
-      ...updatedDoc.data(),
-      id: updatedDoc.id
-    } as CanonicalItem;
-  }
-
   async getUnits(): Promise<Unit[]> {
     const snapshot = await getDocs(collection(db, 'units'));
     const units: Unit[] = [];

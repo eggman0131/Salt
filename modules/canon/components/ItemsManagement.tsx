@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Trash2, Pencil, X, Search, PlusCircle } from 'lucide-react';
+import { Trash2, Pencil, X, Search, PlusCircle, CheckCircle, AlertCircle } from 'lucide-react';
 import { CanonicalItem, Unit, Aisle } from '../../../types/contract';
 import { canonBackend } from '../backend';
 import { softToast } from '@/lib/soft-toast';
@@ -55,6 +55,8 @@ interface ItemsManagementProps {
 
 export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) => {
   const [items, setItems] = useState<CanonicalItem[]>([]);
+  const [pendingItems, setPendingItems] = useState<CanonicalItem[]>([]);
+  const [approvedItems, setApprovedItems] = useState<CanonicalItem[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [aisles, setAisles] = useState<Aisle[]>([]);
   const [itemToDelete, setItemToDelete] = useState<CanonicalItem | null>(null);
@@ -72,6 +74,8 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
   const [showBulkAisleDialog, setShowBulkAisleDialog] = useState(false);
   const [bulkAisleTarget, setBulkAisleTarget] = useState<string>('none');
   const [isBulkChangingAisle, setIsBulkChangingAisle] = useState(false);
+  const [approving, setApproving] = useState<string | null>(null);
+  const [isBulkApproving, setIsBulkApproving] = useState(false);
 
   // Impact assessment & healing
   const [impactAssessment, setImpactAssessment] = useState<{ itemIds: string[]; affectedRecipes: { id: string; title: string; ingredientCount: number }[] } | null>(null);
@@ -118,6 +122,8 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
         canonBackend.getAisles(),
       ]);
       setItems(itemsData);
+      setPendingItems(itemsData.filter(item => item.approved === false));
+      setApprovedItems(itemsData.filter(item => item.approved !== false));
       setUnits(unitsData);
       setAisles(aislesData);
     } catch (err) {
@@ -551,6 +557,40 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     }
   };
 
+  const handleApprove = async (item: CanonicalItem) => {
+    setApproving(item.id);
+    try {
+      await canonBackend.updateCanonicalItem(item.id, { approved: true });
+      await loadData();
+      softToast.success('Item approved', { description: item.name });
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to approve item', err);
+      softToast.error('Failed to approve item');
+    } finally {
+      setApproving(null);
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    setIsBulkApproving(true);
+    try {
+      const pendingIds = Array.from(selectedIds).filter(id =>
+        pendingItems.some(item => item.id === id)
+      );
+      await Promise.all(pendingIds.map(id => canonBackend.updateCanonicalItem(id, { approved: true })));
+      await loadData();
+      setSelectedIds(new Set());
+      softToast.success(`Approved ${pendingIds.length} item${pendingIds.length === 1 ? '' : 's'}`);
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to bulk approve items', err);
+      softToast.error('Failed to approve items');
+    } finally {
+      setIsBulkApproving(false);
+    }
+  };
+
   // Helper component for draggable synonyms
   const DraggableSynonym: React.FC<{
     synonym: string;
@@ -670,22 +710,30 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     );
   };
 
-  const filteredItems = items.filter(item =>
+  const filteredPendingItems = pendingItems.filter(item =>
     filterText === '' || 
     item.name.toLowerCase().includes(filterText.toLowerCase()) ||
     (item.synonyms && item.synonyms.some(syn => syn.toLowerCase().includes(filterText.toLowerCase())))
   );
 
+  const filteredApprovedItems = approvedItems.filter(item =>
+    filterText === '' || 
+    item.name.toLowerCase().includes(filterText.toLowerCase()) ||
+    (item.synonyms && item.synonyms.some(syn => syn.toLowerCase().includes(filterText.toLowerCase())))
+  );
+
+  const filteredItems = [...filteredPendingItems, ...filteredApprovedItems];
+
   // Group items based on groupBy setting
-  const groupedItems = React.useMemo(() => {
+  const groupedPendingItems = React.useMemo(() => {
     if (groupBy === 'none') {
-      return [{ key: 'all', label: null, items: filteredItems }];
+      return [{ key: 'all', label: null, items: filteredPendingItems }];
     }
 
     if (groupBy === 'aisle') {
       const groups = new Map<string, CanonicalItem[]>();
       
-      filteredItems.forEach(item => {
+      filteredPendingItems.forEach(item => {
         const aisleName = getAisleName(item.aisle) || 'No Aisle';
         if (!groups.has(aisleName)) {
           groups.set(aisleName, []);
@@ -693,7 +741,6 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
         groups.get(aisleName)!.push(item);
       });
 
-      // Sort groups by aisle name
       const sortedGroups = Array.from(groups.entries())
         .sort(([a], [b]) => {
           if (a === 'No Aisle') return 1;
@@ -709,8 +756,8 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
     }
 
     if (groupBy === 'staple') {
-      const staples = filteredItems.filter(item => item.isStaple);
-      const nonStaples = filteredItems.filter(item => !item.isStaple);
+      const staples = filteredPendingItems.filter(item => item.isStaple);
+      const nonStaples = filteredPendingItems.filter(item => !item.isStaple);
       
       const groups = [];
       if (staples.length > 0) {
@@ -722,8 +769,55 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
       return groups;
     }
 
-    return [{ key: 'all', label: null, items: filteredItems }];
-  }, [filteredItems, groupBy, aisles]);
+    return [{ key: 'all', label: null, items: filteredPendingItems }];
+  }, [filteredPendingItems, groupBy, aisles]);
+
+  const groupedApprovedItems = React.useMemo(() => {
+    if (groupBy === 'none') {
+      return [{ key: 'all', label: null, items: filteredApprovedItems }];
+    }
+
+    if (groupBy === 'aisle') {
+      const groups = new Map<string, CanonicalItem[]>();
+      
+      filteredApprovedItems.forEach(item => {
+        const aisleName = getAisleName(item.aisle) || 'No Aisle';
+        if (!groups.has(aisleName)) {
+          groups.set(aisleName, []);
+        }
+        groups.get(aisleName)!.push(item);
+      });
+
+      const sortedGroups = Array.from(groups.entries())
+        .sort(([a], [b]) => {
+          if (a === 'No Aisle') return 1;
+          if (b === 'No Aisle') return -1;
+          return a.localeCompare(b);
+        });
+
+      return sortedGroups.map(([aisleName, items]) => ({
+        key: aisleName,
+        label: aisleName,
+        items,
+      }));
+    }
+
+    if (groupBy === 'staple') {
+      const staples = filteredApprovedItems.filter(item => item.isStaple);
+      const nonStaples = filteredApprovedItems.filter(item => !item.isStaple);
+      
+      const groups = [];
+      if (staples.length > 0) {
+        groups.push({ key: 'staples', label: 'Staples', items: staples });
+      }
+      if (nonStaples.length > 0) {
+        groups.push({ key: 'non-staples', label: 'Non-Staples', items: nonStaples });
+      }
+      return groups;
+    }
+
+    return [{ key: 'all', label: null, items: filteredApprovedItems }];
+  }, [filteredApprovedItems, groupBy, aisles]);
 
   return (
     <DndContext
@@ -737,7 +831,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
           <div className="space-y-1">
             <CardTitle className="text-xl md:text-2xl">Canonical Items</CardTitle>
             <p className="text-sm text-muted-foreground">
-              {items.length} canonical {items.length === 1 ? 'item' : 'items'}
+              {approvedItems.length} approved, {pendingItems.length} pending
               {filterText && ` (${filteredItems.length} filtered)`}
             </p>
           </div>
@@ -770,38 +864,59 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
         </div>
 
         {/* Selection Actions */}
-        {selectedIds.size > 0 && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2 border rounded-lg bg-muted/50">
-            <span className="text-sm text-muted-foreground">
-              {selectedIds.size} selected
-            </span>
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSelectNone}
-              >
-                Clear
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowBulkAisleDialog(true)}
-              >
-                Change Aisle ({selectedIds.size})
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleBulkDeleteClick}
-                disabled={isAssessingImpact}
-              >
-                <Trash2 className="h-3 w-3 mr-1" />
-                Delete ({selectedIds.size})
-              </Button>
+        {selectedIds.size > 0 && (() => {
+          const selectedPendingCount = Array.from(selectedIds).filter(id =>
+            pendingItems.some(item => item.id === id)
+          ).length;
+          
+          return (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2 border rounded-lg bg-muted/50">
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.size} selected
+                {selectedPendingCount > 0 && (
+                  <span className="text-warning ml-1">({selectedPendingCount} pending)</span>
+                )}
+              </span>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectNone}
+                >
+                  Clear
+                </Button>
+                {selectedPendingCount > 0 && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleBulkApprove}
+                    disabled={isBulkApproving}
+                    className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    {isBulkApproving ? 'Approving...' : `Approve (${selectedPendingCount})`}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBulkAisleDialog(true)}
+                >
+                  Change Aisle ({selectedIds.size})
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDeleteClick}
+                  disabled={isAssessingImpact}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete ({selectedIds.size})
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Select All/None */}
         {filteredItems.length > 0 && (
@@ -846,77 +961,202 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
           ) : (
             <ScrollArea className="h-full">
               <NewItemDropZone />
-              <div className="space-y-4">
-                {groupedItems.map((group) => (
-                  <div key={group.key}>
-                    {group.label && (
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-2 px-1">
-                        {group.label} ({group.items.length})
-                      </h3>
-                    )}
-                    <div className="space-y-2">
-                      {group.items.map((item) => (
-                        <DroppableItem key={item.id} item={item}>
-                  <Checkbox 
-                    checked={selectedIds.has(item.id)}
-                    onCheckedChange={() => handleToggleSelect(item.id)}
-                    className="shrink-0 mt-1"
-                  />
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <DroppableTitle itemId={item.id} title={item.name} />
-                      {item.isStaple && (
-                        <Badge variant="secondary" className="text-xs">
-                          Staple
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <p>
-                        <span className="font-medium">Aisle:</span> {getAisleName(item.aisle)}
-                        {' · '}
-                        <span className="font-medium">Unit:</span> {getUnitName(item.preferredUnit)}
-                      </p>
-                      
-                      {item.synonyms && item.synonyms.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {item.synonyms.map((syn) => (
-                            <DraggableSynonym
-                              key={syn}
-                              synonym={syn}
-                              itemId={item.id}
-                              onRemove={() => handleRemoveSynonymFromItem(item, syn)}
-                            />
+              
+              {/* Pending Items Section */}
+              {filteredPendingItems.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-warning flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      Pending Approval
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Auto-created items from CoFID awaiting review
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {groupedPendingItems.map((group) => (
+                      <div key={`pending-${group.key}`}>
+                        {group.label && (
+                          <h3 className="text-sm font-semibold text-muted-foreground mb-2 px-1">
+                            {group.label} ({group.items.length})
+                          </h3>
+                        )}
+                        <div className="space-y-2">
+                          {group.items.map((item) => (
+                            <DroppableItem key={item.id} item={item}>
+                              <Checkbox 
+                                checked={selectedIds.has(item.id)}
+                                onCheckedChange={() => handleToggleSelect(item.id)}
+                                className="shrink-0 mt-1"
+                              />
+                              <div className="flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <DroppableTitle itemId={item.id} title={item.name} />
+                                  {item.isStaple && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Staple
+                                    </Badge>
+                                  )}
+                                  {item.source === 'cofid' && (
+                                    <Badge variant="outline" className="text-xs border-warning/50 text-warning">
+                                      CoFID
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                <div className="text-xs text-muted-foreground space-y-1">
+                                  <p>
+                                    <span className="font-medium">Aisle:</span> {getAisleName(item.aisle)}
+                                    {' · '}
+                                    <span className="font-medium">Unit:</span> {getUnitName(item.preferredUnit)}
+                                  </p>
+                                  
+                                  {item.synonyms && item.synonyms.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {item.synonyms.map((syn) => (
+                                        <DraggableSynonym
+                                          key={syn}
+                                          synonym={syn}
+                                          itemId={item.id}
+                                          onRemove={() => handleRemoveSynonymFromItem(item, syn)}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button
+                                  onClick={() => handleEditClick(item)}
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  onClick={() => handleApprove(item)}
+                                  variant="ghost"
+                                  size="icon"
+                                  disabled={approving === item.id}
+                                  className="text-muted-foreground hover:bg-green-100 dark:hover:bg-green-950 hover:text-green-700 dark:hover:text-green-400"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  onClick={() => handleDeleteClick(item)}
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </DroppableItem>
                           ))}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ))}
                   </div>
+                  
+                  <Separator />
+                </div>
+              )}
+              
+              {/* Approved Items Section */}
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Approved Items</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Active canonical ingredients
+                  </p>
+                </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      onClick={() => handleEditClick(item)}
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      onClick={() => handleDeleteClick(item)}
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                {filteredApprovedItems.length === 0 ? (
+                  <div className="py-12 text-center border border-dashed rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      {approvedItems.length === 0 
+                        ? 'No approved items yet. Add items above or approve pending items.'
+                        : 'No approved items match your filter.'}
+                    </p>
                   </div>
-                </DroppableItem>
-                      ))}
-                    </div>
+                ) : (
+                  <div className="space-y-4">
+                    {groupedApprovedItems.map((group) => (
+                      <div key={`approved-${group.key}`}>
+                        {group.label && (
+                          <h3 className="text-sm font-semibold text-muted-foreground mb-2 px-1">
+                            {group.label} ({group.items.length})
+                          </h3>
+                        )}
+                        <div className="space-y-2">
+                          {group.items.map((item) => (
+                            <DroppableItem key={item.id} item={item}>
+                              <Checkbox 
+                                checked={selectedIds.has(item.id)}
+                                onCheckedChange={() => handleToggleSelect(item.id)}
+                                className="shrink-0 mt-1"
+                              />
+                              <div className="flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <DroppableTitle itemId={item.id} title={item.name} />
+                                  {item.isStaple && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Staple
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                <div className="text-xs text-muted-foreground space-y-1">
+                                  <p>
+                                    <span className="font-medium">Aisle:</span> {getAisleName(item.aisle)}
+                                    {' · '}
+                                    <span className="font-medium">Unit:</span> {getUnitName(item.preferredUnit)}
+                                  </p>
+                                  
+                                  {item.synonyms && item.synonyms.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {item.synonyms.map((syn) => (
+                                        <DraggableSynonym
+                                          key={syn}
+                                          synonym={syn}
+                                          itemId={item.id}
+                                          onRemove={() => handleRemoveSynonymFromItem(item, syn)}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button
+                                  onClick={() => handleEditClick(item)}
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  onClick={() => handleDeleteClick(item)}
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </DroppableItem>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             </ScrollArea>
           )}

@@ -13,6 +13,7 @@ import {
   Aisle,
   CanonicalItem,
   RecipeIngredient,
+  CoFIDGroupAisleMapping,
 } from '../../../types/contract';
 
 export interface ICanonBackend {
@@ -78,4 +79,18 @@ export interface ICanonBackend {
     itemsImported: number;
     errors: string[];
   }>;
+
+  // ==================== COFID GROUP AISLE MAPPINGS ====================
+
+  getCofidGroupMappings: () => Promise<CoFIDGroupAisleMapping[]>;
+  createCofidGroupMapping: (mapping: Omit<CoFIDGroupAisleMapping, 'id' | 'createdAt'>) => Promise<CoFIDGroupAisleMapping>;
+  updateCofidGroupMapping: (id: string, updates: Partial<CoFIDGroupAisleMapping>) => Promise<CoFIDGroupAisleMapping>;
+  deleteCofidGroupMapping: (id: string) => Promise<void>;
+  importCoFIDGroupMappings: (mappings: Array<Omit<CoFIDGroupAisleMapping, 'id' | 'createdAt'>>) => Promise<{
+    mappingsImported: number;
+    errors: string[];
+  }>;
+
+  // Batch embed canonical items
+  embedCanonicalItems: (itemIds: string[]) => Promise<{ itemsEmbedded: number; itemsSkipped: number }>;
 }
