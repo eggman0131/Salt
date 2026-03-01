@@ -65,6 +65,14 @@ class TestRecipesBackend {
 
   // Domain logic methods exposed for testing
   
+  private toTitleCase(str: string): string {
+    if (!str) return str;
+    return str
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+  
   parseIngredientString(raw: string): Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'> {
     let text = raw.toLowerCase().trim();
 
@@ -97,12 +105,12 @@ class TestRecipesBackend {
       .replace(/zes$/, 'z')            // sizes → size
       .replace(/([^s])s$/, '$1');      // apples → apple
 
-    const ingredientName = text.replace(/\s+/g, ' ').trim();
+    const ingredientNameLower = text.replace(/\s+/g, ' ').trim();
 
     return {
       quantity,
       unit,
-      ingredientName,
+      ingredientName: this.toTitleCase(ingredientNameLower),
       preparation: preparation || undefined,
     };
   }
@@ -333,14 +341,14 @@ describe('Recipes Backend - Domain Logic', () => {
       const result = backend.parseIngredientString('400 g tomatoes');
       expect(result.quantity).toBe(400);
       expect(result.unit).toBe('g');
-      expect(result.ingredientName).toBe('tomato');
+      expect(result.ingredientName).toBe('Tomato');
     });
 
     it('should parse ingredient with preparation instruction', () => {
       const result = backend.parseIngredientString('2 large red onions, diced fine');
       expect(result.quantity).toBe(2);
       expect(result.unit).toBe('');
-      expect(result.ingredientName).toBe('red onion');
+      expect(result.ingredientName).toBe('Red Onion');
       expect(result.preparation).toContain('diced');
     });
 
@@ -348,25 +356,25 @@ describe('Recipes Backend - Domain Logic', () => {
       const result = backend.parseIngredientString('1 garlic clove');
       expect(result.quantity).toBe(1);
       expect(result.unit).toBe('');
-      expect(result.ingredientName).toBe('garlic clove');
+      expect(result.ingredientName).toBe('Garlic Clove');
     });
 
     it('should singularize ingredient names', () => {
       const result = backend.parseIngredientString('400 g tomatoes');
-      expect(result.ingredientName).toBe('tomato');
+      expect(result.ingredientName).toBe('Tomato');
     });
 
     it('should normalize whitespace', () => {
       const result = backend.parseIngredientString('400    g    tomatoes');
       expect(result.quantity).toBe(400);
-      expect(result.ingredientName).toBe('tomato');
+      expect(result.ingredientName).toBe('Tomato');
     });
 
     it('should handle complex ingredient descriptions', () => {
       const result = backend.parseIngredientString('500 g beef mince, browned');
       expect(result.quantity).toBe(500);
       expect(result.unit).toBe('g');
-      expect(result.ingredientName).toBe('beef mince');
+      expect(result.ingredientName).toBe('Beef Mince');
       expect(result.preparation).toBe('browned');
     });
   });

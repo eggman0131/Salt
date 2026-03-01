@@ -4,25 +4,28 @@ import { AddButton } from '../../../components/ui/add-button';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
+import { Combobox } from '../../../components/ui/combobox';
 import { X, Check, ChevronsUpDown } from 'lucide-react';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from '../../../components/ui/command';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '../../../components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '../../../components/ui/command';
 import { cn } from '@/lib/utils';
 
 interface RecipeIngredientsInputProps {
   ingredients: RecipeIngredient[];
   ingredientSearchQueries: { [key: number]: string | undefined }; // Keep for consistency but use locally
   availableIngredients: CanonicalItem[];
+  units: any[];
   onAddIngredient: () => void;
   onRemoveIngredient: (id: string) => void;
   onChangeQuantity: (index: number, quantity: string | null) => void;
@@ -36,6 +39,7 @@ interface RecipeIngredientsInputProps {
 export const RecipeIngredientsInput: React.FC<RecipeIngredientsInputProps> = ({
   ingredients,
   availableIngredients,
+  units,
   onAddIngredient,
   onRemoveIngredient,
   onChangeQuantity,
@@ -69,19 +73,16 @@ export const RecipeIngredientsInput: React.FC<RecipeIngredientsInputProps> = ({
                   type="number"
                   step="any"
                 />
-                <Input
-                  placeholder="Unit"
+                <Combobox
+                  options={units.map(u => ({ value: u.name, label: u.name }))}
                   value={ingredient.unit || ''}
-                  onChange={(e) => onChangeUnit(index, e.target.value || null)}
-                  className="shrink-0 w-18 md:w-24 text-sm h-9"
-                  list={`units-${index}`}
+                  onValueChange={(value) => onChangeUnit(index, value || null)}
+                  placeholder="Unit"
+                  searchPlaceholder="Search units..."
+                  emptyMessage="No unit found."
+                  allowClear={true}
+                  className="shrink-0 w-18 md:w-24"
                 />
-                <datalist id={`units-${index}`}>
-                  <option>ml</option>
-                  <option>l</option>
-                  <option>g</option>
-                  <option>kg</option>
-                </datalist>
 
                 <div className="flex-1 min-w-0 relative">
                   <Input

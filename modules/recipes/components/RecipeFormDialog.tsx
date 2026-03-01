@@ -65,6 +65,7 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
   const [equipmentSearchQueries, setEquipmentSearchQueries] = useState<{ [key: number]: string | undefined }>({});
   const [availableIngredients, setAvailableIngredients] = useState<CanonicalItem[]>([]);
   const [ingredientSearchQueries, setIngredientSearchQueries] = useState<{ [key: number]: string | undefined }>({});
+  const [units, setUnits] = useState<any[]>([]);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   // Helper: Convert "20 mins", "1 hour 30 mins", etc to "HH:MM"
@@ -131,16 +132,18 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
     }
   }, [prepTime, cookTime]);
 
-  // Load available equipment and ingredients on mount
+  // Load available equipment, ingredients, and units on mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [equipment, ingredients] = await Promise.all([
+        const [equipment, ingredients, unitsData] = await Promise.all([
           inventoryBackend.getInventory(),
-          canonBackend.getCanonicalItems()
+          canonBackend.getCanonicalItems(),
+          canonBackend.getUnits()
         ]);
         setAvailableEquipment(equipment);
         setAvailableIngredients(ingredients);
+        setUnits(unitsData);
       } catch (error) {
         console.error('Failed to load data:', error);
       }
@@ -483,6 +486,7 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
             ingredients={ingredients}
             ingredientSearchQueries={ingredientSearchQueries}
             availableIngredients={availableIngredients}
+            units={units}
             onAddIngredient={addIngredient}
             onRemoveIngredient={removeIngredientById}
             onChangeQuantity={(index, quantity) => updateIngredient(index, 'quantity', quantity !== '' ? Number(quantity) : null)}
