@@ -117,7 +117,8 @@ export interface ICanonBackend {
 
   processIngredients: (
     ingredients: string[] | RecipeIngredient[],
-    contextId: string
+    contextId: string,
+    onProgress?: (progress: { stage: string; current: number; total: number; percentage: number }) => void
   ) => Promise<RecipeIngredient[]>;
 
   // ==================== COFID DATA IMPORT ====================

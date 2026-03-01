@@ -551,7 +551,7 @@ describe('Contract Runtime Validation - Recipe', () => {
   });
 
   it('should allow all complexity levels', () => {
-    const levels = ['Simple', 'Intermediate', 'Advanced'];
+    const levels = ['Beginner', 'Simple', 'Intermediate', 'Hard', 'Technical'];
     levels.forEach(complexity => {
       const result = RecipeSchema.safeParse({ ...validRecipe, complexity });
       expect(result.success).toBe(true);

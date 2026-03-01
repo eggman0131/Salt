@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { Clock, ChefHat, Upload, RefreshCw, Wrench, AlertTriangle } from 'lucide-react';
-import { recipesBackend } from '../backend';
+import { useRecipeImage } from '../../../hooks/useRecipeImage';
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -16,20 +16,14 @@ interface RecipeCardProps {
 }
 
 export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, categories, onClick, onUploadImage, onRegenerateImage, onRepair }) => {
-  const [imageSrc, setImageSrc] = useState<string>('');
-  const [isLoadingImage, setIsLoadingImage] = useState(false);
+  const { src: imageSrc, isLoading: isLoadingImage } = useRecipeImage(recipe.imagePath);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
 
-  // Load image if exists
+  // Reset error state when image src changes
   useEffect(() => {
-    if (recipe.imagePath) {
-      setIsLoadingImage(true);
-      recipesBackend.resolveImagePath(recipe.imagePath)
-        .then(setImageSrc)
-        .catch(() => setImageSrc(''))
-        .finally(() => setIsLoadingImage(false));
-    }
-  }, [recipe.imagePath]);
+    setHasImageError(false);
+  }, [imageSrc]);
 
   // Get category names for this recipe
   const recipeCategories = categories.filter(cat => 
@@ -64,6 +58,11 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, categories, onCl
     }
   };
 
+  const handleImageError = (e: React.SyntheticEvent) => {
+    e.currentTarget.style.display = 'none';
+    setHasImageError(true);
+  };
+
   const handleRepairClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onRepair?.();
@@ -81,11 +80,12 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, categories, onCl
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : imageSrc ? (
+          ) : imageSrc && !hasImageError ? (
             <img 
               src={imageSrc} 
               alt={recipe.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={handleImageError}
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">

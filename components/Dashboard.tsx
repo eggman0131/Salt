@@ -35,6 +35,7 @@ interface DashboardProps {
 
 /**
  * RecipeImage - Helper component to resolve and display recipe images
+ * Validates image exists via fetch before setting img src to avoid 404 console errors
  */
 const RecipeImage: React.FC<{ imagePath: string; title: string }> = ({ imagePath, title }) => {
   const [imageSrc, setImageSrc] = useState<string>('');
@@ -42,8 +43,25 @@ const RecipeImage: React.FC<{ imagePath: string; title: string }> = ({ imagePath
 
   useEffect(() => {
     setIsLoading(true);
+    setImageSrc('');
+
     recipesBackend.resolveImagePath(imagePath)
-      .then(setImageSrc)
+      .then(async (url) => {
+        if (!url) {
+          setImageSrc('');
+          return;
+        }
+
+        // Validate the image exists without logging errors to console
+        try {
+          const response = await fetch(url, { method: 'HEAD' });
+          if (response.ok) {
+            setImageSrc(url);
+          }
+        } catch {
+          // Image doesn't exist, stay silent
+        }
+      })
       .catch(() => setImageSrc(''))
       .finally(() => setIsLoading(false));
   }, [imagePath]);

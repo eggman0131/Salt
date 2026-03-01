@@ -461,19 +461,18 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
   async resolveImagePath(path: string): Promise<string> {
     if (!path) return '';
 
-    // DEFINITIVE FIX: Explicit Environment Check
-    // We check for the Cloud Workstations domain pattern explicitly.
+    // In dev mode and production, just return the URL
+    // Let the img tag's onError handler deal with missing images silently
     if (import.meta.env.DEV) {
-       const bucket = storage.app.options.storageBucket || 'gen-lang-client-0015061880.firebasestorage.app';
-       const encodedPath = encodeURIComponent(path);
-       // Return relative URL that goes through the Vite Proxy to port 9199
-       return `/v0/b/${bucket}/o/${encodedPath}?alt=media`;
+      const bucket = storage.app.options.storageBucket || 'gen-lang-client-0015061880.firebasestorage.app';
+      const encodedPath = encodeURIComponent(path);
+      return `/v0/b/${bucket}/o/${encodedPath}?alt=media`;
     }
 
     try {
       return await getDownloadURL(ref(storage, path));
-    } catch (error) {
-      debugLogger.warn('Firebase Storage', 'Unable to resolve image path:', error);
+    } catch {
+      // Silently return empty string for missing images
       return '';
     }
   }
