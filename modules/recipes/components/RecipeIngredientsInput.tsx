@@ -5,12 +5,10 @@ import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
 import { X, Check, ChevronsUpDown } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from '../../../components/ui/command';
@@ -30,6 +28,7 @@ interface RecipeIngredientsInputProps {
   onChangeQuantity: (index: number, quantity: string | null) => void;
   onChangeUnit: (index: number, unit: string | null) => void;
   onChangeIngredientName: (index: number, name: string) => void;
+  onChangeQualifiers: (index: number, qualifiers: string[]) => void;
   onChangePreparation: (index: number, prep: string) => void;
   onChangeSearchQuery: (index: number, query: string | undefined) => void;
 }
@@ -42,6 +41,7 @@ export const RecipeIngredientsInput: React.FC<RecipeIngredientsInputProps> = ({
   onChangeQuantity,
   onChangeUnit,
   onChangeIngredientName,
+  onChangeQualifiers,
   onChangePreparation,
 }) => {
   const [openStates, setOpenStates] = useState<{ [key: number]: boolean }>({});
@@ -83,75 +83,81 @@ export const RecipeIngredientsInput: React.FC<RecipeIngredientsInputProps> = ({
                   <option>kg</option>
                 </datalist>
 
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 relative">
+                  <Input
+                    placeholder="Ingredient name"
+                    value={ingredient.ingredientName || ''}
+                    onChange={(e) => {
+                      onChangeIngredientName(index, e.target.value);
+                      setOpen(index, true); // Open suggestions as they type
+                    }}
+                    onFocus={() => setOpen(index, true)}
+                    className="text-sm h-9 pr-8"
+                  />
                   <Popover 
                     open={openStates[index]} 
                     onOpenChange={(open) => setOpen(index, open)}
                   >
                     <PopoverTrigger asChild>
                       <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={openStates[index]}
-                        className={cn(
-                          "w-full justify-between text-sm h-9 px-3 font-normal",
-                          !ingredient.ingredientName && "text-muted-foreground"
-                        )}
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-9 w-8 hover:bg-transparent"
+                        aria-label="Toggle ingredient suggestions"
                       >
-                        {ingredient.ingredientName || "Select ingredient..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Search items..." className="h-9" />
                         <CommandList className="max-h-60 overflow-y-auto">
-                          <CommandEmpty className="py-2 px-4 text-xs">
-                             <div className="flex flex-col gap-2">
-                               <span>No item found.</span>
-                               <Button 
-                                 variant="secondary" 
-                                 size="sm" 
-                                 className="h-7 text-xs"
-                                 onClick={() => {
-                                    // Use whatever they typed as the new item name
-                                    // This is tricky as we don't easily have the current search term without a local state
-                                    // But Command handles the filtering
-                                    setOpen(index, false);
-                                 }}
-                               >
-                                 Use manual entry
-                               </Button>
-                             </div>
+                          <CommandEmpty className="py-6 text-center text-xs text-muted-foreground">
+                            No matching items found.
                           </CommandEmpty>
                           <CommandGroup>
-                            {availableIngredients.map((item) => (
-                              <CommandItem
-                                key={item.id}
-                                value={item.name}
-                                onSelect={(currentValue) => {
-                                  onChangeIngredientName(index, currentValue);
-                                  setOpen(index, false);
-                                }}
-                                className="text-sm"
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    ingredient.ingredientName === item.name ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {item.name}
-                              </CommandItem>
-                            ))}
+                            {availableIngredients
+                              .filter(item => {
+                                const search = ingredient.ingredientName?.toLowerCase() || '';
+                                return !search || item.name.toLowerCase().includes(search);
+                              })
+                              .map((item) => (
+                                <CommandItem
+                                  key={item.id}
+                                  value={item.name}
+                                  onSelect={(currentValue) => {
+                                    onChangeIngredientName(index, currentValue);
+                                    setOpen(index, false);
+                                  }}
+                                  className="text-sm"
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      ingredient.ingredientName === item.name ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {item.name}
+                                </CommandItem>
+                              ))}
                           </CommandGroup>
                         </CommandList>
                       </Command>
                     </PopoverContent>
                   </Popover>
-                  {/* Invisible input to allow manual typing if they click away from popover or popover fails */}
-                  {/* Alternatively, just let them type in the CommandInput and have a "Use [text]" option */}
                 </div>
+
+                <Input
+                  placeholder="Qualifiers"
+                  value={ingredient.qualifiers?.join(', ') || ''}
+                  onChange={(e) => {
+                    const value = e.target.value.trim();
+                    const qualifiers = value ? value.split(',').map(q => q.trim()).filter(q => q) : [];
+                    onChangeQualifiers(index, qualifiers);
+                  }}
+                  className="shrink-0 w-24 md:w-32 text-sm h-9"
+                  title="e.g., fresh, organic, red (comma-separated)"
+                />
 
                 <Input
                   placeholder="Prep"

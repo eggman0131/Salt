@@ -105,7 +105,8 @@ export interface ICanonBackend {
   }>;
 
   // AI-powered: Enrich item name with proper capitalization, aisle, and unit
-  enrichCanonicalItem: (rawName: string) => Promise<{
+  // Optionally accepts queryEmbedding from semantic matching to avoid regenerating it
+  enrichCanonicalItem: (rawName: string, queryEmbedding?: number[]) => Promise<{
     name: string;
     preferredUnit?: string;
     aisle?: string;
