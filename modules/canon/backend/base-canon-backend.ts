@@ -24,7 +24,23 @@ type ArbitrationDecision = {
   decisionSource?: 'llm' | 'fallback';
 };
 
+/**
+ * Internal parse shape (Stage 2: Second-pass classifier)
+ * Rich representation before mapping to RecipeIngredient for persistence.
+ */
+type ParsedIngredientInternal = {
+  quantityRaw: string | null;      // Original quantity string (e.g., "4 x 240g", "2-3")
+  quantityValue: number | null;    // Parsed numeric value for maths
+  unit: string | null;              // Unit (g, ml, tsp, tbsp, etc.)
+  item: string;                     // Core canonicalisable noun
+  qualifiers: string[];            // Modifiers, sub-varieties, parenthetical notes
+  preparation: string | null;      // Action phrases (chopped, drained, etc.)
+};
+
 export abstract class BaseCanonBackend implements ICanonBackend {
+  // Unit cache: populated on first matching operation (reduces Firestore reads)
+  private cachedUnits: Unit[] | null = null;
+
   // ==================== ABSTRACT METHODS ====================
   // Subclasses MUST implement persistence and AI transport
 
@@ -128,9 +144,16 @@ export abstract class BaseCanonBackend implements ICanonBackend {
       return ingredients as RecipeIngredient[];
     }
 
-    // Load matching configuration (with defaults if not found)
+    // Load matching configuration and units (with defaults if not found)
     const config = await this.getIngredientMatchingConfig();
     debugLogger.log('Ingredient Matching', `📋 Matching Config: fuzzy=${config.fuzzyHighConfidenceThreshold}, semantic high=${config.semanticHighThreshold}, low=${config.semanticLowThreshold}, gap=${config.semanticGapThreshold}, cluster=${config.semanticClusterWindow}`);
+
+    // Load units once (cache for performance)
+    if (!this.cachedUnits) {
+      this.cachedUnits = await this.getUnits();
+    }
+    const renderableUnits = this.cachedUnits.map(u => u.name).join(', ');
+    debugLogger.log('Ingredient Matching', `Loaded ${this.cachedUnits.length} units: ${renderableUnits}`);
 
     const allCanonItems = await this.getCanonicalItems();
     debugLogger.log('Ingredient Matching', `Loaded ${allCanonItems.length} canonical items for matching`);
@@ -146,9 +169,13 @@ export abstract class BaseCanonBackend implements ICanonBackend {
 
     for (let idx = 0; idx < ingredients.length; idx++) {
       const raw = typeof ingredients[idx] === 'string' ? ingredients[idx] as string : '';
-      const parsed = this.parseIngredientString(raw);
+      const parsed = this.parseIngredientString(raw, this.cachedUnits!);
+      const enhanced = this.parseIngredientEnhanced(raw, this.cachedUnits!);
 
-      debugLogger.log('Ingredient Matching', `[${idx}] "${raw}" → ${parsed.quantity || ''}${parsed.unit || ''} ${parsed.ingredientName}${parsed.preparation ? ' (' + parsed.preparation + ')' : ''}`);
+      // Log enhanced structure for debugging
+      const qualifierStr = enhanced.qualifiers.length > 0 ? ` [qualifiers: ${enhanced.qualifiers.join(', ')}]` : '';
+      const prepStr = enhanced.preparation ? ` {prep: ${enhanced.preparation}}` : '';
+      debugLogger.log('Ingredient Matching', `[${idx}] "${raw}" → qty=${enhanced.quantityValue}${enhanced.unit ? enhanced.unit : ''} item="${enhanced.item}"${qualifierStr}${prepStr}`);
 
       let bestMatch: CanonicalItem | null = null;
       let bestScore = 0;
@@ -819,14 +846,25 @@ Return JSON only:
           : `Score: ${(c.score * 100).toFixed(1)}%`,
       }));
 
-    debugLogger.log('Ingredient Matching', `Building audit trail for "${originalQuery}"`, {
-      stage,
-      decisionAction,
-      selectedCandidate: selectedCandidate?.name,
-      nearMissesCount: nearMisses.length,
-      topScore,
-      scoreGap,
-    });
+    // Detailed audit trail logging
+    debugLogger.log('Ingredient Matching', `\n📋 AUDIT TRAIL: "${originalQuery}"`);
+    debugLogger.log('Ingredient Matching', `  Stage: ${stage}`);
+    debugLogger.log('Ingredient Matching', `  Decision: ${decisionAction} (${decisionSource})`);
+    debugLogger.log('Ingredient Matching', `  Source: ${matchedSource}`);
+    if (selectedCandidate) {
+      debugLogger.log('Ingredient Matching', `  ✅ Selected: ${selectedCandidate.name} (${selectedCandidate.source}, score: ${(selectedCandidate.score * 100).toFixed(1)}%)`);
+    }
+    debugLogger.log('Ingredient Matching', `  Top Score: ${topScore ? (topScore * 100).toFixed(1) + '%' : 'N/A'}`);
+    if (scoreGap !== undefined) {
+      debugLogger.log('Ingredient Matching', `  Score Gap: ${(scoreGap * 100).toFixed(1)}%`);
+    }
+    if (nearMisses.length > 0) {
+      debugLogger.log('Ingredient Matching', `  Near Misses (${nearMisses.length}):`);
+      nearMisses.forEach((miss, i) => {
+        debugLogger.log('Ingredient Matching', `    ${i + 1}. ${miss.candidateName} (${miss.source}, ${(miss.score * 100).toFixed(1)}%)`);
+      });
+    }
+    debugLogger.log('Ingredient Matching', `  Reason: ${reason}\n`);
 
     // Firestore rejects undefined values — strip them from the audit object
     const audit: Record<string, unknown> = {
@@ -847,39 +885,279 @@ Return JSON only:
   // ==================== HELPER METHODS ====================
 
   /**
-   * Parse raw ingredient string -> structured format
+   * Normalisation pass (Stage 1a)
+   * Cleans unicode, standardises spacing and punctuation before parsing.
    */
-  private parseIngredientString(raw: string): Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'> {
-    let text = raw.toLowerCase().trim();
+  private normaliseIngredientString(raw: string): string {
+    let text = raw
+      // Unicode fraction handling: ½ → 1/2, ¼ → 1/4, etc.
+      .replace(/½/g, '1/2')
+      .replace(/¼/g, '1/4')
+      .replace(/¾/g, '3/4')
+      .replace(/⅓/g, '1/3')
+      .replace(/⅔/g, '2/3')
+      // Multiplication symbol: × → x
+      .replace(/×/g, 'x')
+      // Multiple spaces → single space
+      .replace(/\s+/g, ' ')
+      // Trim
+      .trim()
+      .toLowerCase();
 
-    const knownUnits = ['g', 'kg', 'mg', 'ml', 'l', 'tsp', 'tbsp', 'piece', 'pinch'];
-    const unitPattern = knownUnits.join('|');
-    const quantityMatch = text.match(new RegExp(`^(\\d+\\.?\\d*|\\d*\\.\\d+)\\s*(${unitPattern})?\\s+(.+)$`));
+    return text;
+  }
 
-    let quantity: number | null = null;
+  /**
+   * Preparation verb list (configurable, Stage 2)
+   * Used to classify final tokens as preparation vs qualifiers.
+   */
+  private getPreparationTerms(): Set<string> {
+    return new Set([
+      'chopped', 'diced', 'minced', 'sliced', 'crushed', 'grated',
+      'peeled', 'trimmed', 'torn', 'drained', 'finely', 'coarsely',
+      'roughly', 'thinly', 'thickly', 'cubed', 'shredded', 'grated',
+      'julienned', 'blanched', 'roasted', 'toasted', 'caramelised',
+      'melted', 'whipped', 'beaten', 'whisked', 'folded', 'sifted',
+      'strained', 'filtered', 'pressed', 'zested', 'deveined', 'pitted',
+      'cored', 'deseeded', 'boned', 'flaked', 'crumbled', 'grated',
+      'scattered', 'scattered', 'dusted', 'rinsed', 'drained', 'patted',
+      'and', 'of', 'for', 'on', 'in', 'with', 'to' // Connectors
+    ]);
+  }
+
+  /**
+   * Parse raw ingredient (Stage 1 & 2: Regex upgrade + Second-pass classifier)
+   * Produces rich internal model: quantity, unit, item, qualifiers[], preparation.
+   * @param raw Raw ingredient string
+   * @param units List of Unit objects from Firestore (uses unit.name for regex pattern)
+   */
+  private parseIngredientEnhanced(raw: string, units: Unit[]): ParsedIngredientInternal {
+    let text = this.normaliseIngredientString(raw);
+
+    // ===== STAGE 1: Quantity + Unit extraction (enhanced regex) =====
+    // Use provided units or fallback to comprehensive British cooking units
+    const unitNames = units.length > 0 
+      ? units.flatMap(u => [u.name, u.plural].filter((n) => n !== null && n !== undefined))
+      : [
+          // Weight
+          'g', 'kg', 'mg',
+          // Volume
+          'ml', 'l', 'tsp', 'tsps', 'tbsp', 'tbsps',
+          // Count
+          'clove', 'cloves', 'slice', 'slices', 'piece', 'pieces', 'stick', 'sticks',
+          'tin', 'tins', 'can', 'cans', 'jar', 'jars', 'pack', 'packs',
+          'packet', 'packets', 'bag', 'bags', 'bunch', 'head', 'fillet', 'fillets',
+          'rasher', 'rashers', 'block', 'pot', 'tray', 'punnet',
+          // Colloquial
+          'pinch', 'dash', 'handful', 'sprig', 'sprigs', 'knob', 'sheet',
+          'ball', 'round', 'joint', 'rib', 'ribs', 'cube'
+        ];
+    const unitPattern = unitNames.join('|');
+
+    // Extended regex to handle:
+    // - Simple: 100 g
+    // - Multiplier: 4 x 240g
+    // - Range: 2-3 tbsp
+    // - Fractions: 1/2 tsp, 1 1/2 tbsp
+    // NOTE: Order matters! Try compound patterns first (mixed fraction, range, multiplier) before simple decimal
+    const quantityRegex = new RegExp(
+      `^(\\d+\\s+\\d+\\/\\d+|\\d+\\s*-\\s*\\d+|(?:\\d+\\s*x\\s*)?\\d+\\.?\\d*|\\d*\\.\\d+|\\d+\\s*/\\s*\\d+)\\s*(${unitPattern})?\\s+(.+)$`
+    );
+
+    let quantityRaw: string | null = null;
+    let quantityValue: number | null = null;
     let unit: string | null = null;
 
+    const quantityMatch = text.match(quantityRegex);
     if (quantityMatch) {
-      quantity = parseFloat(quantityMatch[1]);
-      unit = quantityMatch[2] || '';
-      text = quantityMatch[3];
+      let baseQuantity = quantityMatch[1].trim();
+      unit = quantityMatch[2] || null;
+      text = quantityMatch[3].trim();
+
+      // Determine if unit was directly attached (no space) in the original text
+      // by comparing the matched portion structure
+      const matchedUpto = quantityMatch[0].substring(0, quantityMatch[0].length - quantityMatch[3].length).trim();
+      const shouldIncludeUnit = unit && matchedUpto === `${baseQuantity}${unit}`;
+      
+      quantityRaw = shouldIncludeUnit ? `${baseQuantity}${unit}` : baseQuantity;
+
+      // Convert baseQuantity to numeric value
+      quantityValue = this.parseQuantity(baseQuantity);
     }
 
-    const prepMatch = text.match(/,\s*(.+)$/);
-    const preparation = prepMatch ? prepMatch[1].trim() : null;
-    if (prepMatch) {
-      text = text.substring(0, prepMatch.index).trim();
+    // ===== STAGE 2: Second-pass classifier (item + qualifiers + preparation) =====
+    let qualifiers: string[] = [];
+    let preparation: string | null = null;
+
+    // Extract parenthetical notes first (treat as qualifiers)
+    const parenRegex = /\(([^)]+)\)/g;
+    let parenMatch;
+    while ((parenMatch = parenRegex.exec(text)) !== null) {
+      qualifiers.push(parenMatch[1].trim());
+      text = text.replace(`(${parenMatch[1]})`, '').trim();
     }
 
-    text = text.replace(/\b(small|medium|large)\b/g, '').trim();
+    // Split by known prep term delimiters to separate preparation from main text
+    const prepTerms = this.getPreparationTerms();
+    let remainingText = text;
+    let prepStartIdx = -1;
 
-    const ingredientName = text.replace(/\s+/g, ' ').trim();
+    const tokens = text.split(/\s+/);
+    for (let i = 0; i < tokens.length; i++) {
+      if (prepTerms.has(tokens[i])) {
+        // Found a prep signal; everything from here is preparation
+        prepStartIdx = i;
+        break;
+      }
+    }
+
+    if (prepStartIdx > 0) {
+      // Join tokens before prep signal as item, everything after as preparation
+      const itemTokens = tokens.slice(0, prepStartIdx);
+      const prepTokens = tokens.slice(prepStartIdx);
+
+      // Extract qualifiers (adjectives before item)
+      const adjectiveSet = new Set([
+        'fresh', 'dried', 'raw', 'cooked', 'prepared', 'extra', 'virgin',
+        'sweet', 'salty', 'spicy', 'hot', 'cold', 'warm', 'room',
+        'temperature', 'light', 'dark', 'heavy', 'fine', 'coarse', 'rough',
+        'thin', 'thick', 'sharp', 'mild', 'strong', 'weak', 'soft', 'hard',
+        'ripe', 'unripe', 'tender', 'tough', 'mature', 'young'
+      ]);
+
+      let qualifierIdx = 0;
+      let currentQualifier: string[] = [];
+      for (let i = 0; i < itemTokens.length; i++) {
+        if (adjectiveSet.has(itemTokens[i])) {
+          currentQualifier.push(itemTokens[i]);
+          qualifierIdx = i + 1;
+        } else {
+          // Found first non-adjective; group accumulated adjectives
+          if (currentQualifier.length > 0) {
+            qualifiers.unshift(currentQualifier.join(' '));
+          }
+          break;
+        }
+      }
+
+      const item = itemTokens.slice(qualifierIdx).join(' ').trim();
+      preparation = prepTokens.join(' ').trim();
+
+      return {
+        quantityRaw,
+        quantityValue,
+        unit,
+        item: item || 'unknown',
+        qualifiers,
+        preparation: preparation || null,
+      };
+    }
+
+    // No prep signal found; split by adjectives vs nouns
+    const adjectiveSet = new Set([
+      'fresh', 'dried', 'raw', 'cooked', 'prepared', 'extra', 'virgin',
+      'sweet', 'salty', 'spicy', 'hot', 'cold', 'warm', 'room',
+      'temperature', 'light', 'dark', 'heavy', 'fine', 'coarse', 'rough',
+      'thin', 'thick', 'sharp', 'mild', 'strong', 'weak', 'soft', 'hard',
+      'ripe', 'unripe', 'tender', 'tough', 'mature', 'young'
+    ]);
+
+    let qualifierIdx = 0;
+    let currentQualifier: string[] = [];
+    const textTokens = text.split(/\s+/);
+    
+    for (let i = 0; i < textTokens.length; i++) {
+      if (adjectiveSet.has(textTokens[i])) {
+        currentQualifier.push(textTokens[i]);
+        qualifierIdx = i + 1;
+      } else {
+        // Found first non-adjective; group accumulated adjectives and stop
+        if (currentQualifier.length > 0) {
+          qualifiers.push(currentQualifier.join(' '));
+        }
+        break;
+      }
+    }
+
+    const item = textTokens.slice(qualifierIdx).join(' ').trim() || text;
 
     return {
-      quantity,
+      quantityRaw,
+      quantityValue,
       unit,
-      ingredientName,
-      preparation: preparation || undefined,
+      item,
+      qualifiers,
+      preparation: null,
+    };
+  }
+
+  /**
+   * Parse quantity string into numeric value.
+   * Handles: "100", "4 x 240g", "2-3", "1/2", "1 1/2"
+   */
+  private parseQuantity(quantityStr: string): number | null {
+    quantityStr = quantityStr.trim();
+
+    // Mixed fraction first: "1 1/2" (must try before simple decimal which would match "1")
+    const mixedMatch = quantityStr.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    if (mixedMatch) {
+      const whole = parseFloat(mixedMatch[1]);
+      const numerator = parseFloat(mixedMatch[2]);
+      const denominator = parseFloat(mixedMatch[3]);
+      return whole + numerator / denominator;
+    }
+
+    // Multiplier pattern: "4 x 240g" or "4x240"
+    const multiplierMatch = quantityStr.match(/^(\d+\.?\d*)\s*x\s*(\d+\.?\d*)/);
+    if (multiplierMatch) {
+      const factor = parseFloat(multiplierMatch[1]);
+      const base = parseFloat(multiplierMatch[2]);
+      return factor * base;
+    }
+
+    // Range pattern: "2-3" → midpoint
+    const rangeMatch = quantityStr.match(/^(\d+\.?\d*)\s*-\s*(\d+\.?\d*)$/);
+    if (rangeMatch) {
+      const min = parseFloat(rangeMatch[1]);
+      const max = parseFloat(rangeMatch[2]);
+      return (min + max) / 2;
+    }
+
+    // Simple fraction: "1/2"
+    const fractionMatch = quantityStr.match(/^(\d+)\/(\d+)$/);
+    if (fractionMatch) {
+      const numerator = parseFloat(fractionMatch[1]);
+      const denominator = parseFloat(fractionMatch[2]);
+      return numerator / denominator;
+    }
+
+    // Simple decimal: "100" or "100.5"
+    const simpleMatch = quantityStr.match(/^(\d+\.?\d*)$/);
+    if (simpleMatch) {
+      return parseFloat(simpleMatch[1]);
+    }
+
+    return null;
+  }
+
+  /**
+   * Backward compatibility wrapper: map internal parse to RecipeIngredient shape
+   * (Stage 4: Persistence layer)
+   * @param raw Raw ingredient string
+   * @param units List of Unit objects from Firestore
+   */
+  private parseIngredientString(raw: string, units: Unit[]): Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'> {
+    const parsed = this.parseIngredientEnhanced(raw, units);
+
+    return {
+      quantity: parsed.quantityValue,
+      unit: parsed.unit,
+      // For now, map item as ingredientName; can enrich with qualifiers for better matching
+      ingredientName: parsed.qualifiers.length > 0
+        ? `${parsed.qualifiers.join(' ')} ${parsed.item}`.trim()
+        : parsed.item,
+      preparation: parsed.preparation || undefined,
+      // qualifiers not persisted yet (Stage 4 will add this to the schema)
     };
   }
 

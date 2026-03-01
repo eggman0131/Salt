@@ -1,0 +1,254 @@
+[
+  {
+    "id": "g",
+    "name": "g",
+    "plural": null,
+    "category": "weight",
+    "sortOrder": 1
+  },
+  {
+    "id": "kg",
+    "name": "kg",
+    "plural": null,
+    "category": "weight",
+    "sortOrder": 2
+  },
+  {
+    "id": "mg",
+    "name": "mg",
+    "plural": null,
+    "category": "weight",
+    "sortOrder": 3
+  },
+  {
+    "id": "ml",
+    "name": "ml",
+    "plural": null,
+    "category": "volume",
+    "sortOrder": 4
+  },
+  {
+    "id": "l",
+    "name": "l",
+    "plural": null,
+    "category": "volume",
+    "sortOrder": 5
+  },
+  {
+    "id": "tsp",
+    "name": "tsp",
+    "plural": "tsps",
+    "category": "volume",
+    "sortOrder": 6
+  },
+  {
+    "id": "tbsp",
+    "name": "tbsp",
+    "plural": "tbsps",
+    "category": "volume",
+    "sortOrder": 7
+  },
+  {
+    "id": "clove",
+    "name": "clove",
+    "plural": "cloves",
+    "category": "count",
+    "sortOrder": 8
+  },
+  {
+    "id": "slice",
+    "name": "slice",
+    "plural": "slices",
+    "category": "count",
+    "sortOrder": 9
+  },
+  {
+    "id": "piece",
+    "name": "piece",
+    "plural": "pieces",
+    "category": "count",
+    "sortOrder": 10
+  },
+  {
+    "id": "stick",
+    "name": "stick",
+    "plural": "sticks",
+    "category": "count",
+    "sortOrder": 11
+  },
+  {
+    "id": "tin",
+    "name": "tin",
+    "plural": "tins",
+    "category": "count",
+    "sortOrder": 12
+  },
+  {
+    "id": "can",
+    "name": "can",
+    "plural": "cans",
+    "category": "count",
+    "sortOrder": 13
+  },
+  {
+    "id": "jar",
+    "name": "jar",
+    "plural": "jars",
+    "category": "count",
+    "sortOrder": 14
+  },
+  {
+    "id": "pack",
+    "name": "pack",
+    "plural": "packs",
+    "category": "count",
+    "sortOrder": 15
+  },
+  {
+    "id": "packet",
+    "name": "packet",
+    "plural": "packets",
+    "category": "count",
+    "sortOrder": 16
+  },
+  {
+    "id": "bag",
+    "name": "bag",
+    "plural": "bags",
+    "category": "count",
+    "sortOrder": 17
+  },
+  {
+    "id": "bunch",
+    "name": "bunch",
+    "plural": null,
+    "category": "count",
+    "sortOrder": 18
+  },
+  {
+    "id": "head",
+    "name": "head",
+    "plural": null,
+    "category": "count",
+    "sortOrder": 19
+  },
+  {
+    "id": "fillet",
+    "name": "fillet",
+    "plural": "fillets",
+    "category": "count",
+    "sortOrder": 20
+  },
+  {
+    "id": "rasher",
+    "name": "rasher",
+    "plural": "rashers",
+    "category": "count",
+    "sortOrder": 21
+  },
+  {
+    "id": "block",
+    "name": "block",
+    "plural": null,
+    "category": "count",
+    "sortOrder": 22
+  },
+  {
+    "id": "pot",
+    "name": "pot",
+    "plural": null,
+    "category": "count",
+    "sortOrder": 23
+  },
+  {
+    "id": "tray",
+    "name": "tray",
+    "plural": null,
+    "category": "count",
+    "sortOrder": 24
+  },
+  {
+    "id": "punnet",
+    "name": "punnet",
+    "plural": null,
+    "category": "count",
+    "sortOrder": 25
+  },
+  {
+    "id": "pinch",
+    "name": "pinch",
+    "plural": null,
+    "category": "colloquial",
+    "sortOrder": 26
+  },
+  {
+    "id": "dash",
+    "name": "dash",
+    "plural": null,
+    "category": "colloquial",
+    "sortOrder": 27
+  },
+  {
+    "id": "handful",
+    "name": "handful",
+    "plural": null,
+    "category": "colloquial",
+    "sortOrder": 28
+  },
+  {
+    "id": "sprig",
+    "name": "sprig",
+    "plural": "sprigs",
+    "category": "colloquial",
+    "sortOrder": 29
+  },
+  {
+    "id": "knob",
+    "name": "knob",
+    "plural": null,
+    "category": "colloquial",
+    "sortOrder": 30
+  },
+  {
+    "id": "sheet",
+    "name": "sheet",
+    "plural": null,
+    "category": "colloquial",
+    "sortOrder": 31
+  },
+  {
+    "id": "ball",
+    "name": "ball",
+    "plural": null,
+    "category": "colloquial",
+    "sortOrder": 32
+  },
+  {
+    "id": "round",
+    "name": "round",
+    "plural": null,
+    "category": "colloquial",
+    "sortOrder": 33
+  },
+  {
+    "id": "joint",
+    "name": "joint",
+    "plural": null,
+    "category": "colloquial",
+    "sortOrder": 34
+  },
+  {
+    "id": "rib",
+    "name": "rib",
+    "plural": "ribs",
+    "category": "colloquial",
+    "sortOrder": 35
+  },
+  {
+    "id": "cube",
+    "name": "cube",
+    "plural": null,
+    "category": "colloquial",
+    "sortOrder": 36
+  }
+]

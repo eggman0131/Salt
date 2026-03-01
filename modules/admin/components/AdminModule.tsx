@@ -6,6 +6,7 @@ import { CollectionSelector } from './CollectionSelector';
 import { CoFIDImport } from './CoFIDImport';
 import { ImportCoFIDGroupMappings } from './ImportCoFIDGroupMappings';
 import { FirestoreBrowser } from './FirestoreBrowser';
+import { MatchingParametersConfig } from './MatchingParametersConfig';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AddButton } from '@/components/ui/add-button';
@@ -360,6 +361,9 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
           {/* CoFID Group Mappings Import Card */}
           <ImportCoFIDGroupMappings />
+
+          {/* Matching Parameters Config Card */}
+          <MatchingParametersConfig />
 
           {/* Development Card */}
           <Card className="shadow-sm hover:shadow-md transition-shadow">
