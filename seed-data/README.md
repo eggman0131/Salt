@@ -2,6 +2,8 @@
 
 Canonical data sources managed by git. **These are version-controlled** because they cost time/money to regenerate.
 
+**Note**: Seeding is now handled via the Admin panel (see Usage below) rather than CLI scripts.
+
 ## Files
 
 ### units.json
@@ -50,12 +52,12 @@ Full export of UK COFID canonical food items (~7000 items).
 
 ### Seeding During Development
 ```bash
-# Start emulator
-npm run emulators
+# Start development server
+npm run dev
 
-# In another terminal, seed all data
-npm run seed:units
-# npm run seed:cofid-mappings   (when available)
+# Open Admin panel (login required)
+# Navigate to Kitchen Data section
+# Click "Seed Cooking Units" button
 ```
 
 ### Seeding During Testing
@@ -64,11 +66,11 @@ Unit tests reference seed vocabularies for realistic parsing validation. Tests p
 ### Production Data Restoration
 Backup restore uses these as fallback if user export missing. Manifests include export date; older exports fall back to current seed data.
 
-### Validation Before Commit
-```bash
-# Check seed files for structural integrity
-npm run validate:seeds
-```
+### Seeding in Production
+Access the Admin panel (if you have admin role):
+1. Go to Kitchen Data section
+2. Click "Seed Cooking Units"
+3. Safe to run multiple times (existing units are preserved)
 
 ## Maintenance Workflow
 
@@ -87,21 +89,15 @@ npm run validate:seeds
    }
    ```
 
-2. **Validate**:
-   ```bash
-   npm run validate:seeds
-   ```
-
-3. **Seed into Firestore**:
-   ```bash
-   npm run seed:units
-   ```
-
-4. **Commit**:
+2. **Commit**:
    ```bash
    git add seed-data/units.json
    git commit -m "chore: add cup/cups unit (volume)"
    ```
+
+3. **Seed into Firestore via Admin Panel**:
+   - Admin → Kitchen Data → "Seed Cooking Units"
+   - Or wait for next system startup (auto-seeded if missing)
 
 ### Updating COFID Mappings
 
@@ -109,9 +105,9 @@ When COFID classification rules change:
 
 1. Export new mapping from COFID source
 2. Replace `cofid-aisle-mappings.json`
-3. Validate: `npm run validate:seeds`
-4. Seed: `npm run seed:cofid-mappings` (when script available)
-5. Commit
+3. Seed: Admin → Kitchen Data → "Import CoFID Group Mappings"
+4. Test with known recipe imports
+5. Commit with message explaining the changes
 
 ### Regenerating Full COFID Item Export
 
@@ -120,8 +116,8 @@ When COFID classification rules change:
 1. Contact COFID data provider or run export script
 2. Process and normalize raw export
 3. Place in `cofid-items.json`
-4. Validate: `npm run validate:seeds`
-5. Test fuzzy matching accuracy against known recipes
+4. Test fuzzy matching accuracy against known recipes
+5. Seed via future Admin panel (when implemented)
 6. Commit with detailed message:
    ```
    git commit -m "chore: refresh COFID items export from UK API v2.3
