@@ -157,8 +157,8 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
   };
 
   const handleAddSynonym = () => {
-    const trimmed = synonymInput.trim().toLowerCase();
-    if (trimmed && !synonyms.includes(trimmed)) {
+    const trimmed = synonymInput.trim();
+    if (trimmed && !synonyms.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
       setSynonyms([...synonyms, trimmed]);
       setSynonymInput('');
     }
