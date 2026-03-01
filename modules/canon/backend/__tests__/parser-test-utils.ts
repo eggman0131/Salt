@@ -180,6 +180,16 @@ export function parseIngredientEnhanced(raw: string, units?: ParsedIngredientInt
     text = text.replace(`(${parenMatch[1]})`, '').trim();
   }
 
+  // Capture trailing storage/temperature states so they do not become part of item identity.
+  const trailingStatePhrases: string[] = [];
+  const trailingStateRegex = /(?:\s*,?\s*)(fridge[-\s]?cold|ice[-\s]?cold|chilled|at room temperature|room temperature)\s*$/;
+  while (true) {
+    const match = text.match(trailingStateRegex);
+    if (!match) break;
+    trailingStatePhrases.unshift(match[1]);
+    text = text.replace(trailingStateRegex, '').trim();
+  }
+
   // Split by known prep term delimiters to separate preparation from main text
   const prepTerms = getPreparationTerms();
   let remainingText = text;
@@ -225,6 +235,10 @@ export function parseIngredientEnhanced(raw: string, units?: ParsedIngredientInt
 
     const item = itemTokens.slice(qualifierIdx).join(' ').trim();
     preparation = prepTokens.join(' ').trim();
+    if (trailingStatePhrases.length > 0) {
+      const trailingState = trailingStatePhrases.join(' ');
+      preparation = preparation ? `${preparation} ${trailingState}` : trailingState;
+    }
 
     return {
       quantityRaw,
@@ -270,6 +284,6 @@ export function parseIngredientEnhanced(raw: string, units?: ParsedIngredientInt
     unit,
     item,
     qualifiers,
-    preparation: null,
+    preparation: trailingStatePhrases.length > 0 ? trailingStatePhrases.join(' ') : null,
   };
 }

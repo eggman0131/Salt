@@ -572,19 +572,110 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     
     // Process ingredients if they were updated
     if (updates.hasOwnProperty('ingredients') && Array.isArray(updated.ingredients) && updated.ingredients.length > 0) {
-      // Skip processing if ingredients are already processed (have canonicalItemId set)
-      const needsProcessing = !updated.ingredients.every((ing: any) => ing.canonicalItemId !== undefined);
+      // Incremental ingredient processing: process only what changed
+      const updatedIngredients = updated.ingredients as any[];
+      const oldIngredients = existing.ingredients || [];
+      const processedIngredients: RecipeIngredient[] = [];
       
-      if (needsProcessing) {
-        const processedIngredients = await this.matchRecipeIngredients(updated.ingredients as any, id);
-        postProcessUpdates.ingredients = processedIngredients;
-      } else {
-        // Ingredients already processed, just use as-is
-        postProcessUpdates.ingredients = updated.ingredients;
+      // Build index of old ingredients by raw text for quick lookup
+      const oldIngMap = new Map(oldIngredients.map((ing: any) => [ing.raw, ing]));
+      
+      // Separate ingredients into categories
+      const toRematch: string[] = [];
+      const toReparseOnly: RecipeIngredient[] = [];
+      const toSkip: RecipeIngredient[] = [];
+      
+      for (const newIng of updatedIngredients) {
+        const raw = typeof newIng === 'string' ? newIng : newIng.raw;
+        const oldIng = oldIngMap.get(raw);
+        
+        // For string ingredients, always process (new or changed raw text)
+        if (typeof newIng === 'string') {
+          const decision = this.canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
+          if (decision === 'rematch') {
+            toRematch.push(raw);
+          } else if (decision === 'skip' && oldIng) {
+            toSkip.push(oldIng);
+          } else {
+            // Shouldn't happen, but treat as rematch
+            toRematch.push(raw);
+          }
+        } else {
+          // Structured ingredient: check if needs reprocessing
+          const decision = this.canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
+          
+          if (decision === 'skip') {
+            // Use existing structured ingredient as-is
+            toSkip.push(newIng as RecipeIngredient);
+          } else if (decision === 'reparse-only') {
+            // Parser upgraded but identity unchanged: update metadata only
+            toReparseOnly.push(newIng as RecipeIngredient);
+          } else {
+            // Rematch needed
+            toRematch.push(raw);
+          }
+        }
       }
       
+      debugLogger.info('Recipe Update', `Ingredient processing decisions: ${toRematch.length} rematch, ${toReparseOnly.length} reparse-only, ${toSkip.length} skip`);
+      
+      // Process ingredients that need rematching
+      let rematched: RecipeIngredient[] = [];
+      if (toRematch.length > 0) {
+        debugLogger.info('Recipe Update', `Processing ${toRematch.length} ingredients that need rematching`);
+        rematched = await this.matchRecipeIngredients(toRematch, id);
+      }
+      
+      // Update reparse-only ingredients with new parser metadata
+      const reparsed = toReparseOnly.map(ing => {
+        const enhanced = (this.canonBackend as any).parseIngredientEnhanced(ing.raw, []); // Units loaded internally
+        const identityKey = (this.canonBackend as any).buildIdentityKey(enhanced.item, enhanced.qualifiers);
+        const now = new Date().toISOString();
+        
+        return {
+          ...ing,
+          parserVersion: 2, // BaseCanonBackend.PARSER_VERSION
+          parserIdentityKey: identityKey,
+          parserUpdatedAt: now,
+        };
+      });
+      
+      // Combine all results in original order
+      const finalIngredients: RecipeIngredient[] = [];
+      let rematchIndex = 0;
+      let reparseIndex = 0;
+      let skipIndex = 0;
+      
+      for (const newIng of updatedIngredients) {
+        const raw = typeof newIng === 'string' ? newIng : newIng.raw;
+        const oldIng = oldIngMap.get(raw);
+        
+        if (typeof newIng === 'string') {
+          const decision = this.canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
+          if (decision === 'rematch') {
+            finalIngredients.push(rematched[rematchIndex++]);
+          } else if (decision === 'skip' && oldIng) {
+            finalIngredients.push(toSkip[skipIndex++]);
+          } else {
+            finalIngredients.push(rematched[rematchIndex++]);
+          }
+        } else {
+          const decision = this.canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
+          
+          if (decision === 'skip') {
+            finalIngredients.push(toSkip[skipIndex++]);
+          } else if (decision === 'reparse-only') {
+            finalIngredients.push(reparsed[reparseIndex++]);
+          } else {
+            finalIngredients.push(rematched[rematchIndex++]);
+          }
+        }
+      }
+      
+      postProcessUpdates.ingredients = finalIngredients;
+      
       // Update ingredients in instructions to reference processed versions
-      const ingredientMap = new Map((postProcessUpdates.ingredients || updated.ingredients).map((ing: any) => [ing.id, ing]));
+      const ingredientMap = new Map(finalIngredients.map((ing: any) => [ing.id, ing]));
       if (Array.isArray(updated.instructions)) {
         postProcessUpdates.instructions = updated.instructions.map((instr: any) => {
           if (instr.ingredients && Array.isArray(instr.ingredients)) {
