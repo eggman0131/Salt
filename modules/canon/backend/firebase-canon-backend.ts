@@ -1380,9 +1380,13 @@ RULES:
 - Use British English (courgette not zucchini, aubergine not eggplant)
 - Use metric units only
 - Leave preferredUnit empty for countable things (eggs, onions, cans)
-- Keep culinary identity descriptors (red onion, beef mince, whole milk)
+- Keep culinary identity descriptors (red onion, beef mince, whole milk, extra virgin olive oil)
+- Preserve cooking state (raw vs cooked/baked/roasted - these are different products)
+- Preserve variety distinctions (Red Leicester ≠ Cheddar, rapeseed oil ≠ olive oil)
+- Only indicate precooked/baked if explicitly stated in ingredient name
 - Remove size adjectives (small, medium, large)
-- Capitalize properly (e.g., "Extra Virgin Olive Oil")
+- Remove temperature/state descriptors (fridge-cold, room temperature) unless they define the product
+- Capitalize properly (e.g., "Extra Virgin Olive Oil", "Baked Potato")
 
 Return JSON object:`
         }]

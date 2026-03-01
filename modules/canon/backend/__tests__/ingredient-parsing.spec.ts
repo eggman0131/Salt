@@ -156,6 +156,24 @@ describe('Ingredient Parser - Stage 0 Golden Tests', () => {
       expect(result.qualifiers).toContain('fresh');
       expect(result.preparation).toBeNull();
     });
+
+    it('should move trailing fridge-cold state to preparation', () => {
+      const result = parseIngredientEnhanced('30 g unsalted butter fridge-cold', testUnits as any);
+
+      expect(result.quantityValue).toBe(30);
+      expect(result.unit).toBe('g');
+      expect(result.item).toBe('unsalted butter');
+      expect(result.preparation).toBe('fridge-cold');
+    });
+
+    it('should move trailing room temperature state to preparation', () => {
+      const result = parseIngredientEnhanced('200 g butter room temperature', testUnits as any);
+
+      expect(result.quantityValue).toBe(200);
+      expect(result.unit).toBe('g');
+      expect(result.item).toBe('butter');
+      expect(result.preparation).toBe('room temperature');
+    });
   });
 
   describe('Unicode and normalisation', () => {

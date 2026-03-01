@@ -134,6 +134,87 @@ export abstract class BaseCanonBackend implements ICanonBackend {
   // ==================== INGREDIENT PROCESSING ====================
 
   /**
+   * Current parser version for ingredient parsing
+   * Increment when parser logic changes to enable incremental updates
+   */
+  private static readonly PARSER_VERSION = 2; // Updated for trailing state extraction
+
+  /**
+   * Current matching pipeline version
+   * Increment when matching logic/prompts change significantly
+   */
+  private static readonly MATCHING_VERSION = 1;
+
+  /**
+   * Build identity key from parsed ingredient (item + qualifiers, excludes preparation)
+   * Used to detect when ingredient identity changes vs. just preparation changes
+   */
+  private buildIdentityKey(item: string, qualifiers?: string[]): string {
+    const parts = [item.toLowerCase().trim()];
+    if (qualifiers && qualifiers.length > 0) {
+      parts.push(...qualifiers.map(q => q.toLowerCase().trim()).sort());
+    }
+    return parts.join('::');
+  }
+
+  /**
+   * Decision function for incremental ingredient processing
+   * Determines whether an ingredient needs reparsing/rematching
+   * 
+   * Returns:
+   * - 'skip': Ingredient is unchanged and up-to-date
+   * - 'reparse-only': Parser improved but identity unchanged (update metadata only)
+   * - 'rematch': Identity changed or needs full reprocessing
+   * 
+   * Use cases:
+   * 1. Recipe updates: compare old vs new raw text
+   * 2. Parser migrations: apply parser improvements without forcing AI rematching
+   */
+  shouldRematchIngredient(params: {
+    oldIngredient?: RecipeIngredient;
+    newRaw: string;
+    newParsed?: ParsedIngredientInternal;
+    parserVersion?: number;
+  }): 'skip' | 'reparse-only' | 'rematch' {
+    const { oldIngredient, newRaw, newParsed, parserVersion = BaseCanonBackend.PARSER_VERSION } = params;
+
+    // No old ingredient: always process
+    if (!oldIngredient) {
+      return 'rematch';
+    }
+
+    // Raw text changed: always rematch
+    if (oldIngredient.raw !== newRaw) {
+      return 'rematch';
+    }
+
+    // No canonicalItemId yet: needs matching
+    if (!oldIngredient.canonicalItemId) {
+      return 'rematch';
+    }
+
+    // Parser version upgraded
+    if (oldIngredient.parserVersion && oldIngredient.parserVersion < parserVersion) {
+      // If we have new parsed structure, check if identity changed
+      if (newParsed && oldIngredient.parserIdentityKey) {
+        const newIdentityKey = this.buildIdentityKey(newParsed.item, newParsed.qualifiers);
+        if (newIdentityKey !== oldIngredient.parserIdentityKey) {
+          // Identity changed (item or qualifiers differ): rematch needed
+          return 'rematch';
+        } else {
+          // Identity unchanged (only preparation/metadata changed): update parser metadata only
+          return 'reparse-only';
+        }
+      }
+      // No old identity key or new parsed structure: safer to rematch
+      return 'rematch';
+    }
+
+    // Ingredient is up-to-date
+    return 'skip';
+  }
+
+  /**
    * Process raw ingredient strings -> structured RecipeIngredient[] with canonical item links
    * 
    * Multi-stage semantic matching pipeline (Issue #68):
@@ -628,9 +709,27 @@ export abstract class BaseCanonBackend implements ICanonBackend {
     // Create matching event log entries for each processed ingredient
     await this.createMatchingEventsFromResults(runId, contextId, ingredients as string[], results, startTime);
     
+    // ========== SET VERSIONING METADATA ==========
+    // Add parser and matching version metadata to all ingredients
+    const now = new Date().toISOString();
+    const enhancedResults = results.map(ing => {
+      // Parse to get identity key
+      const enhanced = this.parseIngredientEnhanced(ing.raw, this.cachedUnits!);
+      const identityKey = this.buildIdentityKey(enhanced.item, enhanced.qualifiers);
+      
+      return {
+        ...ing,
+        parserVersion: BaseCanonBackend.PARSER_VERSION,
+        parserIdentityKey: identityKey,
+        parserUpdatedAt: now,
+        matchingVersion: ing.canonicalItemId ? BaseCanonBackend.MATCHING_VERSION : undefined,
+        matchedAt: ing.canonicalItemId ? now : undefined,
+      };
+    });
+    
     onProgress?.({ stage: 'Complete', current: ingredients.length, total: ingredients.length, percentage: 100 });
 
-    return results;
+    return enhancedResults;
   }
 
   /**
@@ -787,9 +886,19 @@ ${JSON.stringify({
   allowNewCanonItems: config.allowNewCanonItems,
 })}
 
-RULES:
-- Prefer existing Canon candidates where fit is close.
-- Use CoFID when clearly a stronger fit.
+CRITICAL UK SUPERMARKET PRODUCT DIFFERENTIATION RULES:
+- Items are DIFFERENT if they would be sold separately in a UK supermarket, regardless of nutritional similarity.
+- Olive oil and extra virgin olive oil are DIFFERENT items (different price, quality, use case).
+- Different cheese varieties are DIFFERENT items even if nutritional profiles are similar (Red Leicester ≠ Cheddar).
+- Raw vs cooked/precooked items are DIFFERENT (baking potato ≠ baked potato; raw chicken ≠ cooked chicken).
+- Cooked items typically weigh less than raw equivalents due to moisture loss - this matters for recipe accuracy.
+- Only use precooked/baked candidates if the ingredient clearly indicates the item is already cooked.
+- Temperature/state descriptors (fridge-cold, room temperature) do NOT make items different if they're the same product.
+- Brands, varieties, and culinary types (smoked, salted, aged) DO make items different.
+
+MATCHING RULES:
+- Prefer existing Canon candidates where fit is close AND product identity matches.
+- Use CoFID when clearly a stronger fit OR when Canon candidate is wrong product type.
 - If nothing is suitable and allowNewCanonItems is true, choose create_new_canon.
 - Use no_match only if confidence is too poor.
 - candidateId MUST be one of: [${trimmed.map((c) => c.id).join(', ')}]
@@ -1271,6 +1380,16 @@ Return JSON only:
       text = text.replace(`(${parenMatch[1]})`, '').trim();
     }
 
+    // Capture trailing storage/temperature states so they do not become part of item identity.
+    const trailingStatePhrases: string[] = [];
+    const trailingStateRegex = /(?:\s*,?\s*)(fridge[-\s]?cold|ice[-\s]?cold|chilled|at room temperature|room temperature)\s*$/;
+    while (true) {
+      const match = text.match(trailingStateRegex);
+      if (!match) break;
+      trailingStatePhrases.unshift(match[1]);
+      text = text.replace(trailingStateRegex, '').trim();
+    }
+
     // Split by known prep term delimiters to separate preparation from main text
     const prepTerms = this.getPreparationTerms();
     let remainingText = text;
@@ -1316,6 +1435,10 @@ Return JSON only:
 
       const item = itemTokens.slice(qualifierIdx).join(' ').trim();
       preparation = prepTokens.join(' ').trim();
+      if (trailingStatePhrases.length > 0) {
+        const trailingState = trailingStatePhrases.join(' ');
+        preparation = preparation ? `${preparation} ${trailingState}` : trailingState;
+      }
 
       return {
         quantityRaw,
@@ -1361,7 +1484,7 @@ Return JSON only:
       unit,
       item,
       qualifiers,
-      preparation: null,
+      preparation: trailingStatePhrases.length > 0 ? trailingStatePhrases.join(' ') : null,
     };
   }
 
@@ -1538,8 +1661,12 @@ RULES:
 - Use British English (courgette not zucchini, aubergine not eggplant)
 - Use metric units only
 - Leave preferredUnit empty for countable things (eggs, onions, cans)
-- Keep culinary identity descriptors (red onion, beef mince, whole milk)
+- Keep culinary identity descriptors (red onion, beef mince, whole milk, extra virgin olive oil)
+- Preserve cooking state (raw vs cooked/baked/roasted - these are different products)
+- Preserve variety distinctions (Red Leicester ≠ Cheddar, rapeseed oil ≠ olive oil)
+- Only indicate precooked/baked if explicitly stated in ingredient name
 - Remove size adjectives (small, medium, large)
+- Remove temperature/state descriptors (fridge-cold, room temperature) unless they define the product
 
 Return JSON array: [item1, item2, ...]`
         }]

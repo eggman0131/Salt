@@ -222,6 +222,13 @@ export const RecipeIngredientSchema = z.object({
     reason: z.string().optional(),
     recordedAt: z.string().optional(),
   }).optional(),
+  // Parser versioning: track parser improvements to enable incremental updates
+  parserVersion: z.number().optional(), // Parser version that created this structure
+  parserIdentityKey: z.string().optional(), // Hash of item + qualifiers (excludes preparation)
+  parserUpdatedAt: z.string().optional(), // ISO timestamp of last parser update
+  // Matching versioning: track when LLM matching was performed
+  matchingVersion: z.number().optional(), // Matching pipeline version
+  matchedAt: z.string().optional(), // ISO timestamp of last match
 });
 export type RecipeIngredient = z.infer<typeof RecipeIngredientSchema>;
 
