@@ -1200,6 +1200,31 @@ Return JSON only:
   }
 
   /**
+   * Convert string to Title Case for display (British English culinary context)
+   * Preserves special cases like pH, CoFID acronyms
+   */
+  private toTitleCase(str: string): string {
+    if (!str) return str;
+    
+    // Special cases that should not be capitalized
+    const specialCases: { [key: string]: string } = {
+      'ph': 'pH',
+      'cofid': 'CoFID',
+    };
+    
+    return str
+      .split(' ')
+      .map(word => {
+        const lower = word.toLowerCase();
+        if (specialCases[lower]) {
+          return specialCases[lower];
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
+      .join(' ');
+  }
+
+  /**
    * Backward compatibility wrapper: map internal parse to RecipeIngredient shape
    * (Stage 4: Persistence layer)
    * @param raw Raw ingredient string
@@ -1208,13 +1233,15 @@ Return JSON only:
   private parseIngredientString(raw: string, units: Unit[]): Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'> {
     const parsed = this.parseIngredientEnhanced(raw, units);
 
+    const ingredientNameLower = parsed.qualifiers.length > 0
+      ? `${parsed.qualifiers.join(' ')} ${parsed.item}`.trim()
+      : parsed.item;
+
     return {
       quantity: parsed.quantityValue,
       unit: parsed.unit,
-      // ingredientName: fully qualified name for display (backwards compatible)
-      ingredientName: parsed.qualifiers.length > 0
-        ? `${parsed.qualifiers.join(' ')} ${parsed.item}`.trim()
-        : parsed.item,
+      // ingredientName: Title Case for display consistency with Canon items
+      ingredientName: this.toTitleCase(ingredientNameLower),
       // Stage 4: persist qualifiers separately for enhanced matching and context
       qualifiers: parsed.qualifiers.length > 0 ? parsed.qualifiers : undefined,
       preparation: parsed.preparation || undefined,
