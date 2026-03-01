@@ -527,7 +527,86 @@ export abstract class BaseCanonBackend implements ICanonBackend {
       debugLogger.log('Ingredient Matching', `└── Stage 2 & 3 complete ──┘`);
     }
 
-    debugLogger.log('Ingredient Matching', `━━━━━ Final result: ${results.filter(r => r.canonicalItemId).length}/${results.length} ingredients linked ━━━━━`);
+    // ========== MATCHING SUMMARY ==========
+    const linkedCount = results.filter(r => r.canonicalItemId).length;
+    debugLogger.log('Ingredient Matching', `━━━━━ Final result: ${linkedCount}/${results.length} ingredients linked ━━━━━`);
+    
+    // Generate neat summary table
+    const summaryLines: string[] = [];
+    summaryLines.push('\n┌─────────────────────────────────────────────────────────────────────────┐');
+    summaryLines.push('│                      INGREDIENT MATCHING SUMMARY                        │');
+    summaryLines.push('├─────────────────────────────────────────────────────────────────────────┤');
+    
+    const matchedExisting: string[] = [];
+    const newFromCofid: string[] = [];
+    const newAiGenerated: string[] = [];
+    const unlinked: string[] = [];
+    
+    for (const result of results) {
+      const itemName = result.ingredientName;
+      const audit = result.matchingAudit;
+      
+      if (!result.canonicalItemId || !audit) {
+        unlinked.push(itemName);
+      } else if (audit.matchedSource === 'canon') {
+        matchedExisting.push(itemName);
+      } else if (audit.matchedSource === 'cofid' || audit.decisionAction === 'create_from_cofid') {
+        newFromCofid.push(itemName);
+      } else if (audit.matchedSource === 'new-canon' || audit.decisionAction === 'create_new_canon') {
+        newAiGenerated.push(itemName);
+      } else {
+        unlinked.push(itemName);
+      }
+    }
+    
+    // Helper to truncate long names
+    const truncate = (str: string, maxLen: number = 60): string => {
+      return str.length > maxLen ? str.substring(0, maxLen - 3) + '...' : str;
+    };
+    
+    if (matchedExisting.length > 0) {
+      summaryLines.push(`│ ✓ Matched to existing Canon items (${matchedExisting.length}):`.padEnd(74) + '│');
+      matchedExisting.forEach(name => {
+        const line = `│   • ${truncate(name)}`;
+        summaryLines.push(line.padEnd(74) + '│');
+      });
+    }
+    
+    if (newFromCofid.length > 0) {
+      summaryLines.push(`│ + Created from CoFID database (${newFromCofid.length}):`.padEnd(74) + '│');
+      newFromCofid.forEach(name => {
+        const line = `│   • ${truncate(name)}`;
+        summaryLines.push(line.padEnd(74) + '│');
+      });
+    }
+    
+    if (newAiGenerated.length > 0) {
+      summaryLines.push(`│ ✨ AI-generated new Canon items (${newAiGenerated.length}):`.padEnd(74) + '│');
+      newAiGenerated.forEach(name => {
+        const line = `│   • ${truncate(name)}`;
+        summaryLines.push(line.padEnd(74) + '│');
+      });
+    }
+    
+    if (unlinked.length > 0) {
+      summaryLines.push(`│ ✗ Unlinked ingredients (${unlinked.length}):`.padEnd(74) + '│');
+      unlinked.forEach(name => {
+        const line = `│   • ${truncate(name)}`;
+        summaryLines.push(line.padEnd(74) + '│');
+      });
+    }
+    
+    // Show message if nothing to display
+    if (matchedExisting.length === 0 && newFromCofid.length === 0 && 
+        newAiGenerated.length === 0 && unlinked.length === 0) {
+      summaryLines.push('│ (No ingredients processed)                                              │');
+    }
+    
+    summaryLines.push('└─────────────────────────────────────────────────────────────────────────┘');
+    
+    // Log the complete summary
+    summaryLines.forEach(line => debugLogger.info('Matching Summary', line));
+    
     onProgress?.({ stage: 'Complete', current: ingredients.length, total: ingredients.length, percentage: 100 });
 
     return results;
