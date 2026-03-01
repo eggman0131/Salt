@@ -235,6 +235,70 @@ export const RecipeInstructionSchema = z.object({
 });
 export type RecipeInstruction = z.infer<typeof RecipeInstructionSchema>;
 
+// Matching Event Schema (Issue #79: Matching Observability)
+// Structured log of ingredient matching pipeline decisions for analysis and debugging
+export const MatchingEventSchema = z.object({
+  id: z.string(),
+  
+  // Context
+  runId: z.string(), // Groups all events from one processIngredients call
+  recipeId: z.string(),
+  recipeName: z.string(),
+  ingredientIndex: z.number(), // Position in ingredient list
+  ingredientName: z.string(),
+  raw: z.string(), // Original raw ingredient string
+  timestamp: z.string(), // ISO timestamp
+  
+  // Stage 1: Parsing
+  parsing: z.object({
+    quantity: z.number().nullable(),
+    unit: z.string().nullable(),
+    item: z.string(),
+    qualifiers: z.array(z.string()),
+    preparation: z.string().nullable(),
+  }),
+  
+  // Stage 1b: Fuzzy matching
+  fuzzy: z.object({
+    matched: z.boolean(),
+    matchedTo: z.string().nullable(), // Canon item name
+    matchedToId: z.string().nullable(), // Canon item ID
+    score: z.number().nullable(),
+  }).optional(),
+  
+  // Stage 2: Semantic search
+  semantic: z.object({
+    topCandidateName: z.string().nullable(),
+    topCandidateSource: z.enum(['canon', 'cofid']).nullable(),
+    topScore: z.number().nullable(),
+    scoreGap: z.number().nullable(), // Gap between 1st and 2nd candidate
+    candidateCount: z.number(),
+    clusterSize: z.number().optional(), // For ambiguous clusters
+    case: z.enum(['A_confident', 'B_ambiguous', 'C_weak', 'D_none']),
+    allCandidates: z.array(z.object({
+      name: z.string(),
+      source: z.enum(['canon', 'cofid']),
+      score: z.number(),
+    })).optional(), // Top N candidates for analysis
+  }).optional(),
+  
+  // Stage 3: LLM Arbitration (only when needed)
+  arbitration: z.object({
+    needed: z.boolean(),
+    decision: z.enum(['use_existing_canon', 'create_from_cofid', 'create_new_canon', 'no_match']).nullable(),
+    confidence: z.number().nullable(),
+    reason: z.string().nullable(),
+    decisionSource: z.enum(['llm', 'fallback']).nullable(),
+  }).optional(),
+  
+  // Final outcome
+  outcome: z.enum(['matched_existing', 'created_from_cofid', 'ai_generated', 'unlinked']),
+  canonicalItemId: z.string().nullable(),
+  canonicalItemName: z.string().nullable(),
+  durationMs: z.number(), // Time spent processing this ingredient
+});
+export type MatchingEvent = z.infer<typeof MatchingEventSchema>;
+
 // Shopping List Schema
 export const ShoppingListSchema = z.object({
   id: z.string(),
@@ -363,6 +427,11 @@ export const COLLECTION_REGISTRY = {
     requiresEncoding: false,
     isSingleton: true, // Only one document: 'global'
     documentId: 'global'
+  },
+  matching_events: {
+    schema: MatchingEventSchema,
+    requiresEncoding: false,
+    idField: 'id'
   },
   canonical_items: { 
     schema: CanonicalItemSchema,
