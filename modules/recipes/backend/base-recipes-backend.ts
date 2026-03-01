@@ -235,7 +235,11 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     return allCategoryIds;
   }
 
-  async processRecipeIngredients(ingredients: string[] | RecipeIngredient[], recipeId: string): Promise<RecipeIngredient[]> {
+  async matchRecipeIngredients(
+    ingredients: string[] | RecipeIngredient[],
+    recipeId: string,
+    onProgress?: (progress: { stage: string; current: number; total: number; percentage: number }) => void
+  ): Promise<RecipeIngredient[]> {
     if (ingredients.length === 0) {
       return [];
     }
@@ -268,19 +272,20 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
         return raw;
       });
 
-      const matched = await canonBackend.processIngredients(rawIngredients, recipeId);
+      const matched = await canonBackend.processIngredients(rawIngredients, recipeId, onProgress);
       return matched.map((ingredient, idx) => ({
         ...ingredient,
         id: structured[idx]?.id || ingredient.id,
       }));
     }
 
-    return canonBackend.processIngredients(ingredients as string[], recipeId);
+    return canonBackend.processIngredients(ingredients as string[], recipeId, onProgress);
   }
 
   async repairRecipe(
     recipeId: string,
-    options: { categorize?: boolean; relinkIngredients?: boolean }
+    options: { categorize?: boolean; relinkIngredients?: boolean },
+    onProgress?: (progress: { stage: string; current: number; total: number; percentage: number }) => void
   ): Promise<Recipe> {
     // Fetch the recipe
     const recipe = await this.getRecipe(recipeId);
@@ -300,7 +305,7 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
 
     // Relink ingredients if requested
     if (options.relinkIngredients && Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0) {
-      const processedIngredients = await this.processRecipeIngredients(recipe.ingredients, recipeId);
+      const processedIngredients = await this.matchRecipeIngredients(recipe.ingredients, recipeId, onProgress);
       updates.ingredients = processedIngredients;
 
       // Update ingredients in instructions to reference processed versions

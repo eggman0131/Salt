@@ -130,7 +130,7 @@ describe('RecipeModule - Contract Compliance', () => {
     });
 
     it('should accept recipe with valid complexity levels', () => {
-      ['Simple', 'Intermediate', 'Advanced'].forEach(complexity => {
+      ['Beginner', 'Simple', 'Intermediate', 'Hard', 'Technical'].forEach(complexity => {
         const recipe: Recipe = {
           ...RECIPE_FIXTURE,
           complexity: complexity as any,
@@ -251,7 +251,7 @@ describe('RecipeModule - Data Mutations', () => {
   it('should validate recipe with updated complexity', () => {
     const updated: Recipe = {
       ...RECIPE_FIXTURE,
-      complexity: 'Advanced',
+      complexity: 'Technical',
     };
     expect(() => RecipeSchema.parse(updated)).not.toThrow();
   });
@@ -407,7 +407,7 @@ describe('RecipeModule - Edge Cases', () => {
   });
 
   it('should accept all complexity levels', () => {
-    const complexities = ['Simple', 'Intermediate', 'Advanced'] as const;
+    const complexities = ['Beginner', 'Simple', 'Intermediate', 'Hard', 'Technical'] as const;
     complexities.forEach(c => {
       const recipe: Recipe = {
         ...RECIPE_FIXTURE,

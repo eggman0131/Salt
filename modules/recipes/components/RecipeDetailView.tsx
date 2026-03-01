@@ -365,6 +365,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
   const [isRefreshingImage, setIsRefreshingImage] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const imageRef = useRef<HTMLDivElement | null>(null);
   const [chatTop, setChatTop] = useState<number | null>(null);
@@ -388,12 +389,34 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   useEffect(() => {
     if (recipe.imagePath) {
       setIsLoadingImage(true);
+      setHasImageError(false);
+      
       recipesBackend.resolveImagePath(recipe.imagePath)
-        .then(setImageSrc)
+        .then(async (url) => {
+          if (!url) {
+            setImageSrc('');
+            return;
+          }
+
+          // Validate the image exists without logging errors to console
+          try {
+            const response = await fetch(url, { method: 'HEAD' });
+            if (response.ok) {
+              setImageSrc(url);
+            }
+          } catch {
+            // Image doesn't exist, stay silent
+          }
+        })
         .catch(() => setImageSrc(''))
         .finally(() => setIsLoadingImage(false));
     }
   }, [recipe.imagePath]);
+
+  // Reset error state when image src changes
+  useEffect(() => {
+    setHasImageError(false);
+  }, [imageSrc]);
 
   useEffect(() => {
     systemBackend.getCurrentUser()
@@ -535,6 +558,11 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
     if (!imageRef.current) return;
     const rect = imageRef.current.getBoundingClientRect();
     setChatTop(rect.top);
+  };
+
+  const handleImageError = (e: React.SyntheticEvent) => {
+    e.currentTarget.style.display = 'none';
+    setHasImageError(true);
   };
 
   useEffect(() => {
@@ -750,13 +778,14 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                   </div>
-                ) : imageSrc ? (
+                ) : imageSrc && !hasImageError ? (
                   <>
                     <img 
                       src={imageSrc} 
                       alt={recipe.title}
                       className="w-full h-full object-cover"
-                        onLoad={updateChatTop}
+                      onLoad={updateChatTop}
+                      onError={handleImageError}
                     />
                     {/* Image Actions - Always visible, overlaid on image */}
                     <div className="absolute top-3 right-3 flex gap-2 z-10 pointer-events-auto">

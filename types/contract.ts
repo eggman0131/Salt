@@ -136,6 +136,33 @@ export const CanonicalItemSchema = z.object({
   
   // Approval workflow (auto-created items from CoFID require human review)
   approved: z.boolean().default(true).optional(), // True for user-created, false for auto-created from external sources
+  
+  // Matching audit trail (tracks how this item was matched/created, including near misses)
+  matchingAudit: z.object({
+    // Core decision metadata
+    stage: z.enum(['fuzzy_match', 'semantic_analysis', 'llm_arbitration', 'manual_creation', 'cofid_import']).optional(), // Which stage made the decision
+    decisionAction: z.enum(['use_existing_canon', 'create_from_cofid', 'create_new_canon', 'manual_create', 'no_match']).optional(),
+    decisionSource: z.enum(['algorithm', 'llm', 'user', 'import']).optional(), // Who/what made the decision
+    
+    // Result metadata
+    matchedSource: z.enum(['canon', 'cofid', 'new-canon', 'manual', 'unlinked']).optional(),
+    finalCandidateId: z.string().optional(), // ID of the candidate that was selected (if any)
+    reason: z.string().optional(), // Human-readable explanation of the decision
+    recordedAt: z.string().optional(), // ISO timestamp when decision was made
+    
+    // Near misses - candidates that were considered but not chosen
+    nearMisses: z.array(z.object({
+      candidateId: z.string(),
+      candidateName: z.string(),
+      source: z.enum(['canon', 'cofid']),
+      score: z.number().min(0).max(1),
+      reason: z.string().optional(), // Why this candidate wasn't chosen
+    })).optional(),
+    
+    // Score metadata (for algorithmic decisions)
+    topScore: z.number().min(0).max(1).optional(), // Highest similarity score
+    scoreGap: z.number().min(0).max(1).optional(), // Gap between top and second candidate
+  }).optional(), // Optional for backwards compatibility
 });
 export type CanonicalItem = z.infer<typeof CanonicalItemSchema>;
 
@@ -180,6 +207,7 @@ export const RecipeIngredientSchema = z.object({
   ingredientName: z.string(), // The ingredient name in cooking context
   preparation: z.string().optional(), // e.g., "diced", "chopped"
   canonicalItemId: z.string().optional(), // Links to CanonicalItem
+  embedding: z.array(z.number()).optional(), // Cached semantic embedding of ingredientName for faster rematching
   matchingAudit: z.object({
     stage: z.enum(['fuzzy', 'semantic', 'arbitration']).optional(),
     decisionAction: z.enum(['use_existing_canon', 'create_from_cofid', 'create_new_canon', 'no_match']).optional(),
@@ -254,7 +282,7 @@ export const RecipeSchema = z.object({
   cookTime: z.string(),
   totalTime: z.string(),
   servings: z.string(),
-  complexity: z.enum(['Simple', 'Intermediate', 'Advanced']),
+  complexity: z.enum(['Beginner', 'Simple', 'Intermediate', 'Hard', 'Technical']),
   workflowAdvice: z.object({
     parallelTracks: z.array(z.string()).optional(),
     optimumToolLogic: z.string().optional(),

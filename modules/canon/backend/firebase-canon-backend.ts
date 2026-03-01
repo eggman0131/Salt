@@ -349,11 +349,28 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
    */
   async embedText(text: string): Promise<{ embedding: number[] } | null> {
     try {
-      const embedBatchFn = httpsCallable(functions, 'embedBatch');
-      const result = await embedBatchFn({ texts: [text] }) as { data: EmbedBatchResult[] };
-      
-      if (result.data && result.data[0]?.embedding) {
-        return { embedding: Array.from(result.data[0].embedding) };
+      const idToken = await this.getAuthTokenForHttp();
+      const endpointUrl = this.getEmbedBatchEndpointUrl();
+      const response = await fetch(endpointUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          idToken,
+          items: [{ id: 'single', text }],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`embedBatch failed: HTTP ${response.status} ${response.statusText}`);
+      }
+
+      const payload = await response.json() as { results?: EmbedBatchResult[] };
+      const embedding = payload.results?.[0]?.embedding;
+
+      if (embedding && Array.isArray(embedding) && embedding.length > 0) {
+        return { embedding: Array.from(embedding) };
       }
     } catch (error) {
       console.error('Error embedding text:', error);
@@ -466,7 +483,10 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
    * Uses group->aisle mapping to determine aisle
    * Phase 5: Enriches externalSources.properties with full CoFID metadata
    */
-  async createCanonicalItemFromCofid(cofidItem: any): Promise<CanonicalItem> {
+  async createCanonicalItemFromCofid(
+    cofidItem: any,
+    auditTrail?: CanonicalItem['matchingAudit']
+  ): Promise<CanonicalItem> {
     // Extract group code (CoFID uses 1-3 letter codes)
     const cofidGroup = cofidItem.group || cofidItem.Group || cofidItem.FoodGroup || '';
     const aisle = await this.getAisleForCofidGroup(cofidGroup);
@@ -504,6 +524,7 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
       embeddingModel: cofidItem.embeddingModel || EMBED_MODEL,
       embeddedAt: cofidItem.embeddedAt || new Date().toISOString(),
       lastSyncedAt: new Date().toISOString(),
+      matchingAudit: auditTrail, // Add audit trail if provided
     });
 
     return newItem;
@@ -1191,24 +1212,38 @@ Return JSON object:`
     }
 
     let itemsEmbedded = 0;
-    const embedBatchFn = httpsCallable(functions, 'embedBatch');
+    const idToken = await this.getAuthTokenForHttp();
+    const endpointUrl = this.getEmbedBatchEndpointUrl();
 
     // Embed in batches
     for (let i = 0; i < itemsToEmbed.length; i += EMBED_BATCH_SIZE) {
       const batch = itemsToEmbed.slice(i, i + EMBED_BATCH_SIZE);
-      const textToEmbed = batch.map(item => item.name);
 
       try {
-        const result = await embedBatchFn({
-          texts: textToEmbed,
-        }) as { data: EmbedBatchResult[] };
+        const response = await fetch(endpointUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            idToken,
+            items: batch.map((item) => ({ id: item.id, text: item.name })),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`embedBatch failed: HTTP ${response.status} ${response.statusText}`);
+        }
+
+        const payload = await response.json() as { results?: EmbedBatchResult[] };
+        const resultMap = new Map((payload.results ?? []).map((entry) => [entry.id, entry]));
 
         const now = new Date().toISOString();
         const updateBatch = writeBatch(db);
 
         for (let j = 0; j < batch.length; j++) {
           const item = batch[j];
-          const embeddingResult = result.data[j];
+          const embeddingResult = resultMap.get(item.id);
 
           if (embeddingResult?.embedding) {
             const embedding = Array.from(embeddingResult.embedding);

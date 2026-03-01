@@ -94,7 +94,12 @@ RETURN JSON (MANDATORY SCHEMA):
 CRITICAL JSON REQUIREMENTS:
 - Use EXACTLY these field names: title, description, ingredients, instructions, equipmentNeeded, prepTime, cookTime, totalTime, servings, complexity, stepIngredients, stepAlerts
 - prepTime, cookTime, totalTime, servings MUST be strings (e.g., "15 minutes", "4")
-- complexity MUST be one of: "Simple", "Intermediate", "Advanced"
+- complexity MUST be one of: "Beginner", "Simple", "Intermediate", "Hard", "Technical"
+  - "Beginner": Basic recipes with minimal steps
+  - "Simple": Straightforward cooking with common techniques
+  - "Intermediate": Requires timing coordination or multiple components
+  - "Hard": Demanding recipes with precise execution requirements
+  - "Technical": Uses specialised techniques unlikely to be familiar to average home cooks (e.g., sous vide, molecular gastronomy, advanced pastry techniques, precise temperature control, chemical leavening science)
 - Do NOT use alternate names like recipeName, summary, prep_time, cook_time, total_time, serves, or difficulty.`,
 
   chatPersona: (title: string, inventory: string, currentRecipe: string) => `${SYSTEM_CORE}

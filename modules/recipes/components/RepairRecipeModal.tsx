@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 import { Wrench } from 'lucide-react';
 
 interface RepairRecipeModalProps {
@@ -17,6 +18,7 @@ interface RepairRecipeModalProps {
   onOpenChange: (open: boolean) => void;
   onRepair: (options: { categorize: boolean; relinkIngredients: boolean }) => void;
   isRepairing?: boolean;
+  progress?: { stage: string; percentage: number };
 }
 
 export const RepairRecipeModal: React.FC<RepairRecipeModalProps> = ({
@@ -24,6 +26,7 @@ export const RepairRecipeModal: React.FC<RepairRecipeModalProps> = ({
   onOpenChange,
   onRepair,
   isRepairing = false,
+  progress,
 }) => {
   const [categorize, setCategorize] = React.useState(false);
   const [relinkIngredients, setRelinkIngredients] = React.useState(false);
@@ -54,6 +57,14 @@ export const RepairRecipeModal: React.FC<RepairRecipeModalProps> = ({
             Select the repair operations to run on this recipe
           </DialogDescription>
         </DialogHeader>
+
+        {progress && progress.percentage > 0 && progress.percentage < 100 && (
+          <div className="space-y-2 py-4 border-t">
+            <p className="text-sm text-muted-foreground">{progress.stage}</p>
+            <Progress value={progress.percentage} className="w-full" />
+            <p className="text-xs text-muted-foreground text-right">{progress.percentage}%</p>
+          </div>
+        )}
 
         <div className="space-y-4 py-4">
           <div
