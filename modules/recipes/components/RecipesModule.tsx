@@ -17,6 +17,7 @@ export const RecipesModule: React.FC = () => {
   const [assistGuideRecipeIds, setAssistGuideRecipeIds] = useState<Set<string>>(new Set());
   const [recipeIdToUploadImageFor, setRecipeIdToUploadImageFor] = useState<string | null>(null);
   const [recipeToRepair, setRecipeToRepair] = useState<Recipe | null>(null);
+  const [repairProgress, setRepairProgress] = useState<{ stage: string; percentage: number } | undefined>();
   const [isRepairing, setIsRepairing] = useState(false);
 
   // Load recipes and categories
@@ -123,8 +124,18 @@ export const RecipesModule: React.FC = () => {
     if (!recipeToRepair) return;
 
     setIsRepairing(true);
+    setRepairProgress(undefined);
     try {
-      await recipesBackend.repairRecipe(recipeToRepair.id, options);
+      await recipesBackend.repairRecipe(
+        recipeToRepair.id,
+        options,
+        (progressData) => {
+          setRepairProgress({
+            stage: progressData.stage,
+            percentage: progressData.percentage,
+          });
+        }
+      );
       
       const actions: string[] = [];
       if (options.categorize) actions.push('re-categorized');
@@ -140,11 +151,13 @@ export const RecipesModule: React.FC = () => {
       }
       
       setRecipeToRepair(null);
+      setRepairProgress(undefined);
     } catch (error) {
       console.error('Failed to repair recipe:', error);
       softToast.error('Failed to repair recipe');
     } finally {
       setIsRepairing(false);
+      setRepairProgress(undefined);
     }
   };
 
@@ -169,6 +182,7 @@ export const RecipesModule: React.FC = () => {
           onOpenChange={(open) => !open && setRecipeToRepair(null)}
           onRepair={handleRepairRecipe}
           isRepairing={isRepairing}
+          progress={repairProgress}
         />
         <Toaster position="top-right" />
       </>
@@ -193,6 +207,7 @@ export const RecipesModule: React.FC = () => {
         onOpenChange={(open) => !open && setRecipeToRepair(null)}
         onRepair={handleRepairRecipe}
         isRepairing={isRepairing}
+        progress={repairProgress}
       />
       <Toaster position="top-right" />
     </>

@@ -32,7 +32,10 @@ export abstract class BaseCanonBackend implements ICanonBackend {
   protected abstract callGenerateContentStream(params: GenerateContentParameters): Promise<AsyncIterable<GenerateContentResponse>>;
   protected abstract getSystemInstruction(customContext?: string): Promise<string>;
   protected abstract embedText(text: string): Promise<{ embedding: number[] } | null>;
-  protected abstract createCanonicalItemFromCofid(cofidItem: any): Promise<CanonicalItem>;
+  protected abstract createCanonicalItemFromCofid(
+    cofidItem: any,
+    auditTrail?: CanonicalItem['matchingAudit']
+  ): Promise<CanonicalItem>;
 
   // Units (CRUD)
   abstract getUnits(): Promise<Unit[]>;
@@ -110,12 +113,18 @@ export abstract class BaseCanonBackend implements ICanonBackend {
    * 5. LLM arbitration (only when needed)
    * 6. Create/update Canon items
    */
-  async processIngredients(ingredients: string[] | RecipeIngredient[], contextId: string): Promise<RecipeIngredient[]> {
+  async processIngredients(
+    ingredients: string[] | RecipeIngredient[],
+    contextId: string,
+    onProgress?: (progress: { stage: string; current: number; total: number; percentage: number }) => void
+  ): Promise<RecipeIngredient[]> {
     debugLogger.log('Ingredient Matching', `━━━━━ Starting processIngredients for ${contextId} with ${ingredients.length} items ━━━━━`);
+    onProgress?.({ stage: 'Starting ingredient matching', current: 0, total: ingredients.length, percentage: 0 });
 
     // Early return for already-structured ingredients
     if (ingredients.length > 0 && typeof ingredients[0] === 'object') {
       debugLogger.log('Ingredient Matching', `Already structured, returning ${ingredients.length} ingredients as-is`);
+      onProgress?.({ stage: 'Complete', current: ingredients.length, total: ingredients.length, percentage: 100 });
       return ingredients as RecipeIngredient[];
     }
 
@@ -208,22 +217,34 @@ export abstract class BaseCanonBackend implements ICanonBackend {
     }
 
     debugLogger.log('Ingredient Matching', `└── Stage 1 complete: ${results.length - pendingSemanticSearch.length}/${ingredients.length} fuzzy matched, ${pendingSemanticSearch.length} pending semantic search ──┘`);
+    onProgress?.({ stage: 'Fuzzy matching complete', current: results.length - pendingSemanticSearch.length, total: ingredients.length, percentage: Math.round(((results.length - pendingSemanticSearch.length) / ingredients.length) * 33) });
 
     // ========== STAGE 2 & 3: SEMANTIC SEARCH & DECISION ==========
     if (pendingSemanticSearch.length > 0) {
       debugLogger.log('Ingredient Matching', `┌── STAGE 2 & 3: Semantic Search & Decision (${pendingSemanticSearch.length} items) ──┐`);
+    onProgress?.({ stage: 'Starting semantic analysis', current: results.length - pendingSemanticSearch.length, total: ingredients.length, percentage: 33 });
 
       for (const { index, parsed } of pendingSemanticSearch) {
         debugLogger.log('Ingredient Matching', `[${index}] Embedding "${parsed.ingredientName}"...`);
 
-        // Embed the ingredient string
-        const embeddingResult = await this.embedText(parsed.ingredientName);
-        if (!embeddingResult || !embeddingResult.embedding) {
-          debugLogger.warn('Ingredient Matching', `[${index}] Failed to embed "${parsed.ingredientName}", skipping semantic search`);
-          continue;
-        }
+        // Check if embedding is cached on this ingredient
+        let queryEmbedding: number[];
+        if (results[index].embedding && results[index].embedding.length > 0) {
+          debugLogger.log('Ingredient Matching', `[${index}] Using cached embedding for "${parsed.ingredientName}"`);
+          queryEmbedding = results[index].embedding!;
+        } else {
+          // Embed the ingredient string
+          const embeddingResult = await this.embedText(parsed.ingredientName);
+          if (!embeddingResult || !embeddingResult.embedding) {
+            debugLogger.warn('Ingredient Matching', `[${index}] Failed to embed "${parsed.ingredientName}", skipping semantic search`);
+            continue;
+          }
 
-        const queryEmbedding = embeddingResult.embedding;
+          queryEmbedding = embeddingResult.embedding;
+          
+          // Cache embedding on recipe ingredient for future rematching
+          results[index].embedding = queryEmbedding;
+        }
 
         // Search Canon + CoFID for semantic matches
         const candidates = await this.searchSemanticCandidates(queryEmbedding, config.semanticCandidateCount);
@@ -280,7 +301,19 @@ export abstract class BaseCanonBackend implements ICanonBackend {
           } else {
             // Create new Canon item from CoFID
             debugLogger.log('Ingredient Matching', `[${index}] Creating new Canon item from CoFID: "${topCandidate.name}"`);
-            const newCanonItem = await this.createCanonicalItemFromCofid(topCandidate.item);
+            
+            const auditTrail = this.buildAuditTrail({
+              stage: 'semantic_analysis',
+              decisionAction: 'create_from_cofid',
+              decisionSource: 'algorithm',
+              matchedSource: 'cofid',
+              originalQuery: parsed.ingredientName,
+              selectedCandidate: topCandidate,
+              allCandidates: candidates,
+              reason: 'semantic-high-confidence-clear-gap',
+            });
+            
+            const newCanonItem = await this.createCanonicalItemFromCofid(topCandidate.item, auditTrail);
             results[index].canonicalItemId = newCanonItem.id;
             results[index].matchingAudit = {
               stage: 'semantic',
@@ -330,7 +363,18 @@ export abstract class BaseCanonBackend implements ICanonBackend {
                 recordedAt: new Date().toISOString(),
               };
             } else {
-              const newCanonItem = await this.createCanonicalItemFromCofid(topCandidate.item);
+              const auditTrail = this.buildAuditTrail({
+                stage: 'semantic_analysis',
+                decisionAction: 'create_from_cofid',
+                decisionSource: 'algorithm',
+                matchedSource: 'cofid',
+                originalQuery: parsed.ingredientName,
+                selectedCandidate: topCandidate,
+                allCandidates: candidates,
+                reason: 'semantic-high-confidence-single-winner',
+              });
+              
+              const newCanonItem = await this.createCanonicalItemFromCofid(topCandidate.item, auditTrail);
               results[index].canonicalItemId = newCanonItem.id;
               results[index].matchingAudit = {
                 stage: 'semantic',
@@ -367,7 +411,7 @@ export abstract class BaseCanonBackend implements ICanonBackend {
           
           if (config.allowNewCanonItems) {
             debugLogger.log('Ingredient Matching', `[${index}] → Creating new Canon item via AI enrichment`);
-            await this.createNewCanonItemViaAI(index, parsed, results);
+            await this.createNewCanonItemViaAI(index, parsed, results, candidates);
             results[index].matchingAudit = {
               stage: 'semantic',
               decisionAction: 'create_new_canon',
@@ -392,12 +436,23 @@ export abstract class BaseCanonBackend implements ICanonBackend {
             };
           }
         }
+
+        // Report progress on semantic processing
+        const processedCount = pendingSemanticSearch.indexOf({ index, parsed } as any) + 1;
+        const semanticProgress = Math.round(33 + (processedCount / pendingSemanticSearch.length) * 33);
+        onProgress?.({ 
+          stage: `Processing ingredient ${index + 1}/${ingredients.length}`,
+          current: results.filter(r => r.canonicalItemId).length,
+          total: ingredients.length, 
+          percentage: semanticProgress 
+        });
       }
 
       debugLogger.log('Ingredient Matching', `└── Stage 2 & 3 complete ──┘`);
     }
 
     debugLogger.log('Ingredient Matching', `━━━━━ Final result: ${results.filter(r => r.canonicalItemId).length}/${results.length} ingredients linked ━━━━━`);
+    onProgress?.({ stage: 'Complete', current: ingredients.length, total: ingredients.length, percentage: 100 });
 
     return results;
   }
@@ -577,7 +632,19 @@ Return JSON only:
         });
         return;
       }
-      const created = await this.createCanonicalItemFromCofid(selected.item);
+      
+      const auditTrail = this.buildAuditTrail({
+        stage: 'llm_arbitration',
+        decisionAction: 'create_from_cofid',
+        decisionSource: decision.decisionSource === 'fallback' ? 'algorithm' : 'llm',
+        matchedSource: 'cofid',
+        originalQuery: parsed.ingredientName,
+        selectedCandidate: selected,
+        allCandidates: candidates,
+        reason: decision.reason || 'LLM arbitration selected CoFID candidate',
+      });
+      
+      const created = await this.createCanonicalItemFromCofid(selected.item, auditTrail);
       results[index].canonicalItemId = created.id;
       results[index].matchingAudit = {
         stage: 'arbitration',
@@ -593,7 +660,7 @@ Return JSON only:
     }
 
     if (decision.action === 'create_new_canon') {
-      await this.createNewCanonItemViaAI(index, parsed, results);
+      await this.createNewCanonItemViaAI(index, parsed, results, candidates);
       results[index].matchingAudit = {
         stage: 'arbitration',
         decisionAction: 'create_new_canon',
@@ -619,7 +686,8 @@ Return JSON only:
   private async createNewCanonItemViaAI(
     index: number,
     parsed: Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'>,
-    results: RecipeIngredient[]
+    results: RecipeIngredient[],
+    candidates?: IngredientSemanticCandidate[]
   ): Promise<void> {
     try {
       const enriched = await this.enrichCanonicalItem(parsed.ingredientName);
@@ -630,6 +698,18 @@ Return JSON only:
         await this.createAisle({ name: aisleName, sortOrder: aisles.length + 1 });
       }
 
+      // Build audit trail with near misses
+      const auditTrail = this.buildAuditTrail({
+        stage: 'semantic_analysis',
+        decisionAction: 'create_new_canon',
+        decisionSource: 'algorithm',
+        matchedSource: 'new-canon',
+        originalQuery: parsed.ingredientName,
+        selectedCandidate: null,
+        allCandidates: candidates || [],
+        reason: 'No suitable matches found, creating new item via AI enrichment',
+      });
+
       const created = await this.createCanonicalItem({
         name: enriched.name,
         normalisedName: enriched.name.toLowerCase(),
@@ -638,6 +718,7 @@ Return JSON only:
         isStaple: enriched.isStaple,
         synonyms: enriched.synonyms,
         approved: false,
+        matchingAudit: auditTrail,
       });
 
       results[index].canonicalItemId = created.id;
@@ -703,7 +784,66 @@ Return JSON only:
       reason: 'fallback-unresolvable',
     };
   }
+  /**
+   * Build audit trail for canonical item creation/matching
+   * Captures decision metadata and near misses for transparency
+   */
+  private buildAuditTrail(params: {
+    stage: NonNullable<CanonicalItem['matchingAudit']>['stage'];
+    decisionAction: NonNullable<CanonicalItem['matchingAudit']>['decisionAction'];
+    decisionSource: NonNullable<CanonicalItem['matchingAudit']>['decisionSource'];
+    matchedSource: NonNullable<CanonicalItem['matchingAudit']>['matchedSource'];
+    originalQuery: string;
+    selectedCandidate: IngredientSemanticCandidate | null;
+    allCandidates: IngredientSemanticCandidate[];
+    reason: string;
+  }): NonNullable<CanonicalItem['matchingAudit']> {
+    const { stage, decisionAction, decisionSource, matchedSource, originalQuery, selectedCandidate, allCandidates, reason } = params;
 
+    // Calculate scores
+    const topScore = allCandidates.length > 0 ? allCandidates[0].score : undefined;
+    const secondScore = allCandidates.length > 1 ? allCandidates[1].score : undefined;
+    const scoreGap = topScore !== undefined && secondScore !== undefined ? topScore - secondScore : undefined;
+
+    // Build near misses array (exclude the selected candidate, include rest)
+    const nearMisses = allCandidates
+      .filter(c => !selectedCandidate || c.id !== selectedCandidate.id)
+      .slice(0, 5) // Keep top 5 near misses for audit
+      .map(c => ({
+        candidateId: c.id,
+        candidateName: c.name,
+        source: c.source,
+        score: c.score,
+        reason: c.id === allCandidates[0]?.id && !selectedCandidate
+          ? 'Top candidate but not selected'
+          : `Score: ${(c.score * 100).toFixed(1)}%`,
+      }));
+
+    debugLogger.log('Ingredient Matching', `Building audit trail for "${originalQuery}"`, {
+      stage,
+      decisionAction,
+      selectedCandidate: selectedCandidate?.name,
+      nearMissesCount: nearMisses.length,
+      topScore,
+      scoreGap,
+    });
+
+    // Firestore rejects undefined values — strip them from the audit object
+    const audit: Record<string, unknown> = {
+      stage,
+      decisionAction,
+      decisionSource,
+      matchedSource,
+      reason,
+      recordedAt: new Date().toISOString(),
+    };
+    if (selectedCandidate?.id) audit.finalCandidateId = selectedCandidate.id;
+    if (nearMisses.length > 0) audit.nearMisses = nearMisses;
+    if (topScore !== undefined) audit.topScore = topScore;
+    if (scoreGap !== undefined) audit.scoreGap = scoreGap;
+
+    return audit as NonNullable<CanonicalItem['matchingAudit']>;
+  }
   // ==================== HELPER METHODS ====================
 
   /**

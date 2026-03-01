@@ -172,7 +172,14 @@ This module is imported by:
   cookTime: string;                   // "30 mins"
   totalTime: string;                  // "50 mins"
   servings: string;                   // "4 people"
-  complexity: 'Easy' | 'Intermediate' | 'Advanced';
+  complexity: 'Beginner' | 'Simple' | 'Intermediate' | 'Hard' | 'Technical';
+  // Complexity levels:
+  // - Beginner: Basic recipes with minimal steps
+  // - Simple: Straightforward cooking with common techniques
+  // - Intermediate: Requires timing coordination or multiple components
+  // - Hard: Demanding recipes with precise execution requirements
+  // - Technical: Uses specialised techniques unlikely to be familiar to average home cooks
+  //   (e.g., sous vide, molecular gastronomy, advanced pastry, precise temperature control)
   categoryIds: string[];              // FK to RecipeCategory
   equipmentNeeded: string[];          // Equipment names
   imagePath?: string;                 // Firebase Storage path

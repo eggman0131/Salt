@@ -390,3 +390,157 @@ describe('Audit Trail Structures', () => {
     expect(timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   });
 });
+
+describe('CanonicalItem Audit Trail Structures', () => {
+  it('should create valid audit trail for semantic match with near misses', () => {
+    const audit: NonNullable<CanonicalItem['matchingAudit']> = {
+      stage: 'semantic_analysis',
+      decisionAction: 'use_existing_canon',
+      decisionSource: 'algorithm',
+      matchedSource: 'canon',
+      finalCandidateId: 'canon-123',
+      reason: 'High semantic similarity with clear gap',
+      recordedAt: new Date().toISOString(),
+      nearMisses: [
+        {
+          candidateId: 'cofid-456',
+          candidateName: 'Similar Item from CoFID',
+          source: 'cofid',
+          score: 0.82,
+          reason: 'Score: 82.0%',
+        },
+        {
+          candidateId: 'canon-789',
+          candidateName: 'Another Canon Item',
+          source: 'canon',
+          score: 0.75,
+          reason: 'Score: 75.0%',
+        },
+      ],
+      topScore: 0.95,
+      scoreGap: 0.13,
+    };
+
+    expect(audit.stage).toBe('semantic_analysis');
+    expect(audit.decisionAction).toBe('use_existing_canon');
+    expect(audit.nearMisses).toHaveLength(2);
+    expect(audit.nearMisses?.[0].source).toBe('cofid');
+    expect(audit.topScore).toBeGreaterThan(0.9);
+    expect(audit.scoreGap).toBeGreaterThan(0.1);
+  });
+
+  it('should create valid audit trail for CoFID creation', () => {
+    const audit: NonNullable<CanonicalItem['matchingAudit']> = {
+      stage: 'semantic_analysis',
+      decisionAction: 'create_from_cofid',
+      decisionSource: 'algorithm',
+      matchedSource: 'cofid',
+      finalCandidateId: 'cofid-456',
+      reason: 'CoFID provides better match than existing Canon items',
+      recordedAt: new Date().toISOString(),
+      nearMisses: [
+        {
+          candidateId: 'canon-123',
+          candidateName: 'Existing Canon Item',
+          source: 'canon',
+          score: 0.78,
+          reason: 'Score: 78.0%',
+        },
+      ],
+      topScore: 0.88,
+      scoreGap: 0.10,
+    };
+
+    expect(audit.decisionAction).toBe('create_from_cofid');
+    expect(audit.matchedSource).toBe('cofid');
+    expect(audit.nearMisses).toHaveLength(1);
+  });
+
+  it('should create valid audit trail for LLM arbitration', () => {
+    const audit: NonNullable<CanonicalItem['matchingAudit']> = {
+      stage: 'llm_arbitration',
+      decisionAction: 'use_existing_canon',
+      decisionSource: 'llm',
+      matchedSource: 'canon',
+      finalCandidateId: 'canon-123',
+      reason: 'LLM selected existing Canon item after analyzing tied results',
+      recordedAt: new Date().toISOString(),
+      nearMisses: [
+        {
+          candidateId: 'cofid-456',
+          candidateName: 'Tied CoFID Candidate',
+          source: 'cofid',
+          score: 0.87,
+          reason: 'Score: 87.0%',
+        },
+      ],
+      topScore: 0.88,
+      scoreGap: 0.01,
+    };
+
+    expect(audit.stage).toBe('llm_arbitration');
+    expect(audit.decisionSource).toBe('llm');
+    expect(audit.scoreGap).toBeLessThan(0.05); // Small gap indicates ambiguity
+  });
+
+  it('should create valid audit trail for manual creation', () => {
+    const audit: NonNullable<CanonicalItem['matchingAudit']> = {
+      stage: 'manual_creation',
+      decisionAction: 'manual_create',
+      decisionSource: 'user',
+      matchedSource: 'manual',
+      finalCandidateId: undefined,
+      reason: 'User manually created new item',
+      recordedAt: new Date().toISOString(),
+      nearMisses: undefined,
+      topScore: undefined,
+      scoreGap: undefined,
+    };
+
+    expect(audit.decisionSource).toBe('user');
+    expect(audit.nearMisses).toBeUndefined();
+  });
+
+  it('should create valid audit trail for new canon creation with no matches', () => {
+    const audit: NonNullable<CanonicalItem['matchingAudit']> = {
+      stage: 'semantic_analysis',
+      decisionAction: 'create_new_canon',
+      decisionSource: 'algorithm',
+      matchedSource: 'new-canon',
+      finalCandidateId: undefined,
+      reason: 'No suitable matches found, creating new item via AI enrichment',
+      recordedAt: new Date().toISOString(),
+      nearMisses: [
+        {
+          candidateId: 'canon-123',
+          candidateName: 'Low Score Match',
+          source: 'canon',
+          score: 0.45,
+          reason: 'Score: 45.0%',
+        },
+      ],
+      topScore: 0.45,
+      scoreGap: undefined,
+    };
+
+    expect(audit.decisionAction).toBe('create_new_canon');
+    expect(audit.topScore).toBeLessThan(0.7);
+    expect(audit.nearMisses).toBeTruthy();
+  });
+
+  it('should validate near miss structure', () => {
+    const nearMiss = {
+      candidateId: 'cofid-456',
+      candidateName: 'Test Item',
+      source: 'cofid' as const,
+      score: 0.85,
+      reason: 'Score: 85.0%',
+    };
+
+    expect(nearMiss.candidateId).toBeTruthy();
+    expect(nearMiss.candidateName).toBeTruthy();
+    expect(['canon', 'cofid']).toContain(nearMiss.source);
+    expect(nearMiss.score).toBeGreaterThanOrEqual(0);
+    expect(nearMiss.score).toBeLessThanOrEqual(1);
+  });
+});

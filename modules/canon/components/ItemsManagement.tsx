@@ -1030,7 +1030,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                                             <div>
                                               <h4 className="font-semibold text-sm">CoFID Data</h4>
                                               <p className="text-xs text-muted-foreground mt-1">
-                                                Enriched metadata from Canadian Food Database
+                                                Enriched metadata from British Food Database
                                               </p>
                                             </div>
                                             
@@ -1209,7 +1209,7 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                                             <div>
                                               <h4 className="font-semibold text-sm">CoFID Data</h4>
                                               <p className="text-xs text-muted-foreground mt-1">
-                                                Enriched metadata from Canadian Food Database
+                                                Enriched metadata from British Food Database
                                               </p>
                                             </div>
                                             

@@ -55,7 +55,7 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
   const [cookTime, setCookTime] = useState('');
   const [totalTime, setTotalTime] = useState('');
   const [servings, setServings] = useState('');
-  const [complexity, setComplexity] = useState<'Simple' | 'Intermediate' | 'Advanced'>('Simple');
+  const [complexity, setComplexity] = useState<'Beginner' | 'Simple' | 'Intermediate' | 'Hard' | 'Technical'>('Simple');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
   const [instructions, setInstructions] = useState<string[]>(['']);
@@ -436,9 +436,11 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent side="bottom" align="start" sideOffset={4}>
+                    <SelectItem value="Beginner">Beginner</SelectItem>
                     <SelectItem value="Simple">Simple</SelectItem>
                     <SelectItem value="Intermediate">Intermediate</SelectItem>
-                    <SelectItem value="Advanced">Advanced</SelectItem>
+                    <SelectItem value="Hard">Hard</SelectItem>
+                    <SelectItem value="Technical">Technical</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
