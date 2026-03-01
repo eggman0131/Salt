@@ -9,6 +9,7 @@ import { systemBackend } from './shared/backend/system-backend';
 import { ensureEmulatorAuth } from './shared/backend/auth-emulator';
 import { softToast } from '@/lib/soft-toast';
 import { Toaster } from '@/components/ui/sonner';
+import { debugLogger } from '@/shared/backend/debug-logger';
 
 // Feature Modules
 import { InventoryModule } from './modules/inventory';
@@ -112,6 +113,15 @@ const App: React.FC = () => {
       }
     };
     checkAuth();
+  }, []);
+
+  // Initialize debug logger from settings on app startup
+  useEffect(() => {
+    plannerBackend.getKitchenSettings().then(settings => {
+      debugLogger.setEnabled(settings.debugEnabled || false);
+    }).catch(error => {
+      console.error('Failed to load kitchen settings:', error);
+    });
   }, []);
 
   // Refresh data whenever we switch tabs or log in
