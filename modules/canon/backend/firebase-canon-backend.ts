@@ -1395,6 +1395,87 @@ Return JSON object:`
   }
 
   /**
+   * Seed units from canonical data (safe for production)
+   * - Checks for existing units by name (case-insensitive)
+   * - Only creates units that don't already exist
+   * - Preserves existing customizations
+   * - Safe to run multiple times
+   */
+  async seedUnits(
+    units: Array<Omit<Unit, 'id' | 'createdAt'>>
+  ): Promise<{
+    unitsImported: number;
+    unitsSkipped: number;
+    errors: string[];
+  }> {
+    const errors: string[] = [];
+    let unitsImported = 0;
+    let unitsSkipped = 0;
+
+    try {
+      const now = new Date().toISOString();
+      let currentBatch = writeBatch(db);
+      let batchCount = 0;
+
+      // Get all existing units to check for duplicates by name
+      const existingUnits = await this.getUnits();
+      const existingNames = new Map(existingUnits.map(u => [u.name.toLowerCase(), u]));
+
+      // Iterate through seed units
+      for (const unit of units) {
+        try {
+          const nameLower = unit.name.toLowerCase();
+
+          // Check if unit already exists by name
+          if (existingNames.has(nameLower)) {
+            unitsSkipped++;
+            console.log(`Unit "${unit.name}" already exists, skipping`);
+            continue;
+          }
+
+          // Create new unit
+          const unitId = unit.name; // Use name as ID for consistency
+          const newUnit = {
+            ...unit,
+            createdAt: now,
+          };
+
+          currentBatch.set(doc(db, 'units', unitId), newUnit);
+          existingNames.set(nameLower, { ...newUnit, id: unitId } as Unit);
+          batchCount++;
+          unitsImported++;
+
+          // Commit batch when it reaches the limit
+          if (batchCount >= 100) {
+            await currentBatch.commit();
+            currentBatch = writeBatch(db);
+            batchCount = 0;
+          }
+        } catch (err) {
+          errors.push(
+            `Failed to seed unit "${unit.name}": ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+      }
+
+      // Commit remaining batch
+      if (batchCount > 0) {
+        await currentBatch.commit();
+      }
+
+      console.log(
+        `Successfully seeded ${unitsImported} units (${unitsSkipped} existing, ${errors.length} errors)`
+      );
+      return { unitsImported, unitsSkipped, errors };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      errors.push(`Unit seeding failed: ${errorMsg}`);
+      console.error('Unit seeding error:', err);
+      return { unitsImported, unitsSkipped, errors };
+    }
+  }
+
+  /**
    * Get aisle for a CoFID group code, returns null if no mapping found
    */
   private async getAisleForCofidGroup(cofidGroup: string): Promise<string | null> {
