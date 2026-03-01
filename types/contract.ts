@@ -73,8 +73,10 @@ export type RecipeCategory = z.infer<typeof RecipeCategorySchema>;
 export const UnitSchema = z.object({
   id: z.string(),
   name: z.string(), // e.g., 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp'
+  plural: z.string().nullable().default(null), // e.g., 'cloves' for 'clove'. null if no plural
+  category: z.enum(['weight', 'volume', 'count', 'colloquial']),
   sortOrder: z.number().default(999),
-  createdAt: z.string(),
+  createdAt: z.string().optional(),
 });
 export type Unit = z.infer<typeof UnitSchema>;
 
