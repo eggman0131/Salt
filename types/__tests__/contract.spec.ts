@@ -936,7 +936,7 @@ describe('Contract Stability - Core Relationships', () => {
           raw: '400 g tomatoes',
           quantity: 400,
           unit: 'g',
-          ingredientName: 'tomatoes',
+          ingredientName: 'Tomatoes',
         },
       ],
       instructions: [],
@@ -951,7 +951,7 @@ describe('Contract Stability - Core Relationships', () => {
     };
 
     expect(recipe.ingredients).toHaveLength(1);
-    expect(recipe.ingredients[0].ingredientName).toBe('tomatoes');
+    expect(recipe.ingredients[0].ingredientName).toBe('Tomatoes');
   });
 
   it('should maintain equipment to accessory relationship', () => {
