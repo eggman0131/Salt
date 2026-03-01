@@ -15,6 +15,7 @@ import {
   RecipeIngredient,
   CoFIDGroupAisleMapping,
   IngredientMatchingConfig,
+  MatchingEvent,
 } from '../../../types/contract';
 
 export type IngredientSemanticCandidate = {
@@ -53,6 +54,32 @@ export interface ICanonBackend {
 
   getIngredientMatchingConfig: () => Promise<IngredientMatchingConfig>;
   updateIngredientMatchingConfig: (updates: Partial<IngredientMatchingConfig>) => Promise<IngredientMatchingConfig>;
+
+  // ==================== MATCHING EVENTS (Issue #79: Matching Observability) ====================
+
+  /**
+   * Create a matching event log entry
+   * Records structured data about ingredient matching pipeline decisions
+   */
+  createMatchingEvent: (event: Omit<MatchingEvent, 'id'>) => Promise<MatchingEvent>;
+
+  /**
+   * Get matching events, optionally filtered by runId, recipeId, or date range
+   */
+  getMatchingEvents: (filters?: {
+    runId?: string;
+    recipeId?: string;
+    startDate?: string;
+    endDate?: string;
+    outcome?: MatchingEvent['outcome'];
+    limit?: number;
+  }) => Promise<MatchingEvent[]>;
+
+  /**
+   * Delete matching events older than the specified date
+   * Used for retention policy enforcement
+   */
+  deleteMatchingEventsOlderThan: (cutoffDate: string) => Promise<{ deletedCount: number }>;
 
   // ==================== SEMANTIC SEARCH (Phase 2) ====================
 

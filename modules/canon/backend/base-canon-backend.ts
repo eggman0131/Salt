@@ -12,6 +12,7 @@ import {
   CanonicalItem,
   RecipeIngredient,
   IngredientMatchingConfig,
+  MatchingEvent,
 } from '../../../types/contract';
 import { ICanonBackend, IngredientSemanticCandidate, SemanticScoreCluster } from './canon-backend.interface';
 import { debugLogger } from '../../../shared/backend/debug-logger';
@@ -69,6 +70,18 @@ export abstract class BaseCanonBackend implements ICanonBackend {
   // Ingredient Matching Config (admin settable thresholds)
   abstract getIngredientMatchingConfig(): Promise<IngredientMatchingConfig>;
   abstract updateIngredientMatchingConfig(updates: Partial<IngredientMatchingConfig>): Promise<IngredientMatchingConfig>;
+
+  // Matching Events (Issue #79: Matching Observability)
+  abstract createMatchingEvent(event: Omit<MatchingEvent, 'id'>): Promise<MatchingEvent>;
+  abstract getMatchingEvents(filters?: {
+    runId?: string;
+    recipeId?: string;
+    startDate?: string;
+    endDate?: string;
+    outcome?: MatchingEvent['outcome'];
+    limit?: number;
+  }): Promise<MatchingEvent[]>;
+  abstract deleteMatchingEventsOlderThan(cutoffDate: string): Promise<{ deletedCount: number }>;
 
   // Semantic Search (Phase 2: Embedding-based matching)
   abstract searchSemanticCandidates(embedding: number[], maxCandidates?: number): Promise<IngredientSemanticCandidate[]>;
@@ -136,7 +149,11 @@ export abstract class BaseCanonBackend implements ICanonBackend {
     contextId: string,
     onProgress?: (progress: { stage: string; current: number; total: number; percentage: number }) => void
   ): Promise<RecipeIngredient[]> {
+    const startTime = Date.now();
+    const runId = `${contextId}_${Date.now()}`;
+    
     debugLogger.log('Ingredient Matching', `━━━━━ Starting processIngredients for ${contextId} with ${ingredients.length} items ━━━━━`);
+    debugLogger.log('Ingredient Matching', `Run ID: ${runId}`);
     onProgress?.({ stage: 'Starting ingredient matching', current: 0, total: ingredients.length, percentage: 0 });
 
     // Early return for already-structured ingredients
@@ -607,9 +624,117 @@ export abstract class BaseCanonBackend implements ICanonBackend {
     // Log the complete summary
     summaryLines.forEach(line => debugLogger.info('Matching Summary', line));
     
+    // ========== PERSIST MATCHING EVENTS (Issue #79) ==========
+    // Create matching event log entries for each processed ingredient
+    await this.createMatchingEventsFromResults(runId, contextId, ingredients as string[], results, startTime);
+    
     onProgress?.({ stage: 'Complete', current: ingredients.length, total: ingredients.length, percentage: 100 });
 
     return results;
+  }
+
+  /**
+   * Create and persist matching event log entries from processed results
+   * (Issue #79: Matching Observability)
+   */
+  private async createMatchingEventsFromResults(
+    runId: string,
+    contextId: string,
+    rawIngredients: string[],
+    results: RecipeIngredient[],
+    startTime: number
+  ): Promise<void> {
+    try {
+      // Extract recipe name from contextId (format: "recipeId" or "recipe_{name}")
+      const recipeName = contextId.startsWith('recipe_') ? contextId.substring(7) : contextId;
+      
+      const events = results.map((result, index) => {
+        const raw = rawIngredients[index] || '';
+        const audit = result.matchingAudit;
+        
+        // Determine outcome from matchingAudit
+        let outcome: 'matched_existing' | 'created_from_cofid' | 'ai_generated' | 'unlinked' = 'unlinked';
+        if (audit?.matchedSource === 'canon') {
+          outcome = 'matched_existing';
+        } else if (audit?.matchedSource === 'cofid' || audit?.decisionAction === 'create_from_cofid') {
+          outcome = 'created_from_cofid';
+        } else if (audit?.matchedSource === 'new-canon' || audit?.decisionAction === 'create_new_canon') {
+          outcome = 'ai_generated';
+        }
+        
+        // Get canonical item name if linked
+        let canonicalItemName: string | null = null;
+        if (result.canonicalItemId) {
+          // We don't have the item name readily available, will need to fetch or pass it
+          // For now, use the ingredient name as a fallback
+          canonicalItemName = result.ingredientName;
+        }
+        
+        // Build the matching event
+        const event: Omit<import('../../../types/contract').MatchingEvent, 'id'> = {
+          runId,
+          recipeId: contextId,
+          recipeName,
+          ingredientIndex: index,
+          ingredientName: result.ingredientName,
+          raw,
+          timestamp: new Date().toISOString(),
+          
+          // Parsing stage
+          parsing: {
+            quantity: result.quantity,
+            unit: result.unit,
+            item: result.ingredientName,
+            qualifiers: result.qualifiers || [],
+            preparation: result.preparation || null,
+          },
+          
+          // Fuzzy matching (we don't track this separately yet in Phase 1)
+          fuzzy: audit?.stage === 'fuzzy' ? {
+            matched: true,
+            matchedTo: canonicalItemName,
+            matchedToId: result.canonicalItemId || null,
+            score: audit.topScore || null,
+          } : undefined,
+          
+          // Semantic search (populated if semantic stage was used)
+          semantic: audit?.stage === 'semantic' ? {
+            topCandidateName: canonicalItemName,
+            topCandidateSource: audit.matchedSource === 'canon' ? 'canon' : audit.matchedSource === 'cofid' ? 'cofid' : null,
+            topScore: audit.topScore || null,
+            scoreGap: audit.scoreGap || null,
+            candidateCount: 0, // Not tracked in Phase 1
+            case: 'A_confident' as const, // Simplified for Phase 1
+          } : undefined,
+          
+          // Arbitration (populated if LLM arbitration was used)
+          arbitration: audit?.stage === 'arbitration' && (audit.decisionSource === 'llm' || audit.decisionSource === 'fallback') ? {
+            needed: true,
+            decision: audit.decisionAction || null,
+            confidence: null, // Not exposed in current audit
+            reason: audit.reason || null,
+            decisionSource: audit.decisionSource,
+          } : undefined,
+          
+          // Final outcome
+          outcome,
+          canonicalItemId: result.canonicalItemId || null,
+          canonicalItemName,
+          durationMs: Date.now() - startTime, // Total processing time (not per-ingredient in Phase 1)
+        };
+        
+        return event;
+      });
+      
+      // Persist all events (fire-and-forget to avoid slowing down recipe processing)
+      // In production, consider batch writes or background job
+      await Promise.all(events.map(event => this.createMatchingEvent(event)));
+      
+      debugLogger.log('Matching Events', `Persisted ${events.length} matching events for run ${runId}`);
+    } catch (error) {
+      // Don't fail the entire ingredient processing if event logging fails
+      debugLogger.error('Matching Events', 'Failed to persist matching events:', error);
+    }
   }
 
   private async arbitrateSemanticMatch(

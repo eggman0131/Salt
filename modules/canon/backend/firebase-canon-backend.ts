@@ -11,6 +11,7 @@ import {
   CanonicalItem,
   CoFIDGroupAisleMapping,
   IngredientMatchingConfig,
+  MatchingEvent,
 } from '../../../types/contract';
 import { IngredientSemanticCandidate, SemanticScoreCluster } from './canon-backend.interface';
 import { db, auth, functions } from '../../../shared/backend/firebase';
@@ -814,6 +815,106 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     });
 
     return updated;
+  }
+
+  // ==================== MATCHING EVENTS (Issue #79: Matching Observability) ====================
+
+  async createMatchingEvent(event: Omit<MatchingEvent, 'id'>): Promise<MatchingEvent> {
+    const docRef = doc(collection(db, 'matching_events'));
+    const eventWithId: MatchingEvent = {
+      ...event,
+      id: docRef.id,
+    };
+
+    await setDoc(docRef, eventWithId);
+    return eventWithId;
+  }
+
+  async getMatchingEvents(filters?: {
+    runId?: string;
+    recipeId?: string;
+    startDate?: string;
+    endDate?: string;
+    outcome?: MatchingEvent['outcome'];
+    limit?: number;
+  }): Promise<MatchingEvent[]> {
+    const collectionRef = collection(db, 'matching_events');
+    const constraints: any[] = [orderBy('timestamp', 'desc')];
+
+    // Apply filters
+    if (filters?.runId) {
+      constraints.push(where('runId', '==', filters.runId));
+    }
+    if (filters?.recipeId) {
+      constraints.push(where('recipeId', '==', filters.recipeId));
+    }
+    if (filters?.startDate) {
+      constraints.push(where('timestamp', '>=', filters.startDate));
+    }
+    if (filters?.endDate) {
+      constraints.push(where('timestamp', '<=', filters.endDate));
+    }
+    if (filters?.outcome) {
+      constraints.push(where('outcome', '==', filters.outcome));
+    }
+
+    const q = query(collectionRef, ...constraints);
+    const snapshot = await getDocs(q);
+    
+    const events: MatchingEvent[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = this.convertTimestamps(docSnap.data());
+      events.push({
+        ...data,
+        id: docSnap.id,
+      } as MatchingEvent);
+    });
+
+    // Apply limit if specified (Firestore doesn't support limit with multiple where clauses easily)
+    if (filters?.limit && events.length > filters.limit) {
+      return events.slice(0, filters.limit);
+    }
+
+    return events;
+  }
+
+  async deleteMatchingEventsOlderThan(cutoffDate: string): Promise<{ deletedCount: number }> {
+    const collectionRef = collection(db, 'matching_events');
+    const q = query(collectionRef, where('timestamp', '<', cutoffDate));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return { deletedCount: 0 };
+    }
+
+    // Delete in batches
+    const batches: any[] = [];
+    let currentBatch = writeBatch(db);
+    let batchCount = 0;
+    let totalCount = 0;
+
+    snapshot.forEach((docSnap) => {
+      currentBatch.delete(docSnap.ref);
+      batchCount++;
+      totalCount++;
+
+      if (batchCount >= FIRESTORE_BATCH_LIMIT) {
+        batches.push(currentBatch);
+        currentBatch = writeBatch(db);
+        batchCount = 0;
+      }
+    });
+
+    // Add remaining batch if it has items
+    if (batchCount > 0) {
+      batches.push(currentBatch);
+    }
+
+    // Commit all batches
+    await Promise.all(batches.map(batch => batch.commit()));
+
+    debugLogger.log('Canon.deleteMatchingEventsOlderThan', `Deleted ${totalCount} events older than ${cutoffDate}`);
+    return { deletedCount: totalCount };
   }
 
   // ==================== CANONICAL ITEMS ====================
