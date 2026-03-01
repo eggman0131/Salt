@@ -114,6 +114,7 @@ export abstract class BaseCanonBackend implements ICanonBackend {
   abstract updateCofidGroupMapping(id: string, updates: Partial<import('../../../types/contract').CoFIDGroupAisleMapping>): Promise<import('../../../types/contract').CoFIDGroupAisleMapping>;
   abstract deleteCofidGroupMapping(id: string): Promise<void>;
   abstract importCoFIDGroupMappings(mappings: Array<Omit<import('../../../types/contract').CoFIDGroupAisleMapping, 'id' | 'createdAt'>>): Promise<{ mappingsImported: number; errors: string[] }>;
+  abstract seedUnits(units: Array<Omit<import('../../../types/contract').Unit, 'id' | 'createdAt'>>): Promise<{ unitsImported: number; unitsSkipped: number; errors: string[] }>;
   abstract embedCanonicalItems(itemIds: string[]): Promise<{ itemsEmbedded: number; itemsSkipped: number }>;
 
   // ==================== INGREDIENT PROCESSING ====================

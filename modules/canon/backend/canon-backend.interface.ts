@@ -138,6 +138,11 @@ export interface ICanonBackend {
     mappingsImported: number;
     errors: string[];
   }>;
+  seedUnits: (units: Array<Omit<Unit, 'id' | 'createdAt'>>) => Promise<{
+    unitsImported: number;
+    unitsSkipped: number;
+    errors: string[];
+  }>;
 
   // Batch embed canonical items
   embedCanonicalItems: (itemIds: string[]) => Promise<{ itemsEmbedded: number; itemsSkipped: number }>;
