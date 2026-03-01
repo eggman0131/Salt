@@ -58,7 +58,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     userOrder,
   };
 
-  // Fetch settings when lastSync changes (e.g. after import)
+  // Fetch settings on component mount
   useEffect(() => {
     plannerBackend.getKitchenSettings().then(s => {
       setDirectives(s.directives);
@@ -66,7 +66,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
       setUserOrder(s.userOrder);
       debugLogger.setEnabled(s.debugEnabled || false);
     });
-  }, [lastSync]);
+  }, []);
 
   const handleSettingsChange = (settings: KitchenSettings) => {
     setDirectives(settings.directives);
