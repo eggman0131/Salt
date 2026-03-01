@@ -50,7 +50,8 @@ export abstract class BaseCanonBackend implements ICanonBackend {
   protected abstract embedText(text: string): Promise<{ embedding: number[] } | null>;
   protected abstract createCanonicalItemFromCofid(
     cofidItem: any,
-    auditTrail?: CanonicalItem['matchingAudit']
+    auditTrail?: CanonicalItem['matchingAudit'],
+    originalIngredientName?: string
   ): Promise<CanonicalItem>;
 
   // Units (CRUD)
@@ -99,7 +100,7 @@ export abstract class BaseCanonBackend implements ICanonBackend {
   }>;
 
   // AI enrichment
-  abstract enrichCanonicalItem(rawName: string): Promise<{
+  abstract enrichCanonicalItem(rawName: string, queryEmbedding?: number[]): Promise<{
     name: string;
     preferredUnit?: string;
     aisle?: string;
@@ -180,32 +181,77 @@ export abstract class BaseCanonBackend implements ICanonBackend {
 
       let bestMatch: CanonicalItem | null = null;
       let bestScore = 0;
+      let secondBestScore = 0;
+      let matchingKey = 'item'; // Track which key was used for matching
 
-      // Fuzzy match against canonical items
+      // Stage 3: Fuzzy match using enhanced.item as primary key
+      // This provides cleaner input to fuzzy matching (e.g., "pizza dough" instead of "4 x 240g pizza dough")
+      const primaryKey = enhanced.item.toLowerCase();
+      
       for (const item of allCanonItems) {
-        const nameScore = this.fuzzyMatch(parsed.ingredientName.toLowerCase(), item.normalisedName);
+        const nameScore = this.fuzzyMatch(primaryKey, item.normalisedName);
         if (nameScore > bestScore) {
+          secondBestScore = bestScore;
           bestScore = nameScore;
           bestMatch = item;
+        } else if (nameScore > secondBestScore) {
+          secondBestScore = nameScore;
         }
 
         // Check synonyms
         if (item.synonyms) {
           for (const syn of item.synonyms) {
-            const synScore = this.fuzzyMatch(parsed.ingredientName.toLowerCase(), syn.toLowerCase());
+            const synScore = this.fuzzyMatch(primaryKey, syn.toLowerCase());
             if (synScore > bestScore) {
+              secondBestScore = bestScore;
               bestScore = synScore;
               bestMatch = item;
+            } else if (synScore > secondBestScore) {
+              secondBestScore = synScore;
             }
           }
         }
       }
 
+      // Qualifier-based disambiguation when scores are close
+      const scoreGap = bestScore - secondBestScore;
+      if (scoreGap < 0.15 && enhanced.qualifiers.length > 0) {
+        // Scores are close; try matching with qualifiers included
+        const qualifiedKey = `${enhanced.qualifiers.join(' ')} ${enhanced.item}`.toLowerCase();
+        let qualifiedBestMatch: CanonicalItem | null = null;
+        let qualifiedBestScore = 0;
+
+        for (const item of allCanonItems) {
+          const qualifiedScore = this.fuzzyMatch(qualifiedKey, item.normalisedName);
+          if (qualifiedScore > qualifiedBestScore) {
+            qualifiedBestScore = qualifiedScore;
+            qualifiedBestMatch = item;
+          }
+
+          if (item.synonyms) {
+            for (const syn of item.synonyms) {
+              const qualifiedSynScore = this.fuzzyMatch(qualifiedKey, syn.toLowerCase());
+              if (qualifiedSynScore > qualifiedBestScore) {
+                qualifiedBestScore = qualifiedSynScore;
+                qualifiedBestMatch = item;
+              }
+            }
+          }
+        }
+
+        // Use qualified match if distinctly better
+        if (qualifiedBestScore > bestScore) {
+          bestScore = qualifiedBestScore;
+          bestMatch = qualifiedBestMatch;
+          matchingKey = 'item+qualifiers';
+        }
+      }
+
       // Confident fuzzy match?
       if (bestScore >= config.fuzzyHighConfidenceThreshold && bestMatch) {
-        debugLogger.log('Ingredient Matching', `[${idx}] ✓ Fuzzy HIT: "${parsed.ingredientName}" → "${bestMatch.name}" (score: ${(bestScore * 100).toFixed(1)}%)`);
+        debugLogger.log('Ingredient Matching', `[${idx}] ✓ Fuzzy HIT: "${enhanced.item}" → "${bestMatch.name}" (score: ${(bestScore * 100).toFixed(1)}%, key: ${matchingKey}, gap: ${(scoreGap * 100).toFixed(1)}%)`);
         
-        // Add synonym if not already present
+        // Add synonym if not already present (use original parsed name for backwards compat)
         const normalizedIngredient = parsed.ingredientName.toLowerCase();
         if (
           normalizedIngredient !== bestMatch.normalisedName &&
@@ -228,12 +274,13 @@ export abstract class BaseCanonBackend implements ICanonBackend {
             candidateId: bestMatch.id,
             matchedSource: 'canon',
             topScore: bestScore,
-            reason: 'fuzzy-high-confidence',
+            scoreGap,
+            reason: `fuzzy-high-confidence-via-${matchingKey}`,
             recordedAt: new Date().toISOString(),
           },
         });
       } else {
-        debugLogger.log('Ingredient Matching', `[${idx}] ✗ Fuzzy MISS: "${parsed.ingredientName}" (best: ${(bestScore * 100).toFixed(1)}% < ${(config.fuzzyHighConfidenceThreshold * 100).toFixed(0)}%)`);
+        debugLogger.log('Ingredient Matching', `[${idx}] ✗ Fuzzy MISS: "${enhanced.item}" (best: ${(bestScore * 100).toFixed(1)}% < ${(config.fuzzyHighConfidenceThreshold * 100).toFixed(0)}%)`);
         results.push({
           id: `ring-${contextId}-${idx}`,
           raw,
@@ -341,7 +388,7 @@ export abstract class BaseCanonBackend implements ICanonBackend {
               reason: 'semantic-high-confidence-clear-gap',
             });
             
-            const newCanonItem = await this.createCanonicalItemFromCofid(topCandidate.item, auditTrail);
+            const newCanonItem = await this.createCanonicalItemFromCofid(topCandidate.item, auditTrail, parsed.ingredientName);
             results[index].canonicalItemId = newCanonItem.id;
             results[index].matchingAudit = {
               stage: 'semantic',
@@ -402,7 +449,7 @@ export abstract class BaseCanonBackend implements ICanonBackend {
                 reason: 'semantic-high-confidence-single-winner',
               });
               
-              const newCanonItem = await this.createCanonicalItemFromCofid(topCandidate.item, auditTrail);
+              const newCanonItem = await this.createCanonicalItemFromCofid(topCandidate.item, auditTrail, parsed.ingredientName);
               results[index].canonicalItemId = newCanonItem.id;
               results[index].matchingAudit = {
                 stage: 'semantic',
@@ -439,7 +486,8 @@ export abstract class BaseCanonBackend implements ICanonBackend {
           
           if (config.allowNewCanonItems) {
             debugLogger.log('Ingredient Matching', `[${index}] → Creating new Canon item via AI enrichment`);
-            await this.createNewCanonItemViaAI(index, parsed, results, candidates);
+            // Pass the embedding through for reuse in aisle pre-filtering
+            await this.createNewCanonItemViaAI(index, parsed, results, candidates, results[index].embedding);
             results[index].matchingAudit = {
               stage: 'semantic',
               decisionAction: 'create_new_canon',
@@ -672,7 +720,7 @@ Return JSON only:
         reason: decision.reason || 'LLM arbitration selected CoFID candidate',
       });
       
-      const created = await this.createCanonicalItemFromCofid(selected.item, auditTrail);
+      const created = await this.createCanonicalItemFromCofid(selected.item, auditTrail, parsed.ingredientName);
       results[index].canonicalItemId = created.id;
       results[index].matchingAudit = {
         stage: 'arbitration',
@@ -688,7 +736,8 @@ Return JSON only:
     }
 
     if (decision.action === 'create_new_canon') {
-      await this.createNewCanonItemViaAI(index, parsed, results, candidates);
+      // Pass the embedding through for reuse in aisle pre-filtering
+      await this.createNewCanonItemViaAI(index, parsed, results, candidates, results[index].embedding);
       results[index].matchingAudit = {
         stage: 'arbitration',
         decisionAction: 'create_new_canon',
@@ -715,15 +764,24 @@ Return JSON only:
     index: number,
     parsed: Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'>,
     results: RecipeIngredient[],
-    candidates?: IngredientSemanticCandidate[]
+    candidates?: IngredientSemanticCandidate[],
+    queryEmbedding?: number[]
   ): Promise<void> {
     try {
-      const enriched = await this.enrichCanonicalItem(parsed.ingredientName);
+      // Pass embedding through to avoid regenerating it in enrichCanonicalItem
+      const enriched = await this.enrichCanonicalItem(parsed.ingredientName, queryEmbedding);
       const aisles = await this.getAisles();
       const aisleName = enriched.aisle || 'Other';
 
       if (!aisles.some((a) => a.name.toLowerCase() === aisleName.toLowerCase())) {
         await this.createAisle({ name: aisleName, sortOrder: aisles.length + 1 });
+      }
+
+      // Ensure parsed ingredient is in synonyms
+      let synonyms: string[] = enriched.synonyms || [];
+      const normalized = parsed.ingredientName.toLowerCase();
+      if (!synonyms.some(s => s.toLowerCase() === normalized)) {
+        synonyms = [...synonyms, parsed.ingredientName];
       }
 
       // Build audit trail with near misses
@@ -744,7 +802,7 @@ Return JSON only:
         aisle: aisleName,
         preferredUnit: enriched.preferredUnit || '',
         isStaple: enriched.isStaple,
-        synonyms: enriched.synonyms,
+        synonyms,
         approved: false,
         matchingAudit: auditTrail,
       });
@@ -1153,12 +1211,13 @@ Return JSON only:
     return {
       quantity: parsed.quantityValue,
       unit: parsed.unit,
-      // For now, map item as ingredientName; can enrich with qualifiers for better matching
+      // ingredientName: fully qualified name for display (backwards compatible)
       ingredientName: parsed.qualifiers.length > 0
         ? `${parsed.qualifiers.join(' ')} ${parsed.item}`.trim()
         : parsed.item,
+      // Stage 4: persist qualifiers separately for enhanced matching and context
+      qualifiers: parsed.qualifiers.length > 0 ? parsed.qualifiers : undefined,
       preparation: parsed.preparation || undefined,
-      // qualifiers not persisted yet (Stage 4 will add this to the schema)
     };
   }
 

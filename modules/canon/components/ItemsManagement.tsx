@@ -14,6 +14,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -1349,36 +1357,82 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Aisle</Label>
-                    <Select value={aisleId} onValueChange={setAisleId}>
-                      <SelectTrigger>
-                        <SelectValue>{getAisleName(aisleId)}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent position="popper">
-                        <SelectItem value="none">None</SelectItem>
-                        {aisles.map((aisle) => (
-                          <SelectItem key={aisle.id} value={aisle.id}>
-                            {aisle.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                        >
+                          {getAisleName(aisleId)}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-50 p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search aisles..." />
+                          <CommandList>
+                            <CommandEmpty>No aisle found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="none"
+                                onSelect={() => setAisleId('none')}
+                              >
+                                None
+                              </CommandItem>
+                              {aisles.map((aisle) => (
+                                <CommandItem
+                                  key={aisle.id}
+                                  value={aisle.name}
+                                  onSelect={() => setAisleId(aisle.id)}
+                                >
+                                  {aisle.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   <div className="space-y-2">
                     <Label>Preferred Unit</Label>
-                    <Select value={unitId} onValueChange={setUnitId}>
-                      <SelectTrigger>
-                        <SelectValue>{getUnitName(unitId)}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent position="popper">
-                        <SelectItem value="none">None</SelectItem>
-                        {units.map((unit) => (
-                          <SelectItem key={unit.id} value={unit.id}>
-                            {unit.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                        >
+                          {getUnitName(unitId)}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-50 p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search units..." />
+                          <CommandList>
+                            <CommandEmpty>No unit found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="none"
+                                onSelect={() => setUnitId('none')}
+                              >
+                                None
+                              </CommandItem>
+                              {units.map((unit) => (
+                                <CommandItem
+                                  key={unit.id}
+                                  value={unit.name}
+                                  onSelect={() => setUnitId(unit.id)}
+                                >
+                                  {unit.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
 
@@ -1473,36 +1527,82 @@ export const ItemsManagement: React.FC<ItemsManagementProps> = ({ onRefresh }) =
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Aisle</Label>
-                    <Select value={aisleId} onValueChange={setAisleId}>
-                      <SelectTrigger>
-                        <SelectValue>{getAisleName(aisleId)}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent position="popper">
-                        <SelectItem value="none">None</SelectItem>
-                        {aisles.map((aisle) => (
-                          <SelectItem key={aisle.id} value={aisle.id}>
-                            {aisle.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                        >
+                          {getAisleName(aisleId)}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-50 p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search aisles..." />
+                          <CommandList>
+                            <CommandEmpty>No aisle found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="none"
+                                onSelect={() => setAisleId('none')}
+                              >
+                                None
+                              </CommandItem>
+                              {aisles.map((aisle) => (
+                                <CommandItem
+                                  key={aisle.id}
+                                  value={aisle.name}
+                                  onSelect={() => setAisleId(aisle.id)}
+                                >
+                                  {aisle.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   <div className="space-y-2">
                     <Label>Preferred Unit</Label>
-                    <Select value={unitId} onValueChange={setUnitId}>
-                      <SelectTrigger>
-                        <SelectValue>{getUnitName(unitId)}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent position="popper">
-                        <SelectItem value="none">None</SelectItem>
-                        {units.map((unit) => (
-                          <SelectItem key={unit.id} value={unit.id}>
-                            {unit.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                        >
+                          {getUnitName(unitId)}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-50 p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search units..." />
+                          <CommandList>
+                            <CommandEmpty>No unit found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="none"
+                                onSelect={() => setUnitId('none')}
+                              >
+                                None
+                              </CommandItem>
+                              {units.map((unit) => (
+                                <CommandItem
+                                  key={unit.id}
+                                  value={unit.name}
+                                  onSelect={() => setUnitId(unit.id)}
+                                >
+                                  {unit.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
 

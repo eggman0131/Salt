@@ -207,6 +207,7 @@ export const RecipeIngredientSchema = z.object({
   quantity: z.number().nullable(),
   unit: z.string().nullable(),
   ingredientName: z.string(), // The ingredient name in cooking context
+  qualifiers: z.array(z.string()).optional(), // e.g., ["fresh", "organic"] - extracted descriptors (Stage 4: Issue #70)
   preparation: z.string().optional(), // e.g., "diced", "chopped"
   canonicalItemId: z.string().optional(), // Links to CanonicalItem
   embedding: z.array(z.number()).optional(), // Cached semantic embedding of ingredientName for faster rematching

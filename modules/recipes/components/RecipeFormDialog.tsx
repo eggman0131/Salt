@@ -488,6 +488,7 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
             onChangeQuantity={(index, quantity) => updateIngredient(index, 'quantity', quantity !== '' ? Number(quantity) : null)}
             onChangeUnit={(index, unit) => updateIngredient(index, 'unit', unit)}
             onChangeIngredientName={(index, name) => updateIngredient(index, 'ingredientName', name)}
+            onChangeQualifiers={(index, qualifiers) => updateIngredient(index, 'qualifiers', qualifiers)}
             onChangePreparation={(index, prep) => updateIngredient(index, 'preparation', prep)}
             onChangeSearchQuery={setIngredientSearchQuery}
           />
