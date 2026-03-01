@@ -510,7 +510,7 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     
     // Process ingredients to link to canonical items
     if (Array.isArray(newRecipe.ingredients) && newRecipe.ingredients.length > 0) {
-      const processedIngredients = await this.processRecipeIngredients(newRecipe.ingredients as any, id);
+      const processedIngredients = await this.matchRecipeIngredients(newRecipe.ingredients as any, id);
       postProcessUpdates.ingredients = processedIngredients;
       
       // Update ingredients in instructions to reference processed versions
@@ -576,7 +576,7 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
       const needsProcessing = !updated.ingredients.every((ing: any) => ing.canonicalItemId !== undefined);
       
       if (needsProcessing) {
-        const processedIngredients = await this.processRecipeIngredients(updated.ingredients as any, id);
+        const processedIngredients = await this.matchRecipeIngredients(updated.ingredients as any, id);
         postProcessUpdates.ingredients = processedIngredients;
       } else {
         // Ingredients already processed, just use as-is

@@ -27,6 +27,23 @@ const EMBED_MODEL = 'text-embedding-005';
 const FIRESTORE_BATCH_LIMIT = 100;
 const COFID_IMPORT_BATCH_LIMIT = 100;
 
+// Keyword-to-aisle mapping for fast enrichment pre-filtering
+// Used to narrow down aisle suggestions before sending to LLM
+const KEYWORD_TO_AISLE_MAP: Record<string, string[]> = {
+  // Produce
+  'apple|apples|banana|berries|berry|carrot|carrots|celery|courgette|cucumber|grape|lettuce|onion|onions|orange|potato|potatoes|tomato|tomatoes|spinach|broccoli|cabbage|cauliflower|leek|parsnip|beetroot|mushroom|mushrooms|aubergine|pepper|peppers|avocado|lime|lemon|strawberry|blueberry|raspberry|blackberry': 'Produce',
+  // Meat & Fish
+  'beef|chicken|lamb|pork|salmon|trout|cod|haddock|prawn|shrimp|crab|lobster|mince|steak|fillet|breast|turkey|duck|sausage|bacon|ham|chorizo|salami|anchovy|tuna|mackerel|sea bass': 'Meat & Fish',
+  // Dairy
+  'milk|yoghurt|yogurt|cheese|butter|cream|crème|ghee|whey|cheddar|mozzarella|parmesan|feta|ricotta': 'Dairy',
+  // Bakery
+  'bread|flour|baguette|ciabatta|sourdough|wholemeal|white bread|croissant|bagel|naan|pita|tortilla|yeast': 'Bakery',
+  // Pantry
+  'oil|vinegar|olive|salt|pepper|sugar|spice|soy|worcestershire|sriracha|pesto|jam|honey|mustard|ketchup|paste|rice|pasta|noodle|bean|lentil|chickpea|canned|tin|jar|herbs|oregano|thyme|basil|paprika|cumin|chilli': 'Pantry',
+  // Frozen
+  'frozen|ice|ice cream': 'Frozen',
+};
+
 type CofidEmbeddingCandidate = {
   docId: string;
   sourceId: string;
@@ -485,7 +502,8 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
    */
   async createCanonicalItemFromCofid(
     cofidItem: any,
-    auditTrail?: CanonicalItem['matchingAudit']
+    auditTrail?: CanonicalItem['matchingAudit'],
+    originalIngredientName?: string
   ): Promise<CanonicalItem> {
     // Extract group code (CoFID uses 1-3 letter codes)
     const cofidGroup = cofidItem.group || cofidItem.Group || cofidItem.FoodGroup || '';
@@ -506,12 +524,26 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     // Phase 5: Extract rich CoFID metadata for externalSources.properties
     const cofidProperties = this.extractCofidProperties(cofidItem);
 
+    // Collect synonyms: start with CoFID synonyms, add original ingredient name if provided
+    let synonyms: string[] = [];
+    if (cofidItem.synonyms && Array.isArray(cofidItem.synonyms)) {
+      synonyms = [...cofidItem.synonyms];
+    }
+    // Add original ingredient name if provided and not already present
+    if (originalIngredientName) {
+      const normalized = originalIngredientName.toLowerCase();
+      if (!synonyms.some(s => s.toLowerCase() === normalized)) {
+        synonyms.push(originalIngredientName);
+      }
+    }
+
     const newItem = await this.createCanonicalItem({
       name: cofidItem.name || cofidItem.Name || cofidItem.FoodName,
       normalisedName: (cofidItem.name || cofidItem.Name || cofidItem.FoodName).toLowerCase(),
       aisle: finalAisle,
       preferredUnit: '', // Empty for now, can be enriched later
       isStaple: false,
+      synonyms: synonyms.length > 0 ? synonyms : undefined,
       externalSources: [{
         source: 'cofid',
         externalId: cofidItem.id,
@@ -1104,7 +1136,91 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
 
   // ==================== AI ENRICHMENT ====================
 
-  async enrichCanonicalItem(rawName: string): Promise<{
+  /**
+   * Get relevant aisles for an ingredient using hybrid approach:
+   * 1. If embedding provided, use semantic matching (reuses embedded from ingredient matching)
+   * 2. Try keyword extraction (fast, ~50-100 tokens)
+   * 3. Fall back to fuzzy matching if no good keyword match
+   * Returns subset of all aisles to reduce LLM prompt size
+   */
+  private async getRelevantAisles(rawIngredientName: string, queryEmbedding?: number[]): Promise<string[]> {
+    const allAisles = await this.getAisles();
+    const aisleNames = allAisles.map(a => a.name);
+    
+    // Phase 1 (if available): Use cached embedding from semantic matching
+    if (queryEmbedding && queryEmbedding.length > 0) {
+      debugLogger.log('Ingredient Matching', `Using cached embedding for aisle filtering: "${rawIngredientName}"`);
+      try {
+        const candidates = await this.searchSemanticCandidates(queryEmbedding, 5);
+        const semanticAisles = new Set<string>();
+        
+        for (const candidate of candidates) {
+          if (candidate.item?.aisle) {
+            semanticAisles.add(candidate.item.aisle);
+          }
+        }
+        
+        if (semanticAisles.size > 0) {
+          const relevant = Array.from(semanticAisles);
+          if (!relevant.includes('Other')) {
+            relevant.push('Other');
+          }
+          debugLogger.log('Ingredient Matching', `Semantic aisle match for "${rawIngredientName}": ${relevant.join(', ')} (reused embedding)`);
+          return relevant;
+        }
+      } catch (e) {
+        debugLogger.log('Ingredient Matching', `Semantic aisle lookup failed for "${rawIngredientName}", falling back to keywords`);
+      }
+    }
+    
+    // Phase 2: Keyword extraction (fast)
+    const normalized = rawIngredientName.toLowerCase();
+    const keywordMatches = new Set<string>();
+    
+    for (const [keywords, aisle] of Object.entries(KEYWORD_TO_AISLE_MAP)) {
+      const keywordList = keywords.split('|');
+      if (keywordList.some(kw => normalized.includes(kw))) {
+        keywordMatches.add(aisle);
+      }
+    }
+    
+    // If we got good keyword matches, return those + "Other" as fallback
+    if (keywordMatches.size > 0) {
+      const relevant = Array.from(keywordMatches);
+      if (!relevant.includes('Other')) {
+        relevant.push('Other');
+      }
+      return relevant;
+    }
+    
+    // Phase 3: Fuzzy matching fallback (only if no embedding and no keywords)
+    try {
+      const matches = await this.getCanonicalItemsByFuzzyMatch(rawIngredientName, 5);
+      const semanticAisles = new Set<string>();
+      
+      for (const match of matches) {
+        if (match.item.aisle) {
+          semanticAisles.add(match.item.aisle);
+        }
+      }
+      
+      if (semanticAisles.size > 0) {
+        const relevant = Array.from(semanticAisles);
+        if (!relevant.includes('Other')) {
+          relevant.push('Other');
+        }
+        debugLogger.log('Ingredient Matching', `Fuzzy aisle match for "${rawIngredientName}": ${relevant.join(', ')}`);
+        return relevant;
+      }
+    } catch (e) {
+      debugLogger.log('Ingredient Matching', `Fuzzy aisle lookup failed for "${rawIngredientName}", using defaults`);
+    }
+    
+    // Default: return all aisles (no context to narrow down)
+    return aisleNames;
+  }
+
+  async enrichCanonicalItem(rawName: string, queryEmbedding?: number[]): Promise<{
     name: string;
     preferredUnit?: string;
     aisle?: string;
@@ -1116,6 +1232,12 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
     const instruction = await this.getSystemInstruction(
       "You are the Head Chef resolving ingredient names to canonical items."
     );
+
+    // Get relevant aisles to reduce prompt size (hybrid: embedding first, then keywords, then fuzzy)
+    const relevantAisles = await this.getRelevantAisles(rawName, queryEmbedding);
+    const aisleConstraint = relevantAisles.join('|');
+    
+    debugLogger.log('Ingredient Matching', `Using ${relevantAisles.length} relevant aisle(s) for "${rawName}": ${aisleConstraint}`);
 
     const response = await this.callGenerateContent({
       model: 'gemini-3-flash-preview',
@@ -1130,7 +1252,7 @@ Return JSON object with:
 {
   "name": "Canonical item name (title case)",
   "preferredUnit": "g|kg|ml|l| (empty string for countable items)",
-  "aisle": "Produce|Meat & Fish|Dairy|Bakery|Pantry|Frozen|Other",
+  "aisle": "${aisleConstraint}",
   "isStaple": true/false,
   "synonyms": ["alternate name 1", "alternate name 2"]
 }

@@ -188,6 +188,8 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
                       <div className="space-y-2">
                         <p className="font-semibold">Match Trace</p>
                         <div className="grid grid-cols-[auto,1fr] gap-x-2 gap-y-1 text-xs">
+                          <span className="text-muted-foreground">Original</span>
+                          <span className="text-xs font-mono truncate" title={ingredient.raw}>{ingredient.raw}</span>
                           <span className="text-muted-foreground">Stage</span>
                           <span>{ingredient.matchingAudit.stage || '-'}</span>
                           <span className="text-muted-foreground">Action</span>
