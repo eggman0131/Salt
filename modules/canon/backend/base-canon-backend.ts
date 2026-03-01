@@ -645,8 +645,6 @@ export abstract class BaseCanonBackend implements ICanonBackend {
     startTime: number
   ): Promise<void> {
     try {
-      // Extract recipe name from contextId (format: "recipeId" or "recipe_{name}")
-      const recipeName = contextId.startsWith('recipe_') ? contextId.substring(7) : contextId;
       
       const events = results.map((result, index) => {
         const raw = rawIngredients[index] || '';
@@ -671,10 +669,10 @@ export abstract class BaseCanonBackend implements ICanonBackend {
         }
         
         // Build the matching event
-        const event: Omit<import('../../../types/contract').MatchingEvent, 'id'> = {
+        const baseEvent = {
           runId,
           recipeId: contextId,
-          recipeName,
+          recipeName: contextId,
           ingredientIndex: index,
           ingredientName: result.ingredientName,
           raw,
@@ -689,33 +687,6 @@ export abstract class BaseCanonBackend implements ICanonBackend {
             preparation: result.preparation || null,
           },
           
-          // Fuzzy matching (we don't track this separately yet in Phase 1)
-          fuzzy: audit?.stage === 'fuzzy' ? {
-            matched: true,
-            matchedTo: canonicalItemName,
-            matchedToId: result.canonicalItemId || null,
-            score: audit.topScore || null,
-          } : undefined,
-          
-          // Semantic search (populated if semantic stage was used)
-          semantic: audit?.stage === 'semantic' ? {
-            topCandidateName: canonicalItemName,
-            topCandidateSource: audit.matchedSource === 'canon' ? 'canon' : audit.matchedSource === 'cofid' ? 'cofid' : null,
-            topScore: audit.topScore || null,
-            scoreGap: audit.scoreGap || null,
-            candidateCount: 0, // Not tracked in Phase 1
-            case: 'A_confident' as const, // Simplified for Phase 1
-          } : undefined,
-          
-          // Arbitration (populated if LLM arbitration was used)
-          arbitration: audit?.stage === 'arbitration' && (audit.decisionSource === 'llm' || audit.decisionSource === 'fallback') ? {
-            needed: true,
-            decision: audit.decisionAction || null,
-            confidence: null, // Not exposed in current audit
-            reason: audit.reason || null,
-            decisionSource: audit.decisionSource,
-          } : undefined,
-          
           // Final outcome
           outcome,
           canonicalItemId: result.canonicalItemId || null,
@@ -723,7 +694,47 @@ export abstract class BaseCanonBackend implements ICanonBackend {
           durationMs: Date.now() - startTime, // Total processing time (not per-ingredient in Phase 1)
         };
         
+        // Conditionally add optional stages (record data when available, not based on final stage name)
+        const event: any = baseEvent;
+        
+        // Fuzzy matching (record if stage was fuzzy or if we have fuzzy-specific data)
+        // In Phase 1 we don't explicitly track fuzzy scores, so only record if stage is fuzzy
+        if (audit?.stage === 'fuzzy') {
+          event.fuzzy = {
+            matched: true,
+            matchedTo: canonicalItemName,
+            matchedToId: result.canonicalItemId || null,
+            score: audit.topScore || null,
+          };
+        }
+        
+        // Semantic search (record if topScore/scoreGap exist in audit AND stage was semantic or arbitration)
+        // Exclude fuzzy stage to prevent fuzzy scores from being displayed as semantic data
+        if ((audit?.topScore !== undefined || audit?.scoreGap !== undefined) && audit?.stage !== 'fuzzy') {
+          event.semantic = {
+            topCandidateName: canonicalItemName,
+            topCandidateSource: audit.matchedSource === 'canon' ? 'canon' : audit.matchedSource === 'cofid' ? 'cofid' : null,
+            topScore: audit.topScore || null,
+            scoreGap: audit.scoreGap || null,
+            candidateCount: 0, // Not tracked in Phase 1
+            case: 'A_confident' as const, // Simplified for Phase 1
+          };
+        }
+        
+        // Arbitration (record if final stage was arbitration, LLM or fallback)
+        // This captures the arbitration decision regardless of prior stages
+        if (audit?.stage === 'arbitration' && (audit.decisionSource === 'llm' || audit.decisionSource === 'fallback')) {
+          event.arbitration = {
+            needed: true,
+            decision: audit.decisionAction || null,
+            confidence: null, // Not exposed in current audit
+            reason: audit.reason || null,
+            decisionSource: audit.decisionSource,
+          };
+        }
+        
         return event;
+      
       });
       
       // Persist all events (fire-and-forget to avoid slowing down recipe processing)
@@ -733,7 +744,7 @@ export abstract class BaseCanonBackend implements ICanonBackend {
       debugLogger.log('Matching Events', `Persisted ${events.length} matching events for run ${runId}`);
     } catch (error) {
       // Don't fail the entire ingredient processing if event logging fails
-      debugLogger.error('Matching Events', 'Failed to persist matching events:', error);
+      debugLogger.error('Matching Events', 'Failed to persist matching events:', error instanceof Error ? error.message : String(error));
     }
   }
 
