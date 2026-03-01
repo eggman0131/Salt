@@ -819,10 +819,28 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
 
   // ==================== MATCHING EVENTS (Issue #79: Matching Observability) ====================
 
+  /**
+   * Recursively remove undefined values from an object
+   * Firestore doesn't support undefined values, only null
+   */
+  private sanitizeForFirestore(obj: any): any {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(item => this.sanitizeForFirestore(item));
+    
+    const sanitized: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        sanitized[key] = this.sanitizeForFirestore(value);
+      }
+    }
+    return sanitized;
+  }
+
   async createMatchingEvent(event: Omit<MatchingEvent, 'id'>): Promise<MatchingEvent> {
     const docRef = doc(collection(db, 'matching_events'));
     const eventWithId: MatchingEvent = {
-      ...event,
+      ...this.sanitizeForFirestore(event),
       id: docRef.id,
     };
 
