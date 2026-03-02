@@ -21,6 +21,7 @@ import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, orderBy
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 import { debugLogger } from '../../../shared/backend/debug-logger';
+import { logParsedIngredient } from './ingredient-parsing-log';
 
 const EMBED_BATCH_SIZE = 100;
 const EMBED_DEBUG_LIMIT_TO_ONE_BATCH = false;
@@ -94,6 +95,69 @@ function cosineSimilarity(a: number[], b: number[]): number {
 
 export class FirebaseCanonBackend extends BaseCanonBackend {
   private currentIdToken: string | null = null;
+
+  private normalizeEmbeddingKey(text: string): string {
+    return text.toLowerCase().trim().replace(/\s+/g, ' ');
+  }
+
+  /**
+   * Override to log parsed ingredients to CSV file
+   */
+  protected logParsedIngredientToCSV(
+    raw: string,
+    parsed: any
+  ): void {
+    try {
+      logParsedIngredient(
+        raw,
+        parsed.quantity ?? null,
+        parsed.unit ?? null,
+        parsed.ingredientName || '',
+        parsed.qualifiers,
+        parsed.preparation ?? null
+      );
+    } catch (error) {
+      debugLogger.warn('Ingredient Matching', `Failed to log parsed ingredient to CSV: ${error}`);
+    }
+  }
+
+  private buildEmbeddingCacheId(model: string, text: string): string {
+    const normalized = this.normalizeEmbeddingKey(text);
+    return `${model}::${normalized}`.replace(/\//g, '_');
+  }
+
+  private async getCachedEmbedding(model: string, text: string): Promise<number[] | null> {
+    try {
+      const cacheId = this.buildEmbeddingCacheId(model, text);
+      const snap = await getDoc(doc(db, 'ingredient_embedding_cache', cacheId));
+      if (!snap.exists()) return null;
+
+      const data = snap.data() as any;
+      const embedding = normalizeEmbeddingArray(data.embedding);
+      return embedding.length > 0 ? embedding : null;
+    } catch (error) {
+      debugLogger.warn('Ingredient Matching', 'Failed to read embedding cache:', error);
+      return null;
+    }
+  }
+
+  private async setCachedEmbedding(model: string, text: string, embedding: number[]): Promise<void> {
+    try {
+      if (!Array.isArray(embedding) || embedding.length === 0) return;
+
+      const normalizedText = this.normalizeEmbeddingKey(text);
+      const cacheId = this.buildEmbeddingCacheId(model, text);
+      await setDoc(doc(db, 'ingredient_embedding_cache', cacheId), {
+        text,
+        normalizedText,
+        model,
+        embedding: Array.from(embedding),
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch (error) {
+      debugLogger.warn('Ingredient Matching', 'Failed to write embedding cache:', error);
+    }
+  }
 
   // ==================== AI TRANSPORT (Uses Cloud Functions) ====================
 
@@ -367,6 +431,11 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
    */
   async embedText(text: string): Promise<{ embedding: number[] } | null> {
     try {
+      const cached = await this.getCachedEmbedding(EMBED_MODEL, text);
+      if (cached && cached.length > 0) {
+        return { embedding: cached };
+      }
+
       const idToken = await this.getAuthTokenForHttp();
       const endpointUrl = this.getEmbedBatchEndpointUrl();
       const response = await fetch(endpointUrl, {
@@ -388,7 +457,9 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
       const embedding = payload.results?.[0]?.embedding;
 
       if (embedding && Array.isArray(embedding) && embedding.length > 0) {
-        return { embedding: Array.from(embedding) };
+        const cleanedEmbedding = Array.from(embedding);
+        await this.setCachedEmbedding(EMBED_MODEL, text, cleanedEmbedding);
+        return { embedding: cleanedEmbedding };
       }
     } catch (error) {
       console.error('Error embedding text:', error);

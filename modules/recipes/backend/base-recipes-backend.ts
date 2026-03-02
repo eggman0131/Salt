@@ -21,6 +21,7 @@ import {
   Aisle,
 } from '../../../types/contract';
 import { IRecipesBackend } from './recipes-backend.interface';
+import type { RecipeSaveProgress } from './recipes-backend.interface';
 import { RECIPE_PROMPTS } from '../../../shared/backend/prompts';
 import { debugLogger } from '../../../shared/backend/debug-logger';
 import { canonBackend } from '../../canon';
@@ -38,8 +39,17 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
   // Recipe CRUD (persistence layer)
   abstract getRecipes(): Promise<Recipe[]>;
   abstract getRecipe(id: string): Promise<Recipe | null>;
-  abstract createRecipe(recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>, imageData?: string): Promise<Recipe>;
-  abstract updateRecipe(id: string, updates: Partial<Recipe>, imageData?: string): Promise<Recipe>;
+  abstract createRecipe(
+    recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>,
+    imageData?: string,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ): Promise<Recipe>;
+  abstract updateRecipe(
+    id: string,
+    updates: Partial<Recipe>,
+    imageData?: string,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ): Promise<Recipe>;
   abstract deleteRecipe(id: string): Promise<void>;
   abstract resolveImagePath(path: string): Promise<string>;
 

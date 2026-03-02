@@ -15,6 +15,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { recipesBackend } from '../backend';
+import type { RecipeSaveProgress } from '../backend/recipes-backend.interface';
 import { RecipeFormDialog } from './RecipeFormDialog';
 import { DeleteRecipeDialog } from './DeleteRecipeDialog';
 import { CategoryPicker } from './CategoryPicker';
@@ -344,7 +345,11 @@ interface RecipeDetailViewProps {
   recipe: Recipe;
   categories: RecipeCategory[];
   onClose: () => void;
-  onUpdate: (id: string, updates: Partial<Recipe>) => Promise<void>;
+  onUpdate: (
+    id: string,
+    updates: Partial<Recipe>,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onRepair?: (recipe: Recipe) => void;
   autoOpenImageEditor?: boolean;
@@ -484,14 +489,17 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
     }
   };
 
-  const handleEditUpdate = async (updates: Partial<Recipe>) => {
+  const handleEditUpdate = async (
+    updates: Partial<Recipe>,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ) => {
     const merged = { ...recipe, ...updates } as Recipe;
     const editSummary = buildManualEditSummary(recipe, merged);
     const historyEntry = createHistoryEntry(recipe, editSummary, currentUserName);
     await onUpdate(recipe.id, {
       ...updates,
       history: [...(recipe.history || []), historyEntry],
-    });
+    }, onProgress);
     setIsEditDialogOpen(false);
   };
 
