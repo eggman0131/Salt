@@ -237,11 +237,87 @@ export abstract class BaseCanonBackend implements ICanonBackend {
     debugLogger.log('Ingredient Matching', `Run ID: ${runId}`);
     onProgress?.({ stage: 'Starting ingredient matching', current: 0, total: ingredients.length, percentage: 0 });
 
-    // Early return for already-structured ingredients
+    // Handle already-structured ingredients (e.g., from manual repair)
     if (ingredients.length > 0 && typeof ingredients[0] === 'object') {
-      debugLogger.log('Ingredient Matching', `Already structured, returning ${ingredients.length} ingredients as-is`);
+      debugLogger.log('Ingredient Matching', `Processing ${ingredients.length} structured ingredients with incremental update logic`);
+      
+      // Load units if not cached yet (needed for parsing)
+      if (!this.cachedUnits) {
+        this.cachedUnits = await this.getUnits();
+      }
+      
+      // Use incremental processing logic for structured ingredients
+      const structuredIngredients = ingredients as RecipeIngredient[];
+      const toRematch: { index: number; raw: string }[] = [];
+      const toReparseOnly: { index: number; ingredient: RecipeIngredient }[] = [];
+      const toSkip: { index: number; ingredient: RecipeIngredient }[] = [];
+      
+      for (let i = 0; i < structuredIngredients.length; i++) {
+        const ing = structuredIngredients[i];
+        const decision = this.shouldRematchIngredient({
+          oldIngredient: ing,
+          newRaw: ing.raw,
+          parserVersion: BaseCanonBackend.PARSER_VERSION,
+        });
+        
+        if (decision === 'skip') {
+          toSkip.push({ index: i, ingredient: ing });
+        } else if (decision === 'reparse-only') {
+          toReparseOnly.push({ index: i, ingredient: ing });
+        } else {
+          toRematch.push({ index: i, raw: ing.raw });
+        }
+      }
+      
+      debugLogger.log('Ingredient Matching', `Decision breakdown: ${toRematch.length} rematch, ${toReparseOnly.length} reparse-only, ${toSkip.length} skip`);
+      
+      // If everything can be skipped, return as-is
+      if (toRematch.length === 0 && toReparseOnly.length === 0) {
+        debugLogger.log('Ingredient Matching', `All ingredients up-to-date, returning as-is`);
+        onProgress?.({ stage: 'Complete', current: ingredients.length, total: ingredients.length, percentage: 100 });
+        return structuredIngredients;
+      }
+      
+      // Process ingredients that need rematching by recursively calling with raw strings
+      const rematchedMap = new Map<number, RecipeIngredient>();
+      if (toRematch.length > 0) {
+        debugLogger.log('Ingredient Matching', `Rematching ${toRematch.length} ingredients...`);
+        const rawStrings = toRematch.map(item => item.raw);
+        const rematchedResults = await this.processIngredients(rawStrings, `${contextId}-rematch`, onProgress);
+        
+        // Map results back to original indices
+        toRematch.forEach((item, idx) => {
+          rematchedMap.set(item.index, {
+            ...rematchedResults[idx],
+            id: structuredIngredients[item.index].id, // Preserve original ID
+          });
+        });
+      }
+      
+      // Update reparse-only ingredients with new parser metadata
+      const now = new Date().toISOString();
+      const reparseMap = new Map<number, RecipeIngredient>();
+      for (const { index, ingredient } of toReparseOnly) {
+        const enhanced = this.parseIngredientEnhanced(ingredient.raw, this.cachedUnits || []);
+        const identityKey = this.buildIdentityKey(enhanced.item, enhanced.qualifiers);
+        
+        reparseMap.set(index, {
+          ...ingredient,
+          parserVersion: BaseCanonBackend.PARSER_VERSION,
+          parserIdentityKey: identityKey,
+          parserUpdatedAt: now,
+        });
+      }
+      
+      // Combine results in original order
+      const finalResults: RecipeIngredient[] = structuredIngredients.map((ing, i) => {
+        if (rematchedMap.has(i)) return rematchedMap.get(i)!;
+        if (reparseMap.has(i)) return reparseMap.get(i)!;
+        return ing; // skip - use as-is
+      });
+      
       onProgress?.({ stage: 'Complete', current: ingredients.length, total: ingredients.length, percentage: 100 });
-      return ingredients as RecipeIngredient[];
+      return finalResults;
     }
 
     // Load matching configuration and units (with defaults if not found)
