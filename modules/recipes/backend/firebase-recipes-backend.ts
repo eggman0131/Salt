@@ -27,6 +27,7 @@ import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_CORE } from '../../../shared/backend/prompts';
 import { assistModeBackend } from '../../assist-mode/backend';
+import { canonBackend } from '../../canon';
 
 export class FirebaseRecipesBackend extends BaseRecipesBackend {
   private currentIdToken: string | null = null;
@@ -591,7 +592,7 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
         
         // For string ingredients, always process (new or changed raw text)
         if (typeof newIng === 'string') {
-          const decision = this.canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
+          const decision = canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
           if (decision === 'rematch') {
             toRematch.push(raw);
           } else if (decision === 'skip' && oldIng) {
@@ -602,7 +603,7 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
           }
         } else {
           // Structured ingredient: check if needs reprocessing
-          const decision = this.canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
+          const decision = canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
           
           if (decision === 'skip') {
             // Use existing structured ingredient as-is
@@ -628,8 +629,8 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
       
       // Update reparse-only ingredients with new parser metadata
       const reparsed = toReparseOnly.map(ing => {
-        const enhanced = (this.canonBackend as any).parseIngredientEnhanced(ing.raw, []); // Units loaded internally
-        const identityKey = (this.canonBackend as any).buildIdentityKey(enhanced.item, enhanced.qualifiers);
+        const enhanced = (canonBackend as any).parseIngredientEnhanced(ing.raw, []); // Units loaded internally
+        const identityKey = (canonBackend as any).buildIdentityKey(enhanced.item, enhanced.qualifiers);
         const now = new Date().toISOString();
         
         return {
@@ -651,7 +652,7 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
         const oldIng = oldIngMap.get(raw);
         
         if (typeof newIng === 'string') {
-          const decision = this.canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
+          const decision = canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
           if (decision === 'rematch') {
             finalIngredients.push(rematched[rematchIndex++]);
           } else if (decision === 'skip' && oldIng) {
@@ -660,7 +661,7 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
             finalIngredients.push(rematched[rematchIndex++]);
           }
         } else {
-          const decision = this.canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
+          const decision = canonBackend.shouldRematchIngredient({ oldIngredient: oldIng, newRaw: raw });
           
           if (decision === 'skip') {
             finalIngredients.push(toSkip[skipIndex++]);
