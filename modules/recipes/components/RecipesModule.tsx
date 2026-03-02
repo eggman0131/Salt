@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Recipe, RecipeCategory } from '../../../types/contract';
 import { recipesBackend } from '../backend';
+import type { RecipeSaveProgress } from '../backend/recipes-backend.interface';
 import { categoriesBackend } from '../../categories';
 import { Toaster } from '@/components/ui/sonner';
 import { softToast } from '@/lib/soft-toast';
@@ -44,9 +45,12 @@ export const RecipesModule: React.FC = () => {
     }
   };
 
-  const handleCreateRecipe = async (recipeData: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>) => {
+  const handleCreateRecipe = async (
+    recipeData: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ) => {
     try {
-      await recipesBackend.createRecipe(recipeData);
+      await recipesBackend.createRecipe(recipeData, undefined, onProgress);
       softToast.success('Recipe created');
       await loadData();
     } catch (error) {
@@ -56,9 +60,13 @@ export const RecipesModule: React.FC = () => {
     }
   };
 
-  const handleUpdateRecipe = async (id: string, updates: Partial<Recipe>) => {
+  const handleUpdateRecipe = async (
+    id: string,
+    updates: Partial<Recipe>,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ) => {
     try {
-      await recipesBackend.updateRecipe(id, updates);
+      await recipesBackend.updateRecipe(id, updates, undefined, onProgress);
       softToast.success('Recipe updated');
       await loadData();
       

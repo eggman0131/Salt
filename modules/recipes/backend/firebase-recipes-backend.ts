@@ -9,6 +9,7 @@
  */
 
 import { BaseRecipesBackend } from './base-recipes-backend';
+import type { RecipeSaveProgress } from './recipes-backend.interface';
 import {
   Recipe,
   RecipeIngredient,
@@ -316,6 +317,40 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     return obj;
   }
 
+  /**
+   * Keep recipe payloads lean: embedding vectors are cached separately and
+   * should not be persisted inside recipe ingredient structures.
+   */
+  private stripEmbeddingFromIngredient(ingredient: any): any {
+    if (!ingredient || typeof ingredient !== 'object') return ingredient;
+    const { embedding, edited, ...rest } = ingredient;
+    void embedding;
+    void edited;
+    return rest;
+  }
+
+  private sanitizeRecipeEmbeddingsForStorage(payload: any): any {
+    if (!payload || typeof payload !== 'object') return payload;
+    const sanitized: any = { ...payload };
+
+    if (Array.isArray(sanitized.ingredients)) {
+      sanitized.ingredients = sanitized.ingredients.map((ing: any) => this.stripEmbeddingFromIngredient(ing));
+    }
+
+    if (Array.isArray(sanitized.instructions)) {
+      sanitized.instructions = sanitized.instructions.map((instruction: any) => {
+        if (!instruction || typeof instruction !== 'object') return instruction;
+        const next = { ...instruction };
+        if (Array.isArray(next.ingredients)) {
+          next.ingredients = next.ingredients.map((ing: any) => this.stripEmbeddingFromIngredient(ing));
+        }
+        return next;
+      });
+    }
+
+    return sanitized;
+  }
+
   private async uploadRecipeImage(path: string, imageData: string): Promise<void> {
     
     // DEFINITIVE FIX: Use built-in Vite env check (same as resolveImagePath)
@@ -397,7 +432,8 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
         }
       }
       
-      const firestoreData = this.cleanUndefinedValues(this.encodeRecipeForFirestore(cleanRecipe));
+      const sanitizedRecipe = this.sanitizeRecipeEmbeddingsForStorage(cleanRecipe);
+      const firestoreData = this.cleanUndefinedValues(this.encodeRecipeForFirestore(sanitizedRecipe));
       
       // Use setDoc with merge:false to completely replace the document with new format
       // This ensures legacy fields are removed
@@ -478,17 +514,24 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     }
   }
   
-  async createRecipe(recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>, imageData?: string): Promise<Recipe> {
+  async createRecipe(
+    recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>,
+    imageData?: string,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ): Promise<Recipe> {
+    onProgress?.({ stage: 'Preparing recipe data', percentage: 5 });
     const id = `rec-${Math.random().toString(36).substr(2, 9)}`;
     
     let imagePath: string | undefined = undefined;
 
     if (imageData) {
+      onProgress?.({ stage: 'Uploading image', percentage: 15 });
       imagePath = `recipes/${id}/image.jpg`;
       await this.uploadRecipeImage(imagePath, imageData);
     }
 
     // Sanitize and validate before storage
+    onProgress?.({ stage: 'Validating recipe', percentage: 20 });
     const normalized = this.normalizeRecipeData(recipe);
 
     const newRecipe = {
@@ -499,19 +542,36 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
       createdBy: auth.currentUser?.email || 'unknown'
     };
     
-    await setDoc(doc(db, 'recipes', id), this.cleanUndefinedValues(this.encodeRecipeForFirestore(newRecipe)));
+    onProgress?.({ stage: 'Saving recipe', percentage: 35 });
+    const sanitizedNewRecipe = this.sanitizeRecipeEmbeddingsForStorage(newRecipe);
+    await setDoc(doc(db, 'recipes', id), this.cleanUndefinedValues(this.encodeRecipeForFirestore(sanitizedNewRecipe)));
     
     // Post-processing: Auto-categorise and process ingredients
+    onProgress?.({ stage: 'Categorising recipe', percentage: 50 });
     const categoryIds = await this.categorizeRecipe(newRecipe as Recipe);
     const postProcessUpdates: any = {};
     
     if (categoryIds.length > 0) {
       postProcessUpdates.categoryIds = categoryIds;
     }
-    
     // Process ingredients to link to canonical items
     if (Array.isArray(newRecipe.ingredients) && newRecipe.ingredients.length > 0) {
-      const processedIngredients = await this.matchRecipeIngredients(newRecipe.ingredients as any, id);
+      onProgress?.({ stage: 'Matching ingredients', percentage: 60 });
+      const processedIngredients = await this.matchRecipeIngredients(
+        newRecipe.ingredients as any,
+        id,
+        onProgress ? (progress) => {
+          const ingredientWeight = 30;
+          const base = 60;
+          const mapped = base + Math.round((progress.percentage / 100) * ingredientWeight);
+          onProgress({
+            stage: 'Matching ingredients',
+            current: progress.current,
+            total: progress.total,
+            percentage: mapped,
+          });
+        } : undefined
+      );
       postProcessUpdates.ingredients = processedIngredients;
       
       // Update ingredients in instructions to reference processed versions
@@ -533,15 +593,25 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     
     // Apply all post-processing updates in one write
     if (Object.keys(postProcessUpdates).length > 0) {
-      const cleanedUpdates = this.cleanUndefinedValues(postProcessUpdates);
+      onProgress?.({ stage: 'Finalising recipe', percentage: 95 });
+      const sanitizedUpdates = this.sanitizeRecipeEmbeddingsForStorage(postProcessUpdates);
+      const cleanedUpdates = this.cleanUndefinedValues(sanitizedUpdates);
       await updateDoc(doc(db, 'recipes', id), cleanedUpdates);
+      onProgress?.({ stage: 'Recipe saved', percentage: 100 });
       return { ...newRecipe, ...postProcessUpdates } as Recipe;
     }
+    onProgress?.({ stage: 'Recipe saved', percentage: 100 });
     
     return newRecipe as Recipe;
   }
   
-  async updateRecipe(id: string, updates: Partial<Recipe>, imageData?: string): Promise<Recipe> {
+  async updateRecipe(
+    id: string,
+    updates: Partial<Recipe>,
+    imageData?: string,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ): Promise<Recipe> {
+    onProgress?.({ stage: 'Loading existing recipe', percentage: 5 });
     const existing = await this.getRecipe(id);
     if (!existing) {
       throw new Error("Recipe not found");
@@ -549,22 +619,27 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     
     let imagePath = updates.imagePath ?? existing.imagePath;
     if (imageData) {
+      onProgress?.({ stage: 'Uploading image', percentage: 15 });
       imagePath = `recipes/${id}/image-${Date.now()}.jpg`;
       debugLogger.info('Recipe Update', `Uploading new image to: ${imagePath}`);
       await this.uploadRecipeImage(imagePath, imageData);
     }
     
     // Sanitize and validate before storage
+    onProgress?.({ stage: 'Validating changes', percentage: 20 });
     const normalizedUpdates = this.normalizeRecipeData({ ...existing, ...updates });
     
     const updated = { ...existing, ...normalizedUpdates, imagePath };
-    await setDoc(doc(db, 'recipes', id), this.cleanUndefinedValues(this.encodeRecipeForFirestore(updated)));
+    onProgress?.({ stage: 'Saving changes', percentage: 35 });
+    const sanitizedUpdatedRecipe = this.sanitizeRecipeEmbeddingsForStorage(updated);
+    await setDoc(doc(db, 'recipes', id), this.cleanUndefinedValues(this.encodeRecipeForFirestore(sanitizedUpdatedRecipe)));
     
     // Post-processing: Auto-categorise and process ingredients
     const postProcessUpdates: any = {};
     
     // Auto-categorise if categoryIds weren't explicitly provided
     if (!updates.hasOwnProperty('categoryIds')) {
+      onProgress?.({ stage: 'Categorising recipe', percentage: 50 });
       const categoryIds = await this.categorizeRecipe(updated as Recipe);
       if (categoryIds.length > 0) {
         postProcessUpdates.categoryIds = categoryIds;
@@ -624,7 +699,22 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
       let rematched: RecipeIngredient[] = [];
       if (toRematch.length > 0) {
         debugLogger.info('Recipe Update', `Processing ${toRematch.length} ingredients that need rematching`);
-        rematched = await this.matchRecipeIngredients(toRematch, id);
+        onProgress?.({ stage: 'Matching ingredients', percentage: 60 });
+        rematched = await this.matchRecipeIngredients(
+          toRematch,
+          id,
+          onProgress ? (progress) => {
+            const ingredientWeight = 30;
+            const base = 60;
+            const mapped = base + Math.round((progress.percentage / 100) * ingredientWeight);
+            onProgress({
+              stage: 'Matching ingredients',
+              current: progress.current,
+              total: progress.total,
+              percentage: mapped,
+            });
+          } : undefined
+        );
       }
       
       // Update reparse-only ingredients with new parser metadata
@@ -694,10 +784,14 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
     
     // Apply all post-processing updates in one write
     if (Object.keys(postProcessUpdates).length > 0) {
-      const cleanedUpdates = this.cleanUndefinedValues(postProcessUpdates);
+      onProgress?.({ stage: 'Finalising recipe', percentage: 95 });
+      const sanitizedUpdates = this.sanitizeRecipeEmbeddingsForStorage(postProcessUpdates);
+      const cleanedUpdates = this.cleanUndefinedValues(sanitizedUpdates);
       await updateDoc(doc(db, 'recipes', id), cleanedUpdates);
+      onProgress?.({ stage: 'Recipe updated', percentage: 100 });
       return { ...updated, ...postProcessUpdates } as Recipe;
     }
+    onProgress?.({ stage: 'Recipe updated', percentage: 100 });
     
     return updated as Recipe;
   }
@@ -774,7 +868,8 @@ export class FirebaseRecipesBackend extends BaseRecipesBackend {
       if (ingredientsChanged) updates.ingredients = updatedIngredients;
       if (instructionsChanged) updates.instructions = updatedInstructions;
 
-      const payload = this.encodeRecipeForFirestore(this.cleanUndefinedValues(updates));
+      const sanitizedUpdates = this.sanitizeRecipeEmbeddingsForStorage(updates);
+      const payload = this.encodeRecipeForFirestore(this.cleanUndefinedValues(sanitizedUpdates));
       batch.update(recipeDoc.ref, payload);
       batchCount++;
 

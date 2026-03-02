@@ -11,6 +11,13 @@
 
 import { Recipe } from '../../../types/contract';
 
+export interface RecipeSaveProgress {
+  stage: string;
+  current?: number;
+  total?: number;
+  percentage?: number;
+}
+
 export interface IRecipesBackend {
   // ==================== RECIPE CRUD ====================
   
@@ -18,12 +25,14 @@ export interface IRecipesBackend {
   getRecipe: (id: string) => Promise<Recipe | null>;
   createRecipe: (
     recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>,
-    imageData?: string
+    imageData?: string,
+    onProgress?: (progress: RecipeSaveProgress) => void
   ) => Promise<Recipe>;
   updateRecipe: (
     id: string,
     updates: Partial<Recipe>,
-    imageData?: string
+    imageData?: string,
+    onProgress?: (progress: RecipeSaveProgress) => void
   ) => Promise<Recipe>;
   resolveImagePath: (path: string) => Promise<string>;
   deleteRecipe: (id: string) => Promise<void>;

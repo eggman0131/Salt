@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Recipe, RecipeCategory } from '../../../types/contract';
+import type { RecipeSaveProgress } from '../backend/recipes-backend.interface';
 import { Card } from '../../../components/ui/card';
 import { AddButton } from '../../../components/ui/add-button';
 import { Input } from '../../../components/ui/input';
@@ -16,7 +17,10 @@ interface RecipesListProps {
   assistGuideRecipeIds: Set<string>;
   isLoading: boolean;
   onSelectRecipe: (recipe: Recipe) => void;
-  onCreateRecipe: (recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>) => Promise<void>;
+  onCreateRecipe: (
+    recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ) => Promise<void>;
   onUploadRecipeImage?: (recipe: Recipe) => void;
   onRegenerateRecipeImage?: (recipe: Recipe) => void;
   onRepairRecipe?: (recipe: Recipe) => void;
@@ -70,8 +74,11 @@ export const RecipesList: React.FC<RecipesListProps> = ({
     return categories.filter(cat => categoryIdsInRecipes.has(cat.id));
   }, [filteredRecipes, categories]);
 
-  const handleCreateRecipe = async (recipeData: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>) => {
-    await onCreateRecipe(recipeData);
+  const handleCreateRecipe = async (
+    recipeData: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ) => {
+    await onCreateRecipe(recipeData, onProgress);
     setIsCreateDialogOpen(false);
   };
 
