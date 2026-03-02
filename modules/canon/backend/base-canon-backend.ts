@@ -183,6 +183,11 @@ export abstract class BaseCanonBackend implements ICanonBackend {
       return 'rematch';
     }
 
+    // User manually edited the ingredient: force rematch
+    if (oldIngredient.edited) {
+      return 'rematch';
+    }
+
     // Raw text changed: always rematch
     if (oldIngredient.raw !== newRaw) {
       return 'rematch';
@@ -1651,7 +1656,7 @@ Return JSON only:
       ? `${parsed.qualifiers.join(' ')} ${parsed.item}`.trim()
       : parsed.item;
 
-    return {
+    const result = {
       quantity: parsed.quantityValue,
       unit: parsed.unit,
       // ingredientName: Title Case for display consistency with Canon items
@@ -1660,6 +1665,22 @@ Return JSON only:
       qualifiers: parsed.qualifiers.length > 0 ? parsed.qualifiers : undefined,
       preparation: parsed.preparation || undefined,
     };
+
+    // Log parsed ingredient for debugging
+    this.logParsedIngredientToCSV(raw, result);
+
+    return result;
+  }
+
+  /**
+   * Hook to log parsed ingredient data to CSV file
+   * Override in subclass to implement actual logging
+   */
+  protected logParsedIngredientToCSV(
+    raw: string,
+    parsed: Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'>
+  ): void {
+    // Base implementation: no-op. Firebase backend overrides to write to CSV.
   }
 
   /**

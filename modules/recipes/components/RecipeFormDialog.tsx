@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Recipe, RecipeCategory, RecipeIngredient, RecipeInstruction } from '../../../types/contract';
+import type { RecipeSaveProgress } from '../backend/recipes-backend.interface';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -35,7 +37,10 @@ interface RecipeFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categories: RecipeCategory[];
-  onSubmit: (recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>) => Promise<void>;
+  onSubmit: (
+    recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>,
+    onProgress?: (progress: RecipeSaveProgress) => void
+  ) => Promise<void>;
   recipe?: Recipe; // For edit mode
 }
 
@@ -61,10 +66,9 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
   const [instructions, setInstructions] = useState<string[]>(['']);
   const [equipmentNeeded, setEquipmentNeeded] = useState<string[]>(['']);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveProgress, setSaveProgress] = useState<RecipeSaveProgress | null>(null);
   const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([]);
   const [equipmentSearchQueries, setEquipmentSearchQueries] = useState<{ [key: number]: string | undefined }>({});
-  const [availableIngredients, setAvailableIngredients] = useState<CanonicalItem[]>([]);
-  const [ingredientSearchQueries, setIngredientSearchQueries] = useState<{ [key: number]: string | undefined }>({});
   const [units, setUnits] = useState<any[]>([]);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
@@ -113,7 +117,12 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
       setServings(recipe.servings);
       setComplexity(recipe.complexity);
       setSelectedCategoryIds(recipe.categoryIds || []);
-      setIngredients(recipe.ingredients.length > 0 ? recipe.ingredients : [createEmptyIngredient()]);
+      // Clear the edited flag when loading existing ingredients
+      const ingredientsWithoutEditFlag = recipe.ingredients.map(ing => {
+        const { edited, ...rest } = ing;
+        return rest;
+      });
+      setIngredients(ingredientsWithoutEditFlag.length > 0 ? ingredientsWithoutEditFlag : [createEmptyIngredient()]);
       // Issue #57: Extract instruction texts from RecipeInstruction objects
       const instructionTexts = recipe.instructions.map((instr: RecipeInstruction) => instr.text);
       setInstructions(instructionTexts.length > 0 ? instructionTexts : ['']);
@@ -136,13 +145,11 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [equipment, ingredients, unitsData] = await Promise.all([
+        const [equipment, unitsData] = await Promise.all([
           inventoryBackend.getInventory(),
-          canonBackend.getCanonicalItems(),
           canonBackend.getUnits()
         ]);
         setAvailableEquipment(equipment);
-        setAvailableIngredients(ingredients);
         setUnits(unitsData);
       } catch (error) {
         console.error('Failed to load data:', error);
@@ -172,6 +179,7 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
     setIngredients([createEmptyIngredient()]);
     setInstructions(['']);
     setEquipmentNeeded(['']);
+    setSaveProgress(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -185,10 +193,19 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
     // Filter out empty ingredients
     const validIngredients = ingredients.filter(ing => 
       ing.ingredientName.trim() !== ''
-    ).map(ing => ({
-      ...ing,
-      raw: `${ing.quantity || ''} ${ing.unit || ''} ${ing.ingredientName} ${ing.preparation || ''}`.trim(),
-    }));
+    ).map(ing => {
+      // Build raw string carefully without null interpolation
+      const rawParts: string[] = [];
+      if (ing.quantity != null) rawParts.push(String(ing.quantity));
+      if (ing.unit != null && ing.unit !== '') rawParts.push(ing.unit);
+      rawParts.push(ing.ingredientName);
+      if (ing.preparation != null && ing.preparation !== '') rawParts.push(ing.preparation);
+      
+      return {
+        ...ing,
+        raw: rawParts.join(' ').trim(),
+      };
+    });
 
     // Filter out empty instructions
     const validInstructions = instructions.filter(inst => inst.trim() !== '');
@@ -201,6 +218,7 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
     }
 
     setIsSubmitting(true);
+    setSaveProgress({ stage: 'Preparing recipe', percentage: 0 });
     try {
       const recipeData: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'> = {
         title: title.trim(),
@@ -216,12 +234,15 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
         equipmentNeeded: validEquipment,
       };
 
-      await onSubmit(recipeData);
+      await onSubmit(recipeData, (progress) => {
+        setSaveProgress(progress);
+      });
       resetForm();
     } catch (error) {
       // Error handled by parent
     } finally {
       setIsSubmitting(false);
+      setSaveProgress(null);
     }
   };
 
@@ -236,7 +257,7 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
 
   const updateIngredient = (index: number, field: keyof RecipeIngredient, value: any) => {
     const updated = [...ingredients];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index] = { ...updated[index], [field]: value, edited: true };
     setIngredients(updated);
   };
 
@@ -311,17 +332,6 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
     }
   };
 
-  const getFilteredIngredients = (index: number) => {
-    const query = ingredientSearchQueries[index];
-    // Only show suggestions if actively searching (query is defined and not empty)
-    const showSuggestions = query && query.length > 0 && !availableIngredients.find(ing => ing.name === query);
-    if (!showSuggestions) return [];
-    
-    return availableIngredients.filter(ing =>
-      ing.name.toLowerCase().includes(query.toLowerCase())
-    );
-  };
-
   // Category toggle
   const toggleCategory = (categoryId: string) => {
     setSelectedCategoryIds(prev =>
@@ -345,6 +355,9 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
         <div className="pl-3 pr-1 md:px-6 pt-6 shrink-0">
           <DialogHeader>
             <DialogTitle>{isEditMode ? 'Edit Recipe' : 'Create Recipe'}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {isEditMode ? 'Edit the recipe details' : 'Create a new recipe with ingredients, instructions, and equipment'}
+            </DialogDescription>
           </DialogHeader>
         </div>
 
@@ -484,8 +497,6 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
 
           <RecipeIngredientsInput
             ingredients={ingredients}
-            ingredientSearchQueries={ingredientSearchQueries}
-            availableIngredients={availableIngredients}
             units={units}
             onAddIngredient={addIngredient}
             onRemoveIngredient={removeIngredientById}
@@ -494,7 +505,6 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
             onChangeIngredientName={(index, name) => updateIngredient(index, 'ingredientName', name)}
             onChangeQualifiers={(index, qualifiers) => updateIngredient(index, 'qualifiers', qualifiers)}
             onChangePreparation={(index, prep) => updateIngredient(index, 'preparation', prep)}
-            onChangeSearchQuery={setIngredientSearchQuery}
           />
 
           <Separator className="my-4" />
@@ -520,12 +530,18 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
           </form>
 
         <div className="pl-3 pr-1 md:px-6 pt-6 pb-6 border-t shrink-0 flex items-center justify-end">
+          {isSubmitting && saveProgress && (
+            <div className="mr-auto pr-3 text-sm text-muted-foreground">
+              {saveProgress.stage}
+              {typeof saveProgress.percentage === 'number' ? ` (${saveProgress.percentage}%)` : ''}
+            </div>
+          )}
           <DialogFooter className="flex flex-row items-center gap-3">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : (isEditMode ? 'Update Recipe' : 'Create Recipe')}
+              {isSubmitting ? 'Saving recipe...' : (isEditMode ? 'Update Recipe' : 'Create Recipe')}
             </Button>
           </DialogFooter>
         </div>

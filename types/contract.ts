@@ -211,6 +211,7 @@ export const RecipeIngredientSchema = z.object({
   preparation: z.string().optional(), // e.g., "diced", "chopped"
   canonicalItemId: z.string().optional(), // Links to CanonicalItem
   embedding: z.array(z.number()).optional(), // Cached semantic embedding of ingredientName for faster rematching
+  edited: z.boolean().optional(), // Flag to force rematch when ingredient is manually edited in UI
   matchingAudit: z.object({
     stage: z.enum(['fuzzy', 'semantic', 'arbitration']).optional(),
     decisionAction: z.enum(['use_existing_canon', 'create_from_cofid', 'create_new_canon', 'no_match']).optional(),

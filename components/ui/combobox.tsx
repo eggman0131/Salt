@@ -61,7 +61,9 @@ export function Combobox({
           className={cn("justify-between", className)}
           disabled={disabled}
         >
-          {selectedOption ? selectedOption.label : placeholder}
+          <span className={cn(!value && "text-muted-foreground")}>
+            {selectedOption ? selectedOption.label : (value || placeholder)}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
