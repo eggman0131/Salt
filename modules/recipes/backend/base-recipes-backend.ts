@@ -245,39 +245,14 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     }
 
     // Canon owns all ingredient matching and canonical item creation/updating.
-    // Recipes only prepares input and applies returned links back onto recipe data.
+    // For structured ingredients (e.g., from repair), pass directly to processIngredients
+    // which will use incremental update logic
     if (typeof ingredients[0] !== 'string') {
       const structured = ingredients as RecipeIngredient[];
-      const rawIngredients = structured.map((ingredient) => {
-        const existingRaw = ingredient.raw?.trim();
-        if (existingRaw) {
-          return existingRaw;
-        }
-
-        const parts: string[] = [];
-        if (typeof ingredient.quantity === 'number' && Number.isFinite(ingredient.quantity)) {
-          parts.push(String(ingredient.quantity));
-        }
-        if (ingredient.unit?.trim()) {
-          parts.push(ingredient.unit.trim());
-        }
-        if (ingredient.ingredientName?.trim()) {
-          parts.push(ingredient.ingredientName.trim());
-        }
-
-        let raw = parts.join(' ').trim();
-        if (ingredient.preparation?.trim()) {
-          raw = raw ? `${raw}, ${ingredient.preparation.trim()}` : ingredient.preparation.trim();
-        }
-        return raw;
-      });
-
-      const matched = await canonBackend.processIngredients(rawIngredients, recipeId, onProgress);
-      return matched.map((ingredient, idx) => ({
-        ...ingredient,
-        id: structured[idx]?.id || ingredient.id,
-      }));
+      return await canonBackend.processIngredients(structured, recipeId, onProgress);
     }
+
+    // For raw strings, process as normal
 
     return canonBackend.processIngredients(ingredients as string[], recipeId, onProgress);
   }

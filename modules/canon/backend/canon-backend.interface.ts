@@ -148,7 +148,21 @@ export interface ICanonBackend {
     contextId: string,
     onProgress?: (progress: { stage: string; current: number; total: number; percentage: number }) => void
   ) => Promise<RecipeIngredient[]>;
-
+  /**
+   * Decision function for incremental ingredient processing
+   * Determines whether an ingredient needs reparsing/rematching
+   * 
+   * Returns:
+   * - 'skip': Ingredient is unchanged and up-to-date
+   * - 'reparse-only': Parser improved but identity unchanged (update metadata only)
+   * - 'rematch': Identity changed or needs full reprocessing
+   */
+  shouldRematchIngredient: (params: {
+    oldIngredient?: RecipeIngredient;
+    newRaw: string;
+    newParsed?: any;
+    parserVersion?: number;
+  }) => 'skip' | 'reparse-only' | 'rematch';
   // ==================== COFID DATA IMPORT ====================
 
   importCoFIDData: (data: any[]) => Promise<{
