@@ -131,6 +131,12 @@ export abstract class BaseCanonBackend implements ICanonBackend {
   abstract seedUnits(units: Array<Omit<import('../../../types/contract').Unit, 'id' | 'createdAt'>>): Promise<{ unitsImported: number; unitsSkipped: number; errors: string[] }>;
   abstract embedCanonicalItems(itemIds: string[]): Promise<{ itemsEmbedded: number; itemsSkipped: number }>;
 
+  /**
+   * Test parsing a single ingredient string through the full pipeline
+   * For admin debugging/testing of ingredient parsing behaviour
+   */
+  abstract testParseIngredient(raw: string): Promise<Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'>>;
+
   // ==================== INGREDIENT PROCESSING ====================
 
   /**
@@ -1373,20 +1379,118 @@ Return JSON only:
 
   /**
    * Preparation verb list (configurable, Stage 2)
-   * Used to classify final tokens as preparation vs qualifiers.
+   * Used to detect start of preparation phrases.
    */
   private getPreparationTerms(): Set<string> {
     return new Set([
+      // Main verbs
       'chopped', 'diced', 'minced', 'sliced', 'crushed', 'grated',
       'peeled', 'trimmed', 'torn', 'drained', 'finely', 'coarsely',
-      'roughly', 'thinly', 'thickly', 'cubed', 'shredded', 'grated',
+      'roughly', 'thinly', 'thickly', 'cubed', 'shredded',
       'julienned', 'blanched', 'roasted', 'toasted', 'caramelised',
       'melted', 'whipped', 'beaten', 'whisked', 'folded', 'sifted',
       'strained', 'filtered', 'pressed', 'zested', 'deveined', 'pitted',
-      'cored', 'deseeded', 'boned', 'flaked', 'crumbled', 'grated',
-      'scattered', 'scattered', 'dusted', 'rinsed', 'drained', 'patted',
-      'and', 'of', 'for', 'on', 'in', 'with', 'to' // Connectors
+      'cored', 'deseeded', 'boned', 'flaked', 'crumbled',
+      'scattered', 'dusted', 'rinsed', 'patted',
+      'juiced', 'grated', 'shaved', 'slathered', 'smashed',
+      'dissolved', 'pounded', 'soaked', 'strained', 'chilled',
+      'warmed', 'heated', 'cooled',
+      // Adverbs that modify prep verbs
+      'very', 'lightly', 'heavily', 'just', 'left',
+      // Connectors that signal continuation of same clause
+      'and', 'then', 'but', 'or'
     ]);
+  }
+
+  /**
+   * List of quality/descriptive adjectives for qualifiers
+   */
+  private getQualifierAdjectives(): Set<string> {
+    return new Set([
+      // Temperature/storage
+      'fresh', 'dried', 'raw', 'cooked', 'prepared',
+      'chilled', 'room-temperature',
+      // Texture
+      'soft', 'firm', 'hard', 'tender', 'tough', 'smooth', 'rough',
+      'thick', 'thin', 'crisp', 'crumbly', 'creamy',
+      // Size
+      'small', 'big', 'large', 'medium', 'tiny', 'chunky',
+      // Quality/provenance
+      'good-quality', 'premium', 'unwaxed', 'organic', 'smoked',
+      'extra', 'virgin', 'pure', 'unsalted', 'salted',
+      // Flavour
+      'mild', 'hot', 'spicy', 'sweet', 'salty', 'sharp', 'strong',
+      'weak', 'light', 'dark', 'heavy', 'ripe', 'unripe',
+      // Colour (basic)
+      'red', 'green', 'yellow', 'white', 'black', 'brown', 'golden',
+      // Culinary states
+      'mature', 'young', 'whole', 'ground', 'flaked', 'shaved'
+    ]);
+  }
+
+  /**
+   * Match units with word boundaries (no substring matches) and support multi-word units
+   * Returns longest matching unit first to handle "heaped tsp" before "tsp"
+   */
+  private extractUnitAndRemainder(
+    text: string,
+    unitNames: string[]
+  ): { unit: string | null; remainder: string } {
+    // Sort by length descending (match longest units first: "heaped tsp" before "tsp")
+    const sortedUnits = [...unitNames].sort((a, b) => b.length - a.length);
+
+    for (const unit of sortedUnits) {
+      // Use word boundary regex: unit must be complete word(s)
+      const regex = new RegExp(`^(.*)\\b${unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b\\s*(.*)$`, 'i');
+      const match = text.match(regex);
+      if (match) {
+        const before = match[1].trim();
+        const after = match[2].trim();
+        // Only accept if unit appears after a quantity or article
+        if (before && /\d|a|an|the|some|one|two|three|four|five|six|seven|eight|nine|ten$/.test(before)) {
+          return { unit: unit.toLowerCase(), remainder: after };
+        }
+      }
+    }
+
+    return { unit: null, remainder: text };
+  }
+
+  /**
+   * Extract multi-word preparation phrases
+   * Examples: "finely chopped", "deseeded and sliced", "dissolved in warm water"
+   */
+  private extractPreparationPhrase(text: string): { prep: string | null; remainder: string } {
+    const prepTerms = this.getPreparationTerms();
+    const tokens = text.split(/\s+/);
+
+    for (let i = 0; i < tokens.length; i++) {
+      if (prepTerms.has(tokens[i])) {
+        // Found start of prep; take everything from here to end
+        const prep = tokens.slice(i).join(' ').trim();
+        const remainder = tokens.slice(0, i).join(' ').trim();
+        return { prep: prep || null, remainder };
+      }
+    }
+
+    return { prep: null, remainder: text };
+  }
+
+  /**
+   * Detect and handle special patterns: "juice of X", "zest of X"
+   */
+  private extractJuiceOrZest(text: string): { prep: string | null; item: string | null; remainder: string } {
+    const juiceMatch = text.match(/^(juice\s+of\s+)(.+)$/i);
+    if (juiceMatch) {
+      return { prep: 'juiced', item: juiceMatch[2].trim(), remainder: '' };
+    }
+
+    const zestMatch = text.match(/^(zest\s+of\s+)(.+)$/i);
+    if (zestMatch) {
+      return { prep: 'zested', item: zestMatch[2].trim(), remainder: '' };
+    }
+
+    return { prep: null, item: null, remainder: text };
   }
 
   /**
@@ -1398,7 +1502,7 @@ Return JSON only:
   private parseIngredientEnhanced(raw: string, units: Unit[]): ParsedIngredientInternal {
     let text = this.normaliseIngredientString(raw);
 
-    // ===== STAGE 1: Quantity + Unit extraction (enhanced regex) =====
+    // ===== STAGE 1: Quantity + Unit extraction (with word boundaries) =====
     // Use provided units or fallback to comprehensive British cooking units
     const unitNames = units.length > 0 
       ? units.flatMap(u => [u.name, u.plural].filter((n) => n !== null && n !== undefined))
@@ -1412,48 +1516,73 @@ Return JSON only:
           'tin', 'tins', 'can', 'cans', 'jar', 'jars', 'pack', 'packs',
           'packet', 'packets', 'bag', 'bags', 'bunch', 'head', 'fillet', 'fillets',
           'rasher', 'rashers', 'block', 'pot', 'tray', 'punnet',
-          // Colloquial
-          'pinch', 'dash', 'handful', 'sprig', 'sprigs', 'knob', 'sheet',
+          // Colloquial units (new)
+          'pinch', 'dash', 'splash', 'glug', 'twist', 'grating', 'handful', 'handfuls',
+          'thumb-sized', 'sprig', 'sprigs', 'knob', 'sheet', 'sheets',
+          'heaped-tsp', 'level-tsp', 'heaped-tbsp', 'level-tbsp',
           'ball', 'round', 'joint', 'rib', 'ribs', 'cube'
         ];
-    const unitPattern = unitNames.join('|');
-
-    // Extended regex to handle:
-    // - Simple: 100 g
-    // - Multiplier: 4 x 240g
-    // - Range: 2-3 tbsp
-    // - Fractions: 1/2 tsp, 1 1/2 tbsp
-    // NOTE: Order matters! Try compound patterns first (mixed fraction, range, multiplier) before simple decimal
-    const quantityRegex = new RegExp(
-      `^(\\d+\\s+\\d+\\/\\d+|\\d+\\s*-\\s*\\d+|(?:\\d+\\s*x\\s*)?\\d+\\.?\\d*|\\d*\\.\\d+|\\d+\\s*/\\s*\\d+)\\s*(${unitPattern})?\\s+(.+)$`
-    );
 
     let quantityRaw: string | null = null;
     let quantityValue: number | null = null;
     let unit: string | null = null;
+    let hasExplicitQuantity = false;
 
-    const quantityMatch = text.match(quantityRegex);
-    if (quantityMatch) {
-      let baseQuantity = quantityMatch[1].trim();
-      unit = quantityMatch[2] || null;
-      text = quantityMatch[3].trim();
+    // Try to extract quantity + unit
+    const quantityPatterns = [
+      /^(\d+\s+\d+\/\d+|\d+\s*-\s*\d+|\d+\s*x\s*\d+\.?\d*|\d+\.?\d*|\d+\s*\/\s*\d+)\s+(.+)$/, // quantity first
+      /^(a|an|some|one|two|three|four|five|six|seven|eight|nine|ten)\s+(.+)$/ // articles
+    ];
 
-      // Determine if unit was directly attached (no space) in the original text
-      // by comparing the matched portion structure
-      const matchedUpto = quantityMatch[0].substring(0, quantityMatch[0].length - quantityMatch[3].length).trim();
-      const shouldIncludeUnit = unit && matchedUpto === `${baseQuantity}${unit}`;
-      
-      quantityRaw = shouldIncludeUnit ? `${baseQuantity}${unit}` : baseQuantity;
+    let match = text.match(quantityPatterns[0]);
+    if (match) {
+      const qtyStr = match[1].trim();
+      text = match[2].trim();
+      quantityValue = this.parseQuantity(qtyStr);
+      quantityRaw = qtyStr;
+      hasExplicitQuantity = true;
 
-      // Convert baseQuantity to numeric value
-      quantityValue = this.parseQuantity(baseQuantity);
+      // Try to extract unit from remainder
+      const unitMatch = this.extractUnitAndRemainder(text, unitNames);
+      if (unitMatch.unit) {
+        unit = unitMatch.unit;
+        text = unitMatch.remainder;
+      }
+    } else if ((match = text.match(quantityPatterns[1]))) {
+      // Handle articles: "a splash of soy sauce" → quantity=1, unit=splash, item=soy sauce
+      const article = match[1].toLowerCase();
+      text = match[2].trim();
+      // Articles implicitly mean quantity 1
+      quantityValue = article === 'some' ? 1 : 1;
+      quantityRaw = article;
+      hasExplicitQuantity = false;
+
+      // Try to extract unit
+      const unitMatch = this.extractUnitAndRemainder(text, unitNames);
+      if (unitMatch.unit) {
+        unit = unitMatch.unit;
+        text = unitMatch.remainder;
+        // If we matched a unit (e.g., "a splash of"), check for "of" pattern
+        if (text.match(/^of\s+/i)) {
+          text = text.replace(/^of\s+/i, '').trim();
+        }
+      }
     }
 
     // ===== STAGE 2: Second-pass classifier (item + qualifiers + preparation) =====
     let qualifiers: string[] = [];
     let preparation: string | null = null;
 
-    // Extract parenthetical notes first (treat as qualifiers)
+    // Check for juice/zest patterns first (these override normal parsing)
+    const juiceZestMatch = this.extractJuiceOrZest(text);
+    if (juiceZestMatch.prep) {
+      preparation = juiceZestMatch.prep;
+      if (juiceZestMatch.item) {
+        text = juiceZestMatch.item;
+      }
+    }
+
+    // Extract parenthetical notes (treat as qualifiers)
     const parenRegex = /\(([^)]+)\)/g;
     let parenMatch;
     while ((parenMatch = parenRegex.exec(text)) !== null) {
@@ -1461,111 +1590,61 @@ Return JSON only:
       text = text.replace(`(${parenMatch[1]})`, '').trim();
     }
 
-    // Capture trailing storage/temperature states so they do not become part of item identity.
-    const trailingStatePhrases: string[] = [];
-    const trailingStateRegex = /(?:\s*,?\s*)(fridge[-\s]?cold|ice[-\s]?cold|chilled|at room temperature|room temperature)\s*$/;
-    while (true) {
-      const match = text.match(trailingStateRegex);
-      if (!match) break;
-      trailingStatePhrases.unshift(match[1]);
-      text = text.replace(trailingStateRegex, '').trim();
+    // ===== COMMA-BASED PREP DETECTION =====
+    // If comma present, split: left = item+qualifiers, right = preparation
+    const commaIdx = text.indexOf(',');
+    if (commaIdx !== -1) {
+      const beforeComma = text.substring(0, commaIdx).trim();
+      const afterComma = text.substring(commaIdx + 1).trim();
+      text = beforeComma;
+      if (afterComma) {
+        preparation = preparation ? `${preparation}, ${afterComma}` : afterComma;
+      }
     }
 
-    // Split by known prep term delimiters to separate preparation from main text
-    const prepTerms = this.getPreparationTerms();
-    let remainingText = text;
-    let prepStartIdx = -1;
+    // ===== MULTI-TOKEN PREPARATION PHRASE EXTRACTION =====
+    // Extract preparation from remaining text (e.g., "finely chopped", "deseeded and sliced")
+    const prepMatch = this.extractPreparationPhrase(text);
+    if (prepMatch.prep) {
+      text = prepMatch.remainder;
+      preparation = preparation ? `${preparation} ${prepMatch.prep}` : prepMatch.prep;
+    }
 
+    // ===== QUALIFIER EXTRACTION =====
+    // Extract leading qualifiers (adjectives) from remaining text
+    const qualifierAdj = this.getQualifierAdjectives();
     const tokens = text.split(/\s+/);
-    for (let i = 0; i < tokens.length; i++) {
-      if (prepTerms.has(tokens[i])) {
-        // Found a prep signal; everything from here is preparation
-        prepStartIdx = i;
-        break;
-      }
-    }
-
-    if (prepStartIdx > 0) {
-      // Join tokens before prep signal as item, everything after as preparation
-      const itemTokens = tokens.slice(0, prepStartIdx);
-      const prepTokens = tokens.slice(prepStartIdx);
-
-      // Extract qualifiers (adjectives before item)
-      const adjectiveSet = new Set([
-        'fresh', 'dried', 'raw', 'cooked', 'prepared', 'extra', 'virgin',
-        'sweet', 'salty', 'spicy', 'hot', 'cold', 'warm', 'room',
-        'temperature', 'light', 'dark', 'heavy', 'fine', 'coarse', 'rough',
-        'thin', 'thick', 'sharp', 'mild', 'strong', 'weak', 'soft', 'hard',
-        'ripe', 'unripe', 'tender', 'tough', 'mature', 'young'
-      ]);
-
-      let qualifierIdx = 0;
-      let currentQualifier: string[] = [];
-      for (let i = 0; i < itemTokens.length; i++) {
-        if (adjectiveSet.has(itemTokens[i])) {
-          currentQualifier.push(itemTokens[i]);
-          qualifierIdx = i + 1;
-        } else {
-          // Found first non-adjective; group accumulated adjectives
-          if (currentQualifier.length > 0) {
-            qualifiers.unshift(currentQualifier.join(' '));
-          }
-          break;
-        }
-      }
-
-      const item = itemTokens.slice(qualifierIdx).join(' ').trim();
-      preparation = prepTokens.join(' ').trim();
-      if (trailingStatePhrases.length > 0) {
-        const trailingState = trailingStatePhrases.join(' ');
-        preparation = preparation ? `${preparation} ${trailingState}` : trailingState;
-      }
-
-      return {
-        quantityRaw,
-        quantityValue,
-        unit,
-        item: item || 'unknown',
-        qualifiers,
-        preparation: preparation || null,
-      };
-    }
-
-    // No prep signal found; split by adjectives vs nouns
-    const adjectiveSet = new Set([
-      'fresh', 'dried', 'raw', 'cooked', 'prepared', 'extra', 'virgin',
-      'sweet', 'salty', 'spicy', 'hot', 'cold', 'warm', 'room',
-      'temperature', 'light', 'dark', 'heavy', 'fine', 'coarse', 'rough',
-      'thin', 'thick', 'sharp', 'mild', 'strong', 'weak', 'soft', 'hard',
-      'ripe', 'unripe', 'tender', 'tough', 'mature', 'young'
-    ]);
-
     let qualifierIdx = 0;
-    let currentQualifier: string[] = [];
-    const textTokens = text.split(/\s+/);
-    
-    for (let i = 0; i < textTokens.length; i++) {
-      if (adjectiveSet.has(textTokens[i])) {
-        currentQualifier.push(textTokens[i]);
-        qualifierIdx = i + 1;
-      } else {
-        // Found first non-adjective; group accumulated adjectives and stop
-        if (currentQualifier.length > 0) {
-          qualifiers.push(currentQualifier.join(' '));
+
+    for (let i = 0; i < tokens.length; i++) {
+      if (qualifierAdj.has(tokens[i])) {
+        // Accumulate consecutive qualifiers
+        let j = i;
+        const qualGroup: string[] = [];
+        while (j < tokens.length && qualifierAdj.has(tokens[j])) {
+          qualGroup.push(tokens[j]);
+          j++;
         }
+        qualifiers.push(qualGroup.join(' '));
+        qualifierIdx = j;
+        i = j - 1;
+      } else {
+        // Stop at first non-qualifier
         break;
       }
     }
 
-    const item = textTokens.slice(qualifierIdx).join(' ').trim() || text;
+    // ===== ITEM EXTRACTION =====
+    // Everything remaining after qualifiers is the item
+    const item = tokens.slice(qualifierIdx).join(' ').trim() || 'unknown';
 
     return {
       quantityRaw,
-      quantityValue,
+      quantityValue: quantityValue || (!hasExplicitQuantity && unit ? 1 : quantityValue),
       unit,
       item,
-      qualifiers,
-      preparation: trailingStatePhrases.length > 0 ? trailingStatePhrases.join(' ') : null,
+      qualifiers: qualifiers.length > 0 ? qualifiers : [],
+      preparation: preparation || null,
     };
   }
 
@@ -1649,7 +1728,7 @@ Return JSON only:
    * @param raw Raw ingredient string
    * @param units List of Unit objects from Firestore
    */
-  private parseIngredientString(raw: string, units: Unit[]): Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'> {
+  protected parseIngredientString(raw: string, units: Unit[]): Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'> {
     const parsed = this.parseIngredientEnhanced(raw, units);
 
     const ingredientNameLower = parsed.qualifiers.length > 0
@@ -1667,27 +1746,27 @@ Return JSON only:
     };
 
     // Log parsed ingredient for debugging
-    this.logParsedIngredientToCSV(raw, result);
+    void this.logParsedIngredientToDb(raw, result); // Fire and forget
 
     return result;
   }
 
   /**
-   * Hook to log parsed ingredient data to CSV file
+   * Hook to log parsed ingredient data to database
    * Override in subclass to implement actual logging
    */
-  protected logParsedIngredientToCSV(
+  protected logParsedIngredientToDb(
     raw: string,
     parsed: Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'>
-  ): void {
-    // Base implementation: no-op. Firebase backend overrides to write to CSV.
+  ): void | Promise<void> {
+    // Base implementation: no-op. Firebase backend overrides to write to Firestore.
   }
 
   /**
    * Levenshtein distance for fuzzy string matching
    * Returns similarity score 0.0 - 1.0 (1.0 = exact match)
    */
-  private fuzzyMatch(a: string, b: string): number {
+  protected fuzzyMatch(a: string, b: string): number {
     const longer = a.length > b.length ? a : b;
     const shorter = a.length > b.length ? b : a;
     if (longer.length === 0) return 1.0;

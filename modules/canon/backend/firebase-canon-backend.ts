@@ -12,6 +12,8 @@ import {
   CoFIDGroupAisleMapping,
   IngredientMatchingConfig,
   MatchingEvent,
+  IngredientParsingLog,
+  RecipeIngredient,
 } from '../../../types/contract';
 import { IngredientSemanticCandidate, SemanticScoreCluster } from './canon-backend.interface';
 import { db, auth, functions } from '../../../shared/backend/firebase';
@@ -21,7 +23,7 @@ import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, orderBy
 import { httpsCallable } from 'firebase/functions';
 import { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 import { debugLogger } from '../../../shared/backend/debug-logger';
-import { logParsedIngredient } from './ingredient-parsing-log';
+
 
 const EMBED_BATCH_SIZE = 100;
 const EMBED_DEBUG_LIMIT_TO_ONE_BATCH = false;
@@ -101,23 +103,28 @@ export class FirebaseCanonBackend extends BaseCanonBackend {
   }
 
   /**
-   * Override to log parsed ingredients to CSV file
+   * Override to log parsed ingredients to Firestore
    */
-  protected logParsedIngredientToCSV(
+  protected async logParsedIngredientToDb(
     raw: string,
-    parsed: any
-  ): void {
+    parsed: Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'>
+  ): Promise<void> {
     try {
-      logParsedIngredient(
+      const logsRef = collection(db, 'ingredient_parsing_logs');
+      const logEntry: Omit<IngredientParsingLog, 'id'> = {
+        timestamp: new Date().toISOString(),
         raw,
-        parsed.quantity ?? null,
-        parsed.unit ?? null,
-        parsed.ingredientName || '',
-        parsed.qualifiers,
-        parsed.preparation ?? null
-      );
+        quantity: parsed.quantity ?? null,
+        unit: parsed.unit ?? null,
+        ingredientName: parsed.ingredientName || '',
+        qualifiers: parsed.qualifiers || [],
+        preparation: parsed.preparation ?? null,
+        parserVersion: parsed.parserVersion ?? null,
+        createdAt: new Date().toISOString(),
+      };
+      await setDoc(doc(logsRef), logEntry);
     } catch (error) {
-      debugLogger.warn('Ingredient Matching', `Failed to log parsed ingredient to CSV: ${error}`);
+      debugLogger.warn('Ingredient Matching', `Failed to log parsed ingredient: ${error}`);
     }
   }
 
@@ -1583,6 +1590,22 @@ Return JSON object:`
     }
 
     return { itemsEmbedded, itemsSkipped: itemIds.length - itemsEmbedded };
+  }
+
+  /**
+   * Test parsing a single ingredient string through the full pipeline
+   * For admin debugging/testing
+   */
+  async testParseIngredient(raw: string): Promise<Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'>> {
+    // Ensure units are cached
+    if (!this.cachedUnits) {
+      this.cachedUnits = await this.getUnits();
+    }
+    
+    // Parse using the protected method (which also triggers Firestore logging)
+    const parsed = this.parseIngredientString(raw, this.cachedUnits);
+    
+    return parsed;
   }
 
   // ==================== COFID GROUP AISLE MAPPINGS ====================
