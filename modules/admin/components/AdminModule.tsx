@@ -9,6 +9,7 @@ import { ImportUnits } from './ImportUnits';
 import { FirestoreBrowser } from './FirestoreBrowser';
 import { MatchingParametersConfig } from './MatchingParametersConfig';
 import { MatchingInspector } from './MatchingInspector';
+import { IngredientParserTester } from './IngredientParserTester';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -180,7 +181,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   return (
     <div className="flex flex-col gap-4 md:gap-6 animate-in fade-in duration-500">
       <Tabs defaultValue="kitchen-data" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="kitchen-data">Kitchen Data</TabsTrigger>
           <TabsTrigger value="matching">Matching</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
@@ -191,28 +192,32 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         {/* Kitchen Data Tab */}
         <TabsContent value="kitchen-data" className="space-y-4 md:space-y-6">
           <Stack spacing="gap-6">
+            <IngredientParserTester />
             <CoFIDImport />
             <ImportCoFIDGroupMappings />
             <ImportUnits />
-            <MatchingParametersConfig />
           </Stack>
         </TabsContent>
 
         {/* Matching Tab */}
         <TabsContent value="matching" className="space-y-4 md:space-y-6">
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="p-4 md:p-6 border-b">
-              <div className="space-y-1">
-                <CardTitle className="text-xl md:text-2xl">Matching Inspector</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Explore ingredient matching pipeline results and analyse matching quality
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 md:p-6">
-              <MatchingInspector />
-            </CardContent>
-          </Card>
+          <Stack spacing="gap-6">
+            <IngredientParserTester />
+            <Card className="shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="p-4 md:p-6 border-b">
+                <div className="space-y-1">
+                  <CardTitle className="text-xl md:text-2xl">Matching Inspector</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Explore ingredient matching pipeline results and analyse matching quality
+                  </p>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 md:p-6">
+                <MatchingInspector />
+              </CardContent>
+            </Card>
+            <MatchingParametersConfig />
+          </Stack>
         </TabsContent>
 
         {/* System Tab */}
@@ -443,6 +448,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         {/* Storage Tab */}
         <TabsContent value="storage" className="space-y-4 md:space-y-6">
           <Stack spacing="gap-6">
+            <AssistModeGuidesList onRefresh={onRefresh} />
             {/* Storage Cleanup Card */}
             <Card className="shadow-sm hover:shadow-md transition-shadow">
               <CardHeader className="p-4 md:p-6">
@@ -548,9 +554,6 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Assist Mode Guides Management - Below Tabs */}
-      <AssistModeGuidesList onRefresh={onRefresh} />
     </div>
   );
 };

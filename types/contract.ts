@@ -391,6 +391,30 @@ export const PlanSchema = z.object({
 });
 export type Plan = z.infer<typeof PlanSchema>;
 
+// Ingredient Parsing Log (for debugging and auditing parsing output)
+export const IngredientParsingLogSchema = z.object({
+  id: z.string(),
+  timestamp: z.string(), // ISO timestamp
+  raw: z.string(), // Original ingredient string
+  quantity: z.number().nullable(),
+  unit: z.string().nullable(),
+  ingredientName: z.string(),
+  qualifiers: z.array(z.string()),
+  preparation: z.string().nullable(),
+  parserVersion: z.number().nullable(),
+  createdAt: z.string(),
+  // Correctness tracking for parser tuning
+  correct: z.boolean().default(false),
+  correctedQuantity: z.number().nullable().optional(),
+  correctedUnit: z.string().nullable().optional(),
+  correctedIngredientName: z.string().nullable().optional(),
+  correctedQualifiers: z.array(z.string()).optional(),
+  correctedPreparation: z.string().nullable().optional(),
+  correctionNotes: z.string().nullable().optional(),
+  correctedAt: z.string().nullable().optional(),
+});
+export type IngredientParsingLog = z.infer<typeof IngredientParsingLogSchema>;
+
 export interface EquipmentCandidate {
   brand: string;
   modelName: string;
