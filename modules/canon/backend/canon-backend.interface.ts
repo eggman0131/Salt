@@ -188,4 +188,13 @@ export interface ICanonBackend {
 
   // Batch embed canonical items
   embedCanonicalItems: (itemIds: string[]) => Promise<{ itemsEmbedded: number; itemsSkipped: number }>;
+
+  // ==================== TESTING UTILITIES ====================
+
+  /**
+   * Test parsing a single ingredient string through the full pipeline
+   * Includes parsing, embedding generation, and logging to Firestore
+   * Useful for debugging ingredient parsing behaviour
+   */
+  testParseIngredient: (raw: string) => Promise<Omit<RecipeIngredient, 'id' | 'raw' | 'canonicalItemId'>>;
 }
