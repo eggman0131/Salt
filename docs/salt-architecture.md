@@ -26,6 +26,7 @@ Domain modules own a specific domain within Salt. Examples include:
 - planner  
 - inventory  
 - assist-mode  
+- categories
 
 A domain module:
 
@@ -71,7 +72,7 @@ A system module:
 
 Every module follows the same folder layout:
 
-    modules/<module>/
+    modules_new/<module>/
       api.ts              # Public contract: pure functions only
       types.ts            # Module-specific types (if not in shared contract)
       logic/              # Pure logic: transformations, validation, derivations
