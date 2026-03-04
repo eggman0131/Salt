@@ -164,6 +164,28 @@ export async function seedCanonUnits(units: Unit[]): Promise<void> {
   return seedUnits(units);
 }
 
+// ── PR4-A: AI Parse (pure logic) ─────────────────────────────────────────────
+
+export { validateAiParseResults } from './logic/validateAiParse';
+
+export { buildParseSchemaDescription, AiSingleParseResultSchema, AiParseResponseSchema } from './logic/aiParseSchemas';
+
+export type {
+  AisleRef,
+  UnitRef,
+  AiSingleParseResult,
+  AiParseResponse,
+  ReviewFlag,
+  ValidatedParseResult,
+  BatchParseResponse,
+} from './types';
+
+export { UNCATEGORISED_AISLE } from './types';
+
+// ── PR4-A: AI Parse (I/O) ────────────────────────────────────────────────────
+
+export { callAiParseIngredients } from './data/aiParseIngredients';
+
 // ── Type re-exports ───────────────────────────────────────────────────────────
 
 export type { CanonAisle } from './logic/aisles';

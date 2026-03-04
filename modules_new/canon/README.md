@@ -275,6 +275,7 @@ The Canon module exposes the following admin tools via `admin.manifest.ts`:
 | Tool ID | Label | Purpose |
 |---------|-------|---------|
 | `canon.seeder` | Canon Seeder | Seed aisles and units from JSON files into Firestore |
+| `canon.aiParseTool` | AI Ingredient Parser | Parse ingredient lines using AI and validate against canonical data (PR4-A) |
 | `canon.items` | Canon Items | Full CRUD + review queue for canonical items |
 | `canon.cofid-mapping` | CofID Mapping Report | View CofID import validation and aisle mapping results |
 | `canon.aisles-viewer` | Canon Aisles | Read-only viewer for all aisles |
@@ -372,4 +373,137 @@ All mapping logic is deterministic and testable:
 - `validateEmbedding()` — Check model and dimension
 - `generateCofidImportReport()` — Full diagnostics
 - `normaliseAisleName()` — Case-insensitive match prep
+
+---
+
+## PR4-A: AI Parse Reimplementation + Admin Parse Tool
+
+Reimplements ingredient parsing on top of new canon foundations:
+- AI-first ingredient parsing with aisle categorisation
+- Deterministic validation and repair with review flags
+- Admin tool UI for parsing ingredient lines
+
+### New Types (`modules_new/canon/types.ts`)
+
+```typescript
+AisleRef            // { id, name } — reference to canonical aisle
+UnitRef             // { id, name } — reference to canonical unit
+AiSingleParseResult // Result from AI parse (index, itemName, quantity, aisleId, etc.)
+AiParseResponse     // Response from Cloud Function
+ReviewFlag          // Type of validation flag (invalid-aisle-id-repaired, etc.)
+ValidatedParseResult // Parsed result with reviewFlags array
+BatchParseResponse  // Batch result { totalCount, successCount, results, hasReviewFlags }
+UNCATEGORISED_AISLE // Constant { id: "uncategorised", name: "Uncategorised" }
+```
+
+### Key Features
+
+✅ **AI Parse via Cloud Function**
+- Uses existing `cloudGenerateContent` callable
+- Model: `flash-3`
+- Validates response against Zod schema
+
+✅ **Deterministic Validation/Repair**
+- Invalid aisleId → repaired to "uncategorised" + flagged
+- Invalid unitId → set to null + flagged
+- Uncategorised without suggestion → flagged
+- Missing arrays → repaired to [] + flagged
+- All repairs are deterministic and tested
+
+✅ **Review Flags**
+- `invalid-aisle-id-repaired`
+- `invalid-unit-id-repaired`
+- `data-repaired`
+- `missing-aisle-suggestion`
+
+✅ **Admin UI**
+- Parse ingredient lines from textarea
+- Real-time validation and repair
+- Review flag badges on results
+- Loading and error states
+- Async data fetching (aisles + units)
+
+### File Structure (PR4-A)
+
+```
+modules_new/canon/
+├── types.ts                                      # New types for PR4-A
+├── logic/
+│   ├── aiParseSchemas.ts                         # Zod schemas + schema builder
+│   └── validateAiParse.ts                        # Pure validation/repair logic
+├── data/
+│   └── aiParseIngredients.ts                     # Cloud Function callable
+├── ui/admin/
+│   └── AiIngredientParseTool.tsx                 # Admin parse UI
+├── admin.manifest.ts                             # Updated: canon.aiParseTool
+├── api.ts                                        # Updated: Re-export parse functions
+├── __tests__/
+│   └── validateAiParse.test.ts                   # 11 deterministic tests
+└── README.md                                     # This section
+```
+
+### Public API (Exports from `api.ts`)
+
+**Pure Functions:**
+```typescript
+validateAiParseResults() — Validate and repair parsed results
+buildParseSchemaDescription() — Build schema for prompt injection
+```
+
+**I/O Functions:**
+```typescript
+callAiParseIngredients() — Call Cloud Function to parse ingredients
+```
+
+**Types & Constants:**
+```typescript
+type AisleRef, UnitRef, AiSingleParseResult, ValidatedParseResult, BatchParseResponse
+const UNCATEGORISED_AISLE
+```
+
+### How It Works
+
+1. **User Input** → Admin UI textarea with ingredient lines
+2. **Fetch Data** → Load canonAisles + canonUnits
+3. **Call AI** → `callAiParseIngredients()` with schema description
+4. **Validate** → `validateAiParseResults()` repairs invalid data
+5. **Display** → Show results in table with review flags
+
+### Testing
+
+All validation logic is pure and deterministic:
+
+```bash
+npx vitest run modules_new/canon/__tests__/validateAiParse.test.ts
+✓ should pass valid results unchanged
+✓ should repair invalid aisleId to uncategorised
+✓ should repair invalid unitId to null
+✓ should flag uncategorised aisle without suggestedAisleName
+✓ should not flag uncategorised with suggestedAisleName
+✓ should repair missing preparations and notes arrays
+✓ should detect out-of-range indices
+✓ should detect duplicate indices
+✓ should sort results by index
+✓ should handle multiple repair flags on single result
+✓ should aggregate review flags across batch
+```
+
+### Admin Tool
+
+Access via: **Admin (New)** → **AI Ingredient Parser**
+
+Features:
+- Textarea for ingredient input
+- Real-time validation on parse
+- Results table with item details (quantity, unit, aisle, notes)
+- Review flags as styled badges
+- Error messages with recovery
+- Clear/Parse/Try Again button flows
+
+### Non-Scope (Explicitly NOT in PR4-A)
+
+- CofID auto-linking to parsed items
+- Nutrient copying into canon items
+- Recipes integration
+- Embedding generation
 

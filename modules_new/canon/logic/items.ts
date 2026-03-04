@@ -7,6 +7,39 @@
 
 import { z } from 'zod';
 
+/** CofID match metadata (PR4-B) */
+export const CofidMatchSchema = z.object({
+  status: z.enum(['auto', 'manual', 'unlinked']).default('auto'),
+  method: z.enum(['exact', 'fuzzy', 'semantic']).nullable(),
+  score: z.number().min(0).max(1).nullable(),
+  matchedAt: z.string(),
+  candidates: z
+    .array(
+      z.object({
+        cofidId: z.string(),
+        name: z.string(),
+        score: z.number().min(0).max(1),
+        method: z.string(),
+      })
+    )
+    .optional(),
+});
+
+export type CofidMatch = z.infer<typeof CofidMatchSchema>;
+
+/** Nutrient data snapshot (simplified) (PR4-B) */
+export const NutrientSchema = z.object({
+  energy_kcal: z.number().optional(),
+  protein_g: z.number().optional(),
+  fat_g: z.number().optional(),
+  carbs_g: z.number().optional(),
+  fiber_g: z.number().optional(),
+  sodium_mg: z.number().optional(),
+  saturated_fat_g: z.number().optional(),
+});
+
+export type Nutrients = z.infer<typeof NutrientSchema>;
+
 /** Zod schema for a canon item document */
 export const CanonItemSchema = z.object({
   id: z.string().min(1),
@@ -16,6 +49,12 @@ export const CanonItemSchema = z.object({
   needsReview: z.boolean().default(true),
   createdAt: z.string(),
   updatedAt: z.string().optional(),
+  // PR4-B: CofID enrichment fields
+  cofidId: z.string().nullable().optional(),
+  cofidMatch: CofidMatchSchema.optional(),
+  nutrients: NutrientSchema.optional(),
+  nutrientsSource: z.enum(['cofid']).nullable().optional(),
+  nutrientsImportedAt: z.string().nullable().optional(),
 });
 
 export type CanonItem = z.infer<typeof CanonItemSchema>;
