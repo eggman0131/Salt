@@ -24,6 +24,7 @@ import { ShoppingListModule } from './modules/shopping';
 import { shoppingBackend } from './modules/shopping';
 import { CanonModule } from './modules/canon';
 import { CategoriesManagement } from './modules/categories';
+import { AdminDashboard } from './modules_new/admin';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
 import { Dashboard } from './components/Dashboard';
 
@@ -298,6 +299,10 @@ const App: React.FC = () => {
 
         {activeTab === 'categories' && (
           <CategoriesManagement key={`categories-${resetKey}`} onRefresh={loadData} />
+        )}
+
+        {activeTab === 'admin-new' && (
+          <AdminDashboard key={`admin-new-${resetKey}`} />
         )}
 
         {activeTab === 'ai' && (

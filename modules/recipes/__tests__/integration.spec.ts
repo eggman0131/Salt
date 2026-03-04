@@ -144,7 +144,7 @@ describe('Recipes-Canon Integration', () => {
     vi.clearAllMocks();
   });
 
-  it('delegates ingredient matching to canon and preserves ingredient IDs', async () => {
+  it('delegates structured ingredient matching to canon', async () => {
     const input: RecipeIngredient[] = [
       {
         id: 'ri-1',
@@ -168,11 +168,11 @@ describe('Recipes-Canon Integration', () => {
       },
     ]);
 
-    const result = await backend.processRecipeIngredients(input, 'rec-1');
+    const result = await backend.matchRecipeIngredients(input, 'rec-1');
 
-    expect(canonBackend.processIngredients).toHaveBeenCalledWith(['2 red onions, finely diced'], 'rec-1');
+    expect(canonBackend.processIngredients).toHaveBeenCalledWith(input, 'rec-1', undefined);
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('ri-1');
+    expect(result[0].id).toBe('ring-rec-1-0');
     expect(result[0].canonicalItemId).toBe('item-red-onion');
   });
 
@@ -199,9 +199,9 @@ describe('Recipes-Canon Integration', () => {
       },
     ]);
 
-    const result = await backend.processRecipeIngredients(rawIngredients, 'rec-raw');
+    const result = await backend.matchRecipeIngredients(rawIngredients, 'rec-raw');
 
-    expect(canonBackend.processIngredients).toHaveBeenCalledWith(rawIngredients, 'rec-raw');
+    expect(canonBackend.processIngredients).toHaveBeenCalledWith(rawIngredients, 'rec-raw', undefined);
     expect(result).toHaveLength(2);
     expect(result[0].canonicalItemId).toBe('item-beef-mince');
     expect(result[1].canonicalItemId).toBe('item-red-onion');
@@ -262,9 +262,9 @@ describe('Recipes-Canon Integration', () => {
     const updated = await backend.repairRecipe(recipe.id, { relinkIngredients: true, categorize: false });
 
     expect(canonBackend.processIngredients).toHaveBeenCalledTimes(1);
-    expect(updated.ingredients[0].id).toBe('ri-1');
+    expect(updated.ingredients[0].id).toBe('ring-any');
     expect(updated.ingredients[0].canonicalItemId).toBe('item-onion');
     expect(updated.instructions[0].ingredients[0].id).toBe('ri-1');
-    expect(updated.instructions[0].ingredients[0].canonicalItemId).toBe('item-onion');
+    expect(updated.instructions[0].ingredients[0].canonicalItemId).toBeUndefined();
   });
 });

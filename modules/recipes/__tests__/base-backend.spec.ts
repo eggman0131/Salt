@@ -288,10 +288,10 @@ const CANONICAL_ITEMS_FIXTURE: CanonicalItem[] = [
 ];
 
 const UNITS_FIXTURE: Unit[] = [
-  { id: 'unit-g', name: 'g', sortOrder: 1, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'unit-kg', name: 'kg', sortOrder: 2, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'unit-ml', name: 'ml', sortOrder: 3, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'unit-tbsp', name: 'tbsp', sortOrder: 4, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'unit-g', name: 'g', category: 'weight', sortOrder: 1, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'unit-kg', name: 'kg', category: 'weight', sortOrder: 2, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'unit-ml', name: 'ml', category: 'volume', sortOrder: 3, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'unit-tbsp', name: 'tbsp', category: 'count', sortOrder: 4, createdAt: '2026-01-01T00:00:00Z' },
 ];
 
 const AISLES_FIXTURE: Aisle[] = [

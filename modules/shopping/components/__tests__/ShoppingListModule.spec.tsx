@@ -36,18 +36,21 @@ const UNITS_FIXTURE: Unit[] = [
   {
     id: 'unit-1',
     name: 'g',
+    category: 'weight',
     sortOrder: 1,
     createdAt: '2024-01-01T00:00:00Z',
   },
   {
     id: 'unit-2',
     name: 'ml',
+    category: 'volume',
     sortOrder: 2,
     createdAt: '2024-01-01T00:00:00Z',
   },
   {
     id: 'unit-3',
     name: 'items',
+    category: 'count',
     sortOrder: 3,
     createdAt: '2024-01-01T00:00:00Z',
   },

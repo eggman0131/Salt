@@ -307,24 +307,28 @@ const UNITS_FIXTURE: Unit[] = [
   {
     id: 'unit-g',
     name: 'g',
+    category: 'weight',
     sortOrder: 1,
     createdAt: new Date().toISOString(),
   },
   {
     id: 'unit-kg',
     name: 'kg',
+    category: 'weight',
     sortOrder: 2,
     createdAt: new Date().toISOString(),
   },
   {
     id: 'unit-ml',
     name: 'ml',
+    category: 'volume',
     sortOrder: 3,
     createdAt: new Date().toISOString(),
   },
   {
     id: 'unit-tbsp',
     name: 'tbsp',
+    category: 'count',
     sortOrder: 4,
     createdAt: new Date().toISOString(),
   },
