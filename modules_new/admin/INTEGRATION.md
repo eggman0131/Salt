@@ -94,10 +94,7 @@ When creating a new domain module in `modules_new/`:
    ```typescript
    // modules_new/admin/logic/manifest-loader.ts
    
-   // Import the manifest
-   import { <module>AdminTools } from '../../<module>/admin.manifest';
-   
-   // Add to loadAllManifests():
+   // Inside loadAllManifests(), add:
    try {
      const { <module>AdminTools } = await import('../../<module>/admin.manifest');
      manifests.push({

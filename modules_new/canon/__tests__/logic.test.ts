@@ -22,6 +22,16 @@ import {
   validateUnitDoc,
   CanonUnitSchema,
 } from '../logic/units';
+import {
+  sortItems,
+  findItemById,
+  findItemByName,
+  normalizeItemName,
+  filterItemsNeedingReview,
+  filterItemsByAisle,
+  validateItemDoc,
+  CanonItem,
+} from '../logic/items';
 import { Aisle, Unit } from '../../../types/contract';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -42,6 +52,14 @@ const UNITS: Unit[] = [
   { id: 'clove', name: 'clove', plural: 'cloves', category: 'count', sortOrder: 8 },
   { id: 'pinch', name: 'pinch', plural: null, category: 'colloquial', sortOrder: 26 },
   { id: 'handful', name: 'handful', plural: 'handfuls', category: 'colloquial', sortOrder: 28 },
+];
+
+const ITEMS: CanonItem[] = [
+  { id: 'item-carrot', name: 'Carrot', aisleId: 'produce', preferredUnitId: 'g', needsReview: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'item-onion', name: 'Onion', aisleId: 'produce', preferredUnitId: 'g', needsReview: true, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'item-butter', name: 'Butter', aisleId: 'dairy-eggs', preferredUnitId: 'g', needsReview: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'item-salt', name: 'Salt', aisleId: 'pantry', preferredUnitId: 'pinch', needsReview: true, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'item-apple', name: 'Apple', aisleId: 'produce', preferredUnitId: 'g', needsReview: false, createdAt: '2024-01-01T00:00:00.000Z' },
 ];
 
 // ── sortAisles ────────────────────────────────────────────────────────────────
@@ -317,5 +335,191 @@ describe('CanonAisleSchema', () => {
     const parsed = CanonAisleSchema.parse(raw);
     expect(parsed.id).toBe('produce');
     expect(parsed.name).toBe('Produce');
+  });
+});
+
+// ── normalizeItemName ─────────────────────────────────────────────────────────
+
+describe('normalizeItemName', () => {
+  it('trims leading and trailing whitespace', () => {
+    expect(normalizeItemName('  Carrot  ')).toBe('Carrot');
+  });
+
+  it('collapses internal whitespace to a single space', () => {
+    expect(normalizeItemName('Cherry  Tomato')).toBe('Cherry Tomato');
+  });
+
+  it('returns an empty string for an all-whitespace input', () => {
+    expect(normalizeItemName('   ')).toBe('');
+  });
+
+  it('leaves a clean name unchanged', () => {
+    expect(normalizeItemName('Butter')).toBe('Butter');
+  });
+});
+
+// ── sortItems ─────────────────────────────────────────────────────────────────
+
+describe('sortItems', () => {
+  it('sorts items alphabetically by name (case-insensitive)', () => {
+    const sorted = sortItems(ITEMS);
+    expect(sorted.map(i => i.id)).toEqual([
+      'item-apple',
+      'item-butter',
+      'item-carrot',
+      'item-onion',
+      'item-salt',
+    ]);
+  });
+
+  it('does not mutate the original array', () => {
+    const original = [...ITEMS];
+    sortItems(ITEMS);
+    expect(ITEMS).toEqual(original);
+  });
+});
+
+// ── findItemById ──────────────────────────────────────────────────────────────
+
+describe('findItemById', () => {
+  it('returns found:true with the item when id exists', () => {
+    const result = findItemById(ITEMS, 'item-carrot');
+    expect(result.found).toBe(true);
+    if (result.found) {
+      expect(result.item.name).toBe('Carrot');
+    }
+  });
+
+  it('returns found:false for an unknown id', () => {
+    const result = findItemById(ITEMS, 'item-nonexistent');
+    expect(result.found).toBe(false);
+  });
+});
+
+// ── findItemByName ────────────────────────────────────────────────────────────
+
+describe('findItemByName', () => {
+  it('finds an item by exact name', () => {
+    const result = findItemByName(ITEMS, 'Onion');
+    expect(result.found).toBe(true);
+    if (result.found) {
+      expect(result.item.id).toBe('item-onion');
+    }
+  });
+
+  it('is case-insensitive', () => {
+    const result = findItemByName(ITEMS, 'BUTTER');
+    expect(result.found).toBe(true);
+    if (result.found) {
+      expect(result.item.id).toBe('item-butter');
+    }
+  });
+
+  it('trims and normalizes whitespace', () => {
+    const result = findItemByName(ITEMS, '  Carrot  ');
+    expect(result.found).toBe(true);
+    if (result.found) {
+      expect(result.item.id).toBe('item-carrot');
+    }
+  });
+
+  it('returns found:false for an unknown name', () => {
+    const result = findItemByName(ITEMS, 'Truffle');
+    expect(result.found).toBe(false);
+  });
+});
+
+// ── filterItemsNeedingReview ──────────────────────────────────────────────────
+
+describe('filterItemsNeedingReview', () => {
+  it('returns only items where needsReview is true', () => {
+    const result = filterItemsNeedingReview(ITEMS);
+    expect(result.map(i => i.id)).toEqual(['item-onion', 'item-salt']);
+  });
+
+  it('returns an empty array when no items need review', () => {
+    const noReview = ITEMS.map(i => ({ ...i, needsReview: false }));
+    expect(filterItemsNeedingReview(noReview)).toEqual([]);
+  });
+});
+
+// ── filterItemsByAisle ────────────────────────────────────────────────────────
+
+describe('filterItemsByAisle', () => {
+  it('returns only items in the specified aisle', () => {
+    const result = filterItemsByAisle(ITEMS, 'produce');
+    expect(result.map(i => i.id)).toEqual(['item-carrot', 'item-onion', 'item-apple']);
+  });
+
+  it('returns an empty array for an aisle with no items', () => {
+    expect(filterItemsByAisle(ITEMS, 'frozen')).toEqual([]);
+  });
+});
+
+// ── validateItemDoc ───────────────────────────────────────────────────────────
+
+describe('validateItemDoc', () => {
+  it('accepts a valid item document', () => {
+    const doc = {
+      id: 'item-carrot',
+      name: 'Carrot',
+      aisleId: 'produce',
+      preferredUnitId: 'g',
+      needsReview: false,
+      createdAt: '2024-01-01T00:00:00.000Z',
+    };
+    const result = validateItemDoc(doc);
+    expect(result.success).toBe(true);
+  });
+
+  it('applies the default needsReview (true) when omitted', () => {
+    const doc = {
+      id: 'item-carrot',
+      name: 'Carrot',
+      aisleId: 'produce',
+      preferredUnitId: 'g',
+      createdAt: '2024-01-01T00:00:00.000Z',
+    };
+    const result = validateItemDoc(doc);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.needsReview).toBe(true);
+    }
+  });
+
+  it('rejects a document with an empty name', () => {
+    const doc = {
+      id: 'item-carrot',
+      name: '',
+      aisleId: 'produce',
+      preferredUnitId: 'g',
+      needsReview: false,
+      createdAt: '2024-01-01T00:00:00.000Z',
+    };
+    const result = validateItemDoc(doc);
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a document missing required fields', () => {
+    const doc = { id: 'item-carrot', name: 'Carrot' };
+    const result = validateItemDoc(doc);
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a document with an optional updatedAt field', () => {
+    const doc = {
+      id: 'item-carrot',
+      name: 'Carrot',
+      aisleId: 'produce',
+      preferredUnitId: 'g',
+      needsReview: false,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-06-01T00:00:00.000Z',
+    };
+    const result = validateItemDoc(doc);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.updatedAt).toBe('2024-06-01T00:00:00.000Z');
+    }
   });
 });
