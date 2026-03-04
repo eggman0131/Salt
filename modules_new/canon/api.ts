@@ -18,6 +18,10 @@ import {
   approveCanonItem,
   seedAisles,
   seedUnits,
+  fetchCofidItemById,
+  linkCofidMatchToCanonItem,
+  unlinkCofidMatchFromCanonItem,
+  suggestCofidForCanonItem,
 } from './data/firebase-provider';
 import { CanonItem } from './logic/items';
 
@@ -134,6 +138,55 @@ export async function getCanonCofidItems() {
   const { fetchCanonCofidItems } = await import('./data/firebase-provider');
   return fetchCanonCofidItems();
 }
+
+// ── PR5: CofID Integration ───────────────────────────────────────────────────
+
+/**
+ * Suggest CofID matches for a canon item.
+ * Returns best match + top 5 candidates.
+ */
+export async function suggestCofidMatch(canonItemId: string) {
+  return suggestCofidForCanonItem(canonItemId);
+}
+
+/**
+ * Link a CofID match to a canon item.
+ * Updates the canon item with cofidId and cofidMatch metadata.
+ */
+export async function linkCofidMatch(
+  canonItemId: string,
+  cofidId: string,
+  matchMetadata: any
+): Promise<void> {
+  return linkCofidMatchToCanonItem(canonItemId, cofidId, matchMetadata);
+}
+
+/**
+ * Unlink CofID match from a canon item.
+ * Removes cofidId, cofidMatch, and nutrients fields.
+ */
+export async function unlinkCofidMatch(canonItemId: string): Promise<void> {
+  return unlinkCofidMatchFromCanonItem(canonItemId);
+}
+
+/**
+ * Get a single CofID item by ID (for displaying linked item details).
+ */
+export async function getCofidItemById(id: string) {
+  return fetchCofidItemById(id);
+}
+
+// ── PR5: CofID Match Logic (pure helpers) ────────────────────────────────────
+
+export {
+  suggestBestMatch,
+  rankCandidates,
+  buildCofidMatch,
+  normaliseForMatching,
+  levenshteinSimilarity,
+} from './logic/suggestCofidMatch';
+
+export type { SuggestedMatch } from './logic/suggestCofidMatch';
 
 // ── Seed Operations (admin-only) ──────────────────────────────────────────────
 
