@@ -16,6 +16,8 @@ import {
   createCanonItem,
   updateCanonItem,
   approveCanonItem,
+  seedAisles,
+  seedUnits,
 } from './data/firebase-provider';
 import { CanonItem } from './logic/items';
 
@@ -105,6 +107,62 @@ export {
   filterItemsByAisle,
   validateItemDoc,
 } from './logic/items';
+
+// ── CofID Logic (mapping resolver) ────────────────────────────────────────────
+
+export {
+  normaliseAisleName,
+  resolveGroupToAisle,
+  validateEmbedding,
+  resolveCofidItemsToAisles,
+  generateCofidImportReport,
+} from './logic/cofid-mapping';
+
+export type {
+  CofidAisleEntry,
+  CofidMapping,
+  AisleInfo,
+  MappingResult,
+} from './logic/cofid-mapping';
+
+// ── CofID Data (for admin tools) ──────────────────────────────────────────────
+
+/**
+ * Fetch all CofID items (for diagnostics and reporting).
+ */
+export async function getCanonCofidItems() {
+  const { fetchCanonCofidItems } = await import('./data/firebase-provider');
+  return fetchCanonCofidItems();
+}
+
+// ── Seed Operations (admin-only) ──────────────────────────────────────────────
+
+export {
+  validateAisleSeed,
+  validateUnitSeed,
+  validateAisleSeeds,
+  validateUnitSeeds,
+  prepareAisleForFirestore,
+  prepareUnitForFirestore,
+} from './logic/seed';
+
+export type { RawAisleSeed, RawUnitSeed, SeedResult, SeedItemResult } from './logic/seed';
+
+/**
+ * Batch seed aisles into canonAisles collection.
+ * Idempotent — uses setDoc with aisle.id as document ID.
+ */
+export async function seedCanonAisles(aisles: Aisle[]): Promise<void> {
+  return seedAisles(aisles);
+}
+
+/**
+ * Batch seed units into canonUnits collection.
+ * Idempotent — uses setDoc with unit.id as document ID.
+ */
+export async function seedCanonUnits(units: Unit[]): Promise<void> {
+  return seedUnits(units);
+}
 
 // ── Type re-exports ───────────────────────────────────────────────────────────
 
