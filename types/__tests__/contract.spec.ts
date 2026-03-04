@@ -339,8 +339,8 @@ describe('Contract Runtime Validation - Unit', () => {
       { name: 'kg', category: 'weight' },
       { name: 'ml', category: 'volume' },
       { name: 'l', category: 'volume' },
-      { name: 'tsp', category: 'count' },
-      { name: 'tbsp', category: 'count' },
+      { name: 'tsp', category: 'volume' },
+      { name: 'tbsp', category: 'volume' },
     ];
 
     metricUnits.forEach(({ name, category }) => {

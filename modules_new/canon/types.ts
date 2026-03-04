@@ -25,8 +25,3 @@ export type AisleLookupResult =
 export type UnitLookupResult =
   | { found: true; unit: import('../../../types/contract').Unit }
   | { found: false };
-
-/** Result of an item lookup */
-export type ItemLookupResult =
-  | { found: true; item: import('../logic/items').CanonItem }
-  | { found: false };

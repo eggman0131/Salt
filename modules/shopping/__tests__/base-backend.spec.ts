@@ -328,7 +328,7 @@ const UNITS_FIXTURE: Unit[] = [
   {
     id: 'unit-tbsp',
     name: 'tbsp',
-    category: 'count',
+    category: 'volume',
     sortOrder: 4,
     createdAt: new Date().toISOString(),
   },

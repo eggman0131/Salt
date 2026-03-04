@@ -277,7 +277,7 @@ export const CanonItemsAdmin: React.FC = () => {
 interface CreateItemDialogProps {
   aisles: Aisle[];
   units: Unit[];
-  onSubmit: (input: { name: string; aisleId: string; preferredUnitId: string }) => void;
+  onSubmit: (input: { name: string; aisleId: string; preferredUnitId: string }) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -382,7 +382,7 @@ interface EditItemDialogProps {
   units: Unit[];
   onSubmit: (
     updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId'>>
-  ) => void;
+  ) => Promise<void>;
   onCancel: () => void;
 }
 
