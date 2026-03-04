@@ -25,3 +25,69 @@ export type AisleLookupResult =
 export type UnitLookupResult =
   | { found: true; unit: import('../../../types/contract').Unit }
   | { found: false };
+
+// ── PR4-A: AI Parse Types ────────────────────────────────────────────────────
+
+/** Reference to a canonical aisle (used in parse results) */
+export interface AisleRef {
+  id: string;
+  name: string;
+}
+
+/** Reference to a canonical unit (used in parse results) */
+export interface UnitRef {
+  id: string;
+  name: string;
+}
+
+/** Single ingredient parse result from AI */
+export interface AiSingleParseResult {
+  index: number;
+  originalLine: string;
+  itemName: string;
+  quantity: number | null;
+  recipeUnitId: string | null;
+  aisleId: string;
+  suggestedAisleName?: string;
+  preparations: string[];
+  notes: string[];
+}
+
+/** AI parse response from Cloud Function */
+export interface AiParseResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    results: AiSingleParseResult[];
+  };
+}
+
+/** Validation flags on a parsed result */
+export type ReviewFlag =
+  | 'invalid-aisle-id-repaired'
+  | 'invalid-unit-id-repaired'
+  | 'missing-aisle-suggestion'
+  | 'index-mismatch'
+  | 'index-duplicate'
+  | 'data-repaired';
+
+/** Validated and potentially repaired parse result */
+export interface ValidatedParseResult extends AiSingleParseResult {
+  reviewFlags: ReviewFlag[];
+}
+
+/** Batch parse response after validation */
+export interface BatchParseResponse {
+  totalCount: number;
+  successCount: number;
+  hasErrors: boolean;
+  hasReviewFlags: boolean;
+  results: ValidatedParseResult[];
+  errors?: string[];
+}
+
+/** System fallback aisle */
+export const UNCATEGORISED_AISLE: AisleRef = {
+  id: 'uncategorised',
+  name: 'Uncategorised',
+};

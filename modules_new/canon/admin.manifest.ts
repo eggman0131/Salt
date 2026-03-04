@@ -15,6 +15,13 @@ export const canonAdminTools = [
       import('./ui/admin/CanonSeeder').then(m => ({ default: m.default })),
   },
   {
+    id: 'canon.aiParseTool',
+    label: 'AI Ingredient Parser',
+    description: 'Parse ingredient lines using AI and validate against canonical data.',
+    component: () =>
+      import('./ui/admin/AiIngredientParseTool').then(m => ({ default: m.default })),
+  },
+  {
     id: 'canon.items',
     label: 'Canon Items',
     description: 'Manage canonical items with full CRUD and review queue.',

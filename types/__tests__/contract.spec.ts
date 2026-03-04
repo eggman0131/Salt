@@ -313,6 +313,7 @@ describe('Contract Runtime Validation - Unit', () => {
   const validUnit: Unit = {
     id: 'unit-1',
     name: 'g',
+    plural: 'g',
     category: 'weight',
     sortOrder: 1,
     createdAt: new Date().toISOString(),
@@ -327,6 +328,7 @@ describe('Contract Runtime Validation - Unit', () => {
     const result = UnitSchema.parse({
       id: 'unit-2',
       name: 'kg',
+      plural: 'kg',
       category: 'weight',
       createdAt: new Date().toISOString(),
     });
@@ -347,6 +349,7 @@ describe('Contract Runtime Validation - Unit', () => {
       const unit: Unit = {
         id: `unit-${name}`,
         name,
+        plural: name,
         category,
         sortOrder: 1,
         createdAt: new Date().toISOString(),
