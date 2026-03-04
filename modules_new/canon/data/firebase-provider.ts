@@ -16,6 +16,9 @@ import {
   getDoc,
   addDoc,
   updateDoc,
+  Timestamp,
+  setDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { CanonItem } from '../logic/items';
 
@@ -174,4 +177,68 @@ export async function approveCanonItem(id: string): Promise<void> {
     needsReview: false,
     updatedAt: new Date().toISOString(),
   });
+}
+
+// ── CofID Items Read ──────────────────────────────────────────────────────────
+
+const CANON_COFID_ITEMS_COLLECTION = 'canonCofidItems';
+
+/**
+ * Fetch all CofID items from canonCofidItems collection.
+ * Used for diagnostics and mapping report generation.
+ */
+export async function fetchCanonCofidItems(): Promise<any[]> {
+  const snapshot = await getDocs(collection(db, CANON_COFID_ITEMS_COLLECTION));
+  const items: any[] = [];
+
+  snapshot.forEach(docSnap => {
+    items.push({
+      id: docSnap.id,
+      ...docSnap.data(),
+    });
+  });
+
+  return items;
+}
+
+// ── Seed Operations (batch writes) ───────────────────────────────────────────
+
+/**
+ * Batch write aisles to canonAisles collection.
+ * Uses setDoc with the aisle's id as the document ID (idempotent).
+ */
+export async function seedAisles(aisles: Aisle[]): Promise<void> {
+  const batch = writeBatch(db);
+  
+  aisles.forEach(aisle => {
+    const docRef = doc(db, CANON_AISLES_COLLECTION, aisle.id);
+    batch.set(docRef, {
+      name: aisle.name,
+      sortOrder: aisle.sortOrder,
+      createdAt: aisle.createdAt,
+    });
+  });
+
+  await batch.commit();
+}
+
+/**
+ * Batch write units to canonUnits collection.
+ * Uses setDoc with the unit's id as the document ID (idempotent).
+ */
+export async function seedUnits(units: Unit[]): Promise<void> {
+  const batch = writeBatch(db);
+  
+  units.forEach(unit => {
+    const docRef = doc(db, CANON_UNITS_COLLECTION, unit.id);
+    batch.set(docRef, {
+      name: unit.name,
+      plural: unit.plural,
+      category: unit.category,
+      sortOrder: unit.sortOrder,
+      createdAt: unit.createdAt,
+    });
+  });
+
+  await batch.commit();
 }

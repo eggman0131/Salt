@@ -180,6 +180,46 @@ export const CoFIDGroupAisleMappingSchema = z.object({
 });
 export type CoFIDGroupAisleMapping = z.infer<typeof CoFIDGroupAisleMappingSchema>;
 
+// CofID Item Schema (Imported from CofID JSON backup)
+// Raw CofID items stored in canonCofidItems collection for matching and linking
+export const CofIDItemSchema = z.object({
+  id: z.string(), // Original CofID item ID
+  name: z.string(), // CofID item name
+  group: z.string(), // CofID group code (1-3 letters, e.g., "A", "B", "C")
+  nutrients: z.record(z.string(), z.unknown()).optional(), // Nutritional data (extensible structure)
+  embedding: z.array(z.number()).optional(), // Vector embedding (text-embedding-005, 768 dims)
+  embeddingModel: z.string().optional(), // Should be "text-embedding-005"
+  importedAt: z.string(), // ISO timestamp when imported
+});
+export type CofIDItem = z.infer<typeof CofIDItemSchema>;
+
+// CofID Import Report Schema (for validation and diagnostics)
+export const CofIDImportReportSchema = z.object({
+  totalItems: z.number(),
+  importedItems: z.number(),
+  failedItems: z.number(),
+  embeddingValidationErrors: z.array(z.object({
+    id: z.string(),
+    reason: z.string(),
+  })).optional(),
+  mappingResults: z.object({
+    mapped: z.number(), // Items with valid aisle mapping
+    unmapped: z.number(), // Items without aisle name in mapping file
+    forced_to_uncategorised: z.number(), // Items forced to uncategorised aisle
+  }).optional(),
+  mappingFailures: z.array(z.object({
+    group: z.string(),
+    groupName: z.string(),
+    reason: z.string(),
+  })).optional(),
+  collisions: z.array(z.object({
+    normalisedName: z.string(),
+    aisleNames: z.array(z.string()),
+  })).optional(),
+  generatedAt: z.string(),
+});
+export type CofIDImportReport = z.infer<typeof CofIDImportReportSchema>;
+
 // Ingredient Matching Configuration Schema
 // Admin-editable thresholds for the multi-stage ingredient identity resolution pipeline
 export const IngredientMatchingConfigSchema = z.object({
