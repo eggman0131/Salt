@@ -313,6 +313,7 @@ describe('Contract Runtime Validation - Unit', () => {
   const validUnit: Unit = {
     id: 'unit-1',
     name: 'g',
+    category: 'weight',
     sortOrder: 1,
     createdAt: new Date().toISOString(),
   };
@@ -326,17 +327,27 @@ describe('Contract Runtime Validation - Unit', () => {
     const result = UnitSchema.parse({
       id: 'unit-2',
       name: 'kg',
+      category: 'weight',
       createdAt: new Date().toISOString(),
     });
     expect(result.sortOrder).toBe(999);
   });
 
   it('should accept metric units', () => {
-    const metricUnits = ['g', 'kg', 'ml', 'l', 'tsp', 'tbsp'];
-    metricUnits.forEach(name => {
+    const metricUnits: Array<{ name: string; category: Unit['category'] }> = [
+      { name: 'g', category: 'weight' },
+      { name: 'kg', category: 'weight' },
+      { name: 'ml', category: 'volume' },
+      { name: 'l', category: 'volume' },
+      { name: 'tsp', category: 'count' },
+      { name: 'tbsp', category: 'count' },
+    ];
+
+    metricUnits.forEach(({ name, category }) => {
       const unit: Unit = {
         id: `unit-${name}`,
         name,
+        category,
         sortOrder: 1,
         createdAt: new Date().toISOString(),
       };
