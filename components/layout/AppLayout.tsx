@@ -34,6 +34,8 @@ const getActiveTitle = (tab: string): string => {
       return 'Canon Items';
     case 'categories':
       return 'Categories';
+    case 'admin-new':
+      return 'Admin (New)';
     default:
       return 'Salt';
   }

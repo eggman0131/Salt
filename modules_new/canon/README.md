@@ -1,7 +1,7 @@
 # Canon Module
 
-Canon-owned reference collections for aisles and units.  
-**Ownership:** `canonAisles`, `canonUnits` Firestore collections.
+Canon-owned reference collections for aisles, units, and items.  
+**Ownership:** `canonAisles`, `canonUnits`, `canonItems` Firestore collections.
 
 ---
 
@@ -13,11 +13,14 @@ modules_new/canon/
 ├── types.ts                    # Module-specific TypeScript types
 ├── logic/
 │   ├── aisles.ts               # CanonAisleSchema + pure aisle helpers
-│   └── units.ts                # CanonUnitSchema + pure unit helpers
+│   ├── units.ts                # CanonUnitSchema + pure unit helpers
+│   └── items.ts                # CanonItemSchema + pure item helpers (PR2)
 ├── data/
-│   └── firebase-provider.ts   # Firestore read helpers (I/O only)
+│   └── firebase-provider.ts   # Firestore read/write helpers (I/O only)
 ├── ui/
-│   └── CanonViewer.tsx         # Read-only viewer components
+│   ├── CanonViewer.tsx         # Read-only viewer components
+│   └── admin/
+│       └── CanonItemsAdmin.tsx # Full CRUD + review queue (PR2)
 ├── admin.manifest.ts           # Admin tools (ready for future mounting)
 ├── index.ts                    # Public re-exports
 ├── README.md                   # This file
@@ -40,10 +43,11 @@ modules_new/canon/
 
 ## Firestore Collections
 
-| Collection    | Owned by     | Purpose                              |
-|---------------|--------------|--------------------------------------|
-| `canonAisles` | This module  | Canonical aisle taxonomy for the UK  |
-| `canonUnits`  | This module  | Canonical measurement unit registry  |
+| Collection    | Owned by     | Purpose                                           |
+|---------------|--------------|---------------------------------------------------|
+| `canonAisles` | This module  | Canonical aisle taxonomy for the UK               |
+| `canonUnits`  | This module  | Canonical measurement unit registry               |
+| `canonItems`  | This module  | Canonical ingredient items with review workflow   |
 
 ### Seeding
 
@@ -82,6 +86,33 @@ getCanonAisles(): Promise<Aisle[]>
 
 // Fetch all canon units ordered by sortOrder
 getCanonUnits(): Promise<Unit[]>
+
+// Fetch all canon items (unsorted — use sortItems for ordering)
+getCanonItems(): Promise<CanonItem[]>
+
+// Get a single canon item by ID
+getCanonItemById(id: string): Promise<CanonItem | null>
+```
+
+### Canon Items CRUD (I/O)
+
+```typescript
+// Create a new canon item (defaults to needsReview: true)
+addCanonItem(input: {
+  name: string;
+  aisleId: string;
+  preferredUnitId: string;
+  needsReview?: boolean;
+}): Promise<CanonItem>
+
+// Update an existing canon item
+editCanonItem(
+  id: string,
+  updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId' | 'needsReview'>>
+): Promise<void>
+
+// Approve a canon item (set needsReview = false)
+approveItem(id: string): Promise<void>
 ```
 
 ### Pure aisle helpers
@@ -122,6 +153,31 @@ groupUnitsByCategory(units: Unit[]): UnitsByCategory
 validateUnitDoc(doc: unknown): ZodSafeParseReturn
 ```
 
+### Pure item helpers
+
+```typescript
+// Normalize item name (trim, collapse whitespace)
+normalizeItemName(name: string): string
+
+// Sort alphabetically by name
+sortItems(items: CanonItem[]): CanonItem[]
+
+// Exact ID lookup — returns typed result
+findItemById(items: CanonItem[], id: string): ItemLookupResult
+
+// Case-insensitive name lookup
+findItemByName(items: CanonItem[], name: string): ItemLookupResult
+
+// Filter items that need review
+filterItemsNeedingReview(items: CanonItem[]): CanonItem[]
+
+// Filter items by aisle ID
+filterItemsByAisle(items: CanonItem[], aisleId: string): CanonItem[]
+
+// Validate a raw Firestore document
+validateItemDoc(doc: unknown): ZodSafeParseReturn
+```
+
 ---
 
 ## Zod Schemas (logic layer)
@@ -132,9 +188,12 @@ CanonAisleSchema // { id, name, sortOrder, createdAt }
 
 // modules_new/canon/logic/units.ts
 CanonUnitSchema  // { id, name, plural, category, sortOrder, createdAt? }
+
+// modules_new/canon/logic/items.ts
+CanonItemSchema  // { id, name, aisleId, preferredUnitId, needsReview, createdAt, updatedAt? }
 ```
 
-These schemas live in `logic/` and mirror the `AisleSchema` / `UnitSchema` definitions in `types/contract.ts`. They provide local, module-owned validation without depending on the top-level contract schemas.
+These schemas live in `logic/` and provide local, module-owned validation. The CanonItemSchema was added in PR2 to support the canonical items collection with a review workflow.
 
 ---
 
@@ -157,13 +216,14 @@ findAisleByName(aisles, 'PRODUCE').found               // → true
 
 ## Module Rules
 
-1. ✅ **Owns** `canonAisles` and `canonUnits` Firestore collections
+1. ✅ **Owns** `canonAisles`, `canonUnits`, and `canonItems` Firestore collections
 2. ✅ **Never** writes to another module's collections
 3. ✅ **Never** imports from another module's internals
 4. ✅ **Exposes** only `api.ts` to external consumers
 5. ✅ **Logic is pure** — deterministic, side-effect-free, instantly testable
-6. ✅ **Data is read-only** — no write operations in this module
+6. ✅ **Data layer** handles all I/O operations (read for aisles/units, CRUD for items)
 7. ✅ **`uncategorised` always exists** after seeding
+8. ✅ **Items workflow** — new items default to `needsReview: true` until approved
 
 ---
 

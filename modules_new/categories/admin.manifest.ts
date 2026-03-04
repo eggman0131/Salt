@@ -10,6 +10,6 @@ export const categoryAdminTools = [
     id: 'categories.management',
     label: 'Manage Categories',
     description: 'CRUD operations, approval workflow, and category configuration',
-    component: () => import('../ui/CategoriesManagement').then(m => ({ default: m.CategoriesManagement })),
+    component: () => import('./ui/CategoriesManagement').then(m => ({ default: m.CategoriesManagement })),
   },
 ];

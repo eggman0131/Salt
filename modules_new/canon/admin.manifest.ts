@@ -8,6 +8,13 @@
 
 export const canonAdminTools = [
   {
+    id: 'canon.items',
+    label: 'Canon Items',
+    description: 'Manage canonical items with full CRUD and review queue.',
+    component: () =>
+      import('./ui/admin/CanonItemsAdmin').then(m => ({ default: m.CanonItemsAdmin })),
+  },
+  {
     id: 'canon.aisles-viewer',
     label: 'Canon Aisles',
     description: 'Read-only view of all aisles in the canonAisles collection.',
