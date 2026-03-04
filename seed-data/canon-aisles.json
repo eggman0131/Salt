@@ -1,0 +1,21 @@
+[
+  { "id": "produce", "name": "Produce", "sortOrder": 10 },
+  { "id": "meat-fish", "name": "Meat & Fish", "sortOrder": 20 },
+  { "id": "dairy-eggs", "name": "Dairy & Eggs", "sortOrder": 30 },
+  { "id": "bakery", "name": "Bakery", "sortOrder": 40 },
+  { "id": "pantry", "name": "Pantry", "sortOrder": 50 },
+  { "id": "frozen", "name": "Frozen", "sortOrder": 60 },
+  { "id": "beverages", "name": "Beverages", "sortOrder": 70 },
+  { "id": "alcohol", "name": "Alcohol", "sortOrder": 80 },
+  { "id": "deli-charcuterie", "name": "Deli & Charcuterie", "sortOrder": 90 },
+  { "id": "condiments-sauces", "name": "Condiments & Sauces", "sortOrder": 100 },
+  { "id": "breakfast-cereals", "name": "Breakfast & Cereals", "sortOrder": 110 },
+  { "id": "snacks-confectionery", "name": "Snacks & Confectionery", "sortOrder": 120 },
+  { "id": "world-foods", "name": "World Foods", "sortOrder": 130 },
+  { "id": "household", "name": "Household & Cleaning", "sortOrder": 140 },
+  { "id": "personal-care", "name": "Personal Care", "sortOrder": 150 },
+  { "id": "health-wellness", "name": "Health & Wellness", "sortOrder": 160 },
+  { "id": "baby", "name": "Baby", "sortOrder": 170 },
+  { "id": "pet", "name": "Pet Food", "sortOrder": 180 },
+  { "id": "uncategorised", "name": "Uncategorised", "sortOrder": 999 }
+]
