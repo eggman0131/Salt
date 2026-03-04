@@ -21,7 +21,13 @@ import {
   sortItems,
   filterItemsNeedingReview,
   normalizeItemName,
+  suggestCofidMatch,
+  linkCofidMatch,
+  unlinkCofidMatch,
+  buildCofidMatch,
+  getCofidItemById,
   type CanonItem,
+  type SuggestedMatch,
 } from '../../api';
 import type { Aisle, Unit } from '../../../../types/contract';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Check, Pencil, AlertCircle } from 'lucide-react';
+import { Loader2, Plus, Check, Pencil, AlertCircle, Link, Unlink, Sparkles } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +64,14 @@ export const CanonItemsAdmin: React.FC = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [currentItem, setCurrentItem] = useState<CanonItem | null>(null);
   const [filterNeedsReview, setFilterNeedsReview] = useState(false);
+  
+  // PR5: CofID integration state
+  const [showCofidDialog, setShowCofidDialog] = useState(false);
+  const [cofidSuggestions, setCofidSuggestions] = useState<{
+    bestMatch: SuggestedMatch | null;
+    candidates: SuggestedMatch[];
+  } | null>(null);
+  const [isLoadingCofid, setIsLoadingCofid] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -119,6 +133,50 @@ export const CanonItemsAdmin: React.FC = () => {
       await loadData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to approve item');
+    }
+  };
+
+  // PR5: CofID Integration handlers
+  const handleSuggestCofid = async (item: CanonItem) => {
+    setCurrentItem(item);
+    setIsLoadingCofid(true);
+    setShowCofidDialog(true);
+    try {
+      const suggestions = await suggestCofidMatch(item.id);
+      setCofidSuggestions(suggestions);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to suggest CofID matches');
+      setShowCofidDialog(false);
+    } finally {
+      setIsLoadingCofid(false);
+    }
+  };
+
+  const handleLinkCofid = async (match: SuggestedMatch) => {
+    if (!currentItem) return;
+    setIsLoadingCofid(true);
+    try {
+      const matchMetadata = buildCofidMatch(match, 'manual', cofidSuggestions?.candidates);
+      await linkCofidMatch(currentItem.id, match.cofidId, matchMetadata);
+      toast.success(`Linked to ${match.name}`);
+      await loadData();
+      setShowCofidDialog(false);
+      setCofidSuggestions(null);
+      setCurrentItem(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to link CofID match');
+    } finally {
+      setIsLoadingCofid(false);
+    }
+  };
+
+  const handleUnlinkCofid = async (item: CanonItem) => {
+    try {
+      await unlinkCofidMatch(item.id);
+      toast.success('CofID link removed');
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to unlink CofID');
     }
   };
 
@@ -197,6 +255,9 @@ export const CanonItemsAdmin: React.FC = () => {
               {sortedItems.map(item => {
                 const aisle = aisles.find(a => a.id === item.aisleId);
                 const unit = units.find(u => u.id === item.preferredUnitId);
+                const isLinked = !!item.cofidId;
+                const hasNutrients = !!item.nutrients;
+                
                 return (
                   <div
                     key={item.id}
@@ -210,12 +271,48 @@ export const CanonItemsAdmin: React.FC = () => {
                             Needs Review
                           </Badge>
                         )}
+                        {isLinked && (
+                          <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                            <Link className="h-3 w-3" />
+                            CofID Linked
+                          </Badge>
+                        )}
+                        {hasNutrients && (
+                          <Badge variant="default" className="text-xs">
+                            Nutrients
+                          </Badge>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {aisle?.name || 'Unknown aisle'} • {unit?.name || 'Unknown unit'}
+                        {item.cofidMatch && item.cofidMatch.status !== 'unlinked' && (
+                          <>
+                            {' '} • Match: {item.cofidMatch.method} ({Math.round((item.cofidMatch.score || 0) * 100)}%)
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      {!isLinked && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSuggestCofid(item)}
+                        >
+                          <Sparkles className="h-4 w-4 mr-1" />
+                          Link CofID
+                        </Button>
+                      )}
+                      {isLinked && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUnlinkCofid(item)}
+                        >
+                          <Unlink className="h-4 w-4 mr-1" />
+                          Unlink
+                        </Button>
+                      )}
                       {item.needsReview && (
                         <Button
                           variant="outline"
@@ -264,6 +361,21 @@ export const CanonItemsAdmin: React.FC = () => {
           onSubmit={(updates) => handleEdit(currentItem.id, updates)}
           onCancel={() => {
             setShowEditDialog(false);
+            setCurrentItem(null);
+          }}
+        />
+      )}
+
+      {/* CofID Suggestions Dialog */}
+      {showCofidDialog && currentItem && (
+        <CofidSuggestionsDialog
+          item={currentItem}
+          suggestions={cofidSuggestions}
+          isLoading={isLoadingCofid}
+          onLink={handleLinkCofid}
+          onCancel={() => {
+            setShowCofidDialog(false);
+            setCofidSuggestions(null);
             setCurrentItem(null);
           }}
         />
@@ -478,3 +590,115 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
     </Dialog>
   );
 };
+
+// ── CofID Suggestions Dialog (PR5) ────────────────────────────────────────────
+
+interface CofidSuggestionsDialogProps {
+  item: CanonItem;
+  suggestions: {
+    bestMatch: SuggestedMatch | null;
+    candidates: SuggestedMatch[];
+  } | null;
+  isLoading: boolean;
+  onLink: (match: SuggestedMatch) => Promise<void>;
+  onCancel: () => void;
+}
+
+const CofidSuggestionsDialog: React.FC<CofidSuggestionsDialogProps> = ({
+  item,
+  suggestions,
+  isLoading,
+  onLink,
+  onCancel,
+}) => {
+  const [selectedMatch, setSelectedMatch] = useState<SuggestedMatch | null>(null);
+
+  // Auto-select best match on load
+  useEffect(() => {
+    if (suggestions?.bestMatch && !selectedMatch) {
+      setSelectedMatch(suggestions.bestMatch);
+    }
+  }, [suggestions, selectedMatch]);
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Link CofID Item: {item.name}</DialogTitle>
+        </DialogHeader>
+        <div className="py-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span className="ml-2 text-muted-foreground">Finding matches...</span>
+            </div>
+          ) : suggestions && suggestions.candidates.length > 0 ? (
+            <div className="space-y-4">
+              <div>
+                <Label>Select a CofID item to link:</Label>
+                <div className="mt-2 space-y-2 max-h-96 overflow-y-auto">
+                  {suggestions.candidates.map((match, idx) => (
+                    <button
+                      key={match.cofidId}
+                      onClick={() => setSelectedMatch(match)}
+                      className={`w-full text-left px-4 py-3 rounded-md border transition-colors ${
+                        selectedMatch?.cofidId === match.cofidId
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:bg-muted/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{match.name}</span>
+                            {idx === 0 && suggestions.bestMatch?.cofidId === match.cofidId && (
+                              <Badge variant="default" className="text-xs">
+                                <Sparkles className="h-3 w-3 mr-1" />
+                                Best Match
+                              </Badge>
+                            )}
+                            <Badge
+                              variant={match.method === 'exact' ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {match.method}
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Score: {Math.round(match.score * 100)}% • {match.reason}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed rounded-lg">
+              <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-muted-foreground">
+                No CofID matches found for "{item.name}"
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Try adjusting the aisle or item name
+              </p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => selectedMatch && onLink(selectedMatch)}
+            disabled={!selectedMatch || isLoading}
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Link Selected Item'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+

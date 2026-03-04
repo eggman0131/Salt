@@ -507,3 +507,256 @@ Features:
 - Recipes integration
 - Embedding generation
 
+---
+
+## PR5: CofID Integration — Linking & Nutrient Copying
+
+PR5 enables linking canon items to CofID reference data with automatic nutrient inheritance.
+
+### Key Features
+
+✅ **CofID Match Suggestions**
+- Aisle-bounded fuzzy matching using Levenshtein similarity
+- Best match recommendation with confidence scoring
+- Top 5 candidate ranking for manual selection
+- Exact match prioritization over fuzzy matches
+
+✅ **Link Management**
+- Manual link/unlink workflow via UI
+- CofID match metadata storage (status, method, score, candidates)
+- Automatic nutrient copying on canon item approval
+- Unlink preserves history with status='unlinked' timestamp
+
+✅ **Nutrient Inheritance**
+- Nutrients auto-copied when linked CofID item is approved
+- Nutrient source tracking (`nutrientsSource: 'cofid'`)
+- Import timestamp for data provenance (`nutrientsImportedAt`)
+- Unlink clears nutrients and metadata
+
+### Data Schema Updates
+
+**CanonItem Schema Extensions (PR4-B → PR5):**
+```typescript
+{
+  // ... existing fields (id, name, aisleId, preferredUnitId, needsReview)
+  cofidId: string | null;                      // Linked CofID item ID
+  cofidMatch: CofidMatch | undefined;          // Match metadata
+  nutrients: Nutrient | undefined;              // Nutrient data
+  nutrientsSource: 'cofid' | 'manual' | null;  // Data source
+  nutrientsImportedAt: string | null;          // ISO timestamp
+}
+```
+
+**CofidMatch Schema:**
+```typescript
+{
+  status: 'auto' | 'manual' | 'unlinked';
+  method: 'exact' | 'fuzzy' | null;
+  score: number | null;                        // 0-1 similarity score
+  matchedAt: string;                           // ISO timestamp
+  candidates?: Array<{                         // Top matches for reference
+    cofidId: string;
+    name: string;
+    score: number;
+    method: 'exact' | 'fuzzy';
+  }>;
+}
+```
+
+**Nutrient Schema:**
+```typescript
+{
+  energy_kcal?: number;
+  protein_g?: number;
+  fat_g?: number;
+  carbohydrate_g?: number;
+  // ... extensible for additional fields
+}
+```
+
+### File Structure (PR5 Changes)
+
+```
+modules_new/canon/
+├── logic/
+│   ├── items.ts                              # Extended: CofidMatch + Nutrient schemas
+│   └── suggestCofidMatch.ts                  # Pure matching logic (PR4-B foundation)
+├── data/
+│   └── firebase-provider.ts                  # Extended: Link/unlink + suggest functions
+├── ui/admin/
+│   └── CanonItemsAdmin.tsx                   # Extended: CofID linking UI + dialog
+└── api.ts                                    # Extended: Export PR5 functions
+```
+
+### Public API Updates (`api.ts`)
+
+**I/O Functions:**
+```typescript
+// Suggest CofID matches for a canon item
+// Returns bestMatch + top 5 candidates
+suggestCofidMatch(canonItemId: string): Promise<{
+  bestMatch: SuggestedMatch | null;
+  candidates: SuggestedMatch[];
+}>
+
+// Link a CofID item to a canon item
+linkCofidMatch(
+  canonItemId: string,
+  cofidId: string,
+  matchMetadata: CofidMatch
+): Promise<void>
+
+// Unlink CofID item from canon item
+// Clears cofidId, nutrients, and sets status='unlinked'
+unlinkCofidMatch(canonItemId: string): Promise<void>
+
+// Get a single CofID item by ID (for displaying details)
+getCofidItemById(id: string): Promise<CofIDItem | null>
+```
+
+**Pure Logic (Re-exported):**
+```typescript
+// Build CofidMatch metadata for storage
+buildCofidMatch(
+  match: SuggestedMatch,
+  status: 'auto' | 'manual',
+  candidates?: SuggestedMatch[]
+): CofidMatch
+
+// Other helpers from suggestCofidMatch.ts
+suggestBestMatch(), rankCandidates(), levenshteinSimilarity()
+```
+
+**Types:**
+```typescript
+type SuggestedMatch  // { cofidId, name, score, method, reason }
+```
+
+### How It Works
+
+**Workflow:**
+1. **Suggest** → User clicks "Link CofID" on canon item
+2. **Match** → System fetches CofID items, builds aisle mapping, runs pure matching logic
+3. **Display** → UI shows best match + top 5 candidates with scores
+4. **Link** → User selects a candidate and confirms
+5. **Store** → System saves cofidId + match metadata to canon item
+6. **Approve** → When canon item is approved, nutrients auto-copy from linked CofID item
+7. **Unlink** → User can unlink CofID match, which clears nutrients and metadata
+
+**Aisle-Bounded Matching:**
+- Filters CofID items to same canon aisle only
+- Uses CofID group → aisle mappings from `cofid_group_aisle_mappings` collection
+- Exact match prioritized over fuzzy (exact score = 1.0)
+- Fuzzy match threshold: 0.75 similarity minimum
+
+**Nutrient Copying:**
+- Triggered automatically in `approveCanonItem()` when `cofidId` is present
+- Fetches linked CofID item's nutrients
+- Copies nutrients, sets `nutrientsSource: 'cofid'`, adds `nutrientsImportedAt` timestamp
+- Respects null safety (handles missing CofID item gracefully)
+
+### UI Changes (CanonItemsAdmin)
+
+**Item Display:**
+- **CofID Linked Badge** — Shows when item has `cofidId`
+- **Nutrients Badge** — Shows when item has nutrient data
+- **Match Info** — Displays match method and score percentage
+
+**Actions:**
+- **Link CofID Button** — Opens suggestions dialog (shown when not linked)
+- **Unlink Button** — Removes CofID link (shown when linked)
+- **Suggestions Dialog** — Displays best match + top 5 candidates with scores
+  - Auto-selects best match
+  - Shows "Best Match" sparkle badge on top candidate
+  - Color-coded method badges (exact/fuzzy)
+  - Percentage scores with match reasoning
+
+**Visual States:**
+- Not linked: Shows "Link CofID" button with sparkle icon
+- Linked: Shows "CofID Linked" badge + "Unlink" button
+- Has nutrients: Shows "Nutrients" badge
+
+### Data Layer Implementation
+
+**New Functions in `firebase-provider.ts`:**
+
+```typescript
+// Fetch single CofID item by ID (for nutrient copying)
+fetchCofidItemById(id: string): Promise<CofIDItem | null>
+
+// Link CofID match to canon item
+linkCofidMatchToCanonItem(
+  canonItemId: string,
+  cofidId: string,
+  matchMetadata: CofidMatch
+): Promise<void>
+
+// Unlink CofID match and clear nutrients
+unlinkCofidMatchFromCanonItem(canonItemId: string): Promise<void>
+
+// Suggest CofID matches (I/O wrapper for pure logic)
+suggestCofidForCanonItem(canonItemId: string): Promise<{
+  bestMatch: SuggestedMatch | null;
+  candidates: SuggestedMatch[];
+}>
+
+// Helper: Build aisle mapping for CofID items
+buildAisleMapping(cofidItems: CofIDItem[]): Promise<Record<string, string>>
+```
+
+**Modified Functions:**
+
+```typescript
+// approveCanonItem() — Extended to copy nutrients from linked CofID item
+// fetchCanonItems() — Extended to return cofidId, cofidMatch, nutrients fields
+// fetchCanonItemById() — Extended to return CofID enrichment fields
+```
+
+### Testing
+
+**Unit Tests (Pure Logic):**
+- All matching logic in `suggestCofidMatch.ts` is deterministic and testable
+- See PR4-B for existing Levenshtein similarity tests
+
+**Manual Testing Workflow:**
+1. Ensure CofID items are seeded (`cofid import` admin tool)
+2. Create a canon item (e.g., "Chicken breast")
+3. Click "Link CofID" → Verify suggestions appear
+4. Select a match → Verify link is saved
+5. Approve canon item → Verify nutrients copied
+6. Check item display → Verify badges and match info
+7. Click "Unlink" → Verify nutrients cleared and status='unlinked'
+
+**Data Integrity Checks:**
+- Unlink preserves history with `matchedAt` timestamp
+- Nutrient source tracking prevents data confusion
+- Null safety for missing CofID items
+- Idempotent operations (safe to link/unlink multiple times)
+
+### Dependencies
+
+**Firestore Collections:**
+- `canonItems` — Owns canon item documents
+- `canonCofidItems` — Read-only CofID reference data (PR3)
+- `cofid_group_aisle_mappings` — Read-only group → aisle mappings (PR3)
+
+**Logic Dependencies:**
+- `suggestCofidMatch.ts` — Pure matching algorithms (PR4-B)
+- `items.ts` — CofidMatch and Nutrient schemas (PR4-B)
+- `buildCofidMatch()` — Metadata builder for storage
+
+**Architecture Compliance:**
+- ✅ All I/O in `data/firebase-provider.ts`
+- ✅ All matching logic pure and deterministic
+- ✅ UI imports only from `api.ts`
+- ✅ No cross-module imports except `types/contract.ts`
+
+### Non-Scope (Intentionally Excluded)
+
+- Auto-linking CofID items on canon item creation (manual-only workflow)
+- Bulk CofID linking operations
+- CofID match confidence adjustment
+- Manual nutrient editing (future feature)
+- Embedding-based matching (vectors not yet utilized)
+
+
