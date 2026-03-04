@@ -16,7 +16,6 @@ import {
   getDoc,
   addDoc,
   updateDoc,
-  Timestamp,
 } from 'firebase/firestore';
 import { CanonItem } from '../logic/items';
 

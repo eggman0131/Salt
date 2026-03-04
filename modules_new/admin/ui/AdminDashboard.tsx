@@ -5,8 +5,8 @@
  * Follows the manifest pattern defined in salt-architecture.md.
  */
 
-import React, { useEffect, useState, Suspense, lazy } from 'react';
-import { loadAllManifests, groupToolsByModule, type AdminManifest, type AdminTool } from '../api';
+import React, { useEffect, useState, Suspense } from 'react';
+import { loadAllManifests, type AdminManifest, type AdminTool } from '../api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -67,7 +67,6 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
-  const groupedTools = groupToolsByModule(manifests);
   const defaultModule = manifests[0]?.module || '';
 
   return (
