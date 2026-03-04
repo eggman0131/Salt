@@ -51,28 +51,27 @@ modules_new/canon/
 
 ### Seeding
 
-```bash
-# Seed both collections (idempotent — safe to run repeatedly)
-node seed-data/scripts/seed-canon-all.mjs
+**Recommended:** Use the **Canon Seeder** admin tool in the app:
+1. Navigate to Admin (New) → Canon Seeder
+2. Click "Seed All" to import both aisles and units
+3. Or seed individually using the "Seed Aisles" / "Seed Units" buttons
 
-# Or seed individually
-node seed-data/scripts/seed-canon-aisles.mjs
-node seed-data/scripts/seed-canon-units.mjs
+**Why in-app seeding?**
+- ✅ Runs in authenticated context (no Firebase project ID issues)
+- ✅ Respects Firestore security rules (requires authenticated user)
+- ✅ Visual feedback and error reporting
+- ✅ No external script dependencies
 
-# Target the Firebase emulator
-FIREBASE_EMULATOR_HOST=localhost:8080 node seed-data/scripts/seed-canon-all.mjs
-```
-
-The `uncategorised` aisle (`id: "uncategorised"`) is always present after seeding and acts as the system fallback aisle.
+Seeding is **idempotent** — safe to run multiple times. Existing documents are overwritten.
 
 ---
 
 ## Seed Files
 
-| File | Collection | Notes |
-|------|------------|-------|
-| `seed-data/canon-aisles.json` | `canonAisles` | 19 aisles; `uncategorised` at `sortOrder: 999` |
-| `seed-data/canon-units.json`  | `canonUnits`  | 46 units across weight / volume / count / colloquial |
+| File | Collection | Records | Notes |
+|------|------------|---------|-------|
+| `seed-data/canon-aisles.json` | `canonAisles` | 19 | `uncategorised` at `sortOrder: 999` |
+| `seed-data/canon-units.json`  | `canonUnits`  | 46 | weight / volume / count / colloquial |
 
 ---
 
@@ -151,6 +150,40 @@ groupUnitsByCategory(units: Unit[]): UnitsByCategory
 
 // Validate a raw Firestore document
 validateUnitDoc(doc: unknown): ZodSafeParseReturn
+
+### CofID Mapping Resolver (PR3)
+
+```typescript
+// Normalize aisle name for matching (lowercase, trim)
+normaliseAisleName(name: string): string
+
+// Resolve a single CofID group to the best matching aisle
+resolveGroupToAisle(
+  group: string,
+  groupName: string,
+  aisleRequest: string,
+  aisles: AisleInfo[]
+): MappingResult
+
+// Validate embedding (model and dimension)
+validateEmbedding(item: CofIDItem): { valid: boolean; error?: string }
+
+// Resolve all CofID items to aisles with collision detection
+resolveCofidItemsToAisles(
+  items: CofIDItem[],
+  cofidMapping: CofidMapping,
+  aisles: AisleInfo[]
+): { results: MappingResult[], unmappedGroups: Set<string>, collisions: Map<string, string[]> }
+
+// Generate a diagnostic report (embeddings, mapping, collisions)
+generateCofidImportReport(
+  items: CofIDItem[],
+  cofidMapping: CofidMapping,
+  aisles: AisleInfo[]
+): CofIDImportReport
+
+// Fetch all CofID items (for diagnostics)
+getCanonCofidItems(): Promise<any[]>
 ```
 
 ### Pure item helpers
@@ -232,3 +265,111 @@ findAisleByName(aisles, 'PRODUCE').found               // → true
 - `types/contract.ts` — `Aisle`, `Unit` (read-only)
 - `shared/backend/firebase` — Firestore client
 - `zod` — document validation schemas
+
+---
+
+## Admin Tools
+
+The Canon module exposes the following admin tools via `admin.manifest.ts`:
+
+| Tool ID | Label | Purpose |
+|---------|-------|---------|
+| `canon.seeder` | Canon Seeder | Seed aisles and units from JSON files into Firestore |
+| `canon.items` | Canon Items | Full CRUD + review queue for canonical items |
+| `canon.cofid-mapping` | CofID Mapping Report | View CofID import validation and aisle mapping results |
+| `canon.aisles-viewer` | Canon Aisles | Read-only viewer for all aisles |
+| `canon.units-viewer` | Canon Units | Read-only viewer for all units |
+
+Access via: **Admin (New)** → Select tool from dropdown
+
+---
+
+## PR3: CofID Import + Mapping Validation
+
+Adds CofID item import from JSON backup with aisle mapping and embedding validation.
+
+### New Collections
+
+| Collection      | Purpose                                          |
+|-----------------|--------------------------------------------------|
+| `canonCofidItems` | Raw CofID items imported from backup            |
+
+### New Files
+
+```
+modules_new/canon/
+├── logic/
+│   └── cofid-mapping.ts              # Mapping resolver + report generator
+├── ui/admin/
+│   └── CofidMappingReport.tsx        # Report viewer component
+└── seed-data/
+    ├── cofid-items.backup.v1.json    # CofID items source (test data)
+    └── scripts/
+        └── seed-canon-cofid-items.mjs # Import script
+```
+
+### New Types (`types/contract.ts`)
+
+```typescript
+CofIDItem       // { id, name, group, nutrients, embedding, embeddingModel, importedAt }
+CofIDImportReport // { totalItems, importedItems, mappingResults, ... }
+```
+
+### Seeding
+
+```bash
+# Prerequisites: Run PR1 (seed aisles + units first)
+node seed-data/scripts/seed-canon-aisles.mjs
+
+# Then import CofID items
+node seed-data/scripts/seed-canon-cofid-items.mjs [--dry-run]
+```
+
+The script:
+1. ✅ Validates embeddings (model = `text-embedding-005`, dimension = 768)
+2. ✅ Maps CofID groups to canonical aisles using `scripts/cofid-aisle-mapping.json`
+3. ✅ Generates a diagnostic report (unmapped groups, collisions, etc.)
+4. ✅ Imports valid items into `canonCofidItems` collection
+5. ✅ Displays mapping results (mapped, unmapped, forced to uncategorised)
+
+### Admin Tools
+
+- **CofID Mapping Report** — View import validation results and aisle mapping status
+
+### Validation Rules
+
+- **Embedding Model:** must be `text-embedding-005`
+- **Embedding Dimension:** must be exactly 768
+- **Aisle Mapping:** CofID group codes map via `scripts/cofid-aisle-mapping.json` to aisle names
+- **Fallback:** Unmapped groups default to `uncategorised` aisle
+
+### Example Mapping Report
+
+```
+CofID Import Report Generated at 2026-03-04T20:15:00Z
+
+Summary:
+  Total Items: 10
+  Imported: 10
+  Failed: 0
+
+Mapping Results:
+  Mapped: 8
+  Unmapped: 2
+  Forced to Uncategorised: 2
+
+Unmapped Groups:
+  - XY (Unknown Group): "NonExistent Aisle" → NOT FOUND
+  - ZZ (Test Group): "Test Aisle" → NOT FOUND
+```
+
+### Logic Functions (Pure)
+
+All mapping logic is deterministic and testable:
+
+- `resolveGroupToAisle()` — Single group resolution
+- `resolveCofidItemsToAisles()` — Batch with collision detection
+- `validateEmbedding()` — Check model and dimension
+- `generateCofidImportReport()` — Full diagnostics
+- `normaliseAisleName()` — Case-insensitive match prep
+
