@@ -36,6 +36,13 @@ export const canonAdminTools = [
       import('./ui/admin/CofidMappingReport').then(m => ({ default: m.CofidMappingReportViewer })),
   },
   {
+    id: 'canon.embedding-coverage',
+    label: 'Embedding Coverage',
+    description: 'Manage semantic matching embeddings for CofID and canon items.',
+    component: () =>
+      import('./ui/admin/EmbeddingCoverageDashboard').then(m => ({ default: m.EmbeddingCoverageDashboard })),
+  },
+  {
     id: 'canon.aisles-viewer',
     label: 'Canon Aisles',
     description: 'Read-only view of all aisles in the canonAisles collection.',
