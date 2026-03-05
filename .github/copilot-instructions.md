@@ -4,18 +4,23 @@
 
 **Salt** is a technical culinary orchestrator for high-end domestic UK kitchens, powered by Gemini AI. The system is a React/TypeScript application with Firebase backend and a sophisticated AI-powered recipe and inventory management system.
 
+## Architectural Authority
+
+**Read this first:** [`docs/salt-architecture.md`](../docs/salt-architecture.md) — the canonical specification for module structure, boundaries, and interaction patterns.
+
+This document provides project-specific guidelines; salt-architecture.md defines the structural rules.
+
 ## The Constitution (Non-Negotiables)
 
 Salt follows a strict hierarchy to ensure data integrity:
 
 1. **The Law** (`types/contract.ts`) - Immutable data schema, the single source of truth
-2. **The Soul** (`backend/prompts.ts`) - The Head Chef's voice and culinary filters
-3. **The Brain** (`modules/*/backend/base-*-backend.ts`) - Domain logic and AI synthesis per module
-4. **The Hands** (`modules/*/backend/firebase-*-backend.ts`) - The persistence layer per module
+2. **The Logic** (`modules_new/*/logic/`) - Pure, deterministic business logic (no I/O, no side effects)
+3. **The Hands** (`modules_new/*/data/`) - Persistence layer (Firestore, Cloud Functions, API calls)
+4. **UI** (`modules_new/*/ui/`) - Display only (imports only from module's public API)
+5. **The Public API** (`modules_new/*/api.ts`) - The only entry point between layers
 
-**System services** (`shared/backend/system-backend.ts`) - Auth, user access, settings, import/export
-
-**Hierarchy Rule:** Never modify "The Brain" during "The Hands" migration. The Contract is the law — any logic that bypasses Zod validation is a system failure.
+**Hierarchy Rule:** Never bypass this structure. The Contract is the law — any logic that bypasses Zod validation is a system failure.
 
 ## Language and Cultural Requirements
 
@@ -51,47 +56,62 @@ The AI ignores non-functional items: manuals, cases, cookbooks. Focus on actual 
 
 ## Module Architecture
 
-Salt uses a **modular architecture**. Each module is self-contained with its own components, backend logic, and documentation.
+Salt uses a **strict modular architecture** with three types of modules:
+
+- **Domain modules** (`modules_new/canon`, `modules_new/recipes`, etc.) — own domain data and logic
+- **Service modules** (`modules_new/ai`) — provide cross-cutting functionality without owning data
+- **System modules** (`modules_new/admin`) — system-wide operations and tooling
+
+See `docs/salt-architecture.md` for full module taxonomy.
+
+### Standard Module Structure
+
+Every module follows this layout:
 
 ```
-modules/
-  shopping/          ← Shopping lists and items
-  recipes/           ← Recipe management and AI generation
-  kitchen-data/      ← Units, Aisles, Categories, Canonical Items
-  planner/           ← Meal planning
-  inventory/         ← Inventory management
-  admin/             ← System administration
-  ai/                ← AI chat interface
-
-shared/              ← Cross-module code (UI, hooks, backend foundation)
-types/contract.ts    ← The Law (all modules import from here)
+modules_new/<module>/
+  api.ts                # Public API (pure functions only)
+  types.ts              # Module-specific types
+  logic/                # Pure logic: transformations, calculations, validation
+  data/                 # Persistence: Firestore, Cloud Functions
+  ui/                   # UI components (imports only from api.ts)
+  admin.manifest.ts     # Optional: admin tools
+  README.md             # Module contract
+  __tests__/            # Tests
 ```
+
+**Core Rules:**
+- UI imports **only** from `api.ts` (the public API)
+- Logic is **pure** — no Firebase, no side effects, no I/O
+- Data layer handles **all I/O** — Firestore reads/writes, Cloud Functions
+- Logic and Data are **never called directly from UI**
 
 ### Working in Modules
 
 **When working in a specific module:**
-1. Read that module's `README.md` first (e.g., `modules/shopping/README.md`)
-2. Respect module boundaries - only import from:
+1. Read that module's `README.md` first (e.g., `modules_new/canon/README.md`)
+2. Respect module boundaries — only import from:
    - The module you're in
-   - `shared/*`
-   - `types/contract.ts`
-3. **DO NOT** import from other modules' internals
-4. **DO NOT** modify files outside your current module without explicit permission
+   - `shared/*` (UI components, providers, utilities)
+   - `types/contract.ts` (shared data schemas)
+3. **Never** import from another module's internals
+4. **Never** modify files outside your current module without explicit permission
+5. **Always** preserve the Law → Logic → Data → UI hierarchy
 
 **If you need shared functionality:**
 - Put it in `shared/` if used by multiple modules
 - Keep it in the module if only used there
 
-### Module Dependencies
+**Module Dependencies (All modules):**
+- ✅ `types/contract.ts` (The Law)
+- ✅ `shared/components` (UI library)
+- ✅ `shared/providers` (global context)
+- ❌ Other modules' internals (break the module)
 
-- All modules → `types/contract.ts` (The Law)
-- All modules → `shared/components` (UI library)
-- All modules → `shared/backend` (API transport)
-- `shopping` → `kitchen-data` (read-only: units, aisles, categories)
-- `recipes` → `inventory` (read-only: equipment data)
-- `recipes` → `kitchen-data` (read-only: categories)
-- `planner` → `recipes` (read-only: recipe data)
-- `planner` → `shopping` (can create lists)
+**Cross-module reads (read-only):**
+- Domain modules may call other domain modules' public APIs (`api.ts`)
+- Service modules never call domain internals
+- System modules (admin) never call domain internals
 
 ## Tech Stack
 
@@ -112,7 +132,12 @@ types/contract.ts    ← The Law (all modules import from here)
 ### File Organization
 - Keep the existing file structure intact within each module
 - Do not rename files or folders without explicit discussion
-- Follow the architectural hierarchy (Law → Soul → Brain → Hands)
+- Follow the architectural hierarchy (Law → Logic → Data → UI)
+- Place new code in the correct layer:
+  - **schema changes** → `types/contract.ts`
+  - **business logic** → `logic/`
+  - **I/O operations** → `data/`
+  - **components** → `ui/`
 
 ### Styling
 - Maintain the minimalist grayscale/blue aesthetic
@@ -195,3 +220,10 @@ When working on components:
 6. Verify British English and metric units
 7. Keep changes minimal and focused
 8. Document any new patterns or conventions in the module's README
+
+## Architectural Reference
+
+For detailed rules on module structure, interaction patterns, and guarantees, **always consult:**
+- [`docs/salt-architecture.md`](../docs/salt-architecture.md) — canonical structural rules
+- Module `README.md` files — contract and ownership boundaries
+- `types/contract.ts` — the Law (all schema definitions)

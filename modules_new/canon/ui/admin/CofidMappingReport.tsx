@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import * as canonApi from '../../api';
+import cofidMappingsData from '@/scripts/cofid-aisle-mapping.json';
 
 export const CofidMappingReportViewer: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -28,16 +29,8 @@ export const CofidMappingReportViewer: React.FC = () => {
         // Fetch canonical aisles
         const aisles = await canonApi.getCanonAisles();
 
-        // Load mapping file (would need to be seeded or embedded)
-        // For now, show what we have
-        const cofidMapping = {
-          'AA': { name: 'Flours, grains and starches', aisle: 'Pantry' },
-          'AC': { name: 'Rice', aisle: 'Rice, Pasta & Grains' },
-          'AD': { name: 'Pasta', aisle: 'Pantry' },
-          'FA': { name: 'Chicken', aisle: 'Meat & Fish' },
-          'BAK': { name: 'Whole milk', aisle: 'Dairy & Eggs' },
-          'BL': { name: 'Cheeses', aisle: 'Dairy & Eggs' },
-        };
+        // Use actual mapping from seed data file
+        const cofidMapping = cofidMappingsData;
 
         // Generate report using Canon API
         const importReport = canonApi.generateCofidImportReport(

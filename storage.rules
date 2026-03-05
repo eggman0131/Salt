@@ -28,5 +28,12 @@ service firebase.storage {
       allow read: if true;
       allow write: if isAuthorized();
     }
+
+    // Canon embedding master snapshot shared across browsers.
+    // TODO: change write to isAdmin() once admin custom claims are configured.
+    match /canon/embeddings/{allPaths=**} {
+      allow read: if isAuthorized();
+      allow write: if isAuthorized();
+    }
   }
 }
