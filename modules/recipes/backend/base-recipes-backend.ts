@@ -245,6 +245,19 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
     return allCategoryIds;
   }
 
+  /**
+   * Parse and structure recipe ingredients.
+   * 
+   * PR7 (Issue 90): Parse-only phase - convert raw ingredient strings to structured
+   * RecipeIngredient objects using canon's AI parse pipeline. No canon item linking yet.
+   * 
+   * PR8 will add: Semantic matching and linking to canonical items.
+   * 
+   * @param ingredients - Raw strings or already-structured RecipeIngredient objects
+   * @param recipeId - Recipe ID for logging
+   * @param onProgress - Progress callback
+   * @returns Array of structured RecipeIngredient objects with parse metadata
+   */
   async matchRecipeIngredients(
     ingredients: string[] | RecipeIngredient[],
     recipeId: string,
@@ -254,17 +267,45 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
       return [];
     }
 
-    // Canon owns all ingredient matching and canonical item creation/updating.
-    // For structured ingredients (e.g., from repair), pass directly to processIngredients
-    // which will use incremental update logic
-    if (typeof ingredients[0] !== 'string') {
-      const structured = ingredients as RecipeIngredient[];
-      return await canonBackend.processIngredients(structured, recipeId, onProgress);
+    // PR7: Detect raw ingredients by checking if they need parsing
+    // Raw ingredients: string OR object with no quantity/unit (newly normalized from strings)
+    const needsParsing = 
+      typeof ingredients[0] === 'string' ||
+      (typeof ingredients[0] === 'object' && 
+       !ingredients[0].quantity && 
+       !ingredients[0].unit &&
+       ingredients[0].ingredientName === ingredients[0].raw);
+
+    // If already fully structured (quantity + unit set), return as-is
+    if (!needsParsing) {
+      return ingredients as RecipeIngredient[];
     }
 
-    // For raw strings, process as normal
+    // Convert strings to raw ingredient objects for parser
+    const rawStrings = ingredients.map(ing =>
+      typeof ing === 'string' ? ing : ing.raw
+    );
 
-    return canonBackend.processIngredients(ingredients as string[], recipeId, onProgress);
+    // PR7: Parse raw ingredient strings using canon's AI pipeline
+    const { parseRecipeIngredients } = await import('./parseIngredients');
+    
+    onProgress?.({
+      stage: 'Parsing ingredients',
+      current: 0,
+      total: rawStrings.length,
+      percentage: 0,
+    });
+
+    const parsed = await parseRecipeIngredients(rawStrings);
+
+    onProgress?.({
+      stage: 'Parsing complete',
+      current: rawStrings.length,
+      total: rawStrings.length,
+      percentage: 100,
+    });
+
+    return parsed;
   }
 
   async repairRecipe(
