@@ -217,6 +217,14 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
       return;
     }
 
+    // PR7: Extract raw ingredient strings for AI parsing
+    // Only pass raw strings if ingredients are minimally structured
+    // (i.e., no quantity/unit populated, meaning user typed raw text)
+    const ingredientsForBackend = validIngredients.map(ing => {
+      const isMinimallyStructured = !ing.quantity && !ing.unit;
+      return isMinimallyStructured ? ing.raw : ing;
+    });
+
     setIsSubmitting(true);
     setSaveProgress({ stage: 'Preparing recipe', percentage: 0 });
     try {
@@ -229,7 +237,7 @@ export const RecipeFormDialog: React.FC<RecipeFormDialogProps> = ({
         servings: servings.trim() || '1',
         complexity,
         categoryIds: selectedCategoryIds,
-        ingredients: validIngredients,
+        ingredients: ingredientsForBackend as any,
         instructions: validInstructions,
         equipmentNeeded: validEquipment,
       };
