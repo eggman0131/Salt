@@ -307,6 +307,19 @@ export { UNCATEGORISED_AISLE } from './types';
 
 export { callAiParseIngredients } from './data/aiParseIngredients';
 
+// ── PR8: Recipe Ingredient Matching (I/O + Logic) ────────────────────────────
+
+export {
+  matchAndLinkRecipeIngredient,
+  matchAndLinkRecipeIngredients,
+} from './data/matchRecipeIngredients';
+
+export {
+  matchIngredientToCanonItem,
+  type IngredientMatchResult,
+  type MatchCandidate,
+} from './logic/matchIngredient';
+
 // ── Type re-exports ───────────────────────────────────────────────────────────
 
 export type { CanonAisle } from './logic/aisles';

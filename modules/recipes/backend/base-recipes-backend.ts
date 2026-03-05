@@ -249,14 +249,15 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
    * Parse and structure recipe ingredients.
    * 
    * PR7 (Issue 90): Parse-only phase - convert raw ingredient strings to structured
-   * RecipeIngredient objects using canon's AI parse pipeline. No canon item linking yet.
+   * RecipeIngredient objects using canon's AI parse pipeline.
    * 
-   * PR8 will add: Semantic matching and linking to canonical items.
+   * PR8 (Issue 91): Matching phase - link ingredients to canonical items via fuzzy +
+   * semantic matching. Creates pending canon items (needsReview: true) for unmatched items.
    * 
    * @param ingredients - Raw strings or already-structured RecipeIngredient objects
    * @param recipeId - Recipe ID for logging
    * @param onProgress - Progress callback
-   * @returns Array of structured RecipeIngredient objects with parse metadata
+   * @returns Array of structured RecipeIngredient objects with canon links and audit trail
    */
   async matchRecipeIngredients(
     ingredients: string[] | RecipeIngredient[],
@@ -276,36 +277,68 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
        !ingredients[0].unit &&
        ingredients[0].ingredientName === ingredients[0].raw);
 
-    // If already fully structured (quantity + unit set), return as-is
-    if (!needsParsing) {
-      return ingredients as RecipeIngredient[];
+    let parsedIngredients: RecipeIngredient[];
+
+    if (needsParsing) {
+      // Convert strings to raw ingredient objects for parser
+      const rawStrings = ingredients.map(ing =>
+        typeof ing === 'string' ? ing : ing.raw
+      );
+
+      // PR7: Parse raw ingredient strings using canon's AI pipeline
+      const { parseRecipeIngredients } = await import('./parseIngredients');
+      
+      onProgress?.({
+        stage: 'Parsing ingredients',
+        current: 0,
+        total: rawStrings.length,
+        percentage: 0,
+      });
+
+      parsedIngredients = await parseRecipeIngredients(rawStrings);
+
+      onProgress?.({
+        stage: 'Parsing complete',
+        current: rawStrings.length,
+        total: rawStrings.length,
+        percentage: 50,
+      });
+    } else {
+      // Already parsed
+      parsedIngredients = ingredients as RecipeIngredient[];
     }
 
-    // Convert strings to raw ingredient objects for parser
-    const rawStrings = ingredients.map(ing =>
-      typeof ing === 'string' ? ing : ing.raw
-    );
+    // PR8: Match and link to canon items
+    const { matchAndLinkRecipeIngredients } = await import('../../../modules_new/canon/api');
 
-    // PR7: Parse raw ingredient strings using canon's AI pipeline
-    const { parseRecipeIngredients } = await import('./parseIngredients');
-    
     onProgress?.({
-      stage: 'Parsing ingredients',
+      stage: 'Matching ingredients',
       current: 0,
-      total: rawStrings.length,
-      percentage: 0,
+      total: parsedIngredients.length,
+      percentage: 50,
     });
 
-    const parsed = await parseRecipeIngredients(rawStrings);
+    const matched = await matchAndLinkRecipeIngredients(
+      parsedIngredients,
+      (current, total) => {
+        const percentage = 50 + Math.round((current / total) * 50);
+        onProgress?.({
+          stage: 'Matching ingredients',
+          current,
+          total,
+          percentage,
+        });
+      }
+    );
 
     onProgress?.({
-      stage: 'Parsing complete',
-      current: rawStrings.length,
-      total: rawStrings.length,
+      stage: 'Matching complete',
+      current: parsedIngredients.length,
+      total: parsedIngredients.length,
       percentage: 100,
     });
 
-    return parsed;
+    return matched;
   }
 
   async repairRecipe(

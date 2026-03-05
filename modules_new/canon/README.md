@@ -105,6 +105,45 @@ addCanonItem(input: {
 }): Promise<CanonItem>
 
 // Update an existing canon item
+editCanonItem(id: string, updates: Partial<CanonItem>): Promise<void>
+
+// Approve a canon item (set needsReview: false)
+approveItem(id: string): Promise<void>
+```
+
+### Recipe Ingredient Matching (PR8) (I/O + Logic)
+
+```typescript
+// Match and link a single recipe ingredient to a canon item
+// Creates pending canon item (needsReview: true) if no good match found
+matchAndLinkRecipeIngredient(
+  ingredient: RecipeIngredient,
+  aisleId?: string
+): Promise<RecipeIngredient>
+
+// Batch match and link recipe ingredients
+// Processes in parallel with progress tracking
+matchAndLinkRecipeIngredients(
+  ingredients: RecipeIngredient[],
+  onProgress?: (current: number, total: number) => void
+): Promise<RecipeIngredient[]>
+
+// Pure matching logic (no I/O)
+matchIngredientToCanonItem(
+  ingredientName: string,
+  canonItems: CanonItem[],
+  embeddingLookup?: CanonEmbeddingLookup[],
+  queryEmbedding?: number[],
+  aisleId?: string
+): IngredientMatchResult
+```
+  name: string;
+  aisleId: string;
+  preferredUnitId: string;
+  needsReview?: boolean;
+}): Promise<CanonItem>
+
+// Update an existing canon item
 editCanonItem(
   id: string,
   updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId' | 'needsReview'>>
