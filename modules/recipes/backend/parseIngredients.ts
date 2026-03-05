@@ -95,10 +95,10 @@ export async function parseRecipeIngredients(
  * - itemName → ingredientName
  * - quantity → quantity
  * - recipeUnitId → unit (resolved to unit name)
+ * - aisleId → suggestedAisleId (parser hint for PR8 matching/canon creation)
  * - preparations[0] → preparation (single string, first item)
  * - notes → qualifiers
  * - reviewFlags → parseReviewFlags
- * - aisleId → NOT stored (aisle lives on CanonItem)
  */
 function mapParseResultToRecipeIngredient(
   result: ValidatedParseResult,
@@ -117,6 +117,7 @@ function mapParseResultToRecipeIngredient(
     quantity: result.quantity,
     unit: unitName,
     ingredientName: result.itemName,
+    suggestedAisleId: result.aisleId,
     qualifiers: result.notes.length > 0 ? result.notes : undefined,
     preparation: result.preparations.length > 0 ? result.preparations[0] : undefined,
     parseReviewFlags: result.reviewFlags.length > 0 ? result.reviewFlags : undefined,

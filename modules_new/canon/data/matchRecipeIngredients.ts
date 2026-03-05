@@ -44,10 +44,12 @@ export async function matchAndLinkRecipeIngredient(
   ingredient: RecipeIngredient,
   aisleId?: string
 ): Promise<RecipeIngredient> {
+  const effectiveAisleId = aisleId || ingredient.suggestedAisleId;
+
   // Load canon items and embeddings
   const [canonItems, embeddingLookup, units] = await Promise.all([
     fetchCanonItems(),
-    fetchEmbeddingsFromLookup(aisleId).catch(() => []), // Graceful fallback if no embeddings
+    fetchEmbeddingsFromLookup(effectiveAisleId).catch(() => []), // Graceful fallback if no embeddings
     getCanonUnits(),
   ]);
 
@@ -60,32 +62,45 @@ export async function matchAndLinkRecipeIngredient(
     canonItems,
     embeddingLookup,
     queryEmbedding,
-    aisleId
+    effectiveAisleId
   );
 
+  // If aisle-bounded search found nothing, retry globally before creating a new canon item.
+  const fallbackResult =
+    effectiveAisleId && matchResult.decision === 'create_new_canon'
+      ? matchIngredientToCanonItem(
+          ingredient.ingredientName,
+          canonItems,
+          embeddingLookup,
+          queryEmbedding
+        )
+      : matchResult;
+
+  const decision = fallbackResult;
+
   // Handle decision
-  if (matchResult.decision === 'use_existing_canon' && matchResult.canonItemId) {
+  if (decision.decision === 'use_existing_canon' && decision.canonItemId) {
     // Auto-link to existing canon item
     return {
       ...ingredient,
-      canonicalItemId: matchResult.canonItemId,
+      canonicalItemId: decision.canonItemId,
       matchingAudit: {
-        stage: matchResult.stage,
+        stage: decision.stage,
         decisionAction: 'use_existing_canon',
         decisionSource: 'rule',
-        candidateId: matchResult.canonItemId,
+        candidateId: decision.canonItemId,
         matchedSource: 'canon',
-        topScore: matchResult.topScore,
-        scoreGap: matchResult.scoreGap,
-        reason: matchResult.reason,
+        topScore: decision.topScore,
+        scoreGap: decision.scoreGap,
+        reason: decision.reason,
         recordedAt: new Date().toISOString(),
       },
       matchedAt: new Date().toISOString(),
     };
-  } else if (matchResult.decision === 'create_new_canon') {
+  } else if (decision.decision === 'create_new_canon') {
     // Create pending canon item
     // Infer aisle and unit from parsed data or use defaults
-    const inferredAisleId = aisleId || 'uncategorised';
+    const inferredAisleId = effectiveAisleId || 'uncategorised';
     
     // Find preferred unit ID from parsed unit name
     let preferredUnitId = 'g'; // Default to grams
@@ -115,14 +130,14 @@ export async function matchAndLinkRecipeIngredient(
       ...ingredient,
       canonicalItemId: newCanonItem.id,
       matchingAudit: {
-        stage: matchResult.stage,
+        stage: decision.stage,
         decisionAction: 'create_new_canon',
         decisionSource: 'rule',
         candidateId: newCanonItem.id,
         matchedSource: 'new-canon',
-        topScore: matchResult.topScore,
-        scoreGap: matchResult.scoreGap,
-        reason: matchResult.reason,
+        topScore: decision.topScore,
+        scoreGap: decision.scoreGap,
+        reason: decision.reason,
         recordedAt: new Date().toISOString(),
       },
       matchedAt: new Date().toISOString(),
@@ -132,13 +147,13 @@ export async function matchAndLinkRecipeIngredient(
     return {
       ...ingredient,
       matchingAudit: {
-        stage: matchResult.stage,
+        stage: decision.stage,
         decisionAction: 'no_match',
         decisionSource: 'fallback',
         matchedSource: 'unlinked',
-        topScore: matchResult.topScore,
-        scoreGap: matchResult.scoreGap,
-        reason: matchResult.reason,
+        topScore: decision.topScore,
+        scoreGap: decision.scoreGap,
+        reason: decision.reason,
         recordedAt: new Date().toISOString(),
       },
       matchedAt: new Date().toISOString(),
