@@ -398,6 +398,7 @@ export async function seedAisles(aisles: Aisle[]): Promise<void> {
   aisles.forEach(aisle => {
     const docRef = doc(db, CANON_AISLES_COLLECTION, aisle.id);
     batch.set(docRef, {
+      id: aisle.id,
       name: aisle.name,
       sortOrder: aisle.sortOrder,
       createdAt: aisle.createdAt,
@@ -417,6 +418,7 @@ export async function seedUnits(units: Unit[]): Promise<void> {
   units.forEach(unit => {
     const docRef = doc(db, CANON_UNITS_COLLECTION, unit.id);
     batch.set(docRef, {
+      id: unit.id,
       name: unit.name,
       plural: unit.plural,
       category: unit.category,
@@ -426,4 +428,113 @@ export async function seedUnits(units: Unit[]): Promise<void> {
   });
 
   await batch.commit();
+}
+
+/**
+ * Batch write CofID group → aisle mappings to cofid_group_aisle_mappings collection.
+ * Uses setDoc with the group code as the document ID (idempotent).
+ */
+export async function seedCofidGroupAisleMappings(
+  mappings: Record<string, CoFIDGroupAisleMapping>
+): Promise<void> {
+  const batch = writeBatch(db);
+  
+  Object.entries(mappings).forEach(([groupCode, mapping]) => {
+    const docRef = doc(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION, groupCode);
+    batch.set(docRef, {
+      id: groupCode,
+      cofidGroup: groupCode,
+      cofidGroupName: mapping.cofidGroupName,
+      aisleId: mapping.aisleId,
+      aisleName: mapping.aisleName,
+      createdAt: new Date().toISOString(),
+    });
+  });
+
+  await batch.commit();
+}
+
+/**
+ * Batch write CofID items to canonCofidItems collection.
+ * Handles both direct CofIDItem objects and the backup format { id, data: {...} }
+ * 
+ * Chunks writes into smaller batches to avoid "Request Entity Too Large" errors.
+ * Each batch processes max 50 items to keep payload under limits.
+ * 
+ * @param items Raw items from backup file or CofIDItem objects
+ * @param onProgress Callback for progress tracking (processed, total)
+ * @param signal AbortSignal for cancellation
+ */
+export async function seedCofidItems(
+  items: any[],
+  onProgress?: (processed: number, total: number) => void,
+  signal?: AbortSignal
+): Promise<{ imported: number; failed: number; errors: Array<{ id: string; reason: string }> }> {
+  const BATCH_SIZE = 50; // Items per Firestore batch (keeps payload small)
+  const results = { imported: 0, failed: 0, errors: [] as Array<{ id: string; reason: string }> };
+
+  // Validate and transform items first (don't write invalid ones)
+  // NOTE: Embeddings are NOT stored here - they go to canonEmbeddingLookup via seedCofidEmbeddings
+  const validItems: Array<{
+    id: string;
+    name: string;
+    group: string;
+    nutrients: any;
+    importedAt: string;
+  }> = [];
+
+  for (const rawItem of items) {
+    if (signal?.aborted) throw new Error('Seeding cancelled by user');
+
+    const item = rawItem.data ? rawItem.data : rawItem;
+
+    if (!item.id || !item.name || !item.group || !item.importedAt) {
+      results.errors.push({
+        id: item.id || 'unknown',
+        reason: 'Missing required fields (id, name, group, importedAt)',
+      });
+      results.failed++;
+      continue;
+    }
+
+    validItems.push({
+      id: item.id,
+      name: item.name,
+      group: item.group,
+      nutrients: item.nutrients ?? null,
+      importedAt: item.importedAt,
+    });
+  }
+
+  // Write in chunks to avoid payload size errors
+  for (let i = 0; i < validItems.length; i += BATCH_SIZE) {
+    if (signal?.aborted) throw new Error('Seeding cancelled by user');
+
+    const chunk = validItems.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+
+    for (const item of chunk) {
+      const docRef = doc(db, CANON_COFID_ITEMS_COLLECTION, item.id);
+      batch.set(docRef, item);
+    }
+
+    try {
+      await batch.commit();
+      results.imported += chunk.length;
+      onProgress?.(results.imported, validItems.length);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[seedCofidItems] Batch write failed at index ${i}:`, errorMsg);
+      
+      for (const item of chunk) {
+        results.errors.push({
+          id: item.id,
+          reason: `Batch write failed: ${errorMsg}`,
+        });
+        results.failed++;
+      }
+    }
+  }
+
+  return results;
 }

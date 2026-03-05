@@ -188,6 +188,42 @@ export {
 
 export type { SuggestedMatch } from './logic/suggestCofidMatch';
 
+// ── PR6: Embedding Lookup Table (semantic matching) ──────────────────────────
+
+/**
+ * Fetch embeddings from the lookup table.
+ * Optionally filter by aisle ID.
+ * Automatically syncs local cache from Firebase Storage master snapshot when newer.
+ */
+export async function getEmbeddingsFromLookup(aisleId?: string) {
+  const { fetchEmbeddingsFromLookup } = await import('./data/embeddings-provider');
+  return fetchEmbeddingsFromLookup(aisleId);
+}
+
+/**
+ * Generate embeddings for canon items (generic only).
+ * Calls embedBatch Cloud Function and stores in the local lookup index.
+ * 
+ * @returns Generation summary with counts
+ */
+export async function generateCanonItemEmbeddings() {
+  const { generateCanonItemEmbeddings: generateFn } = await import('./data/embeddings-provider');
+  return generateFn();
+}
+
+// ── PR6: Semantic Matching Logic (pure helpers) ──────────────────────────────
+
+export {
+  cosineSimilarity,
+  findSemanticMatches,
+  getBestSemanticMatch,
+  calculateCoverageStats,
+  groupCoverageByAisle,
+  validateEmbedding as validateEmbeddingDimension,
+} from './logic/embeddings';
+
+export type { SemanticMatch } from './logic/embeddings';
+
 // ── Seed Operations (admin-only) ──────────────────────────────────────────────
 
 export {
@@ -215,6 +251,38 @@ export async function seedCanonAisles(aisles: Aisle[]): Promise<void> {
  */
 export async function seedCanonUnits(units: Unit[]): Promise<void> {
   return seedUnits(units);
+}
+
+/**
+ * Batch seed CofID group → aisle mappings into cofid_group_aisle_mappings collection.
+ * Idempotent — uses setDoc with group code as document ID.
+ */
+export async function seedCofidGroupAisleMappings(
+  mappings: Record<string, any>
+): Promise<void> {
+  const { seedCofidGroupAisleMappings: seedFn } = await import('./data/firebase-provider');
+  return seedFn(mappings);
+}
+
+/**
+ * Batch seed CofID items into canonCofidItems collection.
+ * Idempotent — uses setDoc with item.id as document ID.
+ */
+export async function seedCofidItems(
+  items: any[],
+  onProgress?: (processed: number, total: number) => void,
+  signal?: AbortSignal
+): Promise<{ imported: number; failed: number; errors: Array<{ id: string; reason: string }> }> {
+  const { seedCofidItems: seedFn } = await import('./data/firebase-provider');
+  return seedFn(items, onProgress, signal);
+}
+
+/**
+ * Seed CofID embeddings directly from backup file data.
+ */
+export async function seedCofidEmbeddings(rawItems: any[]) {
+  const { seedCofidEmbeddings: seedFn } = await import('./data/embeddings-provider');
+  return seedFn(rawItems);
 }
 
 // ── PR4-A: AI Parse (pure logic) ─────────────────────────────────────────────

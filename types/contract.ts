@@ -174,7 +174,8 @@ export const CoFIDGroupAisleMappingSchema = z.object({
   id: z.string(),
   cofidGroup: z.string(), // CoFID group code (1-3 letters, e.g., "A", "B", "C")
   cofidGroupName: z.string(), // Full name of CoFID group (e.g., "Cereals and cereal products")
-  aisle: z.string(), // Target aisle name from Aisle table
+  aisleId: z.string(), // ID of target aisle (stable reference, not affected by name changes)
+  aisleName: z.string(), // Denormalized aisle name for reference/debugging
   createdAt: z.string(),
   createdBy: z.string().optional(),
 });
@@ -187,9 +188,8 @@ export const CofIDItemSchema = z.object({
   name: z.string(), // CofID item name
   group: z.string(), // CofID group code (1-3 letters, e.g., "A", "B", "C")
   nutrients: z.record(z.string(), z.unknown()).optional(), // Nutritional data (extensible structure)
-  embedding: z.array(z.number()).optional(), // Vector embedding (text-embedding-005, 768 dims)
-  embeddingModel: z.string().optional(), // Should be "text-embedding-005"
   importedAt: z.string(), // ISO timestamp when imported
+  // NOTE: Embeddings are stored in canonEmbeddingLookup, not here
 });
 export type CofIDItem = z.infer<typeof CofIDItemSchema>;
 
@@ -219,6 +219,22 @@ export const CofIDImportReportSchema = z.object({
   generatedAt: z.string(),
 });
 export type CofIDImportReport = z.infer<typeof CofIDImportReportSchema>;
+
+// Canon Embedding Lookup Schema (PR6)
+// Unified embedding storage for semantic matching (CofID + Canon items)
+export const CanonEmbeddingLookupSchema = z.object({
+  id: z.string(), // Auto-generated document ID
+  kind: z.enum(['cofid', 'canon']), // Source type
+  refId: z.string(), // Reference to original item (CofID ID or Canon item ID)
+  name: z.string(), // Item name for display
+  aisleId: z.string(), // Canon aisle ID (for aisle-bounded matching)
+  embedding: z.array(z.number()), // Vector embedding (768 dims for text-embedding-005)
+  embeddingModel: z.string(), // Model used (e.g., "text-embedding-005")
+  embeddingDim: z.number(), // Dimension count (768)
+  createdAt: z.string(), // ISO timestamp when indexed
+  updatedAt: z.string().optional(), // ISO timestamp when last updated
+});
+export type CanonEmbeddingLookup = z.infer<typeof CanonEmbeddingLookupSchema>;
 
 // Ingredient Matching Configuration Schema
 // Admin-editable thresholds for the multi-stage ingredient identity resolution pipeline
@@ -491,6 +507,11 @@ export const COLLECTION_REGISTRY = {
   },
   cofid_group_aisle_mappings: {
     schema: CoFIDGroupAisleMappingSchema,
+    requiresEncoding: false,
+    idField: 'id'
+  },
+  canonEmbeddingLookup: {
+    schema: CanonEmbeddingLookupSchema,
     requiresEncoding: false,
     idField: 'id'
   },
