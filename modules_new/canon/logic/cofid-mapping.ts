@@ -166,6 +166,9 @@ export function resolveCofidItemsToAisles(
 
 /**
  * Generate CofID import report
+ * 
+ * NOTE: This reports on MAPPING only (groups → aisles).
+ * Embedding validation happens separately during seedCofidEmbeddings().
  */
 export function generateCofidImportReport(
   items: CofIDItem[],
@@ -173,18 +176,6 @@ export function generateCofidImportReport(
   aisles: AisleInfo[],
 ): CofIDImportReport {
   const resolution = resolveCofidItemsToAisles(items, cofidMapping, aisles);
-
-  // Count embedding validation errors
-  const embeddingErrors = [];
-  for (const item of items) {
-    const validation = validateEmbedding(item);
-    if (!validation.valid) {
-      embeddingErrors.push({
-        id: item.id,
-        reason: validation.error!,
-      });
-    }
-  }
 
   // Count items by mapping result
   const mappedCount = resolution.results.filter((r) => r.resolved).length;
@@ -208,9 +199,9 @@ export function generateCofidImportReport(
 
   return {
     totalItems: items.length,
-    importedItems: items.length - embeddingErrors.length,
-    failedItems: embeddingErrors.length,
-    embeddingValidationErrors: embeddingErrors.length > 0 ? embeddingErrors : undefined,
+    importedItems: items.length, // All items import (embedding validation is separate)
+    failedItems: 0, // Import step doesn't fail items; embeddings are validated separately
+    embeddingValidationErrors: undefined, // Not relevant for item import
     mappingResults: {
       mapped: mappedCount,
       unmapped: unmappedCount,
