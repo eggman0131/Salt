@@ -265,6 +265,18 @@ export const RecipeIngredientSchema = z.object({
   ingredientName: z.string(), // The ingredient name in cooking context
   qualifiers: z.array(z.string()).optional(), // e.g., ["fresh", "organic"] - extracted descriptors (Stage 4: Issue #70)
   preparation: z.string().optional(), // e.g., "diced", "chopped"
+  
+  // PR7: Canon parse integration (parse-only; no item linking)
+  parseReviewFlags: z.array(z.enum([
+    'invalid-aisle-id-repaired',
+    'invalid-unit-id-repaired',
+    'missing-aisle-suggestion',
+    'index-mismatch',
+    'index-duplicate',
+    'data-repaired',
+  ])).optional(), // Validation issues from AI parse
+  parsedAt: z.string().optional(), // ISO timestamp when ingredient was parsed
+  
   canonicalItemId: z.string().optional(), // Links to CanonicalItem
   embedding: z.array(z.number()).optional(), // Cached semantic embedding of ingredientName for faster rematching
   edited: z.boolean().optional(), // Flag to force rematch when ingredient is manually edited in UI
