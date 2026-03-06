@@ -19,6 +19,7 @@ import {
   Timestamp,
   setDoc,
   writeBatch,
+  deleteDoc,
 } from 'firebase/firestore';
 import { CanonItem } from '../logic/items';
 import { suggestBestMatch, rankCandidates, buildCofidMatch, type SuggestedMatch } from '../logic/suggestCofidMatch';
@@ -77,6 +78,224 @@ export async function fetchCanonUnits(): Promise<Unit[]> {
   });
 
   return units;
+}
+
+// ── Canon Units CRUD ──────────────────────────────────────────────────────────
+
+/**
+ * Create a new canon unit.
+ */
+export async function createCanonUnit(input: {
+  name: string;
+  plural?: string | null;
+  category: 'weight' | 'volume' | 'count' | 'colloquial';
+  sortOrder?: number;
+}): Promise<Unit> {
+  const now = new Date().toISOString();
+  const docRef = await addDoc(collection(db, CANON_UNITS_COLLECTION), {
+    name: input.name,
+    plural: input.plural ?? null,
+    category: input.category,
+    sortOrder: input.sortOrder ?? 999,
+    createdAt: now,
+  });
+
+  return {
+    id: docRef.id,
+    name: input.name,
+    plural: input.plural ?? null,
+    category: input.category,
+    sortOrder: input.sortOrder ?? 999,
+    createdAt: now,
+  };
+}
+
+/**
+ * Update an existing canon unit.
+ */
+export async function updateCanonUnit(
+  id: string,
+  updates: Partial<Pick<Unit, 'name' | 'plural' | 'category' | 'sortOrder'>>
+): Promise<void> {
+  const docRef = doc(db, CANON_UNITS_COLLECTION, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Delete a canon unit.
+ * Checks if any canon items reference this unit.
+ */
+export async function deleteCanonUnit(id: string): Promise<void> {
+  const docRef = doc(db, CANON_UNITS_COLLECTION, id);
+  
+  // Check if any canon items reference this unit
+  const itemsSnapshot = await getDocs(collection(db, CANON_ITEMS_COLLECTION));
+  const hasReferences = itemsSnapshot.docs.some(doc => doc.data().preferredUnitId === id);
+  
+  if (hasReferences) {
+    throw new Error(`Cannot delete unit: ${id} is in use by ${itemsSnapshot.docs.filter(doc => doc.data().preferredUnitId === id).length} canon items`);
+  }
+  
+  await deleteDoc(docRef);
+}
+
+/**
+ * Batch update sortOrder for multiple units.
+ * Used for drag-and-drop reordering within categories.
+ */
+export async function reorderCanonUnits(
+  updates: Array<{ id: string; sortOrder: number }>
+): Promise<void> {
+  const batch = writeBatch(db);
+  
+  updates.forEach(({ id, sortOrder }) => {
+    const docRef = doc(db, CANON_UNITS_COLLECTION, id);
+    batch.update(docRef, { sortOrder });
+  });
+  
+  await batch.commit();
+}
+
+// ── Canon Aisles CRUD ─────────────────────────────────────────────────────────
+
+/**
+ * Create a new canon aisle.
+ */
+export async function createCanonAisle(input: {
+  name: string;
+  sortOrder?: number;
+}): Promise<Aisle> {
+  const now = new Date().toISOString();
+  const docRef = await addDoc(collection(db, CANON_AISLES_COLLECTION), {
+    name: input.name,
+    sortOrder: input.sortOrder ?? 999,
+    createdAt: now,
+  });
+
+  return {
+    id: docRef.id,
+    name: input.name,
+    sortOrder: input.sortOrder ?? 999,
+    createdAt: now,
+  };
+}
+
+/**
+ * Update an existing canon aisle.
+ */
+export async function updateCanonAisle(
+  id: string,
+  updates: Partial<Pick<Aisle, 'name' | 'sortOrder'>>
+): Promise<void> {
+  const docRef = doc(db, CANON_AISLES_COLLECTION, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Delete a canon aisle.
+ * Caller must enforce business rules (e.g., cannot delete 'uncategorised').
+ */
+export async function deleteCanonAisle(id: string): Promise<void> {
+  const docRef = doc(db, CANON_AISLES_COLLECTION, id);
+  
+  // Check if any canon items reference this aisle
+  const itemsSnapshot = await getDocs(collection(db, CANON_ITEMS_COLLECTION));
+  const hasReferences = itemsSnapshot.docs.some(doc => doc.data().aisleId === id);
+  
+  if (hasReferences) {
+    throw new Error(`Cannot delete aisle: ${id} is in use by canon items`);
+  }
+  
+  await deleteDoc(docRef);
+}
+
+/**
+ * Batch update sortOrder for multiple aisles.
+ * Used for drag-and-drop reordering.
+ */
+export async function reorderCanonAisles(
+  updates: Array<{ id: string; sortOrder: number }>
+): Promise<void> {
+  const batch = writeBatch(db);
+  
+  updates.forEach(({ id, sortOrder }) => {
+    const docRef = doc(db, CANON_AISLES_COLLECTION, id);
+    batch.update(docRef, { sortOrder });
+  });
+  
+  await batch.commit();
+}
+
+// ── CofID Group Aisle Mappings CRUD ───────────────────────────────────────────
+
+/**
+ * Fetch all CofID group aisle mappings.
+ */
+export async function fetchCofidMappings(): Promise<CoFIDGroupAisleMapping[]> {
+  const snapshot = await getDocs(collection(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION));
+  const mappings: CoFIDGroupAisleMapping[] = [];
+
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    mappings.push({
+      id: docSnap.id,
+      cofidGroup: data.cofidGroup,
+      cofidGroupName: data.cofidGroupName,
+      aisleId: data.aisleId,
+      aisleName: data.aisleName,
+      createdAt: data.createdAt,
+      createdBy: data.createdBy,
+    });
+  });
+
+  return mappings;
+}
+
+/**
+ * Create a new CofID group aisle mapping.
+ */
+export async function createCofidMapping(input: {
+  cofidGroup: string;
+  cofidGroupName: string;
+  aisleId: string;
+  aisleName: string;
+}): Promise<CoFIDGroupAisleMapping> {
+  const now = new Date().toISOString();
+  const docRef = await addDoc(collection(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION), {
+    cofidGroup: input.cofidGroup,
+    cofidGroupName: input.cofidGroupName,
+    aisleId: input.aisleId,
+    aisleName: input.aisleName,
+    createdAt: now,
+  });
+
+  return {
+    id: docRef.id,
+    cofidGroup: input.cofidGroup,
+    cofidGroupName: input.cofidGroupName,
+    aisleId: input.aisleId,
+    aisleName: input.aisleName,
+    createdAt: now,
+  };
+}
+
+/**
+ * Update an existing CofID group aisle mapping.
+ */
+export async function updateCofidMapping(
+  id: string,
+  updates: Partial<Pick<CoFIDGroupAisleMapping, 'cofidGroup' | 'cofidGroupName' | 'aisleId' | 'aisleName'>>
+): Promise<void> {
+  const docRef = doc(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Delete a CofID group aisle mapping.
+ */
+export async function deleteCofidMapping(id: string): Promise<void> {
+  const docRef = doc(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION, id);
+  await deleteDoc(docRef);
 }
 
 // ── Canon Items CRUD ──────────────────────────────────────────────────────────

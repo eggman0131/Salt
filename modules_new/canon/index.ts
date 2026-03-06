@@ -29,3 +29,4 @@ export type {
 } from './api';
 
 export { AislesViewer, UnitsViewer } from './ui/CanonViewer';
+export { CanonItemsWorkspace } from './ui/CanonItemsWorkspace';

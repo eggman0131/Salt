@@ -41,11 +41,14 @@ describe('Manifest Loader', () => {
 
   it('finds a tool by ID', async () => {
     const manifests = await loadAllManifests();
-    
-    // Canon should have at least one item
-    const canonItem = findToolById(manifests, 'canon.items');
-    expect(canonItem).toBeTruthy();
-    expect(canonItem?.label).toBe('Canon Items');
+
+    // Canon operational tooling remains in Admin.
+    const canonSeeder = findToolById(manifests, 'canon.seeder');
+    expect(canonSeeder).toBeTruthy();
+    expect(canonSeeder?.label).toBe('Canon Seeder');
+
+    // Canon catalogue management is now in dedicated nav, not Admin.
+    expect(findToolById(manifests, 'canon.items')).toBeNull();
   });
 
   it('returns null for non-existent tool ID', async () => {
