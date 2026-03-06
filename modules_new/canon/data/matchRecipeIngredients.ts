@@ -15,13 +15,85 @@ import {
   type IngredientMatchResult,
 } from '../logic/matchIngredient';
 import {
+  fetchCanonAisles,
+  fetchCanonUnits,
   fetchCanonItems,
   createCanonItem,
   suggestCofidForCanonItem,
 } from './firebase-provider';
 import { fetchEmbeddingsFromLookup } from './embeddings-provider';
 import type { RecipeIngredient } from '../../../types/contract';
-import { getCanonAisles, getCanonUnits } from '../api';
+import { callAiParseIngredients } from './aiParseIngredients';
+import { validateAiParseResults } from '../logic/validateAiParse';
+import type { ValidatedParseResult } from '../types';
+
+function mapValidatedParseToRecipeIngredient(
+  result: ValidatedParseResult,
+  unitById: Map<string, { id: string; name: string }>
+): RecipeIngredient {
+  const resolvedUnit = result.recipeUnitId ? unitById.get(result.recipeUnitId) : undefined;
+
+  return {
+    id: crypto.randomUUID(),
+    raw: result.originalLine,
+    quantity: result.quantity,
+    unit: resolvedUnit?.name ?? null,
+    ingredientName: result.itemName,
+    qualifiers: result.notes.length > 0 ? result.notes : undefined,
+    preparation: result.preparations.length > 0 ? result.preparations[0] : undefined,
+    parseReviewFlags: result.reviewFlags.length > 0 ? result.reviewFlags : undefined,
+    parsedAt: new Date().toISOString(),
+  };
+}
+
+export async function processRawRecipeIngredients(
+  rawLines: string[],
+  onProgress?: (progress: { stage: 'parse' | 'match'; current: number; total: number }) => void
+): Promise<RecipeIngredient[]> {
+  if (rawLines.length === 0) {
+    return [];
+  }
+
+  const [aisles, units] = await Promise.all([fetchCanonAisles(), fetchCanonUnits()]);
+
+  const aisleDescriptions: Record<string, string> = {};
+  for (const aisle of aisles) {
+    aisleDescriptions[aisle.id] = aisle.name;
+  }
+
+  const unitDescriptions: Record<string, string> = {};
+  for (const unit of units) {
+    unitDescriptions[unit.id] = unit.name;
+  }
+
+  onProgress?.({ stage: 'parse', current: 0, total: rawLines.length });
+
+  const parseResult = await callAiParseIngredients(rawLines, aisleDescriptions, unitDescriptions);
+  if (!parseResult.success || !parseResult.data) {
+    throw new Error(parseResult.error || 'AI parse failed');
+  }
+
+  const validated = validateAiParseResults(
+    parseResult.data,
+    aisles.map(a => a.id),
+    units.map(u => u.id)
+  );
+
+  onProgress?.({ stage: 'parse', current: rawLines.length, total: rawLines.length });
+
+  const unitById = new Map(units.map(u => [u.id, { id: u.id, name: u.name }]));
+  const matchedIngredients: RecipeIngredient[] = [];
+
+  for (let i = 0; i < validated.results.length; i++) {
+    const parsed = validated.results[i];
+    const recipeIngredient = mapValidatedParseToRecipeIngredient(parsed, unitById);
+    const linkedIngredient = await matchAndLinkRecipeIngredient(recipeIngredient, parsed.aisleId);
+    matchedIngredients.push(linkedIngredient);
+    onProgress?.({ stage: 'match', current: i + 1, total: validated.results.length });
+  }
+
+  return matchedIngredients;
+}
 
 /**
  * Match a single recipe ingredient and link or create canon item.
@@ -44,13 +116,13 @@ export async function matchAndLinkRecipeIngredient(
   ingredient: RecipeIngredient,
   aisleId?: string
 ): Promise<RecipeIngredient> {
-  const effectiveAisleId = aisleId || ingredient.suggestedAisleId;
+  const effectiveAisleId = aisleId;
 
   // Load canon items and embeddings
   const [canonItems, embeddingLookup, units] = await Promise.all([
     fetchCanonItems(),
     fetchEmbeddingsFromLookup(effectiveAisleId).catch(() => []), // Graceful fallback if no embeddings
-    getCanonUnits(),
+    fetchCanonUnits(),
   ]);
 
   // Get query embedding if available (from ingredient)

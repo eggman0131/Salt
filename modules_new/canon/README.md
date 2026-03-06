@@ -114,6 +114,12 @@ approveItem(id: string): Promise<void>
 ### Recipe Ingredient Matching (PR8) (I/O + Logic)
 
 ```typescript
+// Canon-owned pipeline: parse raw recipe lines + match + canon item management
+processRawRecipeIngredients(
+  rawLines: string[],
+  onProgress?: (progress: { stage: 'parse' | 'match'; current: number; total: number }) => void
+): Promise<RecipeIngredient[]>
+
 // Match and link a single recipe ingredient to a canon item
 // Creates pending canon item (needsReview: true) if no good match found
 matchAndLinkRecipeIngredient(
