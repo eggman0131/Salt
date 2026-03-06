@@ -5,12 +5,14 @@
  * Follows the manifest pattern defined in salt-architecture.md.
  */
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense, useCallback } from 'react';
 import { loadAllManifests, type AdminManifest, type AdminTool } from '../api';
+import { RefreshContext } from '@/shared/providers';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 
 /**
  * Main admin dashboard component.
@@ -20,12 +22,36 @@ export const AdminDashboard: React.FC = () => {
   const [manifests, setManifests] = useState<AdminManifest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const requestRefresh = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
     loadAllManifests()
       .then(setManifests)
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load admin tools'))
       .finally(() => setIsLoading(false));
+  }, []);
+
+  // Auto-refresh all tools when component mounts (tab becomes visible)
+  useEffect(() => {
+    // Trigger refresh on mount to ensure fresh data when navigating to admin
+    if (!isLoading && manifests.length > 0) {
+      const timer = setTimeout(() => {
+        setRefreshTrigger(prev => prev + 1);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, manifests.length]);
+
+  const handleRefreshAll = useCallback(async () => {
+    setIsRefreshing(true);
+    await new Promise(resolve => setTimeout(resolve, 300)); // Brief delay to show visual feedback
+    setRefreshTrigger(prev => prev + 1);
+    setIsRefreshing(false);
   }, []);
 
   if (isLoading) {
@@ -70,13 +96,25 @@ export const AdminDashboard: React.FC = () => {
   const defaultModule = manifests[0]?.module || '';
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-        <p className="text-muted-foreground">
-          Manage domain data and system configuration
-        </p>
-      </div>
+    <RefreshContext.Provider value={{ refreshTrigger, requestRefresh }}>
+      <div className="mx-auto max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage domain data and system configuration
+            </p>
+          </div>
+          <Button
+            onClick={handleRefreshAll}
+            variant="outline"
+            disabled={isRefreshing}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh All
+          </Button>
+        </div>
 
       <Tabs defaultValue={defaultModule} className="w-full">
         <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${manifests.length}, minmax(0, 1fr))` }}>
@@ -96,7 +134,8 @@ export const AdminDashboard: React.FC = () => {
           </TabsContent>
         ))}
       </Tabs>
-    </div>
+      </div>
+    </RefreshContext.Provider>
   );
 };
 

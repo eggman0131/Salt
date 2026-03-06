@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
+import { useAdminRefresh } from '@/shared/providers';
 
 interface CategoriesManagementProps {
   onCategorySelected?: (category: RecipeCategory) => void;
@@ -28,6 +29,7 @@ interface CategoriesManagementProps {
 export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
   onCategorySelected,
 }) => {
+  const { refreshTrigger } = useAdminRefresh();
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
   const [pendingCategories, setPendingCategories] = useState<RecipeCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +37,7 @@ export const CategoriesManagement: React.FC<CategoriesManagementProps> = ({
 
   useEffect(() => {
     loadCategories();
-  }, []);
+  }, [refreshTrigger]); // Re-fetch when refresh is triggered from dashboard
 
   const loadCategories = async () => {
     setIsLoading(true);
