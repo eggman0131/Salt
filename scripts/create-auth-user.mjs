@@ -16,7 +16,7 @@ const PASSWORD = 'dev-test-password-123';
 const DISPLAY_NAME = 'Dev User';
 const EMULATOR_AUTH_URL = 'http://127.0.0.1:9099';
 const PROJECT_ID = 'gen-lang-client-0015061880';
-const DATABASE_ID = 'saltstore';
+const DATABASE_ID = '(default)';
 const EMULATOR_HOST = '127.0.0.1:8080';
 
 async function createTestUser() {

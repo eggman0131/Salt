@@ -249,14 +249,15 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
    * Parse and structure recipe ingredients.
    * 
    * PR7 (Issue 90): Parse-only phase - convert raw ingredient strings to structured
-   * RecipeIngredient objects using canon's AI parse pipeline. No canon item linking yet.
+   * RecipeIngredient objects using canon's AI parse pipeline.
    * 
-   * PR8 will add: Semantic matching and linking to canonical items.
+   * PR8 (Issue 91): Matching phase - link ingredients to canonical items via fuzzy +
+   * semantic matching. Creates pending canon items (needsReview: true) for unmatched items.
    * 
    * @param ingredients - Raw strings or already-structured RecipeIngredient objects
    * @param recipeId - Recipe ID for logging
    * @param onProgress - Progress callback
-   * @returns Array of structured RecipeIngredient objects with parse metadata
+   * @returns Array of structured RecipeIngredient objects with canon links and audit trail
    */
   async matchRecipeIngredients(
     ingredients: string[] | RecipeIngredient[],
@@ -267,45 +268,37 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
       return [];
     }
 
-    // PR7: Detect raw ingredients by checking if they need parsing
-    // Raw ingredients: string OR object with no quantity/unit (newly normalized from strings)
-    const needsParsing = 
-      typeof ingredients[0] === 'string' ||
-      (typeof ingredients[0] === 'object' && 
-       !ingredients[0].quantity && 
-       !ingredients[0].unit &&
-       ingredients[0].ingredientName === ingredients[0].raw);
-
-    // If already fully structured (quantity + unit set), return as-is
-    if (!needsParsing) {
-      return ingredients as RecipeIngredient[];
-    }
-
-    // Convert strings to raw ingredient objects for parser
-    const rawStrings = ingredients.map(ing =>
-      typeof ing === 'string' ? ing : ing.raw
-    );
-
-    // PR7: Parse raw ingredient strings using canon's AI pipeline
-    const { parseRecipeIngredients } = await import('./parseIngredients');
-    
-    onProgress?.({
-      stage: 'Parsing ingredients',
-      current: 0,
-      total: rawStrings.length,
-      percentage: 0,
+    const rawStrings = ingredients.map(ing => {
+      if (typeof ing === 'string') return ing;
+      return ing.raw || ing.ingredientName;
     });
 
-    const parsed = await parseRecipeIngredients(rawStrings);
+    const { processRawRecipeIngredients } = await import('../../../modules_new/canon/api');
+
+    const processed = await processRawRecipeIngredients(rawStrings, progress => {
+      const percentage =
+        progress.total > 0
+          ? progress.stage === 'parse'
+            ? Math.round((progress.current / progress.total) * 50)
+            : 50 + Math.round((progress.current / progress.total) * 50)
+          : 100;
+
+      onProgress?.({
+        stage: progress.stage === 'parse' ? 'Parsing ingredients' : 'Matching ingredients',
+        current: progress.current,
+        total: progress.total,
+        percentage,
+      });
+    });
 
     onProgress?.({
-      stage: 'Parsing complete',
-      current: rawStrings.length,
-      total: rawStrings.length,
+      stage: 'Matching complete',
+      current: processed.length,
+      total: processed.length,
       percentage: 100,
     });
 
-    return parsed;
+    return processed;
   }
 
   async repairRecipe(
