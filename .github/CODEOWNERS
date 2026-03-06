@@ -1,0 +1,9 @@
+# Architecture-sensitive boundaries
+/modules_new/**/api.ts @eggman0131
+/modules_new/**/logic/** @eggman0131
+/modules_new/**/data/** @eggman0131
+/modules/recipes/backend/** @eggman0131
+/types/contract.ts @eggman0131
+/.dependency-cruiser.cjs @eggman0131
+/scripts/check-architecture.mjs @eggman0131
+/.github/workflows/architecture-check.yml @eggman0131
