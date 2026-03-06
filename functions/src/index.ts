@@ -17,9 +17,25 @@ import { embedBatch } from './embedBatch';
 // Initialize Firebase Admin SDK
 const app = admin.initializeApp();
 
-// Connect to the 'saltstore' database instead of default
+// Database ID: automatically detect emulator mode and use appropriate database
+// When running in emulator (detected by FIREBASE_AUTH_EMULATOR_HOST), use "(default)"
+// In production, use environment variable or fall back to "saltstore"
+const isEmulator = !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
+const FIRESTORE_DATABASE_ID = isEmulator 
+  ? '(default)' 
+  : (process.env.FIRESTORE_DATABASE_ID || 'saltstore');
+
+console.log('='.repeat(80));
+console.log('[CLOUD FUNCTIONS INIT] Database Configuration:');
+console.log('[CLOUD FUNCTIONS INIT]   Running in:', isEmulator ? 'EMULATOR' : 'PRODUCTION');
+console.log('[CLOUD FUNCTIONS INIT]   env.FIRESTORE_DATABASE_ID:', process.env.FIRESTORE_DATABASE_ID || '(not set)');
+console.log('[CLOUD FUNCTIONS INIT]   Final FIRESTORE_DATABASE_ID:', FIRESTORE_DATABASE_ID);
+console.log('[CLOUD FUNCTIONS INIT]   Auth Emulator:', process.env.FIREBASE_AUTH_EMULATOR_HOST || '(not set)');
+console.log('='.repeat(80));
+
+// Connect to the named database instead of default
 const db = admin.firestore(app);
-db.settings({ databaseId: 'saltstore' });
+db.settings({ databaseId: FIRESTORE_DATABASE_ID });
 const auth = admin.auth();
 
 // Firebase Functions v2 region configuration
@@ -29,13 +45,21 @@ const functionsConfig = { region: 'europe-west2' };
  * Validates that the request is from an authenticated user
  */
 async function validateRequest(idToken: string): Promise<{ uid: string; email: string }> {
+  console.log('[validateRequest] Starting validation...');
+  console.log('[validateRequest] Token received:', idToken ? `${idToken.substring(0, 30)}...` : 'MISSING');
+  console.log('[validateRequest] Auth emulator env:', process.env.FIREBASE_AUTH_EMULATOR_HOST || 'NOT SET');
+  
   try {
     const decodedToken = await auth.verifyIdToken(idToken);
+    console.log('[validateRequest] ✅ Token verified successfully');
+    console.log('[validateRequest] User:', decodedToken.uid, decodedToken.email);
     return {
       uid: decodedToken.uid,
       email: decodedToken.email || '',
     };
-  } catch (error) {
+  } catch (error: any) {
+    console.error('[validateRequest] ❌ Token verification failed:', error.code, error.message);
+    console.error('[validateRequest] Full error:', error);
     throw new functions.https.HttpsError(
       'unauthenticated',
       'Invalid or missing authentication token'
@@ -47,11 +71,19 @@ async function validateRequest(idToken: string): Promise<{ uid: string; email: s
  * Checks if user exists in users collection
  */
 async function checkUserExists(email: string): Promise<boolean> {
+  console.log('[checkUserExists] Checking for user:', email);
+  console.log('[checkUserExists] Database ID in use:', FIRESTORE_DATABASE_ID);
   try {
     const userDoc = await db.collection('users').doc(email).get();
+    console.log('[checkUserExists] User exists?', userDoc.exists);
+    if (userDoc.exists) {
+      console.log('[checkUserExists] User data:', userDoc.data());
+    } else {
+      console.log('[checkUserExists] User NOT found in database:', FIRESTORE_DATABASE_ID);
+    }
     return userDoc.exists;
   } catch (error) {
-    console.error('Error checking user existence:', error);
+    console.error('[checkUserExists] Error checking user existence:', error);
     return false;
   }
 }
