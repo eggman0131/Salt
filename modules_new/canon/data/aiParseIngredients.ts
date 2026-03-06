@@ -10,6 +10,7 @@ import { auth, functions } from '../../../shared/backend/firebase';
 import { AiParseResponse, AiSingleParseResult } from '../types';
 import { AiParseResponseSchema, buildParseSchemaDescription } from '../logic/aiParseSchemas';
 import type { GenerateContentResponse } from '@google/genai';
+import { logMatchEvent, createBatchId, startTimer } from './match-events-provider';
 
 /**
  * Call the AI parse Cloud Function.
@@ -26,6 +27,9 @@ export async function callAiParseIngredients(
   aisleDescriptions: Record<string, string>,
   unitDescriptions: Record<string, string>
 ): Promise<{ success: boolean; data?: AiSingleParseResult[]; error?: string }> {
+  const batchId = createBatchId();
+  const endTimer = startTimer();
+  
   try {
     // Get authentication token
     const user = auth.currentUser;
@@ -168,12 +172,60 @@ Return ONLY the JSON, no markdown formatting.`;
       notes: r.notes ?? [],
     }));
 
+    // Log AI parse event (batch-level)
+    const durationMs = endTimer();
+    logMatchEvent({
+      eventType: 'ai-parse',
+      entityType: 'recipe-ingredient',
+      entityId: batchId,
+      entityName: `Batch of ${lines.length} ingredients`,
+      input: {
+        rawIngredients: lines,
+        inputCount: lines.length,
+        availableAisles: Object.keys(aisleDescriptions).length,
+        availableUnits: Object.keys(unitDescriptions).length,
+      },
+      output: {
+        resultCount: results.length,
+        success: true,
+        parsedItems: results.map(r => r.itemName),
+      },
+      metrics: {
+        durationMs,
+        batchId,
+        batchSize: lines.length,
+      },
+    }).catch(err => console.error('Failed to log ai-parse event:', err));
+
     return {
       success: true,
       data: results,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const durationMs = endTimer();
+    
+    // Log failure event
+    logMatchEvent({
+      eventType: 'ai-parse',
+      entityType: 'recipe-ingredient',
+      entityId: batchId,
+      entityName: `Failed batch of ${lines.length} ingredients`,
+      input: {
+        rawIngredients: lines,
+        inputCount: lines.length,
+      },
+      output: {
+        success: false,
+        error: message,
+      },
+      metrics: {
+        durationMs,
+        batchId,
+        batchSize: lines.length,
+      },
+    }).catch(err => console.error('Failed to log ai-parse error event:', err));
+    
     return {
       success: false,
       error: `Cloud Function error: ${message}`,

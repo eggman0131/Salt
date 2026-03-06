@@ -26,6 +26,7 @@ import type { RecipeIngredient } from '../../../types/contract';
 import { callAiParseIngredients } from './aiParseIngredients';
 import { validateAiParseResults } from '../logic/validateAiParse';
 import type { ValidatedParseResult } from '../types';
+import { logMatchEvent, createBatchId, startTimer } from './match-events-provider';
 
 function mapValidatedParseToRecipeIngredient(
   result: ValidatedParseResult,
@@ -54,6 +55,7 @@ export async function processRawRecipeIngredients(
     return [];
   }
 
+  const batchId = createBatchId();
   const [aisles, units] = await Promise.all([fetchCanonAisles(), fetchCanonUnits()]);
 
   const aisleDescriptions: Record<string, string> = {};
@@ -73,11 +75,45 @@ export async function processRawRecipeIngredients(
     throw new Error(parseResult.error || 'AI parse failed');
   }
 
+  // Validate and repair AI parse results with timing
+  const validationTimer = startTimer();
   const validated = validateAiParseResults(
     parseResult.data,
     aisles.map(a => a.id),
     units.map(u => u.id)
   );
+  const validationDuration = validationTimer();
+
+  // Log validation event
+  logMatchEvent({
+    eventType: 'parse-validation',
+    entityType: 'recipe-ingredient',
+    entityId: batchId,
+    entityName: `Validation of ${parseResult.data.length} parsed ingredients`,
+    input: {
+      inputCount: parseResult.data.length,
+      validAislesCount: aisles.length,
+      validUnitsCount: units.length,
+    },
+    output: {
+      totalCount: validated.totalCount,
+      successCount: validated.successCount,
+      hasErrors: validated.hasErrors,
+      hasReviewFlags: validated.hasReviewFlags,
+      reviewFlagBreakdown: validated.results
+        .flatMap(r => r.reviewFlags)
+        .reduce((acc, flag) => {
+          acc[flag] = (acc[flag] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+      errors: validated.errors,
+    },
+    metrics: {
+      durationMs: validationDuration,
+      batchId,
+      batchSize: parseResult.data.length,
+    },
+  }).catch(err => console.error('Failed to log parse-validation event:', err));
 
   onProgress?.({ stage: 'parse', current: rawLines.length, total: rawLines.length });
 
@@ -87,7 +123,7 @@ export async function processRawRecipeIngredients(
   for (let i = 0; i < validated.results.length; i++) {
     const parsed = validated.results[i];
     const recipeIngredient = mapValidatedParseToRecipeIngredient(parsed, unitById);
-    const linkedIngredient = await matchAndLinkRecipeIngredient(recipeIngredient, parsed.aisleId);
+    const linkedIngredient = await matchAndLinkRecipeIngredient(recipeIngredient, parsed.aisleId, batchId, i);
     matchedIngredients.push(linkedIngredient);
     onProgress?.({ stage: 'match', current: i + 1, total: validated.results.length });
   }
@@ -108,14 +144,19 @@ export async function processRawRecipeIngredients(
  * Args:
  *   - ingredient: Parsed recipe ingredient (from PR7)
  *   - aisleId: Optional aisle ID for aisle-bounded search
+ *   - batchId: Batch identifier for performance tracking
+ *   - batchIndex: Index of this ingredient in the batch
  *
  * Returns:
  *   - Updated ingredient with canonItemId and matchingAudit populated
  */
 export async function matchAndLinkRecipeIngredient(
   ingredient: RecipeIngredient,
-  aisleId?: string
+  aisleId?: string,
+  batchId?: string,
+  batchIndex?: number
 ): Promise<RecipeIngredient> {
+  const matchTimer = startTimer();
   const effectiveAisleId = aisleId;
 
   // Load canon items and embeddings
@@ -150,8 +191,39 @@ export async function matchAndLinkRecipeIngredient(
 
   const decision = fallbackResult;
 
+  // Measure decision duration
+  const durationMs = matchTimer();
+
   // Handle decision
   if (decision.decision === 'use_existing_canon' && decision.canonItemId) {
+    // Log match decision event
+    logMatchEvent({
+      eventType: 'match-decision',
+      entityType: 'recipe-ingredient',
+      entityId: ingredient.id,
+      entityName: ingredient.ingredientName,
+      aisleId: effectiveAisleId,
+      input: {
+        queryText: ingredient.ingredientName,
+        aisleId: effectiveAisleId,
+        hasEmbedding: !!ingredient.embedding,
+      },
+      output: {
+        decision: 'use_existing_canon',
+        canonItemId: decision.canonItemId,
+        topScore: decision.topScore,
+        scoreGap: decision.scoreGap,
+        stage: decision.stage,
+        reason: decision.reason,
+      },
+      metrics: {
+        durationMs,
+        batchId,
+        batchSize: batchIndex !== undefined ? batchIndex + 1 : undefined,
+        batchIndex,
+      },
+    }).catch(err => console.error('Failed to log match-decision event:', err));
+
     // Auto-link to existing canon item
     return {
       ...ingredient,
@@ -192,6 +264,36 @@ export async function matchAndLinkRecipeIngredient(
       needsReview: true, // Always requires review
     });
 
+    // Log match decision event
+    logMatchEvent({
+      eventType: 'match-decision',
+      entityType: 'recipe-ingredient',
+      entityId: ingredient.id,
+      entityName: ingredient.ingredientName,
+      aisleId: effectiveAisleId,
+      input: {
+        queryText: ingredient.ingredientName,
+        aisleId: effectiveAisleId,
+        hasEmbedding: !!ingredient.embedding,
+      },
+      output: {
+        decision: 'create_new_canon',
+        canonItemId: newCanonItem.id,
+        topScore: decision.topScore,
+        scoreGap: decision.scoreGap,
+        stage: decision.stage,
+        reason: decision.reason,
+        inferredAisleId,
+        preferredUnitId,
+      },
+      metrics: {
+        durationMs,
+        batchId,
+        batchSize: batchIndex !== undefined ? batchIndex + 1 : undefined,
+        batchIndex,
+      },
+    }).catch(err => console.error('Failed to log match-decision event:', err));
+
     // Auto-suggest CofID mapping (PR4 behavior) — fire and forget
     suggestCofidForCanonItem(newCanonItem.id).catch(() => {
       // Silently fail if CofID suggestion fails
@@ -215,6 +317,33 @@ export async function matchAndLinkRecipeIngredient(
       matchedAt: new Date().toISOString(),
     };
   } else {
+    // Log match decision event
+    logMatchEvent({
+      eventType: 'match-decision',
+      entityType: 'recipe-ingredient',
+      entityId: ingredient.id,
+      entityName: ingredient.ingredientName,
+      aisleId: effectiveAisleId,
+      input: {
+        queryText: ingredient.ingredientName,
+        aisleId: effectiveAisleId,
+        hasEmbedding: !!ingredient.embedding,
+      },
+      output: {
+        decision: 'no_match',
+        topScore: decision.topScore,
+        scoreGap: decision.scoreGap,
+        stage: decision.stage,
+        reason: decision.reason,
+      },
+      metrics: {
+        durationMs,
+        batchId,
+        batchSize: batchIndex !== undefined ? batchIndex + 1 : undefined,
+        batchIndex,
+      },
+    }).catch(err => console.error('Failed to log match-decision event:', err));
+
     // No match — leave unlinked
     return {
       ...ingredient,
@@ -254,6 +383,7 @@ export async function matchAndLinkRecipeIngredients(
     return [];
   }
 
+  const batchId = createBatchId();
   const total = ingredients.length;
   const matched: RecipeIngredient[] = [];
 
@@ -262,7 +392,7 @@ export async function matchAndLinkRecipeIngredients(
     const ingredient = ingredients[i];
 
     try {
-      const matchedIngredient = await matchAndLinkRecipeIngredient(ingredient);
+      const matchedIngredient = await matchAndLinkRecipeIngredient(ingredient, undefined, batchId, i);
       matched.push(matchedIngredient);
     } catch (error) {
       console.error(`Failed to match ingredient: ${ingredient.ingredientName}`, error);
