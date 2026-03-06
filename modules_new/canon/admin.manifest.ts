@@ -35,4 +35,11 @@ export const canonAdminTools = [
     component: () =>
       import('./ui/admin/EmbeddingCoverageDashboard').then(m => ({ default: m.EmbeddingCoverageDashboard })),
   },
+  {
+    id: 'canon.matching-performance',
+    label: 'Matching Performance',
+    description: 'CofID matching pipeline analytics, event monitoring, and performance metrics.',
+    component: () =>
+      import('./ui/admin/MatchingPerformanceAdmin').then(m => ({ default: m.MatchingPerformanceAdmin })),
+  },
 ];
