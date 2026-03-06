@@ -268,77 +268,37 @@ export abstract class BaseRecipesBackend implements IRecipesBackend {
       return [];
     }
 
-    // PR7: Detect raw ingredients by checking if they need parsing
-    // Raw ingredients: string OR object with no quantity/unit (newly normalized from strings)
-    const needsParsing = 
-      typeof ingredients[0] === 'string' ||
-      (typeof ingredients[0] === 'object' && 
-       !ingredients[0].quantity && 
-       !ingredients[0].unit &&
-       ingredients[0].ingredientName === ingredients[0].raw);
-
-    let parsedIngredients: RecipeIngredient[];
-
-    if (needsParsing) {
-      // Convert strings to raw ingredient objects for parser
-      const rawStrings = ingredients.map(ing =>
-        typeof ing === 'string' ? ing : ing.raw
-      );
-
-      // PR7: Parse raw ingredient strings using canon's AI pipeline
-      const { parseRecipeIngredients } = await import('./parseIngredients');
-      
-      onProgress?.({
-        stage: 'Parsing ingredients',
-        current: 0,
-        total: rawStrings.length,
-        percentage: 0,
-      });
-
-      parsedIngredients = await parseRecipeIngredients(rawStrings);
-
-      onProgress?.({
-        stage: 'Parsing complete',
-        current: rawStrings.length,
-        total: rawStrings.length,
-        percentage: 50,
-      });
-    } else {
-      // Already parsed
-      parsedIngredients = ingredients as RecipeIngredient[];
-    }
-
-    // PR8: Match and link to canon items
-    const { matchAndLinkRecipeIngredients } = await import('../../../modules_new/canon/api');
-
-    onProgress?.({
-      stage: 'Matching ingredients',
-      current: 0,
-      total: parsedIngredients.length,
-      percentage: 50,
+    const rawStrings = ingredients.map(ing => {
+      if (typeof ing === 'string') return ing;
+      return ing.raw || ing.ingredientName;
     });
 
-    const matched = await matchAndLinkRecipeIngredients(
-      parsedIngredients,
-      (current, total) => {
-        const percentage = 50 + Math.round((current / total) * 50);
-        onProgress?.({
-          stage: 'Matching ingredients',
-          current,
-          total,
-          percentage,
-        });
-      }
-    );
+    const { processRawRecipeIngredients } = await import('../../../modules_new/canon/api');
+
+    const processed = await processRawRecipeIngredients(rawStrings, progress => {
+      const percentage =
+        progress.total > 0
+          ? progress.stage === 'parse'
+            ? Math.round((progress.current / progress.total) * 50)
+            : 50 + Math.round((progress.current / progress.total) * 50)
+          : 100;
+
+      onProgress?.({
+        stage: progress.stage === 'parse' ? 'Parsing ingredients' : 'Matching ingredients',
+        current: progress.current,
+        total: progress.total,
+        percentage,
+      });
+    });
 
     onProgress?.({
       stage: 'Matching complete',
-      current: parsedIngredients.length,
-      total: parsedIngredients.length,
+      current: processed.length,
+      total: processed.length,
       percentage: 100,
     });
 
-    return matched;
+    return processed;
   }
 
   async repairRecipe(

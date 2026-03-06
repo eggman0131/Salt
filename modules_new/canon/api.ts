@@ -310,6 +310,7 @@ export { callAiParseIngredients } from './data/aiParseIngredients';
 // ── PR8: Recipe Ingredient Matching (I/O + Logic) ────────────────────────────
 
 export {
+  processRawRecipeIngredients,
   matchAndLinkRecipeIngredient,
   matchAndLinkRecipeIngredients,
 } from './data/matchRecipeIngredients';

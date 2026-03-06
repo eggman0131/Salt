@@ -263,7 +263,6 @@ export const RecipeIngredientSchema = z.object({
   quantity: z.number().nullable(),
   unit: z.string().nullable(),
   ingredientName: z.string(), // The ingredient name in cooking context
-  suggestedAisleId: z.string().optional(), // Parser-provided aisle hint for canon creation and aisle-bounded matching
   qualifiers: z.array(z.string()).optional(), // e.g., ["fresh", "organic"] - extracted descriptors (Stage 4: Issue #70)
   preparation: z.string().optional(), // e.g., "diced", "chopped"
   
