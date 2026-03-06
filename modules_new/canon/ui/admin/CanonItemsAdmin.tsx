@@ -51,10 +51,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { useAdminRefresh } from '@/shared/providers';
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export const CanonItemsAdmin: React.FC = () => {
+  const { refreshTrigger } = useAdminRefresh();
   const [items, setItems] = useState<CanonItem[]>([]);
   const [aisles, setAisles] = useState<Aisle[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -94,7 +96,7 @@ export const CanonItemsAdmin: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [refreshTrigger]); // Re-fetch when refresh is triggered from dashboard
 
   const handleCreate = async (input: {
     name: string;
