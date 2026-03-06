@@ -7,7 +7,7 @@
  * Rule: UI imports ONLY from this file.
  */
 
-import { Aisle, Unit } from '../../types/contract';
+import { Aisle, Unit, CoFIDGroupAisleMapping } from '../../types/contract';
 import {
   fetchCanonAisles,
   fetchCanonUnits,
@@ -22,6 +22,18 @@ import {
   linkCofidMatchToCanonItem,
   unlinkCofidMatchFromCanonItem,
   suggestCofidForCanonItem,
+  createCanonAisle,
+  updateCanonAisle,
+  deleteCanonAisle,
+  reorderCanonAisles,
+  createCanonUnit,
+  updateCanonUnit,
+  deleteCanonUnit,
+  reorderCanonUnits,
+  fetchCofidMappings,
+  createCofidMapping,
+  updateCofidMapping,
+  deleteCofidMapping,
 } from './data/firebase-provider';
 import { CanonItem } from './logic/items';
 
@@ -82,6 +94,124 @@ export async function editCanonItem(
  */
 export async function approveItem(id: string): Promise<void> {
   return approveCanonItem(id);
+}
+
+// ── Canon Aisles CRUD ─────────────────────────────────────────────────────────
+
+/**
+ * Create a new canon aisle.
+ */
+export async function addCanonAisle(input: {
+  name: string;
+  sortOrder?: number;
+}): Promise<Aisle> {
+  return createCanonAisle(input);
+}
+
+/**
+ * Update an existing canon aisle.
+ */
+export async function editCanonAisle(
+  id: string,
+  updates: Partial<Pick<Aisle, 'name' | 'sortOrder'>>
+): Promise<void> {
+  return updateCanonAisle(id, updates);
+}
+
+/**
+ * Delete a canon aisle.
+ * Throws if aisle is in use by canon items.
+ */
+export async function removeCanonAisle(id: string): Promise<void> {
+  return deleteCanonAisle(id);
+}
+
+/**
+ * Reorder canon aisles (batch update sortOrder).
+ */
+export async function reorderAisles(
+  updates: Array<{ id: string; sortOrder: number }>
+): Promise<void> {
+  return reorderCanonAisles(updates);
+}
+
+// ── Canon Units CRUD ──────────────────────────────────────────────────────────
+
+/**
+ * Create a new canon unit.
+ */
+export async function addCanonUnit(input: {
+  name: string;
+  plural?: string | null;
+  category: 'weight' | 'volume' | 'count' | 'colloquial';
+  sortOrder?: number;
+}): Promise<Unit> {
+  return createCanonUnit(input);
+}
+
+/**
+ * Update an existing canon unit.
+ */
+export async function editCanonUnit(
+  id: string,
+  updates: Partial<Pick<Unit, 'name' | 'plural' | 'category' | 'sortOrder'>>
+): Promise<void> {
+  return updateCanonUnit(id, updates);
+}
+
+/**
+ * Delete a canon unit.
+ * Throws if unit is in use by canon items.
+ */
+export async function removeCanonUnit(id: string): Promise<void> {
+  return deleteCanonUnit(id);
+}
+
+/**
+ * Reorder canon units (batch update sortOrder).
+ */
+export async function reorderUnits(
+  updates: Array<{ id: string; sortOrder: number }>
+): Promise<void> {
+  return reorderCanonUnits(updates);
+}
+
+// ── CofID Group Aisle Mappings CRUD ───────────────────────────────────────────
+
+/**
+ * Get all CofID group aisle mappings.
+ */
+export async function getCofidMappings(): Promise<CoFIDGroupAisleMapping[]> {
+  return fetchCofidMappings();
+}
+
+/**
+ * Create a new CofID group aisle mapping.
+ */
+export async function addCofidMapping(input: {
+  cofidGroup: string;
+  cofidGroupName: string;
+  aisleId: string;
+  aisleName: string;
+}): Promise<CoFIDGroupAisleMapping> {
+  return createCofidMapping(input);
+}
+
+/**
+ * Update an existing CofID group aisle mapping.
+ */
+export async function editCofidMapping(
+  id: string,
+  updates: Partial<Pick<CoFIDGroupAisleMapping, 'cofidGroup' | 'cofidGroupName' | 'aisleId' | 'aisleName'>>
+): Promise<void> {
+  return updateCofidMapping(id, updates);
+}
+
+/**
+ * Delete a CofID group aisle mapping.
+ */
+export async function removeCofidMapping(id: string): Promise<void> {
+  return deleteCofidMapping(id);
 }
 
 // ── Pure logic helpers (re-exported for convenience) ─────────────────────────

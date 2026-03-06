@@ -22,7 +22,7 @@ import { PlannerModule } from './modules/planner';
 import { plannerBackend } from './modules/planner';
 import { ShoppingListModule } from './modules/shopping';
 import { shoppingBackend } from './modules/shopping';
-import { CanonModule } from './modules/canon';
+import { CanonItemsWorkspace } from './modules_new/canon';
 import { CategoriesManagement } from './modules/categories';
 import { AdminDashboard } from './modules_new/admin';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
@@ -294,7 +294,7 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'canon' && (
-          <CanonModule key={`canon-${resetKey}`} onRefresh={loadData} />
+          <CanonItemsWorkspace key={`canon-${resetKey}`} />
         )}
 
         {activeTab === 'categories' && (
