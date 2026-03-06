@@ -12,7 +12,7 @@ export interface SuggestedMatch {
   cofidId: string;
   name: string;
   score: number;
-  method: 'exact' | 'fuzzy';
+  method: 'exact' | 'fuzzy' | 'semantic';
   reason: string;
 }
 
@@ -95,7 +95,34 @@ export function tryFuzzyMatch(
   cofidItem: CofIDItem,
   threshold: number = 0.75
 ): SuggestedMatch | null {
-  const similarity = levenshteinSimilarity(canonName, cofidItem.name);
+  const normCanon = normaliseForMatching(canonName);
+  const normCofid = normaliseForMatching(cofidItem.name);
+
+  // Handle short search terms that are contained within a longer item name.
+  // Example: "rice" should match "basmati rice".
+  if (
+    normCanon.length >= 3 &&
+    (normCofid.includes(normCanon) || normCanon.includes(normCofid))
+  ) {
+    const containsScore = Math.max(
+      0.8,
+      Math.min(normCanon.length, normCofid.length) / Math.max(normCanon.length, normCofid.length)
+    );
+
+    if (containsScore < threshold) {
+      return null;
+    }
+
+    return {
+      cofidId: cofidItem.id,
+      name: cofidItem.name,
+      score: containsScore,
+      method: 'fuzzy',
+      reason: 'Token containment match',
+    };
+  }
+
+  const similarity = levenshteinSimilarity(normCanon, normCofid);
 
   if (similarity >= threshold) {
     return {
@@ -166,14 +193,20 @@ export function suggestBestMatch(
  */
 export function rankCandidates(
   canonName: string,
+  canonAisleId: string,
   candidates: CofIDItem[],
   aisleMapping: Record<CofIDItem['id'], string>,
   limit: number = 5
 ): SuggestedMatch[] {
+  const aisleFiltered = candidates.filter(c => {
+    const mappedAisleId = aisleMapping[c.id];
+    return mappedAisleId === canonAisleId;
+  });
+
   const matches: SuggestedMatch[] = [];
 
   // Collect exact matches
-  for (const candidate of candidates) {
+  for (const candidate of aisleFiltered) {
     const exactMatch = tryExactMatch(canonName, candidate);
     if (exactMatch) {
       matches.push(exactMatch);
@@ -181,7 +214,7 @@ export function rankCandidates(
   }
 
   // Collect fuzzy matches (with lower threshold for ranking)
-  for (const candidate of candidates) {
+  for (const candidate of aisleFiltered) {
     if (tryExactMatch(canonName, candidate)) continue; // Skip if already exact
     const fuzzyMatch = tryFuzzyMatch(canonName, candidate, 0.6);
     if (fuzzyMatch) {
@@ -204,19 +237,12 @@ export function rankCandidates(
  */
 export function buildCofidMatch(
   match: SuggestedMatch,
-  status: 'auto' | 'manual' = 'auto',
-  candidates?: SuggestedMatch[]
+  status: 'auto' | 'manual' = 'auto'
 ): CofidMatch {
   return {
     status,
     method: match.method,
     score: match.score,
     matchedAt: new Date().toISOString(),
-    candidates: candidates?.map(c => ({
-      cofidId: c.cofidId,
-      name: c.name,
-      score: c.score,
-      method: c.method,
-    })),
   };
 }

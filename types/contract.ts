@@ -236,6 +236,67 @@ export const CanonEmbeddingLookupSchema = z.object({
 });
 export type CanonEmbeddingLookup = z.infer<typeof CanonEmbeddingLookupSchema>;
 
+// Canon Match Event Schema (Performance Monitoring & Analysis)
+// Logs each stage of the CofID matching pipeline for troubleshooting and ML analysis
+export const CanonMatchEventSchema = z.object({
+  id: z.string(), // Auto-generated event ID
+  timestamp: z.string(), // ISO timestamp when event occurred
+  
+  // Event classification
+  eventType: z.enum([
+    'ai-parse',              // AI ingredient parsing (raw strings → structured data)
+    'parse-validation',      // Validation and repair of AI parse results
+    'match-decision',        // Decision to link/create/skip ingredient
+    'embedding-generation',  // Query embedding generation
+    'semantic-match',        // Cosine similarity search
+    'lexical-match',         // Levenshtein distance matching
+    'candidate-merge',       // Merging semantic + lexical results
+    'final-selection',       // User selects a specific match
+  ]),
+  
+  // Entity being matched
+  entityType: z.enum(['canon-item', 'cofid-item', 'recipe-ingredient']),
+  entityId: z.string(),
+  entityName: z.string(),
+  aisleId: z.string().optional(), // Canon aisle ID for context
+  
+  // Input data (stage-specific)
+  input: z.object({
+    queryText: z.string().optional(), // For embedding generation
+    embeddingDim: z.number().optional(), // For semantic search
+    candidateCount: z.number().optional(), // Pool size for matching
+    aisleFiltered: z.boolean().optional(), // Whether aisle filtering applied
+  }).passthrough(), // Allow additional stage-specific fields
+  
+  // Output data (stage-specific)
+  output: z.object({
+    resultCount: z.number().optional(), // How many results returned
+    topScore: z.number().optional(), // Best match score
+    topMatchId: z.string().optional(), // Best match CofID ID
+    topMatchName: z.string().optional(), // Best match name
+    method: z.enum(['exact', 'fuzzy', 'semantic', 'manual', 'merged']).optional(), // Match method
+    embeddingGenerated: z.boolean().optional(), // Whether new embedding was created
+    embeddingReused: z.boolean().optional(), // Whether existing embedding was reused
+  }).passthrough(), // Allow additional stage-specific fields
+  
+  // Performance metrics
+  metrics: z.object({
+    durationMs: z.number(), // Time taken for this stage
+    batchId: z.string().optional(), // If part of batch operation
+    batchSize: z.number().optional(), // Total items in batch
+    batchIndex: z.number().optional(), // This item's position in batch (0-indexed)
+  }),
+  
+  // Additional metadata for troubleshooting
+  metadata: z.object({
+    error: z.string().optional(), // Error message if operation failed
+    warning: z.string().optional(), // Warning message for suboptimal results
+    pipelineVersion: z.string().optional(), // Code version for tracking changes
+    threshold: z.number().optional(), // Matching threshold used
+  }).passthrough().optional(),
+});
+export type CanonMatchEvent = z.infer<typeof CanonMatchEventSchema>;
+
 // Ingredient Matching Configuration Schema
 // Admin-editable thresholds for the multi-stage ingredient identity resolution pipeline
 export const IngredientMatchingConfigSchema = z.object({

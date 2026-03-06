@@ -7,7 +7,7 @@
  * Rule: UI imports ONLY from this file.
  */
 
-import { Aisle, Unit, CoFIDGroupAisleMapping } from '../../types/contract';
+import { Aisle, Unit, CoFIDGroupAisleMapping, CanonMatchEvent } from '../../types/contract';
 import {
   fetchCanonAisles,
   fetchCanonUnits,
@@ -35,6 +35,10 @@ import {
   updateCofidMapping,
   deleteCofidMapping,
 } from './data/firebase-provider';
+import {
+  fetchMatchEvents,
+  getMatchPerformanceStats,
+} from './data/match-events-provider';
 import { CanonItem } from './logic/items';
 
 // ── Persistence-backed read helpers ──────────────────────────────────────────
@@ -450,6 +454,39 @@ export {
   type IngredientMatchResult,
   type MatchCandidate,
 } from './logic/matchIngredient';
+
+// ── Match Events & Performance Monitoring ─────────────────────────────────────
+
+/**
+ * Fetch match events with optional filters.
+ * Used by the admin UI for performance analysis.
+ */
+export async function getMatchEvents(options: {
+  entityId?: string;
+  eventType?: CanonMatchEvent['eventType'];
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+} = {}): Promise<CanonMatchEvent[]> {
+  return fetchMatchEvents(options);
+}
+
+/**
+ * Get performance statistics for a given time period.
+ * Returns aggregated metrics for dashboard display.
+ */
+export async function getPerformanceStats(
+  startDate: Date,
+  endDate: Date
+): Promise<{
+  totalEvents: number;
+  eventsByType: Record<CanonMatchEvent['eventType'], number>;
+  avgDurationByType: Record<CanonMatchEvent['eventType'], number>;
+  successRate: number;
+  totalDuration: number;
+}> {
+  return getMatchPerformanceStats(startDate, endDate);
+}
 
 // ── Type re-exports ───────────────────────────────────────────────────────────
 
