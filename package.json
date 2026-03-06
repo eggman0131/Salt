@@ -12,7 +12,7 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
+    "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit",
     "emulators:functions": "firebase emulators:start --only functions --import=./emulator-data --export-on-exit=./emulator-data",
     "emulators:functions:restart": "bash -lc 'lsof -ti:5001 | xargs -r kill -9; firebase emulators:start --only functions --import=./emulator-data --export-on-exit=./emulator-data'",
     "data": "node scripts/import-test-data.mjs",
