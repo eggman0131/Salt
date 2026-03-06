@@ -16,6 +16,23 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
+// Database ID from environment or default to 'saltstore'
+const FIRESTORE_DATABASE_ID = import.meta.env.VITE_FIRESTORE_DATABASE_ID || 'saltstore';
+
+// Check if debug mode is enabled (via localStorage or env)
+const isDebugEnabled = localStorage.getItem('salt_debug_enabled') === 'true' || import.meta.env.DEV;
+const log = (context: string, message: string) => {
+  if (isDebugEnabled) {
+    console.log(`%c[${context}]%c ${message}`, 'color: #ff5722; font-weight: bold;', 'color: inherit;');
+  }
+};
+const logAlways = (context: string, message: string) => {
+  console.log(`%c[${context}]%c ${message}`, 'color: #ff5722; font-weight: bold;', 'color: inherit;');
+};
+
+// Always log database ID configuration regardless of debug setting
+logAlways('Firebase Init', `🔥 Database ID Config: env=${import.meta.env.VITE_FIRESTORE_DATABASE_ID || '(not set)'}, final=${FIRESTORE_DATABASE_ID}`);
+
 let db: any;
 let functions: any;
 const auth = getAuth(app);
@@ -52,6 +69,7 @@ let env = 'unknown';
 
 if (isLocalhost) {
   env = 'localhost-emulators';
+  log('Firebase Init', `Initializing for localhost with database: ${FIRESTORE_DATABASE_ID}`);
 
   // Use the named Firestore database locally so it matches the Functions emulator
   // which is configured to use the 'saltstore' database. Initialize with explicit
@@ -62,18 +80,21 @@ if (isLocalhost) {
       host: 'localhost:8080',
       ssl: false,
       experimentalForceLongPolling: true
-    }, 'saltstore');
-    debugLogger.log('Firebase Init', 'Initialized Firestore (saltstore) for local emulators');
+    }, FIRESTORE_DATABASE_ID);
+    log('Firebase Init', `✓ Initialized Firestore (${FIRESTORE_DATABASE_ID}) for local emulators`);
   } catch (e) {
+    console.warn(`[Firebase Init] initializeFirestore failed for localhost (${FIRESTORE_DATABASE_ID}), falling back:`, e);
     // Fallback to getFirestore if initializeFirestore is not available
-    db = getFirestore(app, 'saltstore');
+    db = getFirestore(app, FIRESTORE_DATABASE_ID);
   }
   
   // Ensure db is defined before connecting emulator
   if (!db) {
-    db = getFirestore(app, 'saltstore');
+    console.warn(`[Firebase Init] Database not initialized after fallback for localhost, creating with ${FIRESTORE_DATABASE_ID}`);
+    db = getFirestore(app, FIRESTORE_DATABASE_ID);
   }
   
+  log('Firebase Init', 'Connecting to Emulator Suite (Firestore: localhost:8080)');
   connectFirestoreEmulator(db, 'localhost', 8080);
 
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
@@ -90,6 +111,7 @@ if (isLocalhost) {
 
 else if (isCloudIDE) {
   env = 'cloud-ide-proxy-emulators';
+  log('Firebase Init', `Initializing for Cloud IDE with database: ${FIRESTORE_DATABASE_ID}`);
 
   connectAuthEmulator(auth, location.origin, { disableWarnings: true });
 
@@ -98,9 +120,11 @@ else if (isCloudIDE) {
       host: location.host,
       ssl: true,
       experimentalForceLongPolling: true
-    }, 'saltstore'); // Use the named database
+    }, FIRESTORE_DATABASE_ID); // Use the named database
+    log('Firebase Init', `✓ Initialized Firestore (${FIRESTORE_DATABASE_ID}) for Cloud IDE`);
   } catch (e) {
-    db = getFirestore(app, 'saltstore'); // Fallback with named database
+    console.warn(`[Firebase Init] initializeFirestore failed for Cloud IDE (${FIRESTORE_DATABASE_ID}), falling back:`, e);
+    db = getFirestore(app, FIRESTORE_DATABASE_ID); // Fallback with named database
   }
 
   const domainSuffix = host.split('.').slice(1).join('.');
@@ -118,12 +142,13 @@ else if (isCloudIDE) {
 
 else if (isProductionHosting || isCustomDomain) {
   env = isCustomDomain ? 'custom-domain-production' : 'production-hosting';
+  log('Firebase Init', `Initializing for ${env} with database: ${FIRESTORE_DATABASE_ID}`);
 
   try {
     db = initializeFirestore(app, {
       ignoreUndefinedProperties: true,
-    }, 'saltstore'); // Use the named database
-    debugLogger.log('Firebase Init', 'Firestore initialized for production (saltstore database)');
+    }, FIRESTORE_DATABASE_ID); // Use the named database
+    log('Firebase Init', `✓ Firestore initialized for ${env} (${FIRESTORE_DATABASE_ID} database)`);
     
     // Enable offline persistence
     enableIndexedDbPersistence(db).catch((err) => {
@@ -135,8 +160,8 @@ else if (isProductionHosting || isCustomDomain) {
     });
     debugLogger.log('Firebase Init', 'Offline persistence enabled');
   } catch (e) {
-    debugLogger.error('Firebase Init', 'Firestore initialization failed:', e);
-    db = getFirestore(app, 'saltstore'); // Fallback with named database
+    console.error(`[Firebase Init] Firestore initialization failed for ${env} (${FIRESTORE_DATABASE_ID}):`, e);
+    db = getFirestore(app, FIRESTORE_DATABASE_ID); // Fallback with named database
   }
   functions = getFunctions(app, 'europe-west2');
 }
@@ -147,8 +172,10 @@ else if (isProductionHosting || isCustomDomain) {
 
 else {
   env = 'fallback-production';
+  log('Firebase Init', `Initializing fallback production with database: ${FIRESTORE_DATABASE_ID}`);
 
-  db = getFirestore(app, 'saltstore'); // Use the named database
+  db = getFirestore(app, FIRESTORE_DATABASE_ID); // Use the named database
+  log('Firebase Init', `✓ Firestore fallback initialized (${FIRESTORE_DATABASE_ID})`);
   
   // Enable offline persistence
   enableIndexedDbPersistence(db).catch((err) => {
@@ -164,17 +191,17 @@ else {
 
 // Safety fallback - ensure db is always defined
 if (!db) {
-  debugLogger.warn('Firebase Init', 'Database was not initialized, creating fallback instance');
-  db = getFirestore(app, 'saltstore');
+  console.error(`[Firebase Init] Database was not initialized in ${env} path, creating fallback with ${FIRESTORE_DATABASE_ID}`);
+  db = getFirestore(app, FIRESTORE_DATABASE_ID);
 }
 
 // Verify db is a valid Firestore instance
 if (db && typeof db === 'object') {
-  debugLogger.log('Firebase Init', 'Database initialized successfully');
+  logAlways('Firebase Init', `✅ Database initialization complete. Environment: ${env}, Database: ${FIRESTORE_DATABASE_ID}`);
 } else {
-  debugLogger.error('Firebase Init', 'Database initialization failed! db is:', typeof db);
+  console.error(`[Firebase Init] ❌ Database initialization failed! db is: ${typeof db}, env: ${env}, database: ${FIRESTORE_DATABASE_ID}`);
   // Force re-initialization
-  db = getFirestore(app, 'saltstore');
+  db = getFirestore(app, FIRESTORE_DATABASE_ID);
 }
 
 // ---------------------------------------------------------------------------
