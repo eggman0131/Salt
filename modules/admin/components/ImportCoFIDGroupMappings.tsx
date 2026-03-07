@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload } from 'lucide-react';
-import { canonBackend } from '../../canon';
+import { seedCofidGroupAisleMappings } from '../../../modules_new/canon/api';
 import { softToast } from '@/lib/soft-toast';
 import cofidMappingData from '../../../scripts/cofid-aisle-mapping.json';
 
@@ -23,7 +23,7 @@ export const ImportCoFIDGroupMappings: React.FC = () => {
         description: `Setting up ${mappings.length} group-to-aisle mappings...`,
       });
 
-      await canonBackend.importCoFIDGroupMappings(mappings);
+      await seedCofidGroupAisleMappings(Object.fromEntries(mappings.map(m => [m.cofidGroup, m])));
 
       softToast.success('CoFID group mappings imported', {
         description: `${mappings.length} group-to-aisle mappings are now available for item approval`,

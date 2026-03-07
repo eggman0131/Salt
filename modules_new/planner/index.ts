@@ -13,4 +13,5 @@ export {
   updateKitchenSettings,
   getFriday,
   TEMPLATE_ID,
+  findPlanForDate,
 } from './api';

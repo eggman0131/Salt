@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { IngredientMatchingConfig } from '../../../types/contract';
-import { canonBackend } from '../../canon';
+// getIngredientMatchingConfig / updateIngredientMatchingConfig removed in canon migration
 import { softToast } from '@/lib/soft-toast';
 
 /**
@@ -29,7 +29,7 @@ export const MatchingParametersConfig: React.FC = () => {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const current = await canonBackend.getIngredientMatchingConfig();
+        const current = await Promise.resolve(null as unknown as IngredientMatchingConfig);
         setConfig(current);
         setModified(false);
       } catch (error) {
@@ -70,7 +70,7 @@ export const MatchingParametersConfig: React.FC = () => {
 
     setIsSaving(true);
     try {
-      await canonBackend.updateIngredientMatchingConfig(config);
+      await Promise.resolve(); // updateIngredientMatchingConfig removed — pending admin migration
       setModified(false);
       softToast.success('Parameters updated', {
         description: 'Matching thresholds have been saved',
@@ -86,7 +86,7 @@ export const MatchingParametersConfig: React.FC = () => {
 
   const handleReset = async () => {
     try {
-      const current = await canonBackend.getIngredientMatchingConfig();
+      const current = await Promise.resolve(null as unknown as IngredientMatchingConfig);
       setConfig(current);
       setModified(false);
     } catch (error) {

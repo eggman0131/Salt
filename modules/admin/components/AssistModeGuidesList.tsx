@@ -5,9 +5,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { CookGuide } from '../../assist-mode/types';
-import { assistModeBackend } from '../../assist-mode/backend';
-import { recipesBackend } from '../../recipes/backend';
+import { CookGuide, getAllCookGuides, deleteCookGuide } from '../../../modules_new/assist-mode/api';
+import { getRecipe } from '../../../modules_new/recipes/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +32,7 @@ export const AssistModeGuidesList: React.FC<AssistModeGuidesListProps> = ({ onRe
   const loadGuides = async () => {
     try {
       setIsLoading(true);
-      const allGuides = await assistModeBackend.getAllCookGuides();
+      const allGuides = await getAllCookGuides();
       
       // Remove duplicates - keep only the most recent guide per recipe
       const guidesByRecipe = new Map<string, CookGuide>();
@@ -50,7 +49,7 @@ export const AssistModeGuidesList: React.FC<AssistModeGuidesListProps> = ({ onRe
       
       if (guidesToDelete.length > 0) {
         console.log(`Cleaning up ${guidesToDelete.length} duplicate guide(s)...`);
-        await Promise.all(guidesToDelete.map(g => assistModeBackend.deleteCookGuide(g.id)));
+        await Promise.all(guidesToDelete.map(g => deleteCookGuide(g.id)));
         softToast.success(`Cleaned up ${guidesToDelete.length} duplicate guide(s)`);
       }
       
@@ -60,7 +59,7 @@ export const AssistModeGuidesList: React.FC<AssistModeGuidesListProps> = ({ onRe
       const names: Record<string, string> = {};
       for (const guide of guidesToKeep) {
         try {
-          const recipe = await recipesBackend.getRecipe(guide.recipeId);
+          const recipe = await getRecipe(guide.recipeId);
           if (recipe) {
             names[guide.recipeId] = recipe.title;
           }
@@ -81,7 +80,7 @@ export const AssistModeGuidesList: React.FC<AssistModeGuidesListProps> = ({ onRe
   const handleDeleteGuide = async (guideId: string) => {
     try {
       setIsDeletingId(guideId);
-      await assistModeBackend.deleteCookGuide(guideId);
+      await deleteCookGuide(guideId);
       setGuides(guides.filter(g => g.id !== guideId));
       setGuideToDelete(null);
       softToast.success('Guide deleted');

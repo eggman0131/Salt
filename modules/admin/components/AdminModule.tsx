@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Upload, Download, Trash2 } from 'lucide-react';
 import { User, KitchenSettings, CollectionName } from '../../../types/contract';
 import { getActiveBackendMode } from '../../../shared/backend/system-backend';
-import { plannerBackend } from '../../planner';
+import { getKitchenSettings, updateKitchenSettings } from '../../../modules_new/planner/api';
 import { debugLogger } from '../../../shared/backend/debug-logger';
 import { softToast } from '@/lib/soft-toast';
 import { cleanupOrphanedRecipeImages, CleanupStats } from '../../admin/backend';
@@ -62,7 +62,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
   // Fetch settings on component mount
   useEffect(() => {
-    plannerBackend.getKitchenSettings().then(s => {
+    getKitchenSettings().then(s => {
       setDirectives(s.directives);
       setDebugEnabled(s.debugEnabled || false);
       setUserOrder(s.userOrder);
@@ -83,7 +83,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     if (debounceTimerRef.current) window.clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = window.setTimeout(async () => {
       try {
-        await plannerBackend.updateKitchenSettings({ directives: val, debugEnabled });
+        await updateKitchenSettings({ directives: val, debugEnabled });
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch (err) {
@@ -98,7 +98,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
     setSaveStatus('saving');
     
     try {
-      await plannerBackend.updateKitchenSettings({ directives, debugEnabled: enabled });
+      await updateKitchenSettings({ directives, debugEnabled: enabled });
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err) {

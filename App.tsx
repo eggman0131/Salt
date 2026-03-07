@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { LandingPage } from './pages/Landing';
 import { LoginPage } from './pages/Login';
 import { AppLayout } from './components/layout/AppLayout';
-import { Card, Button } from './components/UI';
 import { User, Recipe, Equipment, Plan, CollectionName } from './types/contract';
 import { systemBackend } from './shared/backend/system-backend';
 import { ensureEmulatorAuth } from './shared/backend/auth-emulator';
@@ -19,12 +18,9 @@ import {
   RecipesModule,
 } from './modules_new/recipes';
 import { AdminModule } from './modules/admin';
-import { PlannerModule } from './modules/planner';
-import { plannerBackend } from './modules/planner';
-import { ShoppingListModule } from './modules/shopping';
-import { shoppingBackend } from './modules/shopping';
+import { PlannerModule, getPlans, getKitchenSettings, findPlanForDate } from './modules_new/planner';
 import { CanonItemsWorkspace } from './modules_new/canon';
-import { CategoriesManagement } from './modules/categories';
+import { CategoriesManagement } from './modules_new/categories';
 import { AdminDashboard } from './modules_new/admin';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
 import { Dashboard } from './components/Dashboard';
@@ -71,18 +67,17 @@ const App: React.FC = () => {
     nextWeekDate.setDate(nextWeekDate.getDate() + 7);
     const nextWeekStr = getLocalDateString(nextWeekDate);
 
-    const [r, i, u, p, nextP] = await Promise.all([
+    const [r, i, u, plans] = await Promise.all([
       getRecipesNew(),
       getInventory(),
       systemBackend.getUsers(),
-      plannerBackend.getPlanIncludingDate(today),
-      plannerBackend.getPlanIncludingDate(nextWeekStr)
+      getPlans(),
     ]);
     setRecipes(r);
     setInventory(i);
     setAllUsers(u);
-    setCurrentPlan(p);
-    setNextPlan(nextP);
+    setCurrentPlan(findPlanForDate(plans, today));
+    setNextPlan(findPlanForDate(plans, nextWeekStr));
     setLastSync(localStorage.getItem('salt_last_sync'));
   }, []);
 
@@ -119,7 +114,7 @@ const App: React.FC = () => {
 
   // Initialize debug logger from settings on app startup
   useEffect(() => {
-    plannerBackend.getKitchenSettings().then(settings => {
+    getKitchenSettings().then(settings => {
       debugLogger.setEnabled(settings.debugEnabled || false);
     }).catch(error => {
       console.error('Failed to load kitchen settings:', error);
@@ -260,7 +255,6 @@ const App: React.FC = () => {
             allUsers={allUsers}
             recipes={recipes}
             equipmentCount={inventory.length}
-            shoppingListsCount={0}
             onTabChange={setActiveTab}
             onShowImportModal={() => setShowImportRecipeModal(true)}
           />
@@ -272,10 +266,6 @@ const App: React.FC = () => {
 
         {activeTab === 'inventory' && (
           <InventoryModule key={`inventory-${resetKey}`} inventory={inventory} onRefresh={loadData} />
-        )}
-
-        {activeTab === 'shopping' && (
-          <ShoppingListModule key={`shopping-${resetKey}`} onRefresh={loadData} />
         )}
 
         {activeTab === 'recipes' && (
@@ -299,7 +289,7 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'categories' && (
-          <CategoriesManagement key={`categories-${resetKey}`} onRefresh={loadData} />
+          <CategoriesManagement key={`categories-${resetKey}`} />
         )}
 
         {activeTab === 'admin-new' && (
