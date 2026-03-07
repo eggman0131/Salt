@@ -17,7 +17,8 @@
 import {
   getFirestore,
   collection,
-  addDoc,
+  doc,
+  setDoc,
   query,
   where,
   orderBy,
@@ -31,6 +32,51 @@ import type { CanonMatchEvent } from '@/types/contract';
 const MATCH_EVENTS_COLLECTION = 'canon-match-events';
 
 /**
+ * Recursively remove undefined values so Firestore accepts the payload.
+ */
+function sanitizeForFirestore(value: unknown): unknown {
+  if (value === undefined) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizeForFirestore(item));
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .map(([key, entryValue]) => [key, sanitizeForFirestore(entryValue)]);
+
+    return Object.fromEntries(entries);
+  }
+
+  return value;
+}
+
+function isAlreadyExistsError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const maybeCode = (error as { code?: string }).code;
+  const maybeMessage = (error as { message?: string }).message ?? '';
+
+  return maybeCode === 'already-exists' || maybeMessage.includes('ALREADY_EXISTS');
+}
+
+function createEventDocId(): string {
+  const timestamp = Date.now().toString(36);
+
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${timestamp}-${crypto.randomUUID()}`;
+  }
+
+  const random = Math.random().toString(36).slice(2, 14);
+  return `${timestamp}-${random}`;
+}
+
+/**
  * Log a match event to Firestore.
  * Non-blocking: errors are logged but don't interrupt the matching pipeline.
  */
@@ -41,12 +87,25 @@ export async function logMatchEvent(
     const db = getFirestore();
     const eventsRef = collection(db, MATCH_EVENTS_COLLECTION);
 
-    const fullEvent: Omit<CanonMatchEvent, 'id'> = {
+    const fullEvent = sanitizeForFirestore({
       ...event,
       timestamp: new Date().toISOString(),
-    };
+    }) as Omit<CanonMatchEvent, 'id'>;
 
-    await addDoc(eventsRef, fullEvent);
+    // Use explicit IDs to avoid emulator addDoc auto-ID collision behaviour.
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const eventRef = doc(eventsRef, createEventDocId());
+        await setDoc(eventRef, fullEvent);
+        return;
+      } catch (writeError) {
+        const canRetry = isAlreadyExistsError(writeError) && attempt < maxAttempts;
+        if (!canRetry) {
+          throw writeError;
+        }
+      }
+    }
   } catch (error) {
     // Non-blocking: log error but don't throw
     console.error('[match-events] Failed to log event:', error);

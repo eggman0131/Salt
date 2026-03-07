@@ -92,7 +92,7 @@ export type Aisle = z.infer<typeof AisleSchema>;
 // External Source Link Schema (for multi-source item tracking)
 // Allows canonical items to link to multiple external databases
 export const ExternalSourceLinkSchema = z.object({
-  source: z.enum(['cofid', 'open-food-facts', 'usda', 'tesco', 'user']), // Extensible enum
+  source: z.string(), // Extensible source key (e.g., cofid, open-food-facts)
   externalId: z.string(), // ID in the external system
   confidence: z.number().min(0).max(1).optional(), // Match confidence (0-1)
   

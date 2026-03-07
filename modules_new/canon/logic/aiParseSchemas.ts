@@ -8,7 +8,21 @@
 import { z } from 'zod';
 
 /**
- * Single ingredient parse result from AI
+ * Raw ingredient parse result from AI (uses natural language names, not IDs)
+ */
+export const AiRawParseResultSchema = z.object({
+  index: z.number().int().nonnegative(),
+  originalLine: z.string(),
+  item: z.string(),
+  quantity: z.number().nullable().default(null),
+  unit: z.string().nullable().default(null),
+  aisle: z.string(),
+  prep: z.string().nullable().default(null),
+  notes: z.string().nullable().default(null),
+});
+
+/**
+ * Processed ingredient parse result (after name→ID mapping)
  */
 export const AiSingleParseResultSchema = z.object({
   index: z.number().int().nonnegative(),
@@ -23,7 +37,14 @@ export const AiSingleParseResultSchema = z.object({
 });
 
 /**
- * Schema for AI response from Cloud Function
+ * Raw AI response schema (with natural language names)
+ */
+export const AiRawParseResponseSchema = z.object({
+  results: z.array(AiRawParseResultSchema),
+});
+
+/**
+ * Schema for AI response from Cloud Function (after processing)
  */
 export const AiParseResponseSchema = z.object({
   success: z.boolean(),

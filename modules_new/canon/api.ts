@@ -16,6 +16,8 @@ import {
   createCanonItem,
   updateCanonItem,
   approveCanonItem,
+  deleteCanonItem,
+  deleteAllCanonItems,
   seedAisles,
   seedUnits,
   fetchCofidItemById,
@@ -98,6 +100,22 @@ export async function editCanonItem(
  */
 export async function approveItem(id: string): Promise<void> {
   return approveCanonItem(id);
+}
+
+/**
+ * Delete a single canon item.
+ * Note: Orphaned recipe references are handled gracefully by the system.
+ */
+export async function deleteItem(id: string): Promise<void> {
+  return deleteCanonItem(id);
+}
+
+/**
+ * Delete all canon items.
+ * Warning: This is a destructive operation.
+ */
+export async function deleteAllItems(): Promise<void> {
+  return deleteAllCanonItems();
 }
 
 // ── Canon Aisles CRUD ─────────────────────────────────────────────────────────
@@ -285,7 +303,7 @@ export async function suggestCofidMatch(canonItemId: string) {
 
 /**
  * Link a CofID match to a canon item.
- * Updates the canon item with cofidId and cofidMatch metadata.
+ * Stores the link in externalSources with source-specific metadata.
  */
 export async function linkCofidMatch(
   canonItemId: string,
@@ -297,7 +315,7 @@ export async function linkCofidMatch(
 
 /**
  * Unlink CofID match from a canon item.
- * Removes cofidId, cofidMatch, and nutrients fields.
+ * Removes the cofid external source entry.
  */
 export async function unlinkCofidMatch(canonItemId: string): Promise<void> {
   return unlinkCofidMatchFromCanonItem(canonItemId);

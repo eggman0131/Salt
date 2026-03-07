@@ -21,6 +21,8 @@ import {
   addCanonItem,
   editCanonItem,
   approveItem,
+  deleteItem,
+  deleteAllItems,
   sortItems,
   filterItemsNeedingReview,
   normalizeItemName,
@@ -46,6 +48,16 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -76,11 +88,21 @@ export const CanonItemsAdmin: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [inlineEditing, setInlineEditing] = useState<string | null>(null);
   const [showCofidDialog, setShowCofidDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [cofidSuggestions, setCofidSuggestions] = useState<{
     bestMatch: SuggestedMatch | null;
     candidates: SuggestedMatch[];
   } | null>(null);
   const [isLoadingCofid, setIsLoadingCofid] = useState(false);
+
+  const getCofidSource = (item: CanonItem) =>
+    item.externalSources?.find(source => source.source === 'cofid');
+
+  const hasCofidNutrition = (item: CanonItem): boolean => {
+    const properties = getCofidSource(item)?.properties;
+    return !!(properties && typeof properties === 'object' && 'nutrition' in properties);
+  };
 
   // ── Search / Filter ──────────────────────────────────────────────────────
   const displayItems = filterNeedsReview ? filterItemsNeedingReview(items) : items;
@@ -235,7 +257,7 @@ export const CanonItemsAdmin: React.FC = () => {
     if (!currentItem) return;
     setIsLoadingCofid(true);
     try {
-      const matchMetadata = buildCofidMatch(match, 'manual', cofidSuggestions?.candidates);
+      const matchMetadata = buildCofidMatch(match, 'manual');
       await linkCofidMatch(currentItem.id, match.cofidId, matchMetadata);
       toast.success(`Linked to ${match.name}`);
       await loadData();
@@ -256,6 +278,30 @@ export const CanonItemsAdmin: React.FC = () => {
       await loadData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to unlink CofID');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!currentItem) return;
+    try {
+      await deleteItem(currentItem.id);
+      toast.success('Item deleted');
+      setShowDeleteDialog(false);
+      setCurrentItem(null);
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete item');
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      await deleteAllItems();
+      toast.success('All items deleted');
+      setShowDeleteAllDialog(false);
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete all items');
     }
   };
 
@@ -294,10 +340,21 @@ export const CanonItemsAdmin: React.FC = () => {
               Manage canonical item catalog, approve pending items, and link CofID references
             </p>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)} size="lg">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Item
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setShowCreateDialog(true)} size="lg">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Item
+            </Button>
+            <Button
+              onClick={() => setShowDeleteAllDialog(true)}
+              variant="destructive"
+              size="lg"
+              disabled={items.length === 0}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete All
+            </Button>
+          </div>
         </div>
       </Section>
 
@@ -431,8 +488,8 @@ export const CanonItemsAdmin: React.FC = () => {
               {sortedItems.map(item => {
                 const aisle = aisles.find(a => a.id === item.aisleId);
                 const unit = units.find(u => u.id === item.preferredUnitId);
-                const isLinked = !!item.cofidId;
-                const hasNutrients = !!item.nutrients;
+                const isLinked = !!getCofidSource(item);
+                const hasNutrients = hasCofidNutrition(item);
                 const isSelected = selectedItems.has(item.id);
 
                 return (
@@ -461,6 +518,10 @@ export const CanonItemsAdmin: React.FC = () => {
                     onSuggestCofid={() => handleSuggestCofid(item)}
                     onUnlinkCofid={() => handleUnlinkCofid(item)}
                     onInlineEdit={(fieldName) => setInlineEditing(item.id)}
+                    onDelete={() => {
+                      setCurrentItem(item);
+                      setShowDeleteDialog(true);
+                    }}
                   />
                 );
               })}
@@ -499,7 +560,7 @@ export const CanonItemsAdmin: React.FC = () => {
           item={currentItem}
           aisles={aisles}
           units={units}
-          hasNutrients={!!currentItem.nutrients}
+          hasNutrients={hasCofidNutrition(currentItem)}
           onSubmit={async (updates) => {
             await handleEdit(currentItem.id, updates);
             await handleApprove(currentItem.id);
@@ -525,6 +586,52 @@ export const CanonItemsAdmin: React.FC = () => {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Canon Item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{currentItem?.name}</strong>?
+              <br /><br />
+              This action cannot be undone. Any recipes referencing this item will have orphaned references.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCurrentItem(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Confirmation Dialog */}
+      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Canon Items</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>all {items.length} canon items</strong>?
+              <br /><br />
+              This is a destructive operation that cannot be undone. All recipes with canon item references will have orphaned links.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAll}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete All Items
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Page>
   );
 };
@@ -697,6 +804,7 @@ interface ItemRowProps {
   onSuggestCofid: () => void;
   onUnlinkCofid: () => void;
   onInlineEdit: (fieldName: string) => void;
+  onDelete: () => void;
 }
 
 const ItemRow: React.FC<ItemRowProps> = ({
@@ -714,6 +822,7 @@ const ItemRow: React.FC<ItemRowProps> = ({
   onApprove,
   onSuggestCofid,
   onUnlinkCofid,
+  onDelete,
 }) => {
   return (
     <div className="border-b last:border-b-0">
@@ -776,6 +885,10 @@ const ItemRow: React.FC<ItemRowProps> = ({
             <Pencil className="h-3 w-3 mr-1" />
             Edit
           </Button>
+          <Button variant="ghost" size="sm" onClick={onDelete} className="text-destructive hover:text-destructive">
+            <Trash2 className="h-3 w-3 mr-1" />
+            Delete
+          </Button>
         </div>
       </div>
 
@@ -831,6 +944,9 @@ const ItemRow: React.FC<ItemRowProps> = ({
           )}
           <Button size="sm" variant="ghost" onClick={onEdit}>
             <Pencil className="h-3 w-3" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onDelete} className="text-destructive hover:text-destructive">
+            <Trash2 className="h-3 w-3" />
           </Button>
         </div>
       </div>
