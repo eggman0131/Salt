@@ -17,12 +17,12 @@ import {
 } from '@/components/ui/popover';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { KitchenItem } from '@/types/contract';
+import type { Equipment } from '@/types/contract';
 
 interface RecipeEquipmentInputProps {
   equipmentNeeded: string[];
   equipmentSearchQueries: Record<number, string>;
-  availableEquipment: KitchenItem[];
+  availableEquipment: Equipment[];
   onAddEquipment: () => void;
   onRemoveEquipment: (index: number) => void;
   onChangeEquipment: (index: number, value: string) => void;
@@ -91,7 +91,7 @@ export function RecipeEquipmentInput({
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0">
+                <PopoverContent className="w-100 p-0">
                   <Command shouldFilter={false}>
                     <CommandInput
                       placeholder="Search equipment..."

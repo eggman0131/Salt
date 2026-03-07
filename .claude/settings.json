@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const f = require\\(''firebase-functions''\\); console.log\\(''version:'', require\\(''./node_modules/firebase-functions/package.json''\\).version\\)\")"
+    ]
+  }
+}

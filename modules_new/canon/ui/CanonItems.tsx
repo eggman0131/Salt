@@ -33,7 +33,7 @@ import {
   getCofidItemById,
   type CanonItem,
   type SuggestedMatch,
-} from '../../api';
+} from '../api';
 import type { Aisle, Unit } from '../../../../types/contract';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

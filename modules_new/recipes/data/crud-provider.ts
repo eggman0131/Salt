@@ -23,7 +23,7 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import { debugLogger } from '../../../shared/backend/debug-logger';
-import { assistModeBackend } from '../../../modules/assist-mode/backend';
+import { getCookGuidesForRecipe, deleteCookGuide } from '../../../modules_new/assist-mode/api';
 import {
   convertTimestamps,
   decodeRecipeFromFirestore,
@@ -450,9 +450,9 @@ export async function updateRecipeInStore(
 // ==================== DELETE ====================
 
 export async function deleteRecipeFromStore(id: string): Promise<void> {
-  const cookGuides = await assistModeBackend.getCookGuidesForRecipe(id);
+  const cookGuides = await getCookGuidesForRecipe(id);
   for (const guide of cookGuides) {
-    await assistModeBackend.deleteCookGuide(guide.id);
+    await deleteCookGuide(guide.id);
   }
   await deleteDoc(doc(db, 'recipes', id));
 }
