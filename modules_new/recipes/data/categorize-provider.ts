@@ -7,9 +7,9 @@
 
 import type { Recipe } from '../../../types/contract';
 import { RECIPE_PROMPTS } from '../../../shared/backend/prompts';
-import { callGenerateContent, getSystemInstruction } from '../data/ai-transport';
+import { callGenerateContent, getSystemInstruction } from './ai-transport';
 import { getCategories, createCategory } from '../../../modules_new/categories/api';
-import { sanitizeJson } from './normalize-recipe';
+import { sanitizeJson } from '../logic/normalize-recipe';
 
 export async function categorizeRecipe(recipe: Recipe): Promise<string[]> {
   const instruction = await getSystemInstruction(

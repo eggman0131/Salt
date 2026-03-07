@@ -34,7 +34,7 @@ import {
 } from './firestore-utils';
 import { resolveImagePath as resolveStorageImagePath, uploadRecipeImage } from './storage-provider';
 import { normalizeRecipeData } from '../logic/normalize-recipe';
-import { categorizeRecipe } from '../logic/categorize-recipe';
+import { categorizeRecipe } from './categorize-provider';
 
 // ==================== LEGACY FORMAT MIGRATION ====================
 
