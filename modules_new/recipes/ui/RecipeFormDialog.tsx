@@ -29,7 +29,7 @@ import { RecipeIngredientsInput } from './RecipeIngredientsInput';
 import { RecipeEquipmentInput } from './RecipeEquipmentInput';
 import { RecipeInstructionsInput } from './RecipeInstructionsInput';
 import { v4 as uuidv4 } from 'uuid';
-import { getInventory } from '../../../modules_new/inventory';
+import { getInventory } from '../../../modules_new/inventory/api';
 import { getCanonUnits } from '../../../modules_new/canon/api';
 
 interface RecipeFormDialogProps {
