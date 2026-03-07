@@ -7,6 +7,16 @@
 
 import { z } from 'zod';
 
+export const ExternalSourceLinkSchema = z.object({
+  source: z.string(),
+  externalId: z.string(),
+  confidence: z.number().min(0).max(1).optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+  syncedAt: z.string().optional(),
+});
+
+export type ExternalSourceLink = z.infer<typeof ExternalSourceLinkSchema>;
+
 /** CofID match metadata (PR4-B) */
 export const CofidMatchSchema = z.object({
   status: z.enum(['auto', 'manual', 'unlinked']).default('auto'),
@@ -44,17 +54,14 @@ export type Nutrients = z.infer<typeof NutrientSchema>;
 export const CanonItemSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
+  normalisedName: z.string().optional(),
   aisleId: z.string().min(1),
   preferredUnitId: z.string().min(1),
   needsReview: z.boolean().default(true),
   createdAt: z.string(),
   updatedAt: z.string().optional(),
-  // PR4-B: CofID enrichment fields
-  cofidId: z.string().nullable().optional(),
-  cofidMatch: CofidMatchSchema.optional(),
-  nutrients: NutrientSchema.optional(),
-  nutrientsSource: z.enum(['cofid']).nullable().optional(),
-  nutrientsImportedAt: z.string().nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  externalSources: z.array(ExternalSourceLinkSchema).optional(),
 });
 
 export type CanonItem = z.infer<typeof CanonItemSchema>;

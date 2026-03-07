@@ -13,7 +13,10 @@ import { httpsCallable } from 'firebase/functions';
  * Call Gemini API via Cloud Function for recipe categorization
  * Handles authentication and error handling
  */
-export async function callGeminForCategorization(prompt: string): Promise<string[]> {
+export async function callGeminForCategorization(
+  prompt: string,
+  systemInstruction: string
+): Promise<string[]> {
   const user = auth.currentUser;
 
   if (!user) {
@@ -30,8 +33,21 @@ export async function callGeminForCategorization(prompt: string): Promise<string
 
   const cloudGenerateContent = httpsCallable(functions, 'cloudGenerateContent');
 
+  // Schema for guaranteed array of category IDs
+  const responseSchema = {
+    type: 'object' as const,
+    properties: {
+      results: {
+        type: 'array' as const,
+        items: {
+          type: 'string' as const,
+        },
+      },
+    },
+  };
+
   const params: GenerateContentParameters = {
-    model: 'gemini-2-5-flash',
+    model: 'gemini-3-flash-lite',
     contents: [
       {
         role: 'user',
@@ -43,8 +59,13 @@ export async function callGeminForCategorization(prompt: string): Promise<string
       },
     ],
     config: {
-      systemInstruction: 'You are the Head Chef analysing recipes to suggest appropriate categories. Return ONLY a JSON array of category IDs, nothing else.',
+      systemInstruction,
       responseMimeType: 'application/json',
+      responseSchema,
+      temperature: 0,
+      topP: 0.1,
+      maxOutputTokens: 256,
+      thinkingLevel: 'low',
     },
   };
 
@@ -55,7 +76,9 @@ export async function callGeminForCategorization(prompt: string): Promise<string
     });
 
     const response = result.data as GenerateContentResponse;
-    return response.text ? JSON.parse(response.text) : [];
+    const responseText = response.text || '{"results": []}';
+    const parsed = JSON.parse(responseText);
+    return parsed.results || [];
   } catch (error) {
     console.error('Gemini categorization failed:', error);
     throw error;
@@ -63,8 +86,7 @@ export async function callGeminForCategorization(prompt: string): Promise<string
 }
 
 /**
- * Get system instruction for recipe categorization
- * Currently simple, but can be expanded with custom context
+ * Legacy system instruction getter (kept for compatibility)
  */
 export function getCategorizationSystemInstruction(): string {
   return 'You are the Head Chef analysing recipes to suggest appropriate categories. Return ONLY a JSON array of category IDs, nothing else.';

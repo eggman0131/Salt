@@ -11,26 +11,38 @@ import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, GitBranch } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getCanonAisles,
   getCanonUnits,
   callAiParseIngredients,
+  processRawRecipeIngredients,
   validateAiParseResults,
-  buildParseSchemaDescription,
   type ValidatedParseResult,
   UNCATEGORISED_AISLE,
 } from '../../api';
+import type { RecipeIngredient } from '../../../../types/contract';
 
 type ViewState = 'input' | 'loading' | 'results' | 'error';
+type RunMode = 'parse-only' | 'full-pipeline';
+
+interface PipelineProgress {
+  stage: 'parse' | 'match';
+  current: number;
+  total: number;
+}
 
 interface ParseState {
   view: ViewState;
+  mode?: RunMode;
   error?: string;
   results?: ValidatedParseResult[];
+  pipelineResults?: RecipeIngredient[];
   hasReviewFlags?: boolean;
+  progress?: PipelineProgress;
 }
 
 /**
@@ -75,6 +87,7 @@ function getFlagLabel(flag: string): string {
 
 export default function AiIngredientParseTool() {
   const [input, setInput] = useState('');
+  const [dryRun, setDryRun] = useState(true);
   const [state, setState] = useState<ParseState>({ view: 'input' });
 
   const handleParse = async () => {
@@ -153,6 +166,64 @@ export default function AiIngredientParseTool() {
     }
   };
 
+  const handleRunPipeline = async () => {
+    const lines = input
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    if (lines.length === 0) {
+      toast.error('Please enter at least one ingredient line');
+      return;
+    }
+
+    setState({
+      view: 'loading',
+      mode: 'full-pipeline',
+      progress: { stage: 'parse', current: 0, total: lines.length },
+    });
+
+    try {
+      const ingredients = await processRawRecipeIngredients(
+        lines,
+        progress => {
+          setState(prev => ({
+            ...prev,
+            view: 'loading',
+            mode: 'full-pipeline',
+            progress,
+          }));
+        },
+        { dryRun }
+      );
+
+      const linkedCount = ingredients.filter(ing => !!ing.canonicalItemId).length;
+      const newCanonCount = ingredients.filter(
+        ing => ing.matchingAudit?.decisionAction === 'create_new_canon'
+      ).length;
+
+      if (dryRun) {
+        toast.success(
+          `Dry run complete: ${linkedCount}/${ingredients.length} would link, ${newCanonCount} would create new canon item${newCanonCount === 1 ? '' : 's'}`
+        );
+      } else {
+        toast.success(
+          `Pipeline complete: ${linkedCount}/${ingredients.length} linked, ${newCanonCount} new canon item${newCanonCount === 1 ? '' : 's'} created`
+        );
+      }
+
+      setState({
+        view: 'results',
+        mode: 'full-pipeline',
+        pipelineResults: ingredients,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error('Pipeline failed: ' + message);
+      setState({ view: 'error', mode: 'full-pipeline', error: message });
+    }
+  };
+
   const handleReset = () => {
     setInput('');
     setState({ view: 'input' });
@@ -189,17 +260,61 @@ export default function AiIngredientParseTool() {
             <Button variant="outline" onClick={handleReset} disabled={state.view === 'loading'}>
               Clear
             </Button>
-            <Button onClick={handleParse} disabled={state.view === 'loading' || input.trim().length === 0}>
+            <Button
+              variant="outline"
+              onClick={handleParse}
+              disabled={state.view === 'loading' || input.trim().length === 0}
+            >
               {state.view === 'loading' ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Parsing...
+                  {state.mode === 'full-pipeline' ? 'Running pipeline...' : 'Parsing...'}
                 </>
               ) : (
                 'Parse Ingredients'
               )}
             </Button>
+            <Button
+              onClick={handleRunPipeline}
+              disabled={state.view === 'loading' || input.trim().length === 0}
+            >
+              {state.view === 'loading' && state.mode === 'full-pipeline' ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Running Pipeline...
+                </>
+              ) : (
+                <>
+                  <GitBranch className="h-4 w-4 mr-2" />
+                  Run Full Pipeline
+                </>
+              )}
+            </Button>
           </div>
+
+          <div className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2">
+            <div>
+              <p className="text-sm font-medium">Dry run</p>
+              <p className="text-xs text-muted-foreground">Show full matching decisions without creating new canon items</p>
+            </div>
+            <Checkbox
+              checked={dryRun}
+              onCheckedChange={(checked) => setDryRun(Boolean(checked))}
+              disabled={state.view === 'loading'}
+              aria-label="Toggle dry run mode"
+            />
+          </div>
+
+          {state.view === 'loading' && state.mode === 'full-pipeline' && state.progress && (
+            <div className="rounded-md border bg-muted/40 p-3 text-sm">
+              <p className="font-medium">
+                {state.progress.stage === 'parse' ? 'Parsing ingredients' : 'Matching and linking'}
+              </p>
+              <p className="text-muted-foreground mt-1">
+                {state.progress.current}/{state.progress.total} completed
+              </p>
+            </div>
+          )}
         </Card>
       ) : null}
 
@@ -222,8 +337,8 @@ export default function AiIngredientParseTool() {
         </Alert>
       )}
 
-      {/* Results Section */}
-      {state.view === 'results' && state.results && (
+      {/* Parse-only Results Section */}
+      {state.view === 'results' && state.mode !== 'full-pipeline' && state.results && (
         <>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -331,6 +446,89 @@ export default function AiIngredientParseTool() {
                   <strong>Data repaired:</strong> Missing or invalid fields were corrected
                 </li>
               </ul>
+            </AlertDescription>
+          </Alert>
+        </>
+      )}
+
+      {/* Full Pipeline Results */}
+      {state.view === 'results' && state.mode === 'full-pipeline' && state.pipelineResults && (
+        <>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <GitBranch className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div>
+                <p className="font-medium">
+                  {state.pipelineResults.length} ingredient{state.pipelineResults.length !== 1 ? 's' : ''} processed through full pipeline
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {state.pipelineResults.filter(i => i.canonicalItemId).length} linked • {state.pipelineResults.filter(i => i.matchingAudit?.decisionAction === 'create_new_canon').length} {dryRun ? 'would create new canon items' : 'new canon items created'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {dryRun ? 'Dry run mode was enabled: no new canon items were created.' : 'Live mode: pipeline created canon items where needed.'}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" onClick={handleReset}>
+              Run Again
+            </Button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-3 font-medium">Ingredient</th>
+                  <th className="text-left py-2 px-3 font-medium">Canon Item</th>
+                  <th className="text-left py-2 px-3 font-medium">Decision</th>
+                  <th className="text-left py-2 px-3 font-medium">Stage</th>
+                  <th className="text-left py-2 px-3 font-medium">Score</th>
+                  <th className="text-left py-2 px-3 font-medium">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.pipelineResults.map((result) => {
+                  const decision = result.matchingAudit?.decisionAction ?? 'no_match';
+                  const stage = result.matchingAudit?.stage ?? '—';
+                  const score = result.matchingAudit?.topScore;
+                  const scoreLabel = typeof score === 'number' ? `${Math.round(score * 100)}%` : '—';
+
+                  return (
+                    <tr key={result.id} className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="py-3 px-3">
+                        <div className="font-medium">{result.ingredientName}</div>
+                        <div className="text-xs text-muted-foreground">{result.raw}</div>
+                      </td>
+                      <td className="py-3 px-3">
+                        {result.canonicalItemId ? (
+                          <code className="text-xs">{result.canonicalItemId}</code>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Unlinked</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        <Badge variant={decision === 'create_new_canon' ? 'secondary' : decision === 'use_existing_canon' ? 'default' : 'outline'}>
+                          {decision}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className="text-xs">{stage}</span>
+                      </td>
+                      <td className="py-3 px-3">{scoreLabel}</td>
+                      <td className="py-3 px-3">
+                        <span className="text-xs text-muted-foreground">{result.matchingAudit?.reason ?? '—'}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Full pipeline mode parses raw lines, runs matching (lexical + semantic), links to existing canon items, and creates pending canon items when no suitable match exists.
             </AlertDescription>
           </Alert>
         </>

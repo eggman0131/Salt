@@ -8,6 +8,7 @@
 import { Recipe, RecipeCategory } from '../../types/contract';
 import {
   buildCategorizationPrompt,
+  buildCategorizationSystemInstruction,
   parseAICategoryResponse,
   validateCategoryNameUniqueness
 } from './logic/categorization';
@@ -116,11 +117,14 @@ export async function categorizeRecipe(recipe: Recipe): Promise<string[]> {
   // Get existing categories for context
   const existingCategories = await getAllCategories();
 
-  // Build prompt using pure logic
-  const prompt = buildCategorizationPrompt(recipe, existingCategories);
+  // Build system instruction from categories (moved from prompt)
+  const systemInstruction = buildCategorizationSystemInstruction(existingCategories);
 
-  // Call Gemini via Cloud Function (I/O)
-  const categoryIds = await callGeminForCategorization(prompt);
+  // Build user prompt (recipe data only, no categories)
+  const prompt = buildCategorizationPrompt(recipe);
+
+  // Call Gemini via Cloud Function with categories in system instruction
+  const categoryIds = await callGeminForCategorization(prompt, systemInstruction);
 
   // Parse and validate response using pure logic
   const validatedCategoryIds = parseAICategoryResponse(JSON.stringify(categoryIds));

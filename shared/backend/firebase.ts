@@ -77,9 +77,7 @@ if (isLocalhost) {
   // named database, ensuring frontend and functions read/write the same data.
   try {
     db = initializeFirestore(app, {
-      host: 'localhost:8080',
-      ssl: false,
-      experimentalForceLongPolling: true
+      experimentalForceLongPolling: true,
     }, FIRESTORE_DATABASE_ID);
     log('Firebase Init', `✓ Initialized Firestore (${FIRESTORE_DATABASE_ID}) for local emulators`);
   } catch (e) {
@@ -119,7 +117,7 @@ else if (isCloudIDE) {
     db = initializeFirestore(app, {
       host: location.host,
       ssl: true,
-      experimentalForceLongPolling: true
+      experimentalForceLongPolling: true,
     }, FIRESTORE_DATABASE_ID); // Use the named database
     log('Firebase Init', `✓ Initialized Firestore (${FIRESTORE_DATABASE_ID}) for Cloud IDE`);
   } catch (e) {

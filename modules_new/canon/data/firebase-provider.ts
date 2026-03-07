@@ -21,7 +21,7 @@ import {
   writeBatch,
   deleteDoc,
 } from 'firebase/firestore';
-import { CanonItem } from '../logic/items';
+import { CanonItem, ExternalSourceLink } from '../logic/items';
 import { suggestBestMatch, rankCandidates, buildCofidMatch, type SuggestedMatch } from '../logic/suggestCofidMatch';
 import { findSemanticMatches } from '../logic/embeddings';
 import {
@@ -40,6 +40,41 @@ const CANON_UNITS_COLLECTION = 'canonUnits';
 const CANON_ITEMS_COLLECTION = 'canonItems';
 const CANON_COFID_ITEMS_COLLECTION = 'canonCofidItems';
 const COFID_GROUP_AISLE_MAPPINGS_COLLECTION = 'cofid_group_aisle_mappings';
+
+function getCofidSourceFromExternalSources(
+  externalSources?: ExternalSourceLink[]
+): ExternalSourceLink | undefined {
+  return externalSources?.find(source => source.source === 'cofid');
+}
+
+function withCofidSource(
+  existingSources: ExternalSourceLink[] | undefined,
+  cofidId: string,
+  propertiesPatch?: Record<string, unknown>
+): ExternalSourceLink[] {
+  const now = new Date().toISOString();
+  const current = existingSources ?? [];
+  const existing = current.find(source => source.source === 'cofid');
+  const mergedProperties = {
+    ...(existing?.properties ?? {}),
+    ...(propertiesPatch ?? {}),
+  };
+
+  const cofidSource: ExternalSourceLink = {
+    source: 'cofid',
+    externalId: cofidId,
+    ...(existing?.confidence !== undefined && { confidence: existing.confidence }),
+    ...(Object.keys(mergedProperties).length > 0 && { properties: mergedProperties }),
+    syncedAt: now,
+  };
+
+  const withoutCofid = current.filter(source => source.source !== 'cofid');
+  return [...withoutCofid, cofidSource];
+}
+
+function withoutCofidSource(existingSources: ExternalSourceLink[] | undefined): ExternalSourceLink[] {
+  return (existingSources ?? []).filter(source => source.source !== 'cofid');
+}
 
 function normaliseEmbeddingName(value: string): string {
   return value.trim().toLowerCase();
@@ -364,17 +399,14 @@ export async function fetchCanonItems(): Promise<CanonItem[]> {
     items.push({
       id: docSnap.id,
       name: data.name,
+      normalisedName: data.normalisedName ?? String(data.name ?? '').toLowerCase(),
       aisleId: data.aisleId,
       preferredUnitId: data.preferredUnitId,
       needsReview: data.needsReview ?? true,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
-      // PR5: CofID enrichment fields
-      cofidId: data.cofidId ?? null,
-      cofidMatch: data.cofidMatch,
-      nutrients: data.nutrients,
-      nutrientsSource: data.nutrientsSource ?? null,
-      nutrientsImportedAt: data.nutrientsImportedAt ?? null,
+      metadata: data.metadata,
+      externalSources: Array.isArray(data.externalSources) ? data.externalSources : undefined,
     });
   });
 
@@ -396,17 +428,14 @@ export async function fetchCanonItemById(id: string): Promise<CanonItem | null> 
   return {
     id: docSnap.id,
     name: data.name,
+    normalisedName: data.normalisedName ?? String(data.name ?? '').toLowerCase(),
     aisleId: data.aisleId,
     preferredUnitId: data.preferredUnitId,
     needsReview: data.needsReview ?? true,
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
-    // PR5: CofID enrichment fields
-    cofidId: data.cofidId ?? null,
-    cofidMatch: data.cofidMatch,
-    nutrients: data.nutrients,
-    nutrientsSource: data.nutrientsSource ?? null,
-    nutrientsImportedAt: data.nutrientsImportedAt ?? null,
+    metadata: data.metadata,
+    externalSources: Array.isArray(data.externalSources) ? data.externalSources : undefined,
   };
 }
 
@@ -423,6 +452,7 @@ export async function createCanonItem(input: {
   const now = new Date().toISOString();
   const docRef = await addDoc(collection(db, CANON_ITEMS_COLLECTION), {
     name: input.name,
+    normalisedName: input.name.toLowerCase(),
     aisleId: input.aisleId,
     preferredUnitId: input.preferredUnitId,
     needsReview: input.needsReview ?? true,
@@ -432,6 +462,7 @@ export async function createCanonItem(input: {
   const createdItem: CanonItem = {
     id: docRef.id,
     name: input.name,
+    normalisedName: input.name.toLowerCase(),
     aisleId: input.aisleId,
     preferredUnitId: input.preferredUnitId,
     needsReview: input.needsReview ?? true,
@@ -460,9 +491,17 @@ export async function updateCanonItem(
   updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId' | 'needsReview'>>
 ): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
-  await updateDoc(docRef, {
+  const payload: Record<string, unknown> = {
     ...updates,
     updatedAt: new Date().toISOString(),
+  };
+
+  if (typeof updates.name === 'string') {
+    payload.normalisedName = updates.name.toLowerCase();
+  }
+
+  await updateDoc(docRef, {
+    ...payload,
   });
 
   // Refresh embedding when the query text changes (rename).
@@ -477,34 +516,60 @@ export async function updateCanonItem(
 
 /**
  * Approve a canon item (set needsReview = false).
- * If the item has a linked CofID match, copy nutrients from the CofID item.
+ * If linked to CofID, copy nutrients into externalSources[].properties.nutrition.
  */
 export async function approveCanonItem(id: string): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
   
-  // Get current item data to check for cofidId
+  // Get current item data to check for a linked CoFID source.
   const itemSnap = await getDoc(docRef);
   if (!itemSnap.exists()) {
     throw new Error(`Canon item ${id} not found`);
   }
 
   const itemData = itemSnap.data();
+  const existingSources = Array.isArray(itemData.externalSources)
+    ? (itemData.externalSources as ExternalSourceLink[])
+    : undefined;
+  const cofidSource = getCofidSourceFromExternalSources(existingSources);
+
   const updates: any = {
     needsReview: false,
     updatedAt: new Date().toISOString(),
   };
 
-  // If linked to a CofID item, copy nutrients
-  if (itemData.cofidId) {
-    const cofidItem = await fetchCofidItemById(itemData.cofidId);
+  // If linked to a CofID item, copy nutrients to source-specific properties.
+  if (cofidSource?.externalId) {
+    const cofidItem = await fetchCofidItemById(cofidSource.externalId);
     if (cofidItem?.nutrients) {
-      updates.nutrients = cofidItem.nutrients;
-      updates.nutrientsSource = 'cofid';
-      updates.nutrientsImportedAt = new Date().toISOString();
+      updates.externalSources = withCofidSource(existingSources, cofidSource.externalId, {
+        nutrition: cofidItem.nutrients,
+        nutritionImportedAt: new Date().toISOString(),
+      });
+      updates.lastSyncedAt = new Date().toISOString();
     }
   }
 
   await updateDoc(docRef, updates);
+}
+
+/**
+ * Delete a single canon item by ID.
+ * Note: Does not check for recipe references - orphaned references handled gracefully.
+ */
+export async function deleteCanonItem(id: string): Promise<void> {
+  const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Delete all canon items.
+ * Warning: This is a destructive operation that removes ALL items from the collection.
+ */
+export async function deleteAllCanonItems(): Promise<void> {
+  const snapshot = await getDocs(collection(db, CANON_ITEMS_COLLECTION));
+  const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+  await Promise.all(deletePromises);
 }
 
 // ── CofID Items Read ──────────────────────────────────────────────────────────
@@ -547,7 +612,7 @@ export async function fetchCofidItemById(id: string): Promise<any | null> {
 
 /**
  * Link a CofID match to a canon item.
- * Updates the canon item with cofidId and cofidMatch metadata.
+ * Stores linkage and metadata in the CoFID external source record.
  */
 export async function linkCofidMatchToCanonItem(
   canonItemId: string,
@@ -555,9 +620,18 @@ export async function linkCofidMatchToCanonItem(
   matchMetadata: any
 ): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, canonItemId);
+
+  const itemSnap = await getDoc(docRef);
+  const itemData = itemSnap.exists() ? itemSnap.data() : {};
+  const existingSources = Array.isArray(itemData.externalSources)
+    ? (itemData.externalSources as ExternalSourceLink[])
+    : undefined;
+
   await updateDoc(docRef, {
-    cofidId,
-    cofidMatch: matchMetadata,
+    externalSources: withCofidSource(existingSources, cofidId, {
+      match: matchMetadata,
+    }),
+    lastSyncedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
   // Log final selection event
@@ -583,23 +657,21 @@ export async function linkCofidMatchToCanonItem(
 
 /**
  * Unlink CofID match from a canon item.
- * Removes cofidId, cofidMatch, nutrients fields.
+ * Removes the CoFID entry from externalSources.
  */
 export async function unlinkCofidMatchFromCanonItem(
   canonItemId: string
 ): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, canonItemId);
+
+  const itemSnap = await getDoc(docRef);
+  const itemData = itemSnap.exists() ? itemSnap.data() : {};
+  const existingSources = Array.isArray(itemData.externalSources)
+    ? (itemData.externalSources as ExternalSourceLink[])
+    : undefined;
+
   await updateDoc(docRef, {
-    cofidId: null,
-    cofidMatch: {
-      status: 'unlinked',
-      method: null,
-      score: null,
-      matchedAt: new Date().toISOString(),
-    },
-    nutrients: null,
-    nutrientsSource: null,
-    nutrientsImportedAt: null,
+    externalSources: withoutCofidSource(existingSources),
     updatedAt: new Date().toISOString(),
   });
 }
