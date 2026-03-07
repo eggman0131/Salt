@@ -6,31 +6,31 @@ import { Button } from '../../../components/ui/button';
 import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle, Wrench, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
+} from '../../../components/ui/popover';
 import {
   generateRecipeImage,
   resolveImagePath,
   type RecipeSaveProgress,
   updateRecipe,
-} from '../../../modules_new/recipes/api';
+} from '../api';
 import { RecipeFormDialog } from './RecipeFormDialog';
 import { DeleteRecipeDialog } from './DeleteRecipeDialog';
 import { CategoryPicker } from './CategoryPicker';
 import { RecipeChefChat } from './RecipeChefChat';
 import { RecipeHistoryDialog } from './RecipeHistoryDialog';
 import { CookTab } from './CookTab';
-import { CookModeModule } from '../../assist-mode';
+import { CookModeModule } from '../../../modules/assist-mode';
 import { ImageEditor } from '../../../shared/components/ImageEditor';
-import { softToast } from '@/lib/soft-toast';
+import { softToast } from '../../../lib/soft-toast';
 import { systemBackend } from '../../../shared/backend/system-backend';
-import { buildManualEditSummary, createHistoryEntry } from '../backend/recipe-updates';
+import { buildManualEditSummary, createHistoryEntry } from '../logic/recipe-updates';
 import {
   AlertDialog,
   AlertDialogAction,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Recipe, RecipeCategory } from '../../../types/contract';
 import {
   createRecipe,
@@ -8,16 +8,22 @@ import {
   getRecipes,
   repairRecipe,
   updateRecipe,
-  type RecipeSaveProgress,
-} from '../../../modules_new/recipes/api';
-import { categoriesBackend } from '../../categories';
-import { Toaster } from '@/components/ui/sonner';
-import { softToast } from '@/lib/soft-toast';
+} from '../api';
+import type { RecipeSaveProgress } from '../types';
+import { getCategories as getCategoriesApi } from '../../../modules_new/categories/api';
+import { Toaster } from '../../../components/ui/sonner';
+import { softToast } from '../../../lib/soft-toast';
 import { RecipesList } from './RecipesList';
 import { RecipeDetailView } from './RecipeDetailView';
 import { RepairRecipeModal } from './RepairRecipeModal';
-import { assistModeBackend } from '../../assist-mode';
+import { assistModeBackend } from '../../../modules/assist-mode';
 
+/**
+ * Transitional Recipes tab implementation inside modules_new.
+ *
+ * Behaviour is intentionally unchanged. Child components are still sourced from
+ * legacy module paths and will be moved in follow-up steps.
+ */
 export const RecipesModule: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
@@ -29,9 +35,8 @@ export const RecipesModule: React.FC = () => {
   const [repairProgress, setRepairProgress] = useState<{ stage: string; percentage: number } | undefined>();
   const [isRepairing, setIsRepairing] = useState(false);
 
-  // Load recipes and categories
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   const loadData = async () => {
@@ -39,7 +44,7 @@ export const RecipesModule: React.FC = () => {
       setIsLoading(true);
       const [recipesData, categoriesData, guidesData] = await Promise.all([
         getRecipes(),
-        categoriesBackend.getCategories(),
+        getCategoriesApi(),
         assistModeBackend.getAllCookGuides(),
       ]);
       setRecipes(recipesData);
@@ -77,8 +82,7 @@ export const RecipesModule: React.FC = () => {
       await updateRecipe(id, updates, undefined, onProgress);
       softToast.success('Recipe updated');
       await loadData();
-      
-      // Update selected recipe if it's the one being edited
+
       if (selectedRecipe?.id === id) {
         const updated = await getRecipe(id);
         if (updated) setSelectedRecipe(updated);
@@ -94,12 +98,11 @@ export const RecipesModule: React.FC = () => {
     try {
       await deleteRecipe(id);
       softToast.success('Recipe deleted');
-      
-      // Close detail view if we deleted the selected recipe
+
       if (selectedRecipe?.id === id) {
         setSelectedRecipe(null);
       }
-      
+
       await loadData();
     } catch (error) {
       console.error('Failed to delete recipe:', error);
@@ -109,7 +112,6 @@ export const RecipesModule: React.FC = () => {
   };
 
   const handleUploadRecipeImage = (recipe: Recipe) => {
-    // Navigate to detail view and signal to open image editor
     setSelectedRecipe(recipe);
     setRecipeIdToUploadImageFor(recipe.id);
   };
@@ -120,8 +122,7 @@ export const RecipesModule: React.FC = () => {
       await updateRecipe(recipe.id, {}, imageData);
       softToast.success('AI image generated');
       await loadData();
-      
-      // Update selected recipe if viewing details
+
       if (selectedRecipe?.id === recipe.id) {
         const updated = await getRecipe(recipe.id);
         if (updated) setSelectedRecipe(updated);
@@ -152,20 +153,19 @@ export const RecipesModule: React.FC = () => {
           });
         }
       );
-      
+
       const actions: string[] = [];
       if (options.categorize) actions.push('re-categorized');
       if (options.relinkIngredients) actions.push('relinked ingredients');
-      
+
       softToast.success(`Recipe ${actions.join(' and ')}`);
       await loadData();
-      
-      // Update selected recipe if viewing details
+
       if (selectedRecipe?.id === recipeToRepair.id) {
         const updated = await getRecipe(recipeToRepair.id);
         if (updated) setSelectedRecipe(updated);
       }
-      
+
       setRecipeToRepair(null);
       setRepairProgress(undefined);
     } catch (error) {

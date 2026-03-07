@@ -15,7 +15,7 @@ import {
 import { Clock, MessageSquare, Loader2, Send, CheckCircle2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Recipe } from '../../../types/contract';
-import { recipesBackend } from '../backend';
+import { chatWithRecipe, generateRecipeFromPrompt, summarizeAgreedRecipe } from '../../../modules_new/recipes/api';
 import { softToast } from '@/lib/soft-toast';
 import { createHistoryEntry } from '../backend/recipe-updates';
 
@@ -60,7 +60,7 @@ export const RecipeChefChat: React.FC<RecipeChefChatProps> = ({
     
     try {
       // Use the recipe-specific chat method with streaming support
-      const response = await recipesBackend.chatWithRecipe(
+      const response = await chatWithRecipe(
         recipe,
         message,
         messages,
@@ -99,7 +99,7 @@ export const RecipeChefChat: React.FC<RecipeChefChatProps> = ({
 
     setIsUpdating(true);
     try {
-      const summaryResponse = await recipesBackend.summarizeAgreedRecipe(messages, recipe);
+      const summaryResponse = await summarizeAgreedRecipe(messages, recipe);
       const parsed = JSON.parse(sanitizeJson(summaryResponse || '{}'));
       const proposals = (parsed.proposals || []).map((proposal: Proposal) => ({
         ...proposal,
@@ -131,11 +131,10 @@ export const RecipeChefChat: React.FC<RecipeChefChatProps> = ({
     setIsUpdating(true);
     try {
       const consolidated = selected.map(p => p.technicalInstruction).join('\n');
-      const updatedData = await recipesBackend.generateRecipeFromPrompt(
-        consolidated,
-        recipe,
-        messages
-      );
+      const updatedData = await generateRecipeFromPrompt(consolidated, {
+        currentRecipe: recipe,
+        history: messages,
+      });
       const summaryStr = selected.map(p => p.description).join('; ');
       const summaryText = summaryStr || 'Applied agreed changes';
       const historyEntry = createHistoryEntry(

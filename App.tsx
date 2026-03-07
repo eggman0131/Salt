@@ -14,10 +14,12 @@ import { debugLogger } from '@/shared/backend/debug-logger';
 // Feature Modules
 import { InventoryModule } from './modules/inventory';
 import { inventoryBackend } from './modules/inventory';
-import { RecipesModule } from './modules/recipes';
-import { recipesBackend } from './modules/recipes';
+import {
+  AIModule as RecipesAIModule,
+  getRecipes as getRecipesNew,
+  RecipesModule,
+} from './modules_new/recipes';
 import { AdminModule } from './modules/admin';
-import { AIModule } from './modules/ai';
 import { PlannerModule } from './modules/planner';
 import { plannerBackend } from './modules/planner';
 import { ShoppingListModule } from './modules/shopping';
@@ -71,7 +73,7 @@ const App: React.FC = () => {
     const nextWeekStr = getLocalDateString(nextWeekDate);
 
     const [r, i, u, p, nextP] = await Promise.all([
-      recipesBackend.getRecipes(),
+      getRecipesNew(),
       inventoryBackend.getInventory(),
       systemBackend.getUsers(),
       plannerBackend.getPlanIncludingDate(today),
@@ -306,7 +308,7 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'ai' && (
-          <AIModule 
+          <RecipesAIModule
             key={`ai-${resetKey}`}
             initialUserMessage={aiInitialMessage} 
             onRecipeGenerated={() => { 
