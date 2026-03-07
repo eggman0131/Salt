@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChefHat, BookOpen, ArrowRight } from 'lucide-react';
 import { User, Recipe, Plan, DayPlan } from '@/types/contract';
 import { cn } from '@/lib/utils';
-import { recipesBackend } from '@/modules/recipes/backend';
+import { resolveImagePath } from '@/modules_new/recipes';
 
 interface DashboardProps {
   user: User;
@@ -45,7 +45,7 @@ const RecipeImage: React.FC<{ imagePath: string; title: string }> = ({ imagePath
     setIsLoading(true);
     setImageSrc('');
 
-    recipesBackend.resolveImagePath(imagePath)
+    resolveImagePath(imagePath)
       .then(async (url) => {
         if (!url) {
           setImageSrc('');
