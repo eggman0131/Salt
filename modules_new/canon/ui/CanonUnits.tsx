@@ -23,7 +23,7 @@ import {
   sortUnits,
   groupUnitsByCategory,
   type CanonItem,
-} from '../../api';
+} from '../api';
 import type { Unit } from '../../../../types/contract';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

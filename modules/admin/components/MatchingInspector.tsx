@@ -20,8 +20,8 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2, RefreshCcw, Filter, ChevronRight, CheckCircle2, XCircle, AlertCircle, X, Search, BarChart3, TrendingUp } from 'lucide-react';
 import { MatchingEvent } from '../../../types/contract';
-import { canonBackend } from '../../canon';
-import { recipesBackend } from '../../recipes/backend';
+import { getMatchEvents } from '../../../modules_new/canon/api';
+import { getRecipe } from '../../../modules_new/recipes/api';
 import { softToast } from '@/lib/soft-toast';
 
 /**
@@ -44,7 +44,7 @@ export const MatchingInspector: React.FC = () => {
   const loadEvents = async () => {
     setIsLoading(true);
     try {
-      const allEvents = await canonBackend.getMatchingEvents({ limit: 100 });
+      const allEvents = await getMatchEvents({ limit: 100 }) as unknown as MatchingEvent[];
       setEvents(allEvents);
       
       // Load recipe titles for all unique recipeIds
@@ -53,7 +53,7 @@ export const MatchingInspector: React.FC = () => {
       
       for (const recipeId of uniqueRecipeIds) {
         try {
-          const recipe = await recipesBackend.getRecipe(recipeId);
+          const recipe = await getRecipe(recipeId);
           names[recipeId] = recipe.title;
         } catch (err) {
           names[recipeId] = `Recipe ${recipeId.substring(0, 8)}...`;

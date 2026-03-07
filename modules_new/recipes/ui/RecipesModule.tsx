@@ -16,7 +16,7 @@ import { softToast } from '../../../lib/soft-toast';
 import { RecipesList } from './RecipesList';
 import { RecipeDetailView } from './RecipeDetailView';
 import { RepairRecipeModal } from './RepairRecipeModal';
-import { assistModeBackend } from '../../../modules/assist-mode';
+import { getAllCookGuides } from '../../../modules_new/assist-mode/api';
 
 /**
  * Transitional Recipes tab implementation inside modules_new.
@@ -45,7 +45,7 @@ export const RecipesModule: React.FC = () => {
       const [recipesData, categoriesData, guidesData] = await Promise.all([
         getRecipes(),
         getCategoriesApi(),
-        assistModeBackend.getAllCookGuides(),
+        getAllCookGuides(),
       ]);
       setRecipes(recipesData);
       setCategories(categoriesData.filter(c => c.isApproved));

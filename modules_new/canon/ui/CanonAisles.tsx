@@ -22,7 +22,7 @@ import {
   reorderAisles,
   sortAisles,
   UNCATEGORISED_AISLE_ID,
-} from '../../api';
+} from '../api';
 import type { Aisle } from '../../../../types/contract';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

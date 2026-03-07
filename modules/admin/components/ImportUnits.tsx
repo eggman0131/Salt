@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload } from 'lucide-react';
-import { canonBackend } from '../../canon';
+import { seedCanonUnits } from '../../../modules_new/canon/api';
 import { softToast } from '@/lib/soft-toast';
 import unitsData from '../../../seed-data/units.json';
 
@@ -24,17 +24,11 @@ export const ImportUnits: React.FC = () => {
         description: `Setting up ${unitsToImport.length} cooking units...`,
       });
 
-      const result = await canonBackend.seedUnits(unitsToImport as any);
+      await seedCanonUnits(unitsToImport as any);
 
-      if (result.errors.length === 0) {
-        softToast.success('Cooking units seeded', {
-          description: `${result.unitsImported} new units added (${result.unitsSkipped} already existed)`,
-        });
-      } else {
-        softToast.warning('Units seeded with errors', {
-          description: `${result.unitsImported} added, ${result.unitsSkipped} skipped, ${result.errors.length} errors`,
-        });
-      }
+      softToast.success('Cooking units seeded', {
+        description: `${unitsToImport.length} units seeded`,
+      });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to seed units';
       console.error('Unit seeding failed:', err);

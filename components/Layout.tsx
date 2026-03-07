@@ -10,7 +10,6 @@ import {
   Lightbulb, 
   BookOpen, 
   Puzzle, 
-  ShoppingCart, 
   Database,
   Tag,
   Settings,
@@ -57,7 +56,6 @@ const menuItems: NavItem[] = [
   { label: 'Chef', id: 'ai', icon: Lightbulb },
   { label: 'Recipes', id: 'recipes', icon: BookOpen },
   { label: 'Equipment', id: 'inventory', icon: Puzzle },
-  { label: 'Shopping', id: 'shopping', icon: ShoppingCart },
 ];
 
 const adminItem: NavItem = { label: 'Admin', id: 'admin', icon: Settings };
@@ -65,10 +63,9 @@ const adminItem: NavItem = { label: 'Admin', id: 'admin', icon: Settings };
 const AppSidebarContent: React.FC<{
   activeTab: string;
   onTabChange: (id: string) => void;
-  user: { displayName: string };
+  user: { displayName: string; avatarUrl?: string };
   onLogout: () => void;
-  suggestionsCount: number;
-}> = ({ activeTab, onTabChange, user, onLogout, suggestionsCount }) => {
+}> = ({ activeTab, onTabChange, user, onLogout }) => {
   const mode = getActiveBackendMode();
   const { theme, toggleTheme } = useTheme();
   const { setOpenMobile, isMobile } = useSidebar();
@@ -214,7 +211,6 @@ export const DashboardLayout: React.FC<LayoutProps> = ({
           onTabChange={onTabChange}
           user={user}
           onLogout={onLogout}
-          suggestionsCount={suggestionsCount}
         />
       </Sidebar>
       

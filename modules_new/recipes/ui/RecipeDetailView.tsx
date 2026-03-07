@@ -26,7 +26,7 @@ import { CategoryPicker } from './CategoryPicker';
 import { RecipeChefChat } from './RecipeChefChat';
 import { RecipeHistoryDialog } from './RecipeHistoryDialog';
 import { CookTab } from './CookTab';
-import { CookModeModule } from '../../../modules/assist-mode';
+import { CookModeModule } from '../../../modules_new/assist-mode/api';
 import { ImageEditor } from '../../../shared/components/ImageEditor';
 import { softToast } from '../../../lib/soft-toast';
 import { systemBackend } from '../../../shared/backend/system-backend';

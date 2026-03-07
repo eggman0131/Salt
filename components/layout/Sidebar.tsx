@@ -12,7 +12,6 @@ import {
   Lightbulb,
   BookOpen,
   Puzzle,
-  ShoppingCart,
   Settings,
   Moon,
   Sun,
@@ -38,7 +37,6 @@ export interface SidebarProps {
 const menuItems: NavItem[] = [
   { label: 'Home', id: 'dashboard', icon: Home },
   { label: 'Planner', id: 'planner', icon: Calendar },
-  { label: 'Shopping', id: 'shopping', icon: ShoppingCart },
   { label: 'Recipes', id: 'recipes', icon: BookOpen },
   { label: 'Chef', id: 'ai', icon: Lightbulb },
   { label: 'Equipment', id: 'inventory', icon: Puzzle },

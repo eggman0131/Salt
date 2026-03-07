@@ -9,7 +9,6 @@ import { Loader2, Play, RefreshCcw, Check, X, ChevronDown, ChevronUp, Save, Down
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { IngredientParsingLog } from '../../../types/contract';
-import { canonBackend } from '../../canon';
 import { softToast } from '@/lib/soft-toast';
 import { db } from '../../../shared/backend/firebase';
 import { collection, query, orderBy, limit, getDocs, updateDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -72,9 +71,9 @@ export const IngredientParserTester: React.FC = () => {
 
     setIsLoading(true);
     try {
-      for (const ingredient of lines) {
-        await canonBackend.testParseIngredient(ingredient);
-      }
+      // testParseIngredient was removed during canon migration — pending admin module migration
+      softToast.error('Unavailable', { description: 'Ingredient parser test is unavailable until admin module migration is complete.' });
+      return;
       softToast.success('All ingredients tested', {
         description: `Processed ${lines.length} ingredients`,
       });

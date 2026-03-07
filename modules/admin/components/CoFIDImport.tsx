@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload, Download } from 'lucide-react';
-import { canonBackend } from '../../canon';
+import { seedCofidItems } from '../../../modules_new/canon/api';
 import { softToast } from '@/lib/soft-toast';
 import { exportCofidBackup, importCofidBackup, CofidBackupData } from '../backend';
 
@@ -123,16 +123,16 @@ export const CoFIDImport: React.FC = () => {
         description: `Processing ${data.length} items with embedding...`,
       });
 
-      const result = await canonBackend.importCoFIDData(data);
+      const result = await seedCofidItems(data);
 
       if (result.errors.length > 0) {
         softToast.warning('Import completed with errors', {
-          description: `${result.itemsImported} items imported, ${result.errors.length} errors occurred`,
+          description: `${result.imported} items imported, ${result.errors.length} errors occurred`,
         });
         console.error('CoFID import errors:', result.errors);
       } else {
         softToast.success('CoFID data imported', {
-          description: `Successfully imported and embedded ${result.itemsImported} items`,
+          description: `Successfully imported and embedded ${result.imported} items`,
         });
       }
     } catch (err) {

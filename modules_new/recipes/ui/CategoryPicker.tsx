@@ -65,7 +65,7 @@ export function CategoryPicker({
             )}
           </div>
 
-          <ScrollArea className="h-[300px]">
+          <ScrollArea className="h-75">
             <div className="flex flex-wrap gap-2">
               {filteredCategories.map(category => {
                 const isSelected = selectedCategoryIds.includes(category.id);
