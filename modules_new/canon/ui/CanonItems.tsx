@@ -1,7 +1,7 @@
 /**
- * Canon Items Admin — Full CRUD interface with approval workflow
+ * Canon Items — Full CRUD interface with approval workflow
  *
- * Administrative tools for managing canonical items:
+ * Manage canonical items:
  * - List all items with filtering
  * - Create new items
  * - Edit existing items (inline or modal)
@@ -72,7 +72,7 @@ import { Page, Section, Stack } from '@/shared/components/primitives';
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export const CanonItemsAdmin: React.FC = () => {
+export const CanonItems: React.FC = () => {
   const { refreshTrigger } = useAdminRefresh();
   const [searchTerm, setSearchTerm] = useState('');
   const [items, setItems] = useState<CanonItem[]>([]);

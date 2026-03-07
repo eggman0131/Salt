@@ -3,9 +3,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { RefreshContext } from '@/shared/providers';
-import { CanonItemsAdmin } from './admin/CanonItemsAdmin';
-import { CanonAislesAdmin } from './admin/CanonAislesAdmin';
-import { CanonUnitsAdmin } from './admin/CanonUnitsAdmin';
+import { CanonItems } from './CanonItems';
+import { CanonAisles } from './CanonAisles';
+import { CanonUnits } from './CanonUnits';
 
 /**
  * Dedicated Canon workspace for day-to-day canon catalogue management.
@@ -61,15 +61,15 @@ export const CanonItemsWorkspace: React.FC = () => {
           </TabsList>
 
           <TabsContent value="items" className="mt-6">
-            <CanonItemsAdmin />
+            <CanonItems />
           </TabsContent>
 
           <TabsContent value="aisles" className="mt-6">
-            <CanonAislesAdmin />
+            <CanonAisles />
           </TabsContent>
 
           <TabsContent value="units" className="mt-6">
-            <CanonUnitsAdmin />
+            <CanonUnits />
           </TabsContent>
         </Tabs>
       </div>

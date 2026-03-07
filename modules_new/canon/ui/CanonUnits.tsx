@@ -1,7 +1,7 @@
 /**
- * Canon Units Admin — Full CRUD interface with category grouping
+ * Canon Units — Full CRUD interface with category grouping
  *
- * Administrative tools for managing canonical units:
+ * Manage canonical units:
  * - List all units grouped by category (weight, volume, count, colloquial)
  * - Create new units with category selection
  * - Edit existing units (name, plural form, category)
@@ -87,7 +87,7 @@ const UNIT_CATEGORIES: Record<UnitCategory, { label: string; description: string
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export const CanonUnitsAdmin: React.FC = () => {
+export const CanonUnits: React.FC = () => {
   const { refreshTrigger } = useAdminRefresh();
   const [searchTerm, setSearchTerm] = useState('');
   const [units, setUnits] = useState<Unit[]>([]);

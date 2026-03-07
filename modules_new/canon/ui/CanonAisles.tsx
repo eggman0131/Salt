@@ -1,7 +1,7 @@
 /**
- * Canon Aisles Admin — Full CRUD interface with drag-and-drop reordering
+ * Canon Aisles — Full CRUD interface with drag-and-drop reordering
  *
- * Administrative tools for managing canonical aisles:
+ * Manage canonical aisles:
  * - List all aisles with sortOrder display
  * - Create new aisles
  * - Edit existing aisles (inline or modal)
@@ -70,7 +70,7 @@ import { CSS } from '@dnd-kit/utilities';
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export const CanonAislesAdmin: React.FC = () => {
+export const CanonAisles: React.FC = () => {
   const { refreshTrigger } = useAdminRefresh();
   const [searchTerm, setSearchTerm] = useState('');
   const [aisles, setAisles] = useState<Aisle[]>([]);
