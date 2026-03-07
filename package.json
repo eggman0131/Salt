@@ -22,6 +22,7 @@
     "arch:eslint": "eslint \"modules/**/*.{ts,tsx}\" \"modules_new/**/*.{ts,tsx}\" \"types/**/*.ts\"",
     "arch:deps": "depcruise --config .dependency-cruiser.cjs modules_new types",
     "arch:rules": "node scripts/check-architecture.mjs",
+    "arch:typecheck": "tsc --noEmit",
     "arch:check": "npm run arch:eslint && npm run arch:deps && npm run arch:rules",
     "update-contract-snapshot": "node scripts/update-contract-snapshot.mjs",
     "deploy": "npm run build:prod && firebase deploy --only hosting"
