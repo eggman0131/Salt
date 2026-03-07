@@ -17,7 +17,7 @@ import ReactMarkdown from 'react-markdown';
 import type { Recipe } from '@/types/contract';
 import { chatWithRecipe, generateRecipeFromPrompt, summarizeAgreedRecipe } from '../api';
 import { softToast } from '@/lib/soft-toast';
-import { createHistoryEntry } from '../logic/recipe-updates';
+import { createHistoryEntry } from '../api';
 
 interface Message {
   role: 'user' | 'ai';
