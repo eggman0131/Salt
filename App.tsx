@@ -12,8 +12,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { debugLogger } from '@/shared/backend/debug-logger';
 
 // Feature Modules
-import { InventoryModule } from './modules/inventory';
-import { inventoryBackend } from './modules/inventory';
+import { InventoryModule, getInventory } from './modules_new/inventory';
 import {
   AIModule as RecipesAIModule,
   getRecipes as getRecipesNew,
@@ -74,7 +73,7 @@ const App: React.FC = () => {
 
     const [r, i, u, p, nextP] = await Promise.all([
       getRecipesNew(),
-      inventoryBackend.getInventory(),
+      getInventory(),
       systemBackend.getUsers(),
       plannerBackend.getPlanIncludingDate(today),
       plannerBackend.getPlanIncludingDate(nextWeekStr)

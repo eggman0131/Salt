@@ -29,7 +29,7 @@ import { RecipeIngredientsInput } from './RecipeIngredientsInput';
 import { RecipeEquipmentInput } from './RecipeEquipmentInput';
 import { RecipeInstructionsInput } from './RecipeInstructionsInput';
 import { v4 as uuidv4 } from 'uuid';
-import { inventoryBackend } from '../../../modules/inventory';
+import { getInventory } from '../../../modules_new/inventory';
 import { getCanonUnits } from '../../../modules_new/canon/api';
 
 interface RecipeFormDialogProps {
@@ -143,7 +143,7 @@ export function RecipeFormDialog({
     const loadData = async () => {
       try {
         const [equipment, unitsData] = await Promise.all([
-          inventoryBackend.getInventory(),
+          getInventory(),
           getCanonUnits()
         ]);
         setAvailableEquipment(equipment);
