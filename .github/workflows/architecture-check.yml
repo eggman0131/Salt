@@ -22,5 +22,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run architecture checks
-        run: npm run arch:check
+      - name: ESLint
+        run: npm run arch:eslint
+
+      - name: Dependency graph (depcruise)
+        run: npm run arch:deps
+
+      - name: Module boundary rules
+        run: npm run arch:rules
+
+      - name: TypeScript type check
+        run: npm run arch:typecheck
+
+      - name: Unit tests
+        run: npm run test:run
