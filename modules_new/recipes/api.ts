@@ -139,6 +139,8 @@ export const recipesApi = {
   importRecipeFromUrl,
 };
 
+export { buildManualEditSummary, createHistoryEntry } from './logic/recipe-updates';
+
 export type {
   CreateRecipeInput,
   RecipeConversationTurn,
