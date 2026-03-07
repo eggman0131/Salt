@@ -48,7 +48,7 @@ export function RecipeInstructionsInput({
               value={instruction}
               onChange={(e) => onChangeInstruction(index, e.target.value)}
               placeholder="Describe this step..."
-              className="min-h-[80px]"
+              className="min-h-20"
             />
           </div>
         ))}
