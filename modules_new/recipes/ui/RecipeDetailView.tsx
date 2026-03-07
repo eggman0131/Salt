@@ -30,7 +30,7 @@ import { CookModeModule } from '../../../modules/assist-mode';
 import { ImageEditor } from '../../../shared/components/ImageEditor';
 import { softToast } from '../../../lib/soft-toast';
 import { systemBackend } from '../../../shared/backend/system-backend';
-import { buildManualEditSummary, createHistoryEntry } from '../logic/recipe-updates';
+import { buildManualEditSummary, createHistoryEntry } from '../api';
 import {
   AlertDialog,
   AlertDialogAction,
