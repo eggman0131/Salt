@@ -25,6 +25,13 @@ export interface IngredientMatchResult {
   scoreGap: number; // Difference between top and second match
   reason: string;
   candidates: MatchCandidate[];
+  timingsMs: {
+    lexical: number;
+    semantic: number;
+    merge: number;
+    decision: number;
+    total: number;
+  };
 }
 
 export interface MatchCandidate {
@@ -219,20 +226,32 @@ export function matchIngredientToCanonItem(
   queryEmbedding?: number[],
   aisleId?: string
 ): IngredientMatchResult {
+  const totalStart = performance.now();
+
   // Stage 1: Fuzzy matching
+  const lexicalStart = performance.now();
   const fuzzyCandidates = tryFuzzyMatching(ingredientName, canonItems, aisleId);
+  const lexicalDuration = performance.now() - lexicalStart;
 
   // Stage 2: Semantic matching (if embeddings available)
   let semanticCandidates: MatchCandidate[] = [];
+  const semanticStart = performance.now();
   if (embeddingLookup && queryEmbedding) {
     semanticCandidates = trySemanticMatching(queryEmbedding, embeddingLookup, aisleId);
   }
+  const semanticDuration = performance.now() - semanticStart;
 
   // Merge candidates
+  const mergeStart = performance.now();
   const allCandidates = mergeAndRankCandidates(fuzzyCandidates, semanticCandidates);
+  const mergeDuration = performance.now() - mergeStart;
+
+  const decisionStart = performance.now();
 
   // No candidates found
   if (allCandidates.length === 0) {
+    const decisionDuration = performance.now() - decisionStart;
+    const totalDuration = performance.now() - totalStart;
     return {
       decision: 'create_new_canon',
       matchedSource: 'unlinked',
@@ -241,6 +260,13 @@ export function matchIngredientToCanonItem(
       scoreGap: 0,
       reason: 'No matching canon items found',
       candidates: [],
+      timingsMs: {
+        lexical: lexicalDuration,
+        semantic: semanticDuration,
+        merge: mergeDuration,
+        decision: decisionDuration,
+        total: totalDuration,
+      },
     };
   }
 
@@ -253,6 +279,8 @@ export function matchIngredientToCanonItem(
   const autoLink = shouldAutoLink(allCandidates);
 
   if (autoLink) {
+    const decisionDuration = performance.now() - decisionStart;
+    const totalDuration = performance.now() - totalStart;
     return {
       decision: 'use_existing_canon',
       canonItemId: allCandidates[0].canonItemId,
@@ -263,8 +291,17 @@ export function matchIngredientToCanonItem(
       scoreGap,
       reason: `Auto-linked: ${allCandidates[0].reason} (gap: ${(scoreGap * 100).toFixed(0)}%)`,
       candidates: allCandidates,
+      timingsMs: {
+        lexical: lexicalDuration,
+        semantic: semanticDuration,
+        merge: mergeDuration,
+        decision: decisionDuration,
+        total: totalDuration,
+      },
     };
   } else {
+    const decisionDuration = performance.now() - decisionStart;
+    const totalDuration = performance.now() - totalStart;
     return {
       decision: 'create_new_canon',
       matchedSource: 'unlinked',
@@ -273,6 +310,13 @@ export function matchIngredientToCanonItem(
       scoreGap,
       reason: `Match ambiguous (top: ${(topScore * 100).toFixed(0)}%, gap: ${(scoreGap * 100).toFixed(0)}%) — creating pending item`,
       candidates: allCandidates,
+      timingsMs: {
+        lexical: lexicalDuration,
+        semantic: semanticDuration,
+        merge: mergeDuration,
+        decision: decisionDuration,
+        total: totalDuration,
+      },
     };
   }
 }

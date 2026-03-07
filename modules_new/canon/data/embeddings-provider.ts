@@ -8,13 +8,14 @@
 
 import {
   collection,
+  doc,
+  getDoc,
   getDocs,
   query,
   where,
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL, getMetadata } from 'firebase/storage';
-import { httpsCallable } from 'firebase/functions';
-import { db, functions, auth, storage } from '../../../shared/backend/firebase';
+import { db, auth, storage } from '../../../shared/backend/firebase';
 import type { CanonEmbeddingLookup } from '../../../types/contract';
 import type { CanonItem } from '../logic/items';
 import { validateEmbedding } from '../logic/embeddings';
@@ -50,6 +51,18 @@ interface EmbedBatchResponse {
   embeddings: number[][];
   model: string;
   dimension: number;
+}
+
+interface EmbedBatchHttpResult {
+  id: string;
+  embedding: number[];
+  modelVersion: string;
+}
+
+interface EmbedBatchHttpResponse {
+  results?: EmbedBatchHttpResult[];
+  failures?: Array<{ id: string; error: string }>;
+  error?: string;
 }
 
 interface Aisle {
@@ -307,6 +320,28 @@ async function syncFromMasterIfNeeded(force: boolean = false): Promise<void> {
 async function publishLocalToMaster(): Promise<void> {
   const allLocalEmbeddings = await readEmbeddings();
   await publishMasterEmbeddings(allLocalEmbeddings);
+}
+
+function normaliseEmbeddingName(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function pickReusableEmbeddingByName(
+  entries: CanonEmbeddingLookup[],
+  name: string
+): CanonEmbeddingLookup | null {
+  const target = normaliseEmbeddingName(name);
+  if (!target) return null;
+
+  const exactCanon = entries.find(
+    entry => entry.kind === 'canon' && normaliseEmbeddingName(entry.name) === target
+  );
+
+  if (exactCanon) {
+    return exactCanon;
+  }
+
+  return entries.find(entry => normaliseEmbeddingName(entry.name) === target) ?? null;
 }
 
 // ── Fetch Operations ─────────────────────────────────────────────────────────
@@ -587,21 +622,71 @@ async function callEmbedBatch(
 
     const idToken = await user.getIdToken(true);
 
-    // Call the Cloud Function
-    const callable = httpsCallable<
-      { idToken: string; texts: string[]; model?: string },
-      EmbedBatchResponse
-    >(functions, 'embedBatch');
+    const projectId = 'gen-lang-client-0015061880';
+    const region = 'europe-west2';
+    const host = typeof location !== 'undefined' ? location.hostname : '';
 
-    const result = await callable({
-      idToken,
-      texts,
-      model,
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const isCloudIDE = host.endsWith('.cloudworkstations.dev');
+
+    const endpoint = isLocalhost
+      ? `http://localhost:5001/${projectId}/${region}/embedBatch`
+      : isCloudIDE
+        ? `${location.origin}/${projectId}/${region}/embedBatch`
+        : `https://${region}-${projectId}.cloudfunctions.net/embedBatch`;
+
+    const items = texts.map((text, index) => ({
+      id: `item-${index}`,
+      text,
+    }));
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        idToken,
+        items,
+        model,
+      }),
     });
+
+    const payload = (await response.json()) as EmbedBatchHttpResponse;
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: payload.error || `embedBatch failed with HTTP ${response.status}`,
+      };
+    }
+
+    const resultMap = new Map<string, EmbedBatchHttpResult>();
+    for (const item of payload.results ?? []) {
+      resultMap.set(item.id, item);
+    }
+
+    const embeddings = items
+      .map(item => resultMap.get(item.id)?.embedding)
+      .filter((embedding): embedding is number[] => Array.isArray(embedding));
+
+    if (embeddings.length !== items.length) {
+      return {
+        success: false,
+        error: `Embedding count mismatch: expected ${items.length}, got ${embeddings.length}`,
+      };
+    }
+
+    const modelVersion = payload.results?.[0]?.modelVersion || model;
+    const dimension = embeddings[0]?.length ?? 0;
 
     return {
       success: true,
-      data: result.data,
+      data: {
+        embeddings,
+        model: modelVersion,
+        dimension,
+      },
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -610,6 +695,125 @@ async function callEmbedBatch(
       error: `Cloud Function error: ${message}`,
     };
   }
+}
+
+/**
+ * Generate a single embedding vector for a text query.
+ * Reuses the embedBatch Cloud Function for consistency with bulk generation.
+ */
+export async function generateTextEmbedding(
+  text: string,
+  model: string = 'text-embedding-005'
+): Promise<number[] | null> {
+  const cleaned = text.trim();
+  if (!cleaned) return null;
+
+  const result = await callEmbedBatch([cleaned], model);
+  if (!result.success || !result.data || result.data.embeddings.length === 0) {
+    return null;
+  }
+
+  return result.data.embeddings[0] ?? null;
+}
+
+/**
+ * Upsert a single canon item embedding into local lookup and publish to master snapshot.
+ * Reuses an existing embedding from lookup when an identical name already exists.
+ */
+export async function upsertCanonItemEmbedding(input: {
+  id: string;
+  name: string;
+  aisleId: string;
+}): Promise<{ success: boolean; reused: boolean; message?: string }> {
+  const name = input.name.trim();
+  if (!name) {
+    return {
+      success: false,
+      reused: false,
+      message: 'Cannot embed empty canon item name',
+    };
+  }
+
+  await syncFromMasterIfNeeded();
+
+  const aisleEntries = await readEmbeddings(input.aisleId);
+  const reusable = pickReusableEmbeddingByName(aisleEntries, name);
+
+  let embedding: number[] | null = null;
+  let embeddingModel = 'text-embedding-005';
+  let reused = false;
+
+  if (reusable?.embedding?.length) {
+    embedding = reusable.embedding;
+    embeddingModel = reusable.embeddingModel;
+    reused = true;
+  } else {
+    embedding = await generateTextEmbedding(name, embeddingModel);
+  }
+
+  if (!embedding || embedding.length === 0) {
+    return {
+      success: false,
+      reused,
+      message: `Failed to generate embedding for canon item ${input.id}`,
+    };
+  }
+
+  const entry: CanonEmbeddingLookup = {
+    id: input.id,
+    kind: 'canon',
+    refId: input.id,
+    name,
+    aisleId: input.aisleId,
+    embedding,
+    embeddingModel,
+    embeddingDim: embedding.length,
+    createdAt: new Date().toISOString(),
+  };
+
+  await upsertEmbeddings([entry]);
+  await publishLocalToMaster();
+
+  return {
+    success: true,
+    reused,
+    message: reused
+      ? `Reused existing embedding for canon item ${input.id}`
+      : `Generated embedding for canon item ${input.id}`,
+  };
+}
+
+/**
+ * Resolve a single canon item from Firestore and upsert embedding in the lookup table.
+ */
+export async function upsertCanonItemEmbeddingById(
+  canonItemId: string
+): Promise<{ success: boolean; reused: boolean; message?: string }> {
+  const docRef = doc(db, CANON_ITEMS_COLLECTION, canonItemId);
+  const snap = await getDoc(docRef);
+
+  if (!snap.exists()) {
+    return {
+      success: false,
+      reused: false,
+      message: `Canon item not found: ${canonItemId}`,
+    };
+  }
+
+  const data = snap.data() as Partial<CanonItem>;
+  if (!data.name || !data.aisleId) {
+    return {
+      success: false,
+      reused: false,
+      message: `Canon item missing required fields: ${canonItemId}`,
+    };
+  }
+
+  return upsertCanonItemEmbedding({
+    id: canonItemId,
+    name: data.name,
+    aisleId: data.aisleId,
+  });
 }
 
 /**

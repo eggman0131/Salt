@@ -9,6 +9,12 @@ import React, { useEffect, useState, Suspense, useCallback } from 'react';
 import { loadAllManifests, type AdminManifest, type AdminTool } from '../api';
 import { RefreshContext } from '@/shared/providers';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -128,9 +134,23 @@ export const AdminDashboard: React.FC = () => {
 
         {manifests.map(manifest => (
           <TabsContent key={manifest.module} value={manifest.module} className="space-y-6">
-            {manifest.tools.map(tool => (
-              <DynamicToolRenderer key={tool.id} tool={tool} />
-            ))}
+            <Accordion type="multiple" className="space-y-4">
+              {manifest.tools.map(tool => (
+                <AccordionItem key={tool.id} value={tool.id} className="rounded-lg border px-4">
+                  <AccordionTrigger className="text-left">
+                    <div className="flex flex-col items-start gap-1 pr-4">
+                      <span className="font-medium text-foreground">{tool.label}</span>
+                      <span className="text-xs text-muted-foreground">{tool.description}</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="pt-2">
+                      <DynamicToolRenderer tool={tool} />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </TabsContent>
         ))}
       </Tabs>

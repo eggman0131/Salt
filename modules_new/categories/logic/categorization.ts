@@ -8,40 +8,44 @@
 import { Recipe, RecipeCategory } from '../../../types/contract';
 
 /**
- * Build AI prompt for recipe categorization
+ * Build AI prompt for recipe categorization (user message only)
+ * Categories are provided via system instruction
  * Pure function that creates the prompt text without side effects
  */
-export function buildCategorizationPrompt(
-  recipe: Recipe,
+export function buildCategorizationPrompt(recipe: Recipe): string {
+  const ingredientsList = extractIngredientNames(recipe).slice(0, 10).join(', ');
+
+  return `Title: ${recipe.title}
+Description: ${recipe.description || 'N/A'}
+Ingredients: ${ingredientsList || 'N/A'}
+Complexity: ${recipe.complexity || 'N/A'}`;
+}
+
+/**
+ * Build system instruction with available categories
+ * Pure function
+ */
+export function buildCategorizationSystemInstruction(
   existingCategories: RecipeCategory[]
 ): string {
   const approvedCategories = existingCategories
     .filter(c => c.isApproved)
-    .map(c => `${c.name}${c.synonyms && c.synonyms.length > 0 ? ` (${c.synonyms.join(', ')})` : ''}`)
+    .map(c => `${c.id}: ${c.name}${c.synonyms && c.synonyms.length > 0 ? ` (${c.synonyms.join(', ')})` : ''}`)
     .join('\n');
 
-  const ingredientsList = extractIngredientNames(recipe).slice(0, 10).join(', ');
-
-  return `Analyse this recipe and suggest appropriate categories.
-
-RECIPE:
-Title: ${recipe.title}
-Description: ${recipe.description || 'N/A'}
-Ingredients: ${ingredientsList || 'N/A'}
-Complexity: ${recipe.complexity || 'N/A'}
-
-EXISTING CATEGORIES:
-${approvedCategories || 'None yet'}
-
-RULES:
-- Return category IDs that match existing categories
-- If a perfect match exists, use it
-- Consider: meal type (breakfast/lunch/dinner), cuisine, dietary restrictions, cooking method
-- Only return categories that truly fit this recipe
-- Return empty array if no good matches
-- Never invent new categories
-
-Return JSON array of category IDs: ["cat-id-1", "cat-id-2"]`;
+  return [
+    'You are the Head Chef categorizing recipes. Match recipes to existing categories.',
+    '',
+    'Available categories:',
+    approvedCategories || 'None yet',
+    '',
+    'Rules:',
+    '- Return ONLY category IDs that match this recipe',
+    '- Consider: meal type, cuisine, dietary restrictions, cooking method',
+    '- Only return IDs for true matches',
+    '- Never invent new categories',
+    '- Return empty array if no good matches'
+  ].join('\n');
 }
 
 /**
