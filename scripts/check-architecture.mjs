@@ -101,12 +101,17 @@ for (const file of files) {
 
     const targetRel = rel(resolved);
 
+    // UI layer can import from:
+    // 1. Its own module's api.ts
+    // 2. Other UI components in the same module (for composition)
+    // But NOT from logic or data layers
     if (
       importer.layer === 'ui' &&
       targetInfo.module === importer.module &&
+      (targetInfo.layer === 'logic' || targetInfo.layer === 'data') &&
       !isOwnModuleApiImport(importer, targetInfo, targetRel, specifier)
     ) {
-      addViolation(file, specifier, 'ui layer must import only from its module api.ts');
+      addViolation(file, specifier, `ui layer must not import ${targetInfo.layer} layer directly (use api.ts)`);
     }
 
     if (importer.layer === 'logic' && targetInfo.module === importer.module && targetInfo.layer === 'data') {
