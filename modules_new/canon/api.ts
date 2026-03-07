@@ -7,7 +7,7 @@
  * Rule: UI imports ONLY from this file.
  */
 
-import { Aisle, Unit } from '../../types/contract';
+import { Aisle, Unit, CoFIDGroupAisleMapping, CanonMatchEvent } from '../../types/contract';
 import {
   fetchCanonAisles,
   fetchCanonUnits,
@@ -16,13 +16,31 @@ import {
   createCanonItem,
   updateCanonItem,
   approveCanonItem,
+  deleteCanonItem,
+  deleteAllCanonItems,
   seedAisles,
   seedUnits,
   fetchCofidItemById,
   linkCofidMatchToCanonItem,
   unlinkCofidMatchFromCanonItem,
   suggestCofidForCanonItem,
+  createCanonAisle,
+  updateCanonAisle,
+  deleteCanonAisle,
+  reorderCanonAisles,
+  createCanonUnit,
+  updateCanonUnit,
+  deleteCanonUnit,
+  reorderCanonUnits,
+  fetchCofidMappings,
+  createCofidMapping,
+  updateCofidMapping,
+  deleteCofidMapping,
 } from './data/firebase-provider';
+import {
+  fetchMatchEvents,
+  getMatchPerformanceStats,
+} from './data/match-events-provider';
 import { CanonItem } from './logic/items';
 
 // ── Persistence-backed read helpers ──────────────────────────────────────────
@@ -82,6 +100,140 @@ export async function editCanonItem(
  */
 export async function approveItem(id: string): Promise<void> {
   return approveCanonItem(id);
+}
+
+/**
+ * Delete a single canon item.
+ * Note: Orphaned recipe references are handled gracefully by the system.
+ */
+export async function deleteItem(id: string): Promise<void> {
+  return deleteCanonItem(id);
+}
+
+/**
+ * Delete all canon items.
+ * Warning: This is a destructive operation.
+ */
+export async function deleteAllItems(): Promise<void> {
+  return deleteAllCanonItems();
+}
+
+// ── Canon Aisles CRUD ─────────────────────────────────────────────────────────
+
+/**
+ * Create a new canon aisle.
+ */
+export async function addCanonAisle(input: {
+  name: string;
+  sortOrder?: number;
+}): Promise<Aisle> {
+  return createCanonAisle(input);
+}
+
+/**
+ * Update an existing canon aisle.
+ */
+export async function editCanonAisle(
+  id: string,
+  updates: Partial<Pick<Aisle, 'name' | 'sortOrder'>>
+): Promise<void> {
+  return updateCanonAisle(id, updates);
+}
+
+/**
+ * Delete a canon aisle.
+ * Throws if aisle is in use by canon items.
+ */
+export async function removeCanonAisle(id: string): Promise<void> {
+  return deleteCanonAisle(id);
+}
+
+/**
+ * Reorder canon aisles (batch update sortOrder).
+ */
+export async function reorderAisles(
+  updates: Array<{ id: string; sortOrder: number }>
+): Promise<void> {
+  return reorderCanonAisles(updates);
+}
+
+// ── Canon Units CRUD ──────────────────────────────────────────────────────────
+
+/**
+ * Create a new canon unit.
+ */
+export async function addCanonUnit(input: {
+  name: string;
+  plural?: string | null;
+  category: 'weight' | 'volume' | 'count' | 'colloquial';
+  sortOrder?: number;
+}): Promise<Unit> {
+  return createCanonUnit(input);
+}
+
+/**
+ * Update an existing canon unit.
+ */
+export async function editCanonUnit(
+  id: string,
+  updates: Partial<Pick<Unit, 'name' | 'plural' | 'category' | 'sortOrder'>>
+): Promise<void> {
+  return updateCanonUnit(id, updates);
+}
+
+/**
+ * Delete a canon unit.
+ * Throws if unit is in use by canon items.
+ */
+export async function removeCanonUnit(id: string): Promise<void> {
+  return deleteCanonUnit(id);
+}
+
+/**
+ * Reorder canon units (batch update sortOrder).
+ */
+export async function reorderUnits(
+  updates: Array<{ id: string; sortOrder: number }>
+): Promise<void> {
+  return reorderCanonUnits(updates);
+}
+
+// ── CofID Group Aisle Mappings CRUD ───────────────────────────────────────────
+
+/**
+ * Get all CofID group aisle mappings.
+ */
+export async function getCofidMappings(): Promise<CoFIDGroupAisleMapping[]> {
+  return fetchCofidMappings();
+}
+
+/**
+ * Create a new CofID group aisle mapping.
+ */
+export async function addCofidMapping(input: {
+  cofidGroup: string;
+  cofidGroupName: string;
+  aisleId: string;
+  aisleName: string;
+}): Promise<CoFIDGroupAisleMapping> {
+  return createCofidMapping(input);
+}
+
+/**
+ * Update an existing CofID group aisle mapping.
+ */
+export async function editCofidMapping(
+  id: string,
+  updates: Partial<Pick<CoFIDGroupAisleMapping, 'cofidGroup' | 'cofidGroupName' | 'aisleId' | 'aisleName'>>
+): Promise<void> {
+  return updateCofidMapping(id, updates);
+}
+
+/**
+ * Delete a CofID group aisle mapping.
+ */
+export async function removeCofidMapping(id: string): Promise<void> {
+  return deleteCofidMapping(id);
 }
 
 // ── Pure logic helpers (re-exported for convenience) ─────────────────────────
@@ -151,7 +303,7 @@ export async function suggestCofidMatch(canonItemId: string) {
 
 /**
  * Link a CofID match to a canon item.
- * Updates the canon item with cofidId and cofidMatch metadata.
+ * Stores the link in externalSources with source-specific metadata.
  */
 export async function linkCofidMatch(
   canonItemId: string,
@@ -163,7 +315,7 @@ export async function linkCofidMatch(
 
 /**
  * Unlink CofID match from a canon item.
- * Removes cofidId, cofidMatch, and nutrients fields.
+ * Removes the cofid external source entry.
  */
 export async function unlinkCofidMatch(canonItemId: string): Promise<void> {
   return unlinkCofidMatchFromCanonItem(canonItemId);
@@ -320,6 +472,39 @@ export {
   type IngredientMatchResult,
   type MatchCandidate,
 } from './logic/matchIngredient';
+
+// ── Match Events & Performance Monitoring ─────────────────────────────────────
+
+/**
+ * Fetch match events with optional filters.
+ * Used by the admin UI for performance analysis.
+ */
+export async function getMatchEvents(options: {
+  entityId?: string;
+  eventType?: CanonMatchEvent['eventType'];
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+} = {}): Promise<CanonMatchEvent[]> {
+  return fetchMatchEvents(options);
+}
+
+/**
+ * Get performance statistics for a given time period.
+ * Returns aggregated metrics for dashboard display.
+ */
+export async function getPerformanceStats(
+  startDate: Date,
+  endDate: Date
+): Promise<{
+  totalEvents: number;
+  eventsByType: Record<CanonMatchEvent['eventType'], number>;
+  avgDurationByType: Record<CanonMatchEvent['eventType'], number>;
+  successRate: number;
+  totalDuration: number;
+}> {
+  return getMatchPerformanceStats(startDate, endDate);
+}
 
 // ── Type re-exports ───────────────────────────────────────────────────────────
 

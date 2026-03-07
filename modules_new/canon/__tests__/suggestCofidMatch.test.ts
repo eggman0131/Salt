@@ -137,6 +137,23 @@ describe('CofID Match Suggestion', () => {
       const match = tryFuzzyMatch('Chicken', items[0], 0.95);
       expect(match).toBeNull(); // Too strict
     });
+
+    it('should match short contained terms like rice in basmati rice', () => {
+      const riceItem: CofIDItem = {
+        id: 'cofid_rice_001',
+        name: 'Basmati Rice',
+        group: 'AC',
+        embedding: [0, 0],
+        embeddingModel: 'text-embedding-005',
+        importedAt: '2026-03-04T00:00:00Z',
+        nutrients: {},
+      };
+
+      const match = tryFuzzyMatch('Rice', riceItem);
+      expect(match).not.toBeNull();
+      expect(match?.score).toBeGreaterThanOrEqual(0.8);
+      expect(match?.reason).toBe('Token containment match');
+    });
   });
 
   describe('suggestBestMatch', () => {
@@ -200,7 +217,13 @@ describe('CofID Match Suggestion', () => {
   describe('rankCandidates', () => {
     it('should rank exact matches highest', () => {
       const items = mockCofidItems();
-      const candidates = rankCandidates('Apple', items, {});
+      const mapping: Record<string, string> = {
+        cofid_001: 'meat-fish',
+        cofid_002: 'meat-fish',
+        cofid_003: 'produce',
+        cofid_004: 'produce',
+      };
+      const candidates = rankCandidates('Apple', 'produce', items, mapping);
       
       expect(candidates.length).toBeGreaterThan(0);
       expect(candidates[0].method).toBe('exact');
@@ -209,8 +232,14 @@ describe('CofID Match Suggestion', () => {
 
     it('should include fuzzy matches below exact', () => {
       const items = mockCofidItems();
+      const mapping: Record<string, string> = {
+        cofid_001: 'meat-fish',
+        cofid_002: 'meat-fish',
+        cofid_003: 'produce',
+        cofid_004: 'produce',
+      };
       // "chicken breasts" (plural) vs "Chicken Breast" - fuzzy match with 0.6 threshold
-      const candidates = rankCandidates('chicken breasts', items, {});
+      const candidates = rankCandidates('chicken breasts', 'meat-fish', items, mapping);
       
       // Should have at least one match for "Chicken Breast"  
       expect(candidates.length).toBeGreaterThanOrEqual(1);
@@ -221,17 +250,42 @@ describe('CofID Match Suggestion', () => {
 
     it('should respect limit', () => {
       const items = mockCofidItems();
-      const candidates = rankCandidates('Chicken', items, {}, 2);
+      const mapping: Record<string, string> = {
+        cofid_001: 'meat-fish',
+        cofid_002: 'meat-fish',
+        cofid_003: 'produce',
+        cofid_004: 'produce',
+      };
+      const candidates = rankCandidates('Chicken', 'meat-fish', items, mapping, 2);
       expect(candidates.length).toBeLessThanOrEqual(2);
     });
 
     it('should sort by score descending', () => {
       const items = mockCofidItems();
-      const candidates = rankCandidates('Chicken', items, {}, 10);
+      const mapping: Record<string, string> = {
+        cofid_001: 'meat-fish',
+        cofid_002: 'meat-fish',
+        cofid_003: 'produce',
+        cofid_004: 'produce',
+      };
+      const candidates = rankCandidates('Chicken', 'meat-fish', items, mapping, 10);
       
       for (let i = 1; i < candidates.length; i++) {
         expect(candidates[i].score).toBeLessThanOrEqual(candidates[i - 1].score);
       }
+    });
+
+    it('should only include candidates from the same aisle', () => {
+      const items = mockCofidItems();
+      const mapping: Record<string, string> = {
+        cofid_001: 'meat-fish',
+        cofid_002: 'meat-fish',
+        cofid_003: 'produce',
+        cofid_004: 'produce',
+      };
+
+      const candidates = rankCandidates('Apple', 'meat-fish', items, mapping, 10);
+      expect(candidates.length).toBe(0);
     });
   });
 
@@ -265,7 +319,7 @@ describe('CofID Match Suggestion', () => {
       expect(match.status).toBe('manual');
     });
 
-    it('should include candidates when provided', () => {
+    it('should not persist candidates in stored metadata', () => {
       const suggestedMatch = {
         cofidId: 'cofid_001',
         name: 'Chicken Breast',
@@ -274,10 +328,8 @@ describe('CofID Match Suggestion', () => {
         reason: 'Test match',
       };
 
-      const candidates = [suggestedMatch];
-      const match = buildCofidMatch(suggestedMatch, 'auto', candidates);
-      expect(match.candidates).toBeDefined();
-      expect(match.candidates?.length).toBe(1);
+      const match = buildCofidMatch(suggestedMatch, 'auto');
+      expect(match.candidates).toBeUndefined();
     });
   });
 });

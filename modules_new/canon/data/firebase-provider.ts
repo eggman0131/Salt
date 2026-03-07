@@ -19,15 +19,102 @@ import {
   Timestamp,
   setDoc,
   writeBatch,
+  deleteDoc,
 } from 'firebase/firestore';
-import { CanonItem } from '../logic/items';
+import { CanonItem, ExternalSourceLink } from '../logic/items';
 import { suggestBestMatch, rankCandidates, buildCofidMatch, type SuggestedMatch } from '../logic/suggestCofidMatch';
+import { findSemanticMatches } from '../logic/embeddings';
+import {
+  fetchEmbeddingsFromLookup,
+  generateTextEmbedding,
+  upsertCanonItemEmbedding,
+  upsertCanonItemEmbeddingById,
+} from './embeddings-provider';
+import {
+  logMatchEvent,
+  startTimer,
+} from './match-events-provider';
 
 const CANON_AISLES_COLLECTION = 'canonAisles';
 const CANON_UNITS_COLLECTION = 'canonUnits';
 const CANON_ITEMS_COLLECTION = 'canonItems';
 const CANON_COFID_ITEMS_COLLECTION = 'canonCofidItems';
 const COFID_GROUP_AISLE_MAPPINGS_COLLECTION = 'cofid_group_aisle_mappings';
+
+function getCofidSourceFromExternalSources(
+  externalSources?: ExternalSourceLink[]
+): ExternalSourceLink | undefined {
+  return externalSources?.find(source => source.source === 'cofid');
+}
+
+function withCofidSource(
+  existingSources: ExternalSourceLink[] | undefined,
+  cofidId: string,
+  propertiesPatch?: Record<string, unknown>
+): ExternalSourceLink[] {
+  const now = new Date().toISOString();
+  const current = existingSources ?? [];
+  const existing = current.find(source => source.source === 'cofid');
+  const mergedProperties = {
+    ...(existing?.properties ?? {}),
+    ...(propertiesPatch ?? {}),
+  };
+
+  const cofidSource: ExternalSourceLink = {
+    source: 'cofid',
+    externalId: cofidId,
+    ...(existing?.confidence !== undefined && { confidence: existing.confidence }),
+    ...(Object.keys(mergedProperties).length > 0 && { properties: mergedProperties }),
+    syncedAt: now,
+  };
+
+  const withoutCofid = current.filter(source => source.source !== 'cofid');
+  return [...withoutCofid, cofidSource];
+}
+
+function withoutCofidSource(existingSources: ExternalSourceLink[] | undefined): ExternalSourceLink[] {
+  return (existingSources ?? []).filter(source => source.source !== 'cofid');
+}
+
+function normaliseEmbeddingName(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function resolveQueryEmbeddingFromLookup(
+  itemName: string,
+  itemId: string,
+  lookupEntries: Array<{
+    kind: 'canon' | 'cofid';
+    refId: string;
+    name: string;
+    embedding: number[];
+  }>
+): number[] | null {
+  const target = normaliseEmbeddingName(itemName);
+  if (!target) return null;
+
+  const byId = lookupEntries.find(
+    entry =>
+      entry.kind === 'canon' &&
+      entry.refId === itemId &&
+      normaliseEmbeddingName(entry.name) === target &&
+      Array.isArray(entry.embedding) &&
+      entry.embedding.length > 0
+  );
+
+  if (byId) {
+    return byId.embedding;
+  }
+
+  const byName = lookupEntries.find(
+    entry =>
+      normaliseEmbeddingName(entry.name) === target &&
+      Array.isArray(entry.embedding) &&
+      entry.embedding.length > 0
+  );
+
+  return byName?.embedding ?? null;
+}
 
 /**
  * Fetch all canon aisles ordered by sortOrder.
@@ -79,6 +166,224 @@ export async function fetchCanonUnits(): Promise<Unit[]> {
   return units;
 }
 
+// ── Canon Units CRUD ──────────────────────────────────────────────────────────
+
+/**
+ * Create a new canon unit.
+ */
+export async function createCanonUnit(input: {
+  name: string;
+  plural?: string | null;
+  category: 'weight' | 'volume' | 'count' | 'colloquial';
+  sortOrder?: number;
+}): Promise<Unit> {
+  const now = new Date().toISOString();
+  const docRef = await addDoc(collection(db, CANON_UNITS_COLLECTION), {
+    name: input.name,
+    plural: input.plural ?? null,
+    category: input.category,
+    sortOrder: input.sortOrder ?? 999,
+    createdAt: now,
+  });
+
+  return {
+    id: docRef.id,
+    name: input.name,
+    plural: input.plural ?? null,
+    category: input.category,
+    sortOrder: input.sortOrder ?? 999,
+    createdAt: now,
+  };
+}
+
+/**
+ * Update an existing canon unit.
+ */
+export async function updateCanonUnit(
+  id: string,
+  updates: Partial<Pick<Unit, 'name' | 'plural' | 'category' | 'sortOrder'>>
+): Promise<void> {
+  const docRef = doc(db, CANON_UNITS_COLLECTION, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Delete a canon unit.
+ * Checks if any canon items reference this unit.
+ */
+export async function deleteCanonUnit(id: string): Promise<void> {
+  const docRef = doc(db, CANON_UNITS_COLLECTION, id);
+  
+  // Check if any canon items reference this unit
+  const itemsSnapshot = await getDocs(collection(db, CANON_ITEMS_COLLECTION));
+  const hasReferences = itemsSnapshot.docs.some(doc => doc.data().preferredUnitId === id);
+  
+  if (hasReferences) {
+    throw new Error(`Cannot delete unit: ${id} is in use by ${itemsSnapshot.docs.filter(doc => doc.data().preferredUnitId === id).length} canon items`);
+  }
+  
+  await deleteDoc(docRef);
+}
+
+/**
+ * Batch update sortOrder for multiple units.
+ * Used for drag-and-drop reordering within categories.
+ */
+export async function reorderCanonUnits(
+  updates: Array<{ id: string; sortOrder: number }>
+): Promise<void> {
+  const batch = writeBatch(db);
+  
+  updates.forEach(({ id, sortOrder }) => {
+    const docRef = doc(db, CANON_UNITS_COLLECTION, id);
+    batch.update(docRef, { sortOrder });
+  });
+  
+  await batch.commit();
+}
+
+// ── Canon Aisles CRUD ─────────────────────────────────────────────────────────
+
+/**
+ * Create a new canon aisle.
+ */
+export async function createCanonAisle(input: {
+  name: string;
+  sortOrder?: number;
+}): Promise<Aisle> {
+  const now = new Date().toISOString();
+  const docRef = await addDoc(collection(db, CANON_AISLES_COLLECTION), {
+    name: input.name,
+    sortOrder: input.sortOrder ?? 999,
+    createdAt: now,
+  });
+
+  return {
+    id: docRef.id,
+    name: input.name,
+    sortOrder: input.sortOrder ?? 999,
+    createdAt: now,
+  };
+}
+
+/**
+ * Update an existing canon aisle.
+ */
+export async function updateCanonAisle(
+  id: string,
+  updates: Partial<Pick<Aisle, 'name' | 'sortOrder'>>
+): Promise<void> {
+  const docRef = doc(db, CANON_AISLES_COLLECTION, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Delete a canon aisle.
+ * Caller must enforce business rules (e.g., cannot delete 'uncategorised').
+ */
+export async function deleteCanonAisle(id: string): Promise<void> {
+  const docRef = doc(db, CANON_AISLES_COLLECTION, id);
+  
+  // Check if any canon items reference this aisle
+  const itemsSnapshot = await getDocs(collection(db, CANON_ITEMS_COLLECTION));
+  const hasReferences = itemsSnapshot.docs.some(doc => doc.data().aisleId === id);
+  
+  if (hasReferences) {
+    throw new Error(`Cannot delete aisle: ${id} is in use by canon items`);
+  }
+  
+  await deleteDoc(docRef);
+}
+
+/**
+ * Batch update sortOrder for multiple aisles.
+ * Used for drag-and-drop reordering.
+ */
+export async function reorderCanonAisles(
+  updates: Array<{ id: string; sortOrder: number }>
+): Promise<void> {
+  const batch = writeBatch(db);
+  
+  updates.forEach(({ id, sortOrder }) => {
+    const docRef = doc(db, CANON_AISLES_COLLECTION, id);
+    batch.update(docRef, { sortOrder });
+  });
+  
+  await batch.commit();
+}
+
+// ── CofID Group Aisle Mappings CRUD ───────────────────────────────────────────
+
+/**
+ * Fetch all CofID group aisle mappings.
+ */
+export async function fetchCofidMappings(): Promise<CoFIDGroupAisleMapping[]> {
+  const snapshot = await getDocs(collection(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION));
+  const mappings: CoFIDGroupAisleMapping[] = [];
+
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    mappings.push({
+      id: docSnap.id,
+      cofidGroup: data.cofidGroup,
+      cofidGroupName: data.cofidGroupName,
+      aisleId: data.aisleId,
+      aisleName: data.aisleName,
+      createdAt: data.createdAt,
+      createdBy: data.createdBy,
+    });
+  });
+
+  return mappings;
+}
+
+/**
+ * Create a new CofID group aisle mapping.
+ */
+export async function createCofidMapping(input: {
+  cofidGroup: string;
+  cofidGroupName: string;
+  aisleId: string;
+  aisleName: string;
+}): Promise<CoFIDGroupAisleMapping> {
+  const now = new Date().toISOString();
+  const docRef = await addDoc(collection(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION), {
+    cofidGroup: input.cofidGroup,
+    cofidGroupName: input.cofidGroupName,
+    aisleId: input.aisleId,
+    aisleName: input.aisleName,
+    createdAt: now,
+  });
+
+  return {
+    id: docRef.id,
+    cofidGroup: input.cofidGroup,
+    cofidGroupName: input.cofidGroupName,
+    aisleId: input.aisleId,
+    aisleName: input.aisleName,
+    createdAt: now,
+  };
+}
+
+/**
+ * Update an existing CofID group aisle mapping.
+ */
+export async function updateCofidMapping(
+  id: string,
+  updates: Partial<Pick<CoFIDGroupAisleMapping, 'cofidGroup' | 'cofidGroupName' | 'aisleId' | 'aisleName'>>
+): Promise<void> {
+  const docRef = doc(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Delete a CofID group aisle mapping.
+ */
+export async function deleteCofidMapping(id: string): Promise<void> {
+  const docRef = doc(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION, id);
+  await deleteDoc(docRef);
+}
+
 // ── Canon Items CRUD ──────────────────────────────────────────────────────────
 
 /**
@@ -94,17 +399,14 @@ export async function fetchCanonItems(): Promise<CanonItem[]> {
     items.push({
       id: docSnap.id,
       name: data.name,
+      normalisedName: data.normalisedName ?? String(data.name ?? '').toLowerCase(),
       aisleId: data.aisleId,
       preferredUnitId: data.preferredUnitId,
       needsReview: data.needsReview ?? true,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
-      // PR5: CofID enrichment fields
-      cofidId: data.cofidId ?? null,
-      cofidMatch: data.cofidMatch,
-      nutrients: data.nutrients,
-      nutrientsSource: data.nutrientsSource ?? null,
-      nutrientsImportedAt: data.nutrientsImportedAt ?? null,
+      metadata: data.metadata,
+      externalSources: Array.isArray(data.externalSources) ? data.externalSources : undefined,
     });
   });
 
@@ -126,17 +428,14 @@ export async function fetchCanonItemById(id: string): Promise<CanonItem | null> 
   return {
     id: docSnap.id,
     name: data.name,
+    normalisedName: data.normalisedName ?? String(data.name ?? '').toLowerCase(),
     aisleId: data.aisleId,
     preferredUnitId: data.preferredUnitId,
     needsReview: data.needsReview ?? true,
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
-    // PR5: CofID enrichment fields
-    cofidId: data.cofidId ?? null,
-    cofidMatch: data.cofidMatch,
-    nutrients: data.nutrients,
-    nutrientsSource: data.nutrientsSource ?? null,
-    nutrientsImportedAt: data.nutrientsImportedAt ?? null,
+    metadata: data.metadata,
+    externalSources: Array.isArray(data.externalSources) ? data.externalSources : undefined,
   };
 }
 
@@ -153,20 +452,35 @@ export async function createCanonItem(input: {
   const now = new Date().toISOString();
   const docRef = await addDoc(collection(db, CANON_ITEMS_COLLECTION), {
     name: input.name,
+    normalisedName: input.name.toLowerCase(),
     aisleId: input.aisleId,
     preferredUnitId: input.preferredUnitId,
     needsReview: input.needsReview ?? true,
     createdAt: now,
   });
 
-  return {
+  const createdItem: CanonItem = {
     id: docRef.id,
     name: input.name,
+    normalisedName: input.name.toLowerCase(),
     aisleId: input.aisleId,
     preferredUnitId: input.preferredUnitId,
     needsReview: input.needsReview ?? true,
     createdAt: now,
   };
+
+  // Keep canon embedding lookup fresh for semantic matching.
+  try {
+    await upsertCanonItemEmbedding({
+      id: createdItem.id,
+      name: createdItem.name,
+      aisleId: createdItem.aisleId,
+    });
+  } catch (error) {
+    console.warn('[createCanonItem] Failed to upsert embedding (non-blocking):', error);
+  }
+
+  return createdItem;
 }
 
 /**
@@ -177,42 +491,85 @@ export async function updateCanonItem(
   updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId' | 'needsReview'>>
 ): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
-  await updateDoc(docRef, {
+  const payload: Record<string, unknown> = {
     ...updates,
     updatedAt: new Date().toISOString(),
+  };
+
+  if (typeof updates.name === 'string') {
+    payload.normalisedName = updates.name.toLowerCase();
+  }
+
+  await updateDoc(docRef, {
+    ...payload,
   });
+
+  // Refresh embedding when the query text changes (rename).
+  if (typeof updates.name === 'string') {
+    try {
+      await upsertCanonItemEmbeddingById(id);
+    } catch (error) {
+      console.warn('[updateCanonItem] Failed to refresh embedding after rename (non-blocking):', error);
+    }
+  }
 }
 
 /**
  * Approve a canon item (set needsReview = false).
- * If the item has a linked CofID match, copy nutrients from the CofID item.
+ * If linked to CofID, copy nutrients into externalSources[].properties.nutrition.
  */
 export async function approveCanonItem(id: string): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
   
-  // Get current item data to check for cofidId
+  // Get current item data to check for a linked CoFID source.
   const itemSnap = await getDoc(docRef);
   if (!itemSnap.exists()) {
     throw new Error(`Canon item ${id} not found`);
   }
 
   const itemData = itemSnap.data();
+  const existingSources = Array.isArray(itemData.externalSources)
+    ? (itemData.externalSources as ExternalSourceLink[])
+    : undefined;
+  const cofidSource = getCofidSourceFromExternalSources(existingSources);
+
   const updates: any = {
     needsReview: false,
     updatedAt: new Date().toISOString(),
   };
 
-  // If linked to a CofID item, copy nutrients
-  if (itemData.cofidId) {
-    const cofidItem = await fetchCofidItemById(itemData.cofidId);
+  // If linked to a CofID item, copy nutrients to source-specific properties.
+  if (cofidSource?.externalId) {
+    const cofidItem = await fetchCofidItemById(cofidSource.externalId);
     if (cofidItem?.nutrients) {
-      updates.nutrients = cofidItem.nutrients;
-      updates.nutrientsSource = 'cofid';
-      updates.nutrientsImportedAt = new Date().toISOString();
+      updates.externalSources = withCofidSource(existingSources, cofidSource.externalId, {
+        nutrition: cofidItem.nutrients,
+        nutritionImportedAt: new Date().toISOString(),
+      });
+      updates.lastSyncedAt = new Date().toISOString();
     }
   }
 
   await updateDoc(docRef, updates);
+}
+
+/**
+ * Delete a single canon item by ID.
+ * Note: Does not check for recipe references - orphaned references handled gracefully.
+ */
+export async function deleteCanonItem(id: string): Promise<void> {
+  const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Delete all canon items.
+ * Warning: This is a destructive operation that removes ALL items from the collection.
+ */
+export async function deleteAllCanonItems(): Promise<void> {
+  const snapshot = await getDocs(collection(db, CANON_ITEMS_COLLECTION));
+  const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+  await Promise.all(deletePromises);
 }
 
 // ── CofID Items Read ──────────────────────────────────────────────────────────
@@ -255,7 +612,7 @@ export async function fetchCofidItemById(id: string): Promise<any | null> {
 
 /**
  * Link a CofID match to a canon item.
- * Updates the canon item with cofidId and cofidMatch metadata.
+ * Stores linkage and metadata in the CoFID external source record.
  */
 export async function linkCofidMatchToCanonItem(
   canonItemId: string,
@@ -263,32 +620,58 @@ export async function linkCofidMatchToCanonItem(
   matchMetadata: any
 ): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, canonItemId);
+
+  const itemSnap = await getDoc(docRef);
+  const itemData = itemSnap.exists() ? itemSnap.data() : {};
+  const existingSources = Array.isArray(itemData.externalSources)
+    ? (itemData.externalSources as ExternalSourceLink[])
+    : undefined;
+
   await updateDoc(docRef, {
-    cofidId,
-    cofidMatch: matchMetadata,
+    externalSources: withCofidSource(existingSources, cofidId, {
+      match: matchMetadata,
+    }),
+    lastSyncedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
-}
+  // Log final selection event
+  const canonItem = await getDoc(docRef);
+  const canonData = canonItem.data();
+  
+  logMatchEvent({
+    eventType: 'final-selection',
+    entityType: 'canon-item',
+    entityId: canonItemId,
+    entityName: canonData?.name || 'unknown',
+    aisleId: canonData?.aisleId,
+    input: {},
+    output: {
+      topMatchId: cofidId,
+      topScore: matchMetadata.score,
+      method: matchMetadata.method,
+    },
+    metrics: {
+      durationMs: 0, // Instant operation
+    },
+  });}
 
 /**
  * Unlink CofID match from a canon item.
- * Removes cofidId, cofidMatch, nutrients fields.
+ * Removes the CoFID entry from externalSources.
  */
 export async function unlinkCofidMatchFromCanonItem(
   canonItemId: string
 ): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, canonItemId);
+
+  const itemSnap = await getDoc(docRef);
+  const itemData = itemSnap.exists() ? itemSnap.data() : {};
+  const existingSources = Array.isArray(itemData.externalSources)
+    ? (itemData.externalSources as ExternalSourceLink[])
+    : undefined;
+
   await updateDoc(docRef, {
-    cofidId: null,
-    cofidMatch: {
-      status: 'unlinked',
-      method: null,
-      score: null,
-      matchedAt: new Date().toISOString(),
-    },
-    nutrients: null,
-    nutrientsSource: null,
-    nutrientsImportedAt: null,
+    externalSources: withoutCofidSource(existingSources),
     updatedAt: new Date().toISOString(),
   });
 }
@@ -323,20 +706,184 @@ export async function suggestCofidForCanonItem(
   // 3. Build aisle mapping: CofID item ID → canon aisle ID
   const aisleMapping = await buildAisleMapping(cofidItems);
 
-  // 4. Get best match
-  const bestMatch = suggestBestMatch(
+  // 4. Get lexical aisle-bounded candidates
+  const lexicalTimer = startTimer();
+  const lexicalCandidates = rankCandidates(
+    canonItem.name,
+    canonItem.aisleId,
+    cofidItems,
+    aisleMapping,
+    8
+  );
+  const lexicalDuration = lexicalTimer();
+
+  // Log lexical matching event
+  logMatchEvent({
+    eventType: 'lexical-match',
+    entityType: 'canon-item',
+    entityId: canonItem.id,
+    entityName: canonItem.name,
+    aisleId: canonItem.aisleId,
+    input: {
+      queryText: canonItem.name,
+      candidateCount: cofidItems.length,
+      aisleFiltered: true,
+    },
+    output: {
+      resultCount: lexicalCandidates.length,
+      topScore: lexicalCandidates[0]?.score,
+      topMatchId: lexicalCandidates[0]?.cofidId,
+      topMatchName: lexicalCandidates[0]?.name,
+      method: lexicalCandidates[0]?.method,
+    },
+    metrics: {
+      durationMs: lexicalDuration,
+    },
+  });
+
+  // 5. Semantic ranking from embedding lookup (best effort)
+  let semanticCandidates: SuggestedMatch[] = [];
+  try {
+    const lookupEntries = await fetchEmbeddingsFromLookup(canonItem.aisleId);
+    
+    // Embedding generation/reuse with timing
+    const embeddingTimer = startTimer();
+    const cachedQueryEmbedding = resolveQueryEmbeddingFromLookup(
+      canonItem.name,
+      canonItem.id,
+      lookupEntries as Array<{
+        kind: 'canon' | 'cofid';
+        refId: string;
+        name: string;
+        embedding: number[];
+      }>
+    );
+
+    const embeddingReused = cachedQueryEmbedding !== null;
+    const queryEmbedding = cachedQueryEmbedding ?? await generateTextEmbedding(canonItem.name);
+    const embeddingDuration = embeddingTimer();
+
+    // Log embedding generation event
+    logMatchEvent({
+      eventType: 'embedding-generation',
+      entityType: 'canon-item',
+      entityId: canonItem.id,
+      entityName: canonItem.name,
+      aisleId: canonItem.aisleId,
+      input: {
+        queryText: canonItem.name,
+        embeddingDim: queryEmbedding?.length,
+      },
+      output: {
+        embeddingGenerated: !embeddingReused,
+        embeddingReused: embeddingReused,
+      },
+      metrics: {
+        durationMs: embeddingDuration,
+      },
+    });
+
+    if (queryEmbedding) {
+      // Semantic matching with timing
+      const semanticTimer = startTimer();
+      const semanticMatches = findSemanticMatches(
+        queryEmbedding,
+        lookupEntries,
+        canonItem.aisleId,
+        0.55,
+        12
+      ).filter(match => match.kind === 'cofid');
+
+      semanticCandidates = semanticMatches.map(match => ({
+        cofidId: match.refId,
+        name: match.name,
+        score: match.similarity,
+        method: 'semantic' as const,
+        reason: match.reason,
+      }));
+      const semanticDuration = semanticTimer();
+
+      // Log semantic matching event
+      logMatchEvent({
+        eventType: 'semantic-match',
+        entityType: 'canon-item',
+        entityId: canonItem.id,
+        entityName: canonItem.name,
+        aisleId: canonItem.aisleId,
+        input: {
+          embeddingDim: queryEmbedding.length,
+          candidateCount: lookupEntries.length,
+          aisleFiltered: true,
+        },
+        output: {
+          resultCount: semanticCandidates.length,
+          topScore: semanticCandidates[0]?.score,
+          topMatchId: semanticCandidates[0]?.cofidId,
+          topMatchName: semanticCandidates[0]?.name,
+          method: 'semantic',
+        },
+        metrics: {
+          durationMs: semanticDuration,
+        },
+        metadata: {
+          threshold: 0.55,
+        },
+      });
+    }
+  } catch (error) {
+    console.warn('[suggestCofidForCanonItem] Semantic ranking unavailable, falling back to lexical:', error);
+  }
+
+  // 6. Merge semantic + lexical candidates (dedupe by CofID ID, keep best score)
+  const mergeTimer = startTimer();
+  const mergedMap = new Map<string, SuggestedMatch>();
+
+  for (const candidate of lexicalCandidates) {
+    mergedMap.set(candidate.cofidId, candidate);
+  }
+
+  for (const candidate of semanticCandidates) {
+    const existing = mergedMap.get(candidate.cofidId);
+    if (!existing || candidate.score > existing.score) {
+      mergedMap.set(candidate.cofidId, candidate);
+    }
+  }
+
+  const candidates = Array.from(mergedMap.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+  const mergeDuration = mergeTimer();
+
+  // Log candidate merging event
+  logMatchEvent({
+    eventType: 'candidate-merge',
+    entityType: 'canon-item',
+    entityId: canonItem.id,
+    entityName: canonItem.name,
+    aisleId: canonItem.aisleId,
+    input: {
+      candidateCount: lexicalCandidates.length + semanticCandidates.length,
+    },
+    output: {
+      resultCount: candidates.length,
+      topScore: candidates[0]?.score,
+      topMatchId: candidates[0]?.cofidId,
+      topMatchName: candidates[0]?.name,
+      method: 'merged',
+    },
+    metrics: {
+      durationMs: mergeDuration,
+    },
+    metadata: {
+      pipelineVersion: 'v1.0.0',
+    },
+  });
+
+  const bestMatch = candidates[0] ?? suggestBestMatch(
     canonItem.name,
     canonItem.aisleId,
     cofidItems,
     aisleMapping
-  );
-
-  // 5. Get top candidates
-  const candidates = rankCandidates(
-    canonItem.name,
-    cofidItems,
-    aisleMapping,
-    5
   );
 
   return { bestMatch, candidates };
@@ -354,11 +901,13 @@ export async function suggestCofidForCanonItem(
  * 5. For each CofID item: item.group → aisle name → aisle ID
  */
 async function buildAisleMapping(cofidItems: CofIDItem[]): Promise<Record<string, string>> {
+  const normaliseAisleName = (name: string) => name.toLowerCase().trim().replace(/\s+/g, ' ');
+
   // 1. Fetch aisles
   const aisles = await fetchCanonAisles();
   const aisleNameToId: Record<string, string> = {};
   for (const aisle of aisles) {
-    aisleNameToId[aisle.name] = aisle.id;
+    aisleNameToId[normaliseAisleName(aisle.name)] = aisle.id;
   }
 
   // 2. Fetch CofID group-to-aisle mappings
@@ -376,7 +925,7 @@ async function buildAisleMapping(cofidItems: CofIDItem[]): Promise<Record<string
   for (const cofidItem of cofidItems) {
     const aisleName = groupToAisleName[cofidItem.group];
     if (aisleName) {
-      const aisleId = aisleNameToId[aisleName];
+      const aisleId = aisleNameToId[normaliseAisleName(aisleName)];
       if (aisleId) {
         aisleMapping[cofidItem.id] = aisleId;
       }
