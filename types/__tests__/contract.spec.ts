@@ -56,7 +56,7 @@ import {
   PlanSchema,
   type Plan,
 } from '../contract';
-import type { EquipmentCandidate } from '../../modules_new/inventory/types';
+import type { EquipmentCandidate } from '../../modules/inventory/types';
 
 // ============================================================================
 // SECTION 2: Schema Import Verification

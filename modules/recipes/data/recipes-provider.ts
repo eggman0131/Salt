@@ -34,9 +34,9 @@ import {
 /**
  * Temporary migration adapter for Phase B.
  *
- * This provider stabilises the new `modules_new/recipes` API while delegating to
+ * This provider stabilises the new `modules/recipes` API while delegating to
  * the current Recipes backend implementation. Later phases will replace this
- * adapter with native `modules_new/recipes/data/*` providers.
+ * adapter with native `modules/recipes/data/*` providers.
  */
 
 export async function fetchRecipes(): Promise<Recipe[]> {

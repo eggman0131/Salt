@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const TARGET_ROOTS = ['modules_new'];
+const TARGET_ROOTS = ['modules'];
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
 const IMPORT_RE = /(?:import\s+[^'"`]*?from\s+|import\s*\(\s*)['"]([^'"]+)['"]\s*\)?/g;
 
@@ -29,7 +29,7 @@ function rel(p) {
 
 function parseModuleInfo(filePath) {
   const parts = rel(filePath).split('/');
-  if (parts[0] !== 'modules_new' || parts.length < 3) return null;
+  if (parts[0] !== 'modules' || parts.length < 3) return null;
   return {
     module: parts[1],
     layer: parts[2],
@@ -49,7 +49,7 @@ function resolveImport(fromFile, specifier) {
     return null;
   }
 
-  if (specifier.startsWith('modules_new/')) {
+  if (specifier.startsWith('modules/')) {
     return path.join(ROOT, specifier);
   }
 

@@ -23,7 +23,7 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import { debugLogger } from '../../../shared/backend/debug-logger';
-import { getCookGuidesForRecipe, deleteCookGuide } from '../../../modules_new/assist-mode/api';
+import { getCookGuidesForRecipe, deleteCookGuide } from '../../../modules/assist-mode/api';
 import {
   convertTimestamps,
   decodeRecipeFromFirestore,
@@ -96,7 +96,7 @@ async function matchIngredients(
   );
 
   const { processRawRecipeIngredients } = await import(
-    '../../../modules_new/canon/api'
+    '../../../modules/canon/api'
   );
 
   const processed = await processRawRecipeIngredients(rawStrings, (progress) => {

@@ -10,15 +10,15 @@ import { Toaster } from '@/components/ui/sonner';
 import { debugLogger } from '@/shared/backend/debug-logger';
 
 // Feature Modules
-import { InventoryModule, getInventory } from './modules_new/inventory';
+import { InventoryModule, getInventory } from './modules/inventory';
 import {
   AIModule as RecipesAIModule,
   getRecipes as getRecipesNew,
   RecipesModule,
-} from './modules_new/recipes';
-import { PlannerModule, getPlans, getKitchenSettings, findPlanForDate } from './modules_new/planner';
-import { CanonItemsWorkspace } from './modules_new/canon';
-import { AdminDashboard } from './modules_new/admin';
+} from './modules/recipes';
+import { PlannerModule, getPlans, getKitchenSettings, findPlanForDate } from './modules/planner';
+import { CanonItemsWorkspace } from './modules/canon';
+import { AdminDashboard } from './modules/admin';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
 import { Dashboard } from './components/Dashboard';
 

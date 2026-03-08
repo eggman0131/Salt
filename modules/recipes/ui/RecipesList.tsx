@@ -17,7 +17,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '../../../components/ui/sheet';
-import { CategoriesManagement } from '../../../modules_new/categories/ui/CategoriesManagement';
+import { CategoriesManagement } from '../../../modules/categories/ui/CategoriesManagement';
 
 interface RecipesListProps {
   recipes: Recipe[];
