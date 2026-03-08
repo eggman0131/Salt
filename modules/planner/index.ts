@@ -1,9 +1,17 @@
 /**
- * Planner Module Public API
- * 
- * Exports planner components and backend functionality
+ * Planner module public exports.
  */
 
-export { PlannerModule } from './components/PlannerModule';
-export { plannerBackend } from './backend';
-export type { IPlannerBackend } from './backend/planner-backend.interface';
+export { PlannerModule } from './ui/PlannerModule';
+
+export {
+  getPlans,
+  getPlanByDate,
+  createOrUpdatePlan,
+  deletePlan,
+  getKitchenSettings,
+  updateKitchenSettings,
+  getFriday,
+  TEMPLATE_ID,
+  findPlanForDate,
+} from './api';

@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { User, KitchenSettings, UserSchema, KitchenSettingsSchema, COLLECTION_REGISTRY } from '../../../types/contract';
+import { User, KitchenSettings, UserSchema, KitchenSettingsSchema } from '../../../types/contract';
 
 // ============================================================
 // SECTION 1: Mock System Backend Implementation
@@ -51,35 +51,6 @@ class TestSystemBackend {
   async updateKitchenSettings(settings: KitchenSettings): Promise<KitchenSettings> {
     this.settings = { ...settings };
     return this.settings;
-  }
-
-  // Import workflow
-  async importSystemState(json: string): Promise<void> {
-    const data = JSON.parse(json);
-    
-    // Clear existing data
-    this.users.clear();
-    this.settings = { directives: '', debugEnabled: false };
-
-    // Import users
-    if (data.users) {
-      if (!Array.isArray(data.users)) {
-        throw new Error('Users must be an array');
-      }
-      for (const user of data.users) {
-        const userEmail = user.email || user.id;
-        this.users.set(userEmail, {
-          id: userEmail,
-          email: userEmail,
-          displayName: user.displayName || userEmail,
-        });
-      }
-    }
-
-    // Import settings
-    if (data.settings) {
-      this.settings = { ...data.settings };
-    }
   }
 
   // Test utilities
@@ -444,136 +415,6 @@ Avoid olive oil for high heat`;
   });
 });
 
-// ============================================================
-// SECTION 6: Import/Export System State
-// ============================================================
-
-describe('System Backend - Import System State', () => {
-  let backend: TestSystemBackend;
-
-  beforeEach(() => {
-    backend = new TestSystemBackend();
-  });
-
-  it('should import users from JSON', async () => {
-    const importData = {
-      users: [
-        { email: 'chef1@kitchen.com', displayName: 'Chef 1' },
-        { email: 'chef2@kitchen.com', displayName: 'Chef 2' },
-      ],
-    };
-
-    await backend.importSystemState(JSON.stringify(importData));
-
-    const users = await backend.getUsers();
-    expect(users).toHaveLength(2);
-    expect(users.map(u => u.email)).toContain('chef1@kitchen.com');
-  });
-
-  it('should import settings from JSON', async () => {
-    const importData = {
-      settings: {
-        directives: 'Imported directives',
-        debugEnabled: true,
-        userOrder: ['chef1@kitchen.com'],
-      },
-    };
-
-    await backend.importSystemState(JSON.stringify(importData));
-
-    const settings = await backend.getKitchenSettings();
-    expect(settings.directives).toBe('Imported directives');
-    expect(settings.debugEnabled).toBe(true);
-  });
-
-  it('should clear existing data before import', async () => {
-    // Create initial data
-    await backend.createUser({ email: 'old@kitchen.com', displayName: 'Old User' });
-    await backend.updateKitchenSettings({
-      directives: 'Old directives',
-      debugEnabled: true,
-    });
-
-    // Import new data
-    const importData = {
-      users: [{ email: 'new@kitchen.com', displayName: 'New User' }],
-      settings: { directives: 'New directives', debugEnabled: false },
-    };
-
-    await backend.importSystemState(JSON.stringify(importData));
-
-    const users = await backend.getUsers();
-    expect(users).toHaveLength(1);
-    expect(users[0].email).toBe('new@kitchen.com');
-
-    const settings = await backend.getKitchenSettings();
-    expect(settings.directives).toBe('New directives');
-  });
-
-  it('should handle import with only users', async () => {
-    const importData = {
-      users: [{ email: 'chef@kitchen.com', displayName: 'Chef' }],
-    };
-
-    await backend.importSystemState(JSON.stringify(importData));
-
-    const users = await backend.getUsers();
-    expect(users).toHaveLength(1);
-
-    const settings = await backend.getKitchenSettings();
-    expect(settings.directives).toBe('');
-  });
-
-  it('should handle import with only settings', async () => {
-    const importData = {
-      settings: { directives: 'Test', debugEnabled: false },
-    };
-
-    await backend.importSystemState(JSON.stringify(importData));
-
-    const settings = await backend.getKitchenSettings();
-    expect(settings.directives).toBe('Test');
-
-    const users = await backend.getUsers();
-    expect(users).toHaveLength(0);
-  });
-
-  it('should handle empty import data', async () => {
-    const importData = {};
-
-    await backend.importSystemState(JSON.stringify(importData));
-
-    const users = await backend.getUsers();
-    expect(users).toHaveLength(0);
-
-    const settings = await backend.getKitchenSettings();
-    expect(settings.directives).toBe('');
-  });
-
-  it('should handle users with missing displayName', async () => {
-    const importData = {
-      users: [{ email: 'chef@kitchen.com' }],
-    };
-
-    await backend.importSystemState(JSON.stringify(importData));
-
-    const users = await backend.getUsers();
-    expect(users).toHaveLength(1);
-    expect(users[0].displayName).toBe('chef@kitchen.com'); // Falls back to email
-  });
-
-  it('should handle users with id instead of email', async () => {
-    const importData = {
-      users: [{ id: 'chef@kitchen.com', displayName: 'Chef' }],
-    };
-
-    await backend.importSystemState(JSON.stringify(importData));
-
-    const users = await backend.getUsers();
-    expect(users).toHaveLength(1);
-    expect(users[0].email).toBe('chef@kitchen.com');
-  });
-});
 
 // ============================================================
 // SECTION 7: Error Handling and Edge Cases
@@ -593,22 +434,6 @@ describe('System Backend - Error Handling', () => {
 
     const users = await backend.getUsers();
     expect(users).toHaveLength(0);
-  });
-
-  it('should handle invalid JSON in import', async () => {
-    await expect(async () => {
-      await backend.importSystemState('invalid json');
-    }).rejects.toThrow();
-  });
-
-  it('should handle import with malformed users array', async () => {
-    const importData = {
-      users: 'not an array',
-    };
-
-    await expect(async () => {
-      await backend.importSystemState(JSON.stringify(importData));
-    }).rejects.toThrow();
   });
 
   it('should handle users with special characters in email', async () => {
@@ -708,34 +533,6 @@ describe('System Backend - Integration Workflows', () => {
     expect(settings.debugEnabled).toBe(false);
   });
 
-  it('should handle full import/export workflow', async () => {
-    // Create initial data
-    await backend.createUser({ email: 'chef1@kitchen.com', displayName: 'Chef 1' });
-    await backend.createUser({ email: 'chef2@kitchen.com', displayName: 'Chef 2' });
-    await backend.updateKitchenSettings({
-      directives: 'Kitchen rules',
-      debugEnabled: true,
-      userOrder: ['chef1@kitchen.com', 'chef2@kitchen.com'],
-    });
-
-    // Export data (simulated)
-    const exportData = {
-      users: await backend.getUsers(),
-      settings: await backend.getKitchenSettings(),
-    };
-
-    // Import data
-    await backend.importSystemState(JSON.stringify(exportData));
-
-    // Verify data restored
-    const users = await backend.getUsers();
-    expect(users).toHaveLength(2);
-
-    const settings = await backend.getKitchenSettings();
-    expect(settings.directives).toBe('Kitchen rules');
-    expect(settings.debugEnabled).toBe(true);
-  });
-
   it('should handle multi-user kitchen setup', async () => {
     // Create multiple users
     const userEmails = [
@@ -796,56 +593,21 @@ describe('System Backend - Integration Workflows', () => {
     expect(finalSettings.directives).toContain('Rule 3');
   });
 
-  it('should validate imported data conforms to contracts', async () => {
-    const importData = {
-      users: [
-        { email: 'chef1@kitchen.com', displayName: 'Chef 1' },
-        { email: 'chef2@kitchen.com', displayName: 'Chef 2' },
-      ],
-      settings: {
-        directives: 'Test',
-        debugEnabled: true,
-      },
-    };
-
-    await backend.importSystemState(JSON.stringify(importData));
+  it('should validate created users conform to User contract', async () => {
+    await backend.createUser({ email: 'chef1@kitchen.com', displayName: 'Chef 1' });
+    await backend.createUser({ email: 'chef2@kitchen.com', displayName: 'Chef 2' });
 
     const users = await backend.getUsers();
     for (const user of users) {
-      const result = UserSchema.safeParse(user);
-      expect(result.success).toBe(true);
+      expect(UserSchema.safeParse(user).success).toBe(true);
     }
+  });
+
+  it('should validate updated settings conform to KitchenSettings contract', async () => {
+    await backend.updateKitchenSettings({ directives: 'Test', debugEnabled: true });
 
     const settings = await backend.getKitchenSettings();
-    const settingsResult = KitchenSettingsSchema.safeParse(settings);
-    expect(settingsResult.success).toBe(true);
+    expect(KitchenSettingsSchema.safeParse(settings).success).toBe(true);
   });
 });
 
-// ============================================================
-// SECTION 9: Backup Registry Coverage
-// ============================================================
-
-describe('System Backend - Backup Registry Coverage', () => {
-  it('should include CoFID aisle mappings in main backup registry', () => {
-    const registryCollections = Object.keys(COLLECTION_REGISTRY);
-
-    expect(registryCollections).toContain('cofid_group_aisle_mappings');
-  });
-
-  it('should exclude raw CoFID data from main backup registry', () => {
-    const registryCollections = Object.keys(COLLECTION_REGISTRY);
-
-    expect(registryCollections).not.toContain('cofid');
-  });
-
-  it('should expose cofid_group_aisle_mappings in backup payload keys', () => {
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      ...Object.fromEntries(Object.keys(COLLECTION_REGISTRY).map((name) => [name, []])),
-    };
-
-    expect(payload).toHaveProperty('cofid_group_aisle_mappings');
-    expect(payload).not.toHaveProperty('cofid');
-  });
-});

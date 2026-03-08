@@ -55,9 +55,8 @@ import {
   type DayPlan,
   PlanSchema,
   type Plan,
-  // Equipment Candidate
-  type EquipmentCandidate,
 } from '../contract';
+import type { EquipmentCandidate } from '../../modules/inventory/types';
 
 // ============================================================================
 // SECTION 2: Schema Import Verification

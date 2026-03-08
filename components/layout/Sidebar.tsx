@@ -12,13 +12,11 @@ import {
   Lightbulb,
   BookOpen,
   Puzzle,
-  ShoppingCart,
   Settings,
   Moon,
   Sun,
   LogOut,
   Database,
-  Tag,
 } from 'lucide-react';
 
 interface NavItem {
@@ -38,13 +36,11 @@ export interface SidebarProps {
 const menuItems: NavItem[] = [
   { label: 'Home', id: 'dashboard', icon: Home },
   { label: 'Planner', id: 'planner', icon: Calendar },
-  { label: 'Shopping', id: 'shopping', icon: ShoppingCart },
   { label: 'Recipes', id: 'recipes', icon: BookOpen },
   { label: 'Chef', id: 'ai', icon: Lightbulb },
   { label: 'Equipment', id: 'inventory', icon: Puzzle },
 ];
 
-const adminItem: NavItem = { label: 'Admin', id: 'admin', icon: Settings };
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
@@ -87,20 +83,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Footer */}
       <div className="mt-auto shrink-0 border-t border-sidebar-border px-2 py-2 space-y-2">
-        {/* Admin */}
-        <button
-          onClick={() => onTabChange(adminItem.id)}
-          className={cn(
-            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-colors',
-            activeTab === adminItem.id
-              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-          )}
-        >
-          <adminItem.icon className="h-4 w-4 shrink-0" />
-          <span>{adminItem.label}</span>
-        </button>
-
         {/* Canon Items */}
         <button
           onClick={() => onTabChange('canon')}
@@ -115,32 +97,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span>Canon Items</span>
         </button>
 
-        {/* Categories */}
+        {/* Admin */}
         <button
-          onClick={() => onTabChange('categories')}
+          onClick={() => onTabChange('admin')}
           className={cn(
             'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-colors',
-            activeTab === 'categories'
-              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-          )}
-        >
-          <Tag className="h-4 w-4 shrink-0" />
-          <span>Categories</span>
-        </button>
-
-        {/* Admin (New) */}
-        <button
-          onClick={() => onTabChange('admin-new')}
-          className={cn(
-            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-colors',
-            activeTab === 'admin-new'
+            activeTab === 'admin'
               ? 'bg-sidebar-accent text-sidebar-accent-foreground'
               : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
           )}
         >
           <Settings className="h-4 w-4 shrink-0" />
-          <span>Admin (New)</span>
+          <span>Admin</span>
         </button>
 
         <Separator className="my-1" />

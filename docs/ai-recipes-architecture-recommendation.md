@@ -1,3 +1,5 @@
+> **ARCHIVED** — This document predates the current architecture. Refer to `docs/salt-architecture.md` for current guidance.
+
 # AI Module & Recipes Module Ownership Boundaries
 
 **Architectural Decision:** There should be **NO separate AI module**. Each domain module owns its own AI calls.

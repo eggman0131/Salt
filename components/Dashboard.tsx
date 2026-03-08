@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChefHat, BookOpen, ArrowRight } from 'lucide-react';
 import { User, Recipe, Plan, DayPlan } from '@/types/contract';
 import { cn } from '@/lib/utils';
-import { resolveImagePath } from '@/modules_new/recipes';
+import { resolveImagePath } from '@/modules/recipes';
 
 interface DashboardProps {
   user: User;
@@ -17,7 +17,6 @@ interface DashboardProps {
   allUsers: User[];
   recipes: Recipe[];
   equipmentCount: number;
-  shoppingListsCount: number;
   onTabChange: (tabId: string) => void;
   onShowImportModal: () => void;
 }
@@ -97,7 +96,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   allUsers,
   recipes,
   equipmentCount,
-  shoppingListsCount,
   onTabChange,
   onShowImportModal,
 }) => {
@@ -279,7 +277,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <Stack spacing="gap-4">
         <h2 className="text-lg font-semibold">Kitchen Overview</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Equipment */}
           <button
             onClick={() => onTabChange('inventory')}
@@ -288,17 +286,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Card className="p-6 text-center h-full hover:bg-muted/50">
               <p className="text-3xl font-bold text-foreground mb-2">{equipmentCount}</p>
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Equipment</p>
-            </Card>
-          </button>
-
-          {/* Shopping Lists */}
-          <button
-            onClick={() => onTabChange('shopping')}
-            className="transition-all duration-200 hover:shadow-md"
-          >
-            <Card className="p-6 text-center h-full hover:bg-muted/50">
-              <p className="text-3xl font-bold text-foreground mb-2">{shoppingListsCount}</p>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Lists</p>
             </Card>
           </button>
 

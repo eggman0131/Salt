@@ -3,7 +3,6 @@ The canonical architecture specification for Salt.
 
 Salt is a modular application built around strict ownership boundaries, pure logic contracts, and predictable patterns for persistence and UI. This document is the authoritative architectural model that AI coding agents must follow when generating or modifying code within the Salt codebase.
 
-**Compliance note:** Only code under `modules_new/` conforms to this architecture. Code under `modules/` is legacy and is being migrated. All new code must be written in `modules_new/`. Do not create new files under `modules/`.
 
 ## Table of Contents
 1. Architectural Model
@@ -26,7 +25,6 @@ Domain modules own a specific domain within Salt. Examples include:
 
 - recipes
 - canon
-- shopping
 - planner
 - inventory
 - assist-mode
@@ -62,7 +60,7 @@ System modules own system‑wide operations that span multiple domains.
 
 The primary system module is:
 
-- admin — backup/restore, schema enumeration, cross‑domain data browser, system logs, health checks
+- admin — manifest-based dashboard that dynamically loads admin tools from domain modules; owns system-level tools (user management, system settings) but no domain logic
 
 A system module:
 
@@ -77,7 +75,7 @@ A system module:
 
 Every module follows the same folder layout:
 
-    modules_new/<module>/
+    modules/<module>/
       api.ts              # Public contract: the only file other modules may import
       types.ts            # Module-specific types not shared across modules
       logic/              # Pure logic: transformations, validation, derivations
@@ -242,10 +240,4 @@ Salt becomes a stable, modular platform rather than a tangle of features.
 
 ## 8. Migration Rules
 
-Salt is migrating from `modules/` (legacy) to `modules_new/` (this architecture).
-
-- **All new code must be written in `modules_new/`.**
-- Do not create new files under `modules/` unless strictly required for a temporary integration shim while a module is mid-migration.
-- Migrations do not need to maintain continuous functionality. A module under migration may be partially broken during the migration. It must work correctly when the migration is complete.
-- When a module is fully migrated, its legacy counterpart under `modules/` must be deleted.
-- The migration order is at the discretion of the project owner. Prioritise modules that have the most dependents or the most active development.
+Migration from legacy `modules/` to the current architecture is complete. All modules in `modules/` are compliant with this specification.

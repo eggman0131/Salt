@@ -1,173 +1,92 @@
-# Planner Module
+# Planner
+Authoritative module contract for Salt. This file defines ownership, boundaries, and the public API surface for this module.
 
-Manages weekly meal planning for domestic kitchens, coordinating cook assignments and day-by-day meal organisation.
+## Purpose
 
-## Architecture
+The planner module manages weekly meal planning. Each plan records who is cooking, who is present, meal notes, and user-specific notes for a given week. It also owns kitchen settings, which control the display order of users and AI cooking directives.
 
-```
-modules/planner/
-  ├── backend/
-  │   ├── planner-backend.interface.ts     # IPlannerBackend contract
-  │   ├── base-planner-backend.ts          # Domain logic (extends IPlannerBackend)
-  │   ├── firebase-planner-backend.ts      # Firebase persistence (extends BasePlannerBackend)
-  │   └── index.ts                         # Exports plannerBackend singleton
-  ├── components/
-  │   └── PlannerModule.tsx                # Main meal planning UI
-  ├── index.ts                             # Public API
-  └── README.md                            # This file
-```
+## Ownership
 
-## Backend Overview
+This module owns:
+- The `plans` Firestore collection (`Plan` documents).
+- Kitchen settings read/write from the `settings` collection.
+- All plan logic: finding plans by date, ordering users, sanitising stale user data.
 
-### IPlannerBackend
-Defines 6 core methods:
-- **Plans CRUD:** `getPlans()`, `getPlanByDate()`, `createOrUpdatePlan()`, `deletePlan()`
-- **Settings:** `getKitchenSettings()`, `updateKitchenSettings()`
+This module does **not**:
+- Write to any other module's data.
+- Import any other module's internals.
+- Expose an admin manifest — planner management is in the main UI.
 
-### BasePlannerBackend
-Implements helper methods:
-- **getPlanIncludingDate():** Find plan containing a specific date (for date range queries)
-- **getOrderedUserIds():** Extract user order from kitchen settings
+## Folder Structure
 
-### FirebasePlannerBackend
-Implements persistence using Firebase Firestore:
-- Stores plans in `plans` collection with deterministic IDs (e.g., `plan-2025-02-16` or `plan-template`)
-- Stores global settings in `settings/global` document
-- Uses transactions for atomic plan updates
-- Tracks creation metadata (`createdAt`, `createdBy`)
+    api.ts                          # Public API
+    types.ts                        # Module-specific types
+    logic/
+      plan-utils.ts                 # Pure: findPlanForDate, getOrderedUserIds, sanitizePlan
+      dates.ts                      # Pure: getFriday, addDays, TEMPLATE_ID
+    data/
+      plans-provider.ts             # Firestore CRUD for plans
+      settings-provider.ts          # Kitchen settings read/write
+    ui/                             # Weekly planner UI
+    __tests__/
+      logic.test.ts                 # Pure logic tests
 
-## Usage
+## Public API
 
-### Component Usage
-```typescript
-import { PlannerModule, plannerBackend } from '../modules/planner';
-
-// In parent component
-const [allUsers, setAllUsers] = useState<User[]>([]);
-const [currentPlan, setCurrentPlan] = useState<Plan | null>(null);
-
-useEffect(() => {
-  plannerBackend.getPlanByDate(startDate).then(setCurrentPlan);
-}, [startDate]);
-
-<PlannerModule 
-  users={allUsers} 
-  onRefresh={() => loadData()}
-/>
-```
-
-### Direct Backend Usage
-```typescript
-// Get all plans (most recent first)
-const plans = await plannerBackend.getPlans();
-
-// Get plan for specific date
-const plan = await plannerBackend.getPlanByDate('2025-02-16');
-
-// Create or update plan
-const updated = await plannerBackend.createOrUpdatePlan({
-  startDate: '2025-02-16',
-  days: [
-    { date: '2025-02-16', cookId: 'user-1', presentIds: ['user-1', 'user-2'], mealNotes: '', userNotes: {} },
-    // ... 6 more days
-  ]
-});
-
-// Delete plan
-await plannerBackend.deletePlan('plan-2025-02-16');
-
-// Get and update user preferences (user order)
-const settings = await plannerBackend.getKitchenSettings();
-const newSettings = { ...settings, userOrder: ['user-2', 'user-1'] };
-await plannerBackend.updateKitchenSettings(newSettings);
-```
-
-## Plan Model
+### Plans CRUD
 
 ```typescript
-interface Plan {
-  id: string;                 // e.g., 'plan-2025-02-16' or 'plan-template'
-  startDate: string;          // ISO date (YYYY-MM-DD) or 'template'
-  days: DayPlan[];           // Array of 7 days
-  createdAt: string;         // ISO timestamp
-  createdBy: string;         // User ID
-  imagePath?: string;        // Optional image path
-}
-
-interface DayPlan {
-  date: string;              // ISO date or 'day-X'
-  cookId: string | null;     // User ID of designated cook (or null)
-  presentIds: string[];      // User IDs present that day
-  mealNotes: string;         // Special meal notes
-  userNotes: Record<string, string>; // Per-user notes
-}
+getPlans(): Promise<Plan[]>
+getPlanByDate(date: Date): Promise<Plan | null>
+createOrUpdatePlan(plan: Plan): Promise<Plan>
+deletePlan(id: string): Promise<void>
 ```
 
-## Kitchen Settings Model
+### Kitchen Settings
+
+Kitchen settings control the user display order (used by the planner UI and AI directives).
 
 ```typescript
-interface KitchenSettings {
-  directives: string;        // Custom kitchen instructions
-  userOrder?: string[];      // Preferred user ordering for UI
-  debugEnabled?: boolean;    // Debug mode flag
-}
+getKitchenSettings(): Promise<KitchenSettings>
+updateKitchenSettings(updates: Partial<KitchenSettings>): Promise<void>
 ```
 
-## Weekly Planning Workflow
+### Pure Logic Helpers
 
-1. **Load Current Week:**
-   - User navigates to a date → `getFriday()` normalises to the week's start
-   - `getPlanByDate()` retrieves the existing plan (or template if new)
+```typescript
+// Find the plan that covers a given date
+findPlanForDate(plans: Plan[], date: Date): Plan | undefined
 
-2. **Edit Plan:**
-   - User assigns cook for each day
-   - User adds/removes attending users
-   - Real-time save with debouncing (1200ms)
-   - `createOrUpdatePlan()` persists changes
+// Return user IDs in the order defined by KitchenSettings.userOrder
+getOrderedUserIds(userIds: string[], settings: KitchenSettings): string[]
 
-3. **Template:**
-   - Special `plan-template` document for new weeks
-   - Automatically used as base for new plans
-   - Can be customised for consistent defaults
+// Remove deleted users from plan data
+sanitizePlan(plan: Plan, activeUserIds: string[]): Plan
 
-4. **User Preferences:**
-   - `getKitchenSettings().userOrder` re-orders users in planner UI
-   - Drag-to-reorder interface updates preference
-   - `updateKitchenSettings()` persists new order
-
-## Data Flow
-
-```
-Component (PlannerModule)
-  ↓
-plannerBackend (singleton)
-  ├─ getPlans() ← Firestore: /plans/* (ordered by startDate desc)
-  ├─ getPlanByDate() ← Firestore: /plans/{deterministicId}
-  ├─ createOrUpdatePlan() → Firestore: /plans/{deterministicId} (transaction)
-  ├─ deletePlan() → Firestore: /plans/{deterministicId}
-  ├─ getKitchenSettings() ← Firestore: /settings/global
-  └─ updateKitchenSettings() → Firestore: /settings/global (merge)
+// Date utilities
+getFriday(date: Date): Date
+addDays(date: Date, days: number): Date
+TEMPLATE_ID: string  // Well-known ID for the plan template
 ```
 
-## Date Handling
+## Types
 
-All dates use ISO 8601 format (YYYY-MM-DD) in UTC:
-- Week always starts on Friday (`getFriday()` normalisation)
-- Timezone-aware: dates parsed as UTC midnight to prevent day shifts
-- Template uses `startDate: 'template'` as sentinel value
+- `Plan`, `DayPlan` — from `types/contract.ts`.
+- `KitchenSettings` — defines `userOrder` (array of user IDs) and kitchen directives for AI.
 
-## Error Handling
+## Testing
 
-- Invalid JSON responses → return empty/default values
-- Network errors → bubble up to component  
-- Transaction failures → rollback and retry
-- Missing settings → return defaults (`directives: '', debugEnabled: false`)
+```bash
+npx vitest run modules/planner/__tests__/logic.test.ts
+```
 
-## Future Enhancements
+Pure functions only — no Firebase, no mocks, no network.
 
-- [ ] Recurring plan templates (auto-generate next week)
-- [ ] Meal suggestions based on ingredients
-- [ ] Notifications to assigned cooks
-- [ ] Dietary restriction tracking
-- [ ] Shopping list generation from plan
-- [ ] Pan-week view / month view
+## Dependencies
+
+- `types/contract.ts` — `Plan`, `DayPlan`, `KitchenSettings`
+- Firebase Firestore
+
+## Architectural Source of Truth
+
+All code in this module must follow the rules defined in `docs/salt-architecture.md`.
