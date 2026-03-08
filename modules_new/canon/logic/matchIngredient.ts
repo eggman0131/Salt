@@ -11,7 +11,7 @@
  */
 
 import type { CanonItem } from './items';
-import type { CanonEmbeddingLookup } from '../../../types/contract';
+import type { CanonEmbeddingLookup } from '../types';
 import { levenshteinSimilarity, normaliseForMatching } from './suggestCofidMatch';
 import { cosineSimilarity, findSemanticMatches, type SemanticMatch } from './embeddings';
 

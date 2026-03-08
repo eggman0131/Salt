@@ -7,7 +7,8 @@
  * Rule: UI imports ONLY from this file.
  */
 
-import { Aisle, Unit, CoFIDGroupAisleMapping, CanonMatchEvent } from '../../types/contract';
+import { Aisle, Unit } from '../../types/contract';
+import { CoFIDGroupAisleMapping, CanonMatchEvent } from './types';
 import {
   fetchCanonAisles,
   fetchCanonUnits,

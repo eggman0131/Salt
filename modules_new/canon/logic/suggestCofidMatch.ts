@@ -6,7 +6,7 @@
  */
 
 import { CofidMatch } from './items';
-import type { CofIDItem } from '../../../types/contract';
+import type { CofIDItem } from '../types';
 
 export interface SuggestedMatch {
   cofidId: string;

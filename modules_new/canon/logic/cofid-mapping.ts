@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { CofIDItem, CofIDImportReport } from '../../../types/contract';
+import { CofIDItem, CofIDImportReport } from '../types';
 
 /**
  * CofID Aisle Mapping (from scripts/cofid-aisle-mapping.json)

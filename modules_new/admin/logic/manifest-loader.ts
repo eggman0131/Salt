@@ -14,6 +14,17 @@ import { AdminManifest, AdminTool } from '../types';
 export async function loadAllManifests(): Promise<AdminManifest[]> {
   const manifests: AdminManifest[] = [];
 
+  // Admin module (users, system)
+  try {
+    const { adminAdminTools } = await import('../admin.manifest');
+    manifests.push({
+      module: 'admin',
+      tools: adminAdminTools as AdminTool[],
+    });
+  } catch (err) {
+    console.warn('Failed to load admin manifest:', err);
+  }
+
   // Canon module
   try {
     const { canonAdminTools } = await import('../../canon/admin.manifest');
@@ -25,15 +36,26 @@ export async function loadAllManifests(): Promise<AdminManifest[]> {
     console.warn('Failed to load canon admin manifest:', err);
   }
 
-  // Categories module
+  // Recipes module
   try {
-    const { categoryAdminTools } = await import('../../categories/admin.manifest');
+    const { recipesAdminTools } = await import('../../recipes/admin.manifest');
     manifests.push({
-      module: 'categories',
-      tools: categoryAdminTools as AdminTool[],
+      module: 'recipes',
+      tools: recipesAdminTools as AdminTool[],
     });
   } catch (err) {
-    console.warn('Failed to load categories admin manifest:', err);
+    console.warn('Failed to load recipes admin manifest:', err);
+  }
+
+  // Assist Mode module
+  try {
+    const { assistModeAdminTools } = await import('../../assist-mode/admin.manifest');
+    manifests.push({
+      module: 'assist-mode',
+      tools: assistModeAdminTools as AdminTool[],
+    });
+  } catch (err) {
+    console.warn('Failed to load assist-mode admin manifest:', err);
   }
 
   return manifests;

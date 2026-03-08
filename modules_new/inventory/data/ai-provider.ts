@@ -7,7 +7,8 @@
 
 import { auth, functions } from '../../../shared/backend/firebase';
 import { httpsCallable } from 'firebase/functions';
-import type { Equipment, EquipmentCandidate, Accessory } from '../../../types/contract';
+import type { Equipment, Accessory } from '../../../types/contract';
+import type { EquipmentCandidate } from '../types';
 import type { GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 
 let cachedIdToken: string | null = null;

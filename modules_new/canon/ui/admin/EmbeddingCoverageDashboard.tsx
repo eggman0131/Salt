@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import * as canonApi from '../../api';
-import type { CanonEmbeddingLookup } from '../../../../types/contract';
+import type { CanonEmbeddingLookup } from '../../types';
 
 interface CoverageStats {
   total: number;
