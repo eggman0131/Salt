@@ -10,13 +10,17 @@ import { loadAllManifests, flattenManifests, groupToolsByModule, findToolById } 
 describe('Manifest Loader', () => {
   it('loads all available manifests', async () => {
     const manifests = await loadAllManifests();
-    
-    // Should load at least canon and categories
+
+    // admin, canon, recipes, assist-mode
     expect(manifests.length).toBeGreaterThanOrEqual(2);
-    
+
     const moduleNames = manifests.map(m => m.module);
+    expect(moduleNames).toContain('admin');
     expect(moduleNames).toContain('canon');
-    expect(moduleNames).toContain('categories');
+    expect(moduleNames).toContain('recipes');
+    expect(moduleNames).toContain('assist-mode');
+    // categories is no longer in admin — it lives in the recipes UI sheet
+    expect(moduleNames).not.toContain('categories');
   });
 
   it('flattens manifests into a single tool list', async () => {
@@ -35,8 +39,10 @@ describe('Manifest Loader', () => {
     const grouped = groupToolsByModule(manifests);
     
     expect(grouped.size).toBeGreaterThanOrEqual(2);
+    expect(grouped.has('admin')).toBe(true);
     expect(grouped.has('canon')).toBe(true);
-    expect(grouped.has('categories')).toBe(true);
+    expect(grouped.has('recipes')).toBe(true);
+    expect(grouped.has('categories')).toBe(false);
   });
 
   it('finds a tool by ID', async () => {

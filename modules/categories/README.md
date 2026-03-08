@@ -1,138 +1,97 @@
-# Categories Module
+# Categories
+Authoritative module contract for Salt. This file defines ownership, boundaries, and the public API surface for this module.
 
-Recipe categorisation domain for organising and filtering recipes.
+## Purpose
 
-## Architecture
+The categories module owns recipe categorisation data — meal types, cuisines, and other recipe groupings. It manages the full lifecycle of categories including creation, approval of AI-suggested categories, and deletion.
 
-```
-modules_new/categories/
-├── api.ts                      # Public API: pure functions
-├── logic/
-│   └── categorization.ts       # Pure logic (no I/O)
-├── data/
-│   ├── firebase-provider.ts    # Firestore CRUD
-│   └── ai-provider.ts          # Gemini API calls
-├── ui/
-│   └── CategoriesManagement.tsx # Display component
-├── admin.manifest.ts           # Admin tools
-├── index.ts                    # Public exports
-└── __tests__/                  # Unit and integration tests
-```
+Categories management UI lives in the **Recipes module** — accessed via a "Categories" button in `RecipesList.tsx` that opens a Sheet containing `CategoriesManagement.tsx`.
 
-## Module Guarantee
+## Ownership
 
-✅ **Strict Boundaries Enforced:**
-- UI imports **only** from `api.ts`
-- Logic never calls persistence or UI
-- Persistence never contains business logic
-- No cross-module imports except through `api.ts`
+This module owns:
+- All data for the `categories` (or equivalent) Firestore collection.
+- All business logic for categorisation, including uniqueness validation.
+- The `CategoriesManagement.tsx` UI component (a full table view with search, filter, multiselect, bulk approve/delete).
+- AI-powered recipe categorisation (`categorizeRecipe`).
 
-## Public API (`api.ts`)
+This module does **not**:
+- Write to any other module's data.
+- Import any other module's internals.
+- Expose an admin manifest entry — categories management is in the Recipes UI, not the admin dashboard.
 
-### CRUD Operations
+## Folder Structure
+
+    api.ts                          # Public API
+    types.ts                        # Module-specific types
+    logic/
+      categorization.ts             # Pure logic: prompt building, parsing, validation
+    data/
+      firebase-provider.ts          # Firestore CRUD
+      ai-provider.ts                # Cloud Function calls for AI categorisation
+    ui/
+      CategoriesManagement.tsx      # Full table view (search, filter, multiselect, bulk actions)
+    __tests__/
+      logic.test.ts                 # Pure logic tests
+
+## Public API
+
+### CRUD
 
 ```typescript
-// Fetch categories
 getCategories(): Promise<RecipeCategory[]>
-
-// Get single category
 getCategory(id: string): Promise<RecipeCategory | null>
-
-// Create category (validates uniqueness)
 createCategory(category: Omit<RecipeCategory, 'id' | 'createdAt'>): Promise<RecipeCategory>
-
-// Update category (revalidates name if changed)
 updateCategory(id: string, updates: Partial<RecipeCategory>): Promise<RecipeCategory>
-
-// Delete category
 deleteCategory(id: string): Promise<void>
 ```
 
 ### Approval Workflow
 
-```typescript
-// Get pending categories
-getPendingCategories(): Promise<RecipeCategory[]>
+AI-suggested categories have `isApproved: false` and a `confidence` field. They must be approved before use.
 
-// Approve a pending category
+```typescript
+getPendingCategories(): Promise<RecipeCategory[]>
 approveCategory(id: string): Promise<void>
 ```
 
 ### AI-Powered Categorisation
 
 ```typescript
-// Analyse recipe and suggest category IDs
 categorizeRecipe(recipe: Recipe): Promise<string[]>
 ```
 
-## How It Works
+Analyses a recipe and returns a list of matching category IDs. Internally calls `buildCategorizationPrompt` (recipe-only prompt) and `buildCategorizationSystemInstruction` (categories list for AI context) — these are separate pure functions.
 
-### Pure Logic Layer (`logic/categorization.ts`)
-- `buildCategorizationPrompt()` — Constructs AI prompt deterministically
-- `parseAICategoryResponse()` — Parses JSON from Gemini safely
-- `validateCategoryNameUniqueness()` — Checks for conflicts
-- All functions are **deterministic and side-effect-free**
+## Logic Rules
 
-### Persistence Layer (`data/`)
-- `firebase-provider.ts` — All Firestore CRUD operations
-- `ai-provider.ts` — Gemini API calls via Cloud Functions
-- Called **only** by `api.ts`, never directly
+All business logic lives in `logic/categorization.ts`:
 
-### UI Layer (`ui/`)
-- `CategoriesManagement.tsx` — Display component
-- Calls **only** `api.ts` functions
-- No logic, no persistence access
+- `buildCategorizationPrompt(recipe)` — Constructs AI prompt from recipe data only (no category list).
+- `buildCategorizationSystemInstruction(categories)` — Builds system instruction containing the category list for AI context.
+- `parseAICategoryResponse(json)` — Safely parses AI response JSON.
+- `validateCategoryNameUniqueness(name, existing)` — Checks for conflicts.
+
+All functions are pure and deterministic.
+
+## Types
+
+- `RecipeCategory`, `Recipe` — from `types/contract.ts`.
+- Module-specific internal types live in `types.ts`.
+
+## Testing
+
+```bash
+npx vitest run modules/categories/__tests__/logic.test.ts
+```
+
+Pure functions only — no Firebase, no mocks, no network.
 
 ## Dependencies
 
 - `types/contract.ts` — `RecipeCategory`, `Recipe`
 - `shared/backend/firebase` — Firestore, Cloud Functions
-- Gemini API (via Cloud Functions)
 
-## Testing
+## Architectural Source of Truth
 
-### Logic Tests (`__tests__/logic.test.ts`)
-```typescript
-// Pure functions, no mocks needed
-test('validates category name uniqueness', () => {
-  const result = validateCategoryNameUniqueness(
-    'Breakfast',
-    [{ id: '1', name: 'Breakfast', ... }]
-  );
-  expect(result.valid).toBe(false);
-});
-```
-
-### API Integration Tests (`__tests__/api.test.ts`)
-```typescript
-// Use Firebase emulator
-test('createCategory validates name uniqueness', async () => {
-  await createCategory({ name: 'Breakfast' });
-  await expect(createCategory({ name: 'Breakfast' }))
-    .rejects.toThrow('conflicts with existing');
-});
-```
-
-## Admin Tools
-
-Exposed via `admin.manifest.ts`:
-- **Manage Categories** — CRUD, approval workflow, configuration
-
-These are mounted by the Admin module, **not** imported directly.
-
-## Module Rules
-
-1. ✅ **Owns** recipe categorisation domain data and persistence
-2. ✅ **Never** writes another module's data
-3. ✅ **Never** imports another module's internals
-4. ✅ **Exposes** pure, typed public API only
-5. ✅ **Separates** logic from persistence from UI
-6. ✅ **Maintains** deterministic, testable code
-
-## Evolution
-
-As the system grows:
-- AI models can be upgraded without changing `api.ts`
-- Firestore schema can evolve without touching logic
-- UI can be completely rewritten without breaking anything
-- Logic can be optimised without affecting other modules
+All code in this module must follow the rules defined in `docs/salt-architecture.md`.

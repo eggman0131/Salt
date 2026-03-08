@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildCategorizationPrompt,
+  buildCategorizationSystemInstruction,
   extractIngredientNames,
   parseAICategoryResponse,
   sanitizeJson,
@@ -169,15 +170,25 @@ describe('Categorisation Logic', () => {
     ];
 
     it('includes recipe details', () => {
-      const prompt = buildCategorizationPrompt(recipe, existing);
+      const prompt = buildCategorizationPrompt(recipe);
       expect(prompt).toContain('Scrambled Eggs');
       expect(prompt).toContain('Fluffy eggs');
       expect(prompt).toContain('eggs');
     });
 
-    it('includes existing approved categories', () => {
-      const prompt = buildCategorizationPrompt(recipe, existing);
-      expect(prompt).toContain('Breakfast');
+    it('includes existing approved categories in system instruction', () => {
+      const instruction = buildCategorizationSystemInstruction(existing);
+      expect(instruction).toContain('Breakfast');
+    });
+
+    it('excludes unapproved categories from system instruction', () => {
+      const withPending: RecipeCategory[] = [
+        ...existing,
+        { id: 'cat-2', name: 'Pending', isApproved: false, createdAt: '' } as RecipeCategory,
+      ];
+      const instruction = buildCategorizationSystemInstruction(withPending);
+      expect(instruction).toContain('Breakfast');
+      expect(instruction).not.toContain('Pending');
     });
 
     it('limits ingredients to first 10', () => {
@@ -185,7 +196,7 @@ describe('Categorisation Logic', () => {
         ...recipe,
         ingredients: Array.from({ length: 20 }, (_, i) => `ingredient-${i}`),
       } as Recipe;
-      const prompt = buildCategorizationPrompt(manyIngredients, existing);
+      const prompt = buildCategorizationPrompt(manyIngredients);
       expect(prompt).toContain('ingredient-9');
       expect(prompt).not.toContain('ingredient-15');
     });
