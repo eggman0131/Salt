@@ -26,7 +26,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Trash2, Pencil, Loader2 } from 'lucide-react';
-import { Equipment, EquipmentCandidate } from '../../../types/contract';
+import { Equipment } from '../../../types/contract';
+import { EquipmentCandidate } from '../types';
 import {
   createEquipment,
   updateEquipment,

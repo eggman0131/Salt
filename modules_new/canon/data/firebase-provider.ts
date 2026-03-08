@@ -5,7 +5,8 @@
  * Called from api.ts only — never imported directly from UI or logic.
  */
 
-import { Aisle, Unit, CofIDItem, CoFIDGroupAisleMapping } from '../../../types/contract';
+import { Aisle, Unit } from '../../../types/contract';
+import { CofIDItem, CoFIDGroupAisleMapping } from '../types';
 import { db } from '../../../shared/backend/firebase';
 import {
   collection,

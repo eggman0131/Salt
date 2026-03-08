@@ -27,7 +27,7 @@ import {
   Timestamp,
   type QueryConstraint,
 } from 'firebase/firestore';
-import type { CanonMatchEvent } from '@/types/contract';
+import type { CanonMatchEvent } from '../types';
 
 const MATCH_EVENTS_COLLECTION = 'canon-match-events';
 

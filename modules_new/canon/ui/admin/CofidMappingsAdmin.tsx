@@ -53,7 +53,8 @@ import {
   FileUp,
 } from 'lucide-react';
 import * as canonApi from '../../api';
-import type { CoFIDGroupAisleMapping, Aisle, CofIDItem } from '@/types/contract';
+import type { Aisle } from '@/types/contract';
+import type { CoFIDGroupAisleMapping, CofIDItem } from '../../types';
 import cofidMappingsData from '@/scripts/cofid-aisle-mapping.json';
 
 export const CofidMappingsAdmin: React.FC = () => {

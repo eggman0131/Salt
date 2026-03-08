@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Timer, Flame, Clock, Users } from 'lucide-react';
 import type { Recipe } from '@/types/contract';
 import { useRecipeImage } from '@/hooks/useRecipeImage';
 
@@ -12,12 +12,7 @@ interface RecipeCardProps {
 }
 
 export function RecipeCard({ recipe, onClick, onRepair }: RecipeCardProps) {
-  const {
-    imageUrl,
-    isLoading: imageLoading,
-    regenerateImage,
-    uploadImage,
-  } = useRecipeImage(recipe.id);
+  const { src: imageUrl, isLoading: imageLoading } = useRecipeImage(recipe.imagePath);
 
   const hasIssues =
     !recipe.title ||
@@ -27,8 +22,9 @@ export function RecipeCard({ recipe, onClick, onRepair }: RecipeCardProps) {
     !recipe.instructions ||
     recipe.instructions.length === 0;
 
-  const formatTime = (time: number | undefined) => {
+  const formatTime = (time: string | number | undefined) => {
     if (!time) return null;
+    if (typeof time === 'string') return time;
     if (time < 60) return `${time}m`;
     const hours = Math.floor(time / 60);
     const mins = time % 60;
@@ -85,15 +81,17 @@ export function RecipeCard({ recipe, onClick, onRepair }: RecipeCardProps) {
           {/* Metadata */}
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {recipe.prepTime && (
-              <span>Prep: {formatTime(recipe.prepTime)}</span>
+              <span className="flex items-center gap-1"><Timer className="h-3 w-3" />{formatTime(recipe.prepTime)}</span>
             )}
             {recipe.cookTime && (
-              <span>Cook: {formatTime(recipe.cookTime)}</span>
+              <span className="flex items-center gap-1"><Flame className="h-3 w-3" />{formatTime(recipe.cookTime)}</span>
             )}
             {recipe.totalTime && (
-              <span>Total: {formatTime(recipe.totalTime)}</span>
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(recipe.totalTime)}</span>
             )}
-            {recipe.servings && <span>{recipe.servings}</span>}
+            {recipe.servings && (
+              <span className="flex items-center gap-1"><Users className="h-3 w-3" />{recipe.servings}</span>
+            )}
             {recipe.complexity && (
               <Badge variant="outline" className="text-xs">
                 {recipe.complexity}

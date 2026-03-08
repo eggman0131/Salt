@@ -14,16 +14,20 @@ import type {
   CanonicalItem,
   Aisle,
   Unit,
-  CoFIDGroupAisleMapping,
-  CofIDItem,
 } from '../../../types/contract';
 import {
   CanonicalItemSchema,
   AisleSchema,
   UnitSchema,
+} from '../../../types/contract';
+import type {
+  CoFIDGroupAisleMapping,
+  CofIDItem,
+} from '../types';
+import {
   CoFIDGroupAisleMappingSchema,
   CofIDItemSchema,
-} from '../../../types/contract';
+} from '../types';
 
 // ============================================================================
 // SECTION 1: Test Fixtures (Contract-Shaped Data)

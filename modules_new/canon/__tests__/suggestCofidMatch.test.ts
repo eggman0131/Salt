@@ -14,7 +14,7 @@ import {
   rankCandidates,
   buildCofidMatch,
 } from '../logic/suggestCofidMatch';
-import type { CofIDItem } from '../../../types/contract';
+import type { CofIDItem } from '../types';
 
 const mockCofidItems = (aisle: string = 'produce'): CofIDItem[] => [
   {

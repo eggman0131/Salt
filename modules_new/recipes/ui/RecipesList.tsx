@@ -6,10 +6,18 @@ import { AddButton } from '../../../components/ui/add-button';
 import { Input } from '../../../components/ui/input';
 import { Badge } from '../../../components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../../components/ui/accordion';
-import { Search } from 'lucide-react';
+import { Search, Tags } from 'lucide-react';
 import { RecipeFormDialog } from './RecipeFormDialog';
 import { RecipeCard } from './RecipeCard';
 import { Stack } from '../../../shared/components/primitives';
+import { Button } from '../../../components/ui/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '../../../components/ui/sheet';
+import { CategoriesManagement } from '../../../modules_new/categories/ui/CategoriesManagement';
 
 interface RecipesListProps {
   recipes: Recipe[];
@@ -40,6 +48,7 @@ export const RecipesList: React.FC<RecipesListProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [assistOnly, setAssistOnly] = useState(false);
 
@@ -102,7 +111,18 @@ export const RecipesList: React.FC<RecipesListProps> = ({
               {filteredRecipes.length} {filteredRecipes.length === 1 ? 'recipe' : 'recipes'}
             </p>
           </div>
-          <AddButton onClick={() => setIsCreateDialogOpen(true)} label="Add" />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCategoriesOpen(true)}
+              className="gap-1.5"
+            >
+              <Tags className="h-4 w-4" />
+              <span className="hidden sm:inline">Categories</span>
+            </Button>
+            <AddButton onClick={() => setIsCreateDialogOpen(true)} label="Add" />
+          </div>
         </div>
 
         {/* Search */}
@@ -221,6 +241,16 @@ export const RecipesList: React.FC<RecipesListProps> = ({
         categories={categories}
         onSubmit={handleCreateRecipe}
       />
+
+      {/* Categories Management Sheet */}
+      <Sheet open={isCategoriesOpen} onOpenChange={setIsCategoriesOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader className="mb-6">
+            <SheetTitle>Manage Categories</SheetTitle>
+          </SheetHeader>
+          <CategoriesManagement />
+        </SheetContent>
+      </Sheet>
     </Stack>
   );
 };

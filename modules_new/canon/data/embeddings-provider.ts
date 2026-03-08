@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL, getMetadata } from 'firebase/storage';
 import { db, auth, storage } from '../../../shared/backend/firebase';
-import type { CanonEmbeddingLookup } from '../../../types/contract';
+import type { CanonEmbeddingLookup } from '../types';
 import type { CanonItem } from '../logic/items';
 import { validateEmbedding } from '../logic/embeddings';
 

@@ -6,7 +6,7 @@
  * All functions are synchronous, deterministic, and fully testable.
  */
 
-import type { CanonEmbeddingLookup } from '../../../types/contract';
+import type { CanonEmbeddingLookup } from '../types';
 
 export interface SemanticMatch {
   refId: string;

@@ -19,7 +19,7 @@ import {
   getMatchEvents,
   getPerformanceStats,
 } from '../../api';
-import type { CanonMatchEvent } from '../../../../types/contract';
+import type { CanonMatchEvent } from '../../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

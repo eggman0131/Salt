@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
-import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle, Wrench, Check } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle, Wrench, Check, GripHorizontal, Minimize2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import {
   Popover,
@@ -379,7 +379,11 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const [hasImageError, setHasImageError] = useState(false);
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const imageRef = useRef<HTMLDivElement | null>(null);
+  const chatPanelRef = useRef<HTMLDivElement | null>(null);
+  const isDragging = useRef(false);
   const [chatTop, setChatTop] = useState<number | null>(null);
+  const [isChatMinimized, setIsChatMinimized] = useState(false);
+  const [chatPos, setChatPos] = useState<{ x: number; y: number } | null>(null);
   const [currentUserName, setCurrentUserName] = useState('Chef');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [pendingRestoreEntry, setPendingRestoreEntry] = useState<RecipeHistoryEntry | null>(null);
@@ -577,6 +581,35 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const handleImageError = (e: React.SyntheticEvent) => {
     e.currentTarget.style.display = 'none';
     setHasImageError(true);
+  };
+
+  const handleChatDragStart = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const panel = chatPanelRef.current;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+    isDragging.current = true;
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      const panelW = panel.offsetWidth;
+      const panelH = panel.offsetHeight;
+      setChatPos({
+        x: Math.max(0, Math.min(window.innerWidth - panelW, e.clientX - offsetX)),
+        y: Math.max(0, Math.min(window.innerHeight - panelH, e.clientY - offsetY)),
+      });
+    };
+
+    const onMouseUp = () => {
+      isDragging.current = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
   };
 
   useEffect(() => {
@@ -864,17 +897,48 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
               />
             </Stack>
 
-            {/* Chef Chat - Fixed (Desktop only) */}
-            <div
-              className="hidden lg:block fixed right-6 w-[35vw] max-w-105 min-w-[320px] h-[70vh] max-h-180 z-20"
-              style={{ top: chatTop ?? 96 }}
-            >
-              <RecipeChefChat
-                recipe={recipe}
-                onRecipeUpdate={onUpdate}
-                currentUserName={currentUserName}
-              />
-            </div>
+            {/* Chef Chat - Fixed/Draggable (Desktop only) */}
+            {isChatMinimized ? (
+              <button
+                className="hidden lg:flex fixed bottom-6 right-6 z-30 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg items-center justify-center hover:bg-primary/90 transition-colors"
+                onClick={() => setIsChatMinimized(false)}
+                title="Open Chef Chat"
+              >
+                <ChefHat className="w-5 h-5" />
+              </button>
+            ) : (
+              <div
+                ref={chatPanelRef}
+                className="hidden lg:flex lg:flex-col fixed z-20 w-[35vw] max-w-105 min-w-[320px] h-[70vh] max-h-180"
+                style={chatPos
+                  ? { left: chatPos.x, top: chatPos.y }
+                  : { right: 24, top: chatTop ?? 96 }
+                }
+              >
+                {/* Drag handle bar */}
+                <div
+                  className="flex items-center justify-between px-3 py-1.5 bg-muted border border-b-0 rounded-t-lg cursor-grab active:cursor-grabbing select-none shrink-0"
+                  onMouseDown={handleChatDragStart}
+                >
+                  <GripHorizontal className="w-4 h-4 text-muted-foreground" />
+                  <button
+                    className="p-0.5 rounded hover:bg-muted-foreground/20 transition-colors"
+                    onClick={() => setIsChatMinimized(true)}
+                    title="Minimise"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <Minimize2 className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0 *:rounded-t-none *:border-t-0">
+                  <RecipeChefChat
+                    recipe={recipe}
+                    onRecipeUpdate={onUpdate}
+                    currentUserName={currentUserName}
+                  />
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* Chef Tab */}
