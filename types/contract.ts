@@ -245,7 +245,8 @@ export const ShoppingListItemSchema = z.object({
   canonicalItemId: z.string(), // Links to CanonicalItem
   name: z.string(), // Snapshot at creation time
   aisle: z.string(), // Snapshot at creation time
-  quantity: z.number(),
+  recipeQuantity: z.number().default(0), // Quantity driven by recipes
+  manualQuantity: z.number().default(0), // Quantity driven by manual user input
   unit: z.string(),
   checked: z.boolean(),
   isStaple: z.boolean(),
@@ -298,6 +299,7 @@ export const DayPlanSchema = z.object({
   presentIds: z.array(z.string()),
   userNotes: z.record(z.string(), z.string()), // userId -> note
   mealNotes: z.string(),
+  recipeIds: z.array(z.string()).optional(),
 });
 export type DayPlan = z.infer<typeof DayPlanSchema>;
 
