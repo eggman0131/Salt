@@ -1,20 +1,9 @@
 /**
- * Admin Module Public API
- * 
- * Exports admin components and backend functions
+ * Admin Module — Public Exports
+ *
+ * Re-exports the admin dashboard and manifest loading utilities.
  */
 
-export { AdminModule } from './components/AdminModule';
-export { FirestoreBrowser } from './components/FirestoreBrowser';
-export {
-  cleanupOrphanedRecipeImages,
-  listCollections,
-  getCollectionInfo,
-  getCollectionDocuments,
-  getDocument,
-  exportCollectionAsJson,
-  downloadCollectionJson,
-  exportCofidBackup,
-  importCofidBackup,
-} from './backend';
-export type { CleanupStats, FirestoreCollection, FirestoreDocument, CofidBackupData, CofidBackupDocument } from './backend';
+export { AdminDashboard } from './ui/AdminDashboard';
+export { loadAllManifests, flattenManifests, groupToolsByModule, findToolById } from './api';
+export type { AdminTool, AdminManifest } from './types';

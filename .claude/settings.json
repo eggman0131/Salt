@@ -1,0 +1,56 @@
+{
+
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/secrets/**)",
+      "Bash(rm -rf *)",
+      "Bash(chmod *)",
+      "Bash(chown *)"
+    ],
+
+    "ask": [
+      "Edit(./types/contract.ts)",
+      "Write(./types/contract.ts)"
+    ],
+
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git checkout *)",
+
+      "Bash(npm *)",
+      "Bash(pnpm *)",
+      "Bash(node *)",
+      "Bash(ts-node *)",
+      "Bash(npx *)",
+
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(grep *)",
+      "Bash(awk *)",
+      "Bash(sed *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(mkdir *)",
+      "Bash(touch *)",
+
+      "Bash(curl *)",
+      "Bash(wget *)",
+
+      "Bash(docker *)",
+
+      "Edit(*)",
+      "Write(*)",
+      "Read(*)",
+
+      "mcp__*"
+    ],
+
+    "defaultMode": "acceptEdits"
+  }
+}

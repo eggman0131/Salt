@@ -4,21 +4,21 @@ module.exports = {
       name: "no-ui-to-data-or-logic",
       comment: "UI layer must use module API, not logic/data directly.",
       severity: "error",
-      from: { path: "^modules_new/[^/]+/ui/" },
-      to: { path: "^modules_new/[^/]+/(logic|data)/" },
+      from: { path: "^modules/[^/]+/ui/" },
+      to: { path: "^modules/[^/]+/(logic|data)/" },
     },
     {
       name: "no-logic-to-data",
       comment: "Logic must stay pure and never depend on data layer.",
       severity: "error",
-      from: { path: "^modules_new/[^/]+/logic/" },
-      to: { path: "^modules_new/[^/]+/data/" },
+      from: { path: "^modules/[^/]+/logic/" },
+      to: { path: "^modules/[^/]+/data/" },
     },
     {
       name: "no-logic-to-firebase",
       comment: "Logic must not import Firebase SDK directly.",
       severity: "error",
-      from: { path: "^modules_new/[^/]+/logic/" },
+      from: { path: "^modules/[^/]+/logic/" },
       to: { path: "^firebase($|/)" },
     },
     {
@@ -31,7 +31,7 @@ module.exports = {
   options: {
     tsPreCompilationDeps: true,
     doNotFollow: { path: "node_modules" },
-    includeOnly: "^(modules|modules_new|types)/",
+    includeOnly: "^(modules|modules|types)/",
     exclude: {
       path: "\\.(test|spec)\\.(ts|tsx)$|/__tests__/|/dist/|/lib/",
     },

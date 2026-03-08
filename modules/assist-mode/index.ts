@@ -1,20 +1,21 @@
 /**
- * Assist Mode Module - Public API
- * 
- * Provides access to assist mode backend and components.
+ * Assist Mode module public exports.
  */
 
-// Re-export backend
-export { assistModeBackend, getAssistModeBackend } from './backend';
-export type { IAssistModeBackend } from './backend';
+export { CookModeModule } from './ui/CookModeModule';
+export { PrepPhaseView } from './ui/PrepPhaseView';
+export { CookingStepView } from './ui/CookingStepView';
+export { ProgressionCheck } from './ui/ProgressionCheck';
 
-// Re-export types
+export {
+  getOrGenerateCookGuide,
+  generateCookGuide,
+  getCookGuide,
+  updateCookingStep,
+  updatePrepGroups,
+  deleteCookGuide,
+  getAllCookGuides,
+  getCookGuidesForRecipe,
+} from './api';
+
 export type { CookGuide, PrepGroup, CookingStep, SensoryCues } from './types';
-
-// Re-export main component
-export { CookModeModule } from './components/CookModeModule';
-
-// Re-export helper components
-export { PrepPhaseView } from './components/PrepPhaseView';
-export { CookingStepView } from './components/CookingStepView';
-export { ProgressionCheck } from './components/ProgressionCheck';

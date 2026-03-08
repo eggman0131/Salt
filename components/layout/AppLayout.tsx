@@ -32,10 +32,6 @@ const getActiveTitle = (tab: string): string => {
       return 'Admin';
     case 'canon':
       return 'Canon Items';
-    case 'categories':
-      return 'Categories';
-    case 'admin-new':
-      return 'Admin (New)';
     default:
       return 'Salt';
   }
@@ -75,7 +71,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     <Sidebar
       activeTab={activeTab}
       onTabChange={handleMenuClick}
-      user={user}
+      user={user as any}
       onLogout={onLogout}
       suggestionsCount={0}
     />

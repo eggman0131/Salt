@@ -3,29 +3,22 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { LandingPage } from './pages/Landing';
 import { LoginPage } from './pages/Login';
 import { AppLayout } from './components/layout/AppLayout';
-import { Card, Button } from './components/UI';
-import { User, Recipe, Equipment, Plan, CollectionName } from './types/contract';
+import { User, Recipe, Equipment, Plan } from './types/contract';
 import { systemBackend } from './shared/backend/system-backend';
 import { ensureEmulatorAuth } from './shared/backend/auth-emulator';
-import { softToast } from '@/lib/soft-toast';
 import { Toaster } from '@/components/ui/sonner';
 import { debugLogger } from '@/shared/backend/debug-logger';
 
 // Feature Modules
-import { InventoryModule, getInventory } from './modules_new/inventory';
+import { InventoryModule, getInventory } from './modules/inventory';
 import {
   AIModule as RecipesAIModule,
-  getRecipes as getRecipesNew,
+  getRecipes,
   RecipesModule,
-} from './modules_new/recipes';
-import { AdminModule } from './modules/admin';
-import { PlannerModule } from './modules/planner';
-import { plannerBackend } from './modules/planner';
-import { ShoppingListModule } from './modules/shopping';
-import { shoppingBackend } from './modules/shopping';
-import { CanonItemsWorkspace } from './modules_new/canon';
-import { CategoriesManagement } from './modules/categories';
-import { AdminDashboard } from './modules_new/admin';
+} from './modules/recipes';
+import { PlannerModule, getPlans, getKitchenSettings, findPlanForDate } from './modules/planner';
+import { CanonItemsWorkspace } from './modules/canon';
+import { AdminDashboard } from './modules/admin';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
 import { Dashboard } from './components/Dashboard';
 
@@ -51,8 +44,6 @@ const App: React.FC = () => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [currentPlan, setCurrentPlan] = useState<Plan | null>(null);
   const [nextPlan, setNextPlan] = useState<Plan | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('salt_last_sync'));
   const [aiInitialMessage, setAiInitialMessage] = useState<string | undefined>(undefined);
   const [showImportRecipeModal, setShowImportRecipeModal] = useState(false);
 
@@ -71,19 +62,17 @@ const App: React.FC = () => {
     nextWeekDate.setDate(nextWeekDate.getDate() + 7);
     const nextWeekStr = getLocalDateString(nextWeekDate);
 
-    const [r, i, u, p, nextP] = await Promise.all([
-      getRecipesNew(),
+    const [r, i, u, plans] = await Promise.all([
+      getRecipes(),
       getInventory(),
       systemBackend.getUsers(),
-      plannerBackend.getPlanIncludingDate(today),
-      plannerBackend.getPlanIncludingDate(nextWeekStr)
+      getPlans(),
     ]);
     setRecipes(r);
     setInventory(i);
     setAllUsers(u);
-    setCurrentPlan(p);
-    setNextPlan(nextP);
-    setLastSync(localStorage.getItem('salt_last_sync'));
+    setCurrentPlan(findPlanForDate(plans, today));
+    setNextPlan(findPlanForDate(plans, nextWeekStr));
   }, []);
 
   // Check auth on mount
@@ -119,7 +108,7 @@ const App: React.FC = () => {
 
   // Initialize debug logger from settings on app startup
   useEffect(() => {
-    plannerBackend.getKitchenSettings().then(settings => {
+    getKitchenSettings().then(settings => {
       debugLogger.setEnabled(settings.debugEnabled || false);
     }).catch(error => {
       console.error('Failed to load kitchen settings:', error);
@@ -132,65 +121,6 @@ const App: React.FC = () => {
       loadData();
     }
   }, [view, activeTab, loadData]);
-
-  const handleExportData = async (selectedCollections?: Set<CollectionName>) => {
-    try {
-      // If no collections specified, export all
-      let exportData: Record<string, any>;
-      
-      if (selectedCollections && selectedCollections.size > 0) {
-        exportData = await systemBackend.exportSelectedData(Array.from(selectedCollections));
-      } else {
-        exportData = await systemBackend.exportAllData();
-      }
-      
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `salt-backup-${getLocalDateString()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      
-      setLastSync(new Date().toISOString());
-      softToast.success('Backup created', {
-        description: `Downloaded as salt-backup-${getLocalDateString()}.json`,
-      });
-    } catch (error) {
-      console.error('Export failed:', error);
-      softToast.error('Backup failed', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  };
-
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>, selectedCollections?: Set<CollectionName>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsImporting(true);
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      
-      if (selectedCollections && selectedCollections.size > 0) {
-        await systemBackend.importSelectedData(data, Array.from(selectedCollections));
-      } else {
-        await systemBackend.importAllData(data);
-      }
-      
-      await loadData();
-      softToast.success('Kitchen state restored', {
-        description: 'All data imported successfully',
-      });
-    } catch (err: any) {
-      softToast.error('Restore failed', {
-        description: err.message || 'Unable to import backup file',
-      });
-    } finally {
-      setIsImporting(false);
-      if (e.target) e.target.value = ''; 
-    }
-  };
 
   const handleLoginSuccess = (loggedInUser: User) => {
     setUser(loggedInUser);
@@ -260,7 +190,6 @@ const App: React.FC = () => {
             allUsers={allUsers}
             recipes={recipes}
             equipmentCount={inventory.length}
-            shoppingListsCount={0}
             onTabChange={setActiveTab}
             onShowImportModal={() => setShowImportRecipeModal(true)}
           />
@@ -274,36 +203,16 @@ const App: React.FC = () => {
           <InventoryModule key={`inventory-${resetKey}`} inventory={inventory} onRefresh={loadData} />
         )}
 
-        {activeTab === 'shopping' && (
-          <ShoppingListModule key={`shopping-${resetKey}`} onRefresh={loadData} />
-        )}
-
         {activeTab === 'recipes' && (
           <RecipesModule key={`recipes-${resetKey}`} />
         )}
 
         {activeTab === 'admin' && (
-          <AdminModule 
-            key={`admin-${resetKey}`}
-            users={allUsers} 
-            onRefresh={loadData} 
-            onImport={handleImport} 
-            onExport={handleExportData}
-            isImporting={isImporting}
-            lastSync={lastSync}
-          />
+          <AdminDashboard key={`admin-${resetKey}`} />
         )}
 
         {activeTab === 'canon' && (
           <CanonItemsWorkspace key={`canon-${resetKey}`} />
-        )}
-
-        {activeTab === 'categories' && (
-          <CategoriesManagement key={`categories-${resetKey}`} onRefresh={loadData} />
-        )}
-
-        {activeTab === 'admin-new' && (
-          <AdminDashboard key={`admin-new-${resetKey}`} />
         )}
 
         {activeTab === 'ai' && (

@@ -16,17 +16,17 @@ module.exports = [
         'error',
         {
           patterns: [
-            'modules_new/*/logic/*',
-            'modules_new/*/data/*',
-            'modules_new/*/ui/*',
-            'modules_new/*/internal/*',
+            'modules/*/logic/*',
+            'modules/*/data/*',
+            'modules/*/ui/*',
+            'modules/*/internal/*',
           ],
         },
       ],
     },
   },
   {
-    files: ['modules_new/**/ui/**/*.{ts,tsx}'],
+    files: ['modules/**/ui/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -37,7 +37,7 @@ module.exports = [
     },
   },
   {
-    files: ['modules_new/**/logic/**/*.{ts,tsx}'],
+    files: ['modules/**/logic/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
