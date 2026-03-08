@@ -18,13 +18,17 @@ import { RecipeDetailView } from './RecipeDetailView';
 import { RepairRecipeModal } from './RepairRecipeModal';
 import { getAllCookGuides } from '../../../modules/assist-mode/api';
 
+interface RecipesModuleProps {
+  onNavigateToChef?: () => void;
+}
+
 /**
  * Transitional Recipes tab implementation inside modules.
  *
  * Behaviour is intentionally unchanged. Child components are still sourced from
  * legacy module paths and will be moved in follow-up steps.
  */
-export const RecipesModule: React.FC = () => {
+export const RecipesModule: React.FC<RecipesModuleProps> = ({ onNavigateToChef }) => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -215,6 +219,7 @@ export const RecipesModule: React.FC = () => {
         onSelectRecipe={setSelectedRecipe}
         onCreateRecipe={handleCreateRecipe}
         onRepairRecipe={handleOpenRepairModal}
+        onNavigateToChef={onNavigateToChef}
       />
       <RepairRecipeModal
         open={!!recipeToRepair}
