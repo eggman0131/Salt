@@ -17,6 +17,7 @@ import {
   Sun,
   LogOut,
   Database,
+  ShoppingBag,
 } from 'lucide-react';
 
 interface NavItem {
@@ -39,6 +40,7 @@ const menuItems: NavItem[] = [
   { label: 'Recipes', id: 'recipes', icon: BookOpen },
   { label: 'Chef', id: 'ai', icon: Lightbulb },
   { label: 'Equipment', id: 'inventory', icon: Puzzle },
+  { label: 'Shopping', id: 'shopping', icon: ShoppingBag },
 ];
 
 

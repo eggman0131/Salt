@@ -17,6 +17,7 @@ import {
   RecipesModule,
 } from './modules/recipes';
 import { PlannerModule, getPlans, getKitchenSettings, findPlanForDate } from './modules/planner';
+import { ShoppingListModule } from './modules/shopping-list';
 import { CanonItemsWorkspace } from './modules/canon';
 import { AdminDashboard } from './modules/admin';
 import { ImportMFPRecipeModal } from './components/Helpers/ImportMFPRecipeModal';
@@ -196,7 +197,11 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'planner' && (
-          <PlannerModule key={`planner-${resetKey}`} users={allUsers} onRefresh={loadData} />
+          <PlannerModule key={`planner-${resetKey}`} users={allUsers} recipes={recipes} onRefresh={loadData} />
+        )}
+
+        {activeTab === 'shopping' && (
+          <ShoppingListModule key={`shopping-${resetKey}`} />
         )}
 
         {activeTab === 'inventory' && (

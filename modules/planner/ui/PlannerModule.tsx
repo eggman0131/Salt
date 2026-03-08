@@ -23,8 +23,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AddButton } from '@/components/ui/add-button';
-import { Calendar, Loader2, Trash2 } from 'lucide-react';
-import { User, Plan, DayPlan } from '../../../types/contract';
+import { Calendar, Loader2, Trash2, Search, X, ShoppingCart } from 'lucide-react';
+import { User, Plan, DayPlan, Recipe } from '../../../types/contract';
 import {
   getPlans,
   getPlanByDate,
@@ -34,14 +34,16 @@ import {
   getFriday,
   TEMPLATE_ID,
 } from '../api';
+import { addMultipleRecipesToShoppingList } from '../../shopping-list';
 import { softToast } from '@/lib/soft-toast';
 
 interface PlannerModuleProps {
   users: User[];
+  recipes: Recipe[];
   onRefresh: () => void;
 }
 
-export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }) => {
+export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, recipes, onRefresh }) => {
   const [startDate, setStartDate] = useState(getFriday(new Date().toISOString().split('T')[0]));
   const [plan, setPlan] = useState<Plan | null>(null);
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
@@ -111,6 +113,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
             presentIds: tDay?.presentIds || orderedUsers.map((u) => u.id),
             userNotes: tDay?.userNotes || {},
             mealNotes: tDay?.mealNotes || '',
+            recipeIds: tDay?.recipeIds || [],
           };
         });
         targetPlan = {
@@ -157,6 +160,7 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
             presentIds: orderedUsers.map((u) => u.id),
             userNotes: {},
             mealNotes: '',
+            recipeIds: [],
           })),
           createdAt: new Date().toISOString(),
           createdBy: '',
@@ -260,6 +264,24 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
     }
   };
 
+  const handleAddWeekToShoppingList = async () => {
+    if (!plan) return;
+    const allRecipeIds = plan.days.flatMap(d => d.recipeIds || []);
+    const uniqueIds = Array.from(new Set(allRecipeIds));
+    if (uniqueIds.length === 0) {
+      softToast.info('No recipes attached to this week');
+      return;
+    }
+    
+    try {
+      await addMultipleRecipesToShoppingList(uniqueIds);
+      softToast.success(`Added ${uniqueIds.length} recipes to shopping list`);
+    } catch (e) {
+      console.error(e);
+      softToast.error('Failed to add week to shopping list');
+    }
+  };
+
   if (isLoading || !plan) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -286,6 +308,12 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {!isTemplateMode && (
+              <Button onClick={handleAddWeekToShoppingList} className="gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                <span className="hidden sm:inline">Add to List</span>
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setPlansOpen(true)}>
               Plans
             </Button>
@@ -320,12 +348,14 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
         days={plan.days}
         activeIndex={activeDayIdx}
         users={orderedUsers}
+        recipes={recipes}
         onSelect={setActiveDayIdx}
       />
 
       <DayDetail
         day={activeDay}
         users={orderedUsers}
+        recipes={recipes}
         onChange={(updates) => handleUpdateDay(activeDayIdx, updates)}
       />
 
@@ -372,9 +402,10 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, onRefresh }
 const WeekHeader: React.FC<{
   days: DayPlan[];
   users: User[];
+  recipes: Recipe[];
   activeIndex: number;
   onSelect: (index: number) => void;
-}> = ({ days, users, activeIndex, onSelect }) => (
+}> = ({ days, users, recipes, activeIndex, onSelect }) => (
   <div>
     <div className="hidden md:block">
       <Card>
@@ -403,7 +434,11 @@ const WeekHeader: React.FC<{
                       : '—'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-xs text-muted-foreground truncate max-w-full">{firstLine}</span>
+                <span className="text-xs text-muted-foreground truncate max-w-full">
+                  {day.recipeIds && day.recipeIds.length > 0 
+                    ? `${day.recipeIds.length} recipe${day.recipeIds.length === 1 ? '' : 's'}`
+                    : firstLine}
+                </span>
               </button>
             );
           })}
@@ -437,9 +472,12 @@ const WeekHeader: React.FC<{
 const DayDetail: React.FC<{
   day: DayPlan;
   users: User[];
+  recipes: Recipe[];
   onChange: (updates: Partial<DayPlan>) => void;
-}> = ({ day, users, onChange }) => {
+}> = ({ day, users, recipes, onChange }) => {
   const date = new Date(`${day.date}T00:00:00Z`);
+  const [recipeSearchOpen, setRecipeSearchOpen] = useState(false);
+  const [recipeSearchQuery, setRecipeSearchQuery] = useState('');
 
   const handleChefSelect = (userId: string | null) => {
     if (userId === null) { onChange({ cookId: null }); return; }
@@ -448,6 +486,22 @@ const DayDetail: React.FC<{
       : [...day.presentIds, userId];
     onChange({ cookId: userId, presentIds: nextPresent });
   };
+
+  const handleAddRecipe = (recipeId: string) => {
+    const nextRecipeIds = day.recipeIds ? [...day.recipeIds, recipeId] : [recipeId];
+    onChange({ recipeIds: nextRecipeIds });
+    setRecipeSearchOpen(false);
+    setRecipeSearchQuery('');
+  };
+
+  const handleRemoveRecipe = (recipeId: string) => {
+    if (!day.recipeIds) return;
+    onChange({ recipeIds: day.recipeIds.filter(id => id !== recipeId) });
+  };
+
+  const currentRecipeIds = day.recipeIds || [];
+  const selectedRecipes = currentRecipeIds.map(id => recipes.find(r => r.id === id)).filter(Boolean) as Recipe[];
+  const availableRecipes = recipes.filter(r => !currentRecipeIds.includes(r.id) && r.title.toLowerCase().includes(recipeSearchQuery.toLowerCase()));
 
   return (
     <Card className="w-full">
@@ -496,12 +550,88 @@ const DayDetail: React.FC<{
           </div>
         </div>
 
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>Recipes</Label>
+            <Button variant="outline" size="sm" onClick={() => setRecipeSearchOpen(true)}>
+              Add Recipe
+            </Button>
+          </div>
+          
+          {selectedRecipes.length > 0 ? (
+            <div className="grid gap-2">
+              {selectedRecipes.map(recipe => (
+                <div key={recipe.id} className="flex items-center justify-between p-2 sm:p-3 border rounded-md">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    {recipe.imagePath ? (
+                      <img src={`/images/${recipe.imagePath}`} alt={recipe.title} className="w-10 h-10 object-cover rounded" />
+                    ) : (
+                      <div className="w-10 h-10 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">No img</div>
+                    )}
+                    <span className="font-medium truncate">{recipe.title}</span>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => handleRemoveRecipe(recipe.id)} className="text-muted-foreground hover:text-destructive shrink-0">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground italic border-dashed border rounded-md p-4 text-center">
+              No recipes attached for this day.
+            </div>
+          )}
+        </div>
+
+        {recipeSearchOpen && (
+          <Dialog open={recipeSearchOpen} onOpenChange={setRecipeSearchOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add Recipe to Meal</DialogTitle>
+                <DialogDescription>Select a recipe from your collection.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search recipes..."
+                    className="pl-9"
+                    value={recipeSearchQuery}
+                    onChange={e => setRecipeSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
+                  {availableRecipes.length > 0 ? (
+                    availableRecipes.map(recipe => (
+                      <button
+                        key={recipe.id}
+                        onClick={() => handleAddRecipe(recipe.id)}
+                        className="w-full flex items-center gap-3 p-2 hover:bg-muted rounded-md text-left transition-colors border border-transparent hover:border-border"
+                      >
+                        {recipe.imagePath ? (
+                          <img src={`/images/${recipe.imagePath}`} alt={recipe.title} className="w-8 h-8 object-cover rounded shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 bg-background border rounded flex items-center justify-center text-[10px] text-muted-foreground shrink-0">Img</div>
+                        )}
+                        <span className="truncate flex-1 text-sm font-medium">{recipe.title}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="text-sm text-center text-muted-foreground py-4">No matching recipes found.</div>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
         <div className="space-y-2">
-          <Label htmlFor="menu-editor">Menu</Label>
+          <Label htmlFor="menu-editor">Additional Menus Notes</Label>
           <Textarea
             id="menu-editor"
-            placeholder="Add the menu for the day"
-            className="min-h-28"
+            placeholder="Add any extra notes for the day"
+            className="min-h-20"
             value={day.mealNotes}
             onChange={(e) => onChange({ mealNotes: e.target.value })}
           />
