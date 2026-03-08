@@ -579,7 +579,7 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   };
 
   const handleImageError = (e: React.SyntheticEvent) => {
-    e.currentTarget.style.display = 'none';
+    (e.currentTarget as HTMLElement).style.display = 'none';
     setHasImageError(true);
   };
 
@@ -1006,8 +1006,9 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
       <RecipeHistoryDialog
         open={isHistoryOpen}
         onOpenChange={setIsHistoryOpen}
-        history={recipe.history}
-        onRestore={(entry) => {
+        recipe={recipe}
+        onRestore={(versionId) => {
+          const entry = recipe.history?.find(h => h.timestamp === versionId) ?? null;
           setPendingRestoreEntry(entry);
           setIsHistoryOpen(false);
         }}

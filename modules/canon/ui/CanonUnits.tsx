@@ -24,7 +24,7 @@ import {
   groupUnitsByCategory,
   type CanonItem,
 } from '../api';
-import type { Unit } from '../../../../types/contract';
+import type { Unit } from '@/types/contract';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

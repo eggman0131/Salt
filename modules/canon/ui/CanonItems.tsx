@@ -34,7 +34,7 @@ import {
   type CanonItem,
   type SuggestedMatch,
 } from '../api';
-import type { Aisle, Unit } from '../../../../types/contract';
+import type { Aisle, Unit } from '@/types/contract';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

@@ -29,8 +29,6 @@ interface RecipesListProps {
     recipe: Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imagePath'>,
     onProgress?: (progress: RecipeSaveProgress) => void
   ) => Promise<void>;
-  onUploadRecipeImage?: (recipe: Recipe) => void;
-  onRegenerateRecipeImage?: (recipe: Recipe) => void;
   onRepairRecipe?: (recipe: Recipe) => void;
 }
 
@@ -41,8 +39,6 @@ export const RecipesList: React.FC<RecipesListProps> = ({
   isLoading,
   onSelectRecipe,
   onCreateRecipe,
-  onUploadRecipeImage,
-  onRegenerateRecipeImage,
   onRepairRecipe,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -224,10 +220,7 @@ export const RecipesList: React.FC<RecipesListProps> = ({
             <RecipeCard
               key={recipe.id}
               recipe={recipe}
-              categories={categories}
               onClick={() => onSelectRecipe(recipe)}
-              onUploadImage={() => onUploadRecipeImage?.(recipe)}
-              onRegenerateImage={() => onRegenerateRecipeImage?.(recipe)}
               onRepair={() => onRepairRecipe?.(recipe)}
             />
           ))}

@@ -235,7 +235,7 @@ export function RecipeFormDialog({
         complexity,
         categoryIds: selectedCategoryIds,
         ingredients: ingredientsForBackend as any,
-        instructions: validInstructions,
+        instructions: validInstructions as any,
         equipmentNeeded: validEquipment,
       };
 

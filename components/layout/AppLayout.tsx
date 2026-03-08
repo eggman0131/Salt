@@ -71,7 +71,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     <Sidebar
       activeTab={activeTab}
       onTabChange={handleMenuClick}
-      user={user}
+      user={user as any}
       onLogout={onLogout}
       suggestionsCount={0}
     />

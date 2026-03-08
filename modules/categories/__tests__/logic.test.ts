@@ -26,7 +26,7 @@ describe('Categorisation Logic', () => {
         cuisines: [],
         complexity: 'easy',
         servings: 4,
-      } as Recipe;
+      } as unknown as Recipe;
 
       const names = extractIngredientNames(recipe);
       expect(names).toEqual(['flour', 'butter', 'sugar']);
@@ -43,7 +43,7 @@ describe('Categorisation Logic', () => {
         cuisines: [],
         complexity: 'easy',
         servings: 4,
-      } as Recipe;
+      } as unknown as Recipe;
 
       const names = extractIngredientNames(recipe);
       expect(names).toContain('flour');
@@ -58,7 +58,7 @@ describe('Categorisation Logic', () => {
         cuisines: [],
         complexity: 'easy',
         servings: 4,
-      } as Recipe;
+      } as unknown as Recipe;
 
       const names = extractIngredientNames(recipe);
       expect(names).toEqual([]);
@@ -112,13 +112,13 @@ describe('Categorisation Logic', () => {
         name: 'Breakfast',
         isApproved: true,
         synonyms: ['Morning', 'Brekkie'],
-      } as RecipeCategory,
+      } as unknown as RecipeCategory,
       {
         id: 'cat-2',
         name: 'Lunch',
         isApproved: true,
         synonyms: [],
-      } as RecipeCategory,
+      } as unknown as RecipeCategory,
     ];
 
     it('validates new unique names', () => {
@@ -158,7 +158,7 @@ describe('Categorisation Logic', () => {
       complexity: 'easy',
       cuisines: [],
       servings: 2,
-    } as Recipe;
+    } as unknown as Recipe;
 
     const existing: RecipeCategory[] = [
       {
@@ -166,7 +166,7 @@ describe('Categorisation Logic', () => {
         name: 'Breakfast',
         isApproved: true,
         synonyms: [],
-      } as RecipeCategory,
+      } as unknown as RecipeCategory,
     ];
 
     it('includes recipe details', () => {
@@ -184,7 +184,7 @@ describe('Categorisation Logic', () => {
     it('excludes unapproved categories from system instruction', () => {
       const withPending: RecipeCategory[] = [
         ...existing,
-        { id: 'cat-2', name: 'Pending', isApproved: false, createdAt: '' } as RecipeCategory,
+        { id: 'cat-2', name: 'Pending', isApproved: false, createdAt: '' } as unknown as RecipeCategory,
       ];
       const instruction = buildCategorizationSystemInstruction(withPending);
       expect(instruction).toContain('Breakfast');
@@ -195,7 +195,7 @@ describe('Categorisation Logic', () => {
       const manyIngredients: Recipe = {
         ...recipe,
         ingredients: Array.from({ length: 20 }, (_, i) => `ingredient-${i}`),
-      } as Recipe;
+      } as unknown as Recipe;
       const prompt = buildCategorizationPrompt(manyIngredients);
       expect(prompt).toContain('ingredient-9');
       expect(prompt).not.toContain('ingredient-15');

@@ -89,21 +89,22 @@ export function resolveGroupToAisle(
 export function validateEmbedding(
   item: CofIDItem,
 ): { valid: boolean; error?: string } {
-  if (!item.embedding) {
+  const anyItem = item as any;
+  if (!anyItem.embedding) {
     return { valid: false, error: 'No embedding provided' };
   }
 
-  if (item.embeddingModel !== 'text-embedding-005') {
+  if (anyItem.embeddingModel !== 'text-embedding-005') {
     return {
       valid: false,
-      error: `Invalid embedding model: ${item.embeddingModel} (expected text-embedding-005)`,
+      error: `Invalid embedding model: ${anyItem.embeddingModel} (expected text-embedding-005)`,
     };
   }
 
-  if (item.embedding.length !== 768) {
+  if (anyItem.embedding.length !== 768) {
     return {
       valid: false,
-      error: `Invalid embedding dimension: ${item.embedding.length} (expected 768)`,
+      error: `Invalid embedding dimension: ${anyItem.embedding.length} (expected 768)`,
     };
   }
 
