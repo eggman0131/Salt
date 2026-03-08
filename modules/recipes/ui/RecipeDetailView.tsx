@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
-import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle, Wrench, Check, GripHorizontal, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle, Wrench, Check, GripHorizontal, Minimize2, ShoppingBag } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import {
   Popover,
@@ -31,6 +31,7 @@ import { ImageEditor } from '../../../shared/components/ImageEditor';
 import { softToast } from '../../../lib/soft-toast';
 import { systemBackend } from '../../../shared/backend/system-backend';
 import { buildManualEditSummary, createHistoryEntry } from '../api';
+import { addRecipeToShoppingList } from '../../shopping-list';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -578,6 +579,16 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
     setChatTop(rect.top);
   };
 
+  const handleAddToShoppingList = async () => {
+    try {
+      await addRecipeToShoppingList(recipe.id);
+      softToast.success('Added to shopping list');
+    } catch (e) {
+      console.error(e);
+      softToast.error('Failed to add to shopping list');
+    }
+  };
+
   const handleImageError = (e: React.SyntheticEvent) => {
     (e.currentTarget as HTMLElement).style.display = 'none';
     setHasImageError(true);
@@ -670,6 +681,14 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                     Back to Recipes
                   </Button>
                   <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleAddToShoppingList}
+                      className="h-9 w-9"
+                      title="Add to Shopping List"
+                    >
+                      <ShoppingBag className="w-5 h-5" />
+                    </Button>
                     <Button 
                       variant="outline" 
                       onClick={() => setIsHistoryOpen(true)}
@@ -776,6 +795,15 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                 Back to Recipes
               </Button>
               <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleAddToShoppingList}
+                  className="h-9 w-9 md:w-auto md:h-10 md:px-4"
+                  title="Add to Shopping List"
+                >
+                  <ShoppingBag className="w-5 h-5 md:mr-2" />
+                  <span className="hidden md:inline">Add to List</span>
+                </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => setIsHistoryOpen(true)}
