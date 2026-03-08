@@ -2,7 +2,7 @@
  * Recipes Module Public API
  *
  * Phase B goal: stabilise a canonical API surface for recipe workflows,
- * including recipe-focused AI orchestration, under `modules_new/recipes`.
+ * including recipe-focused AI orchestration, under `modules/recipes`.
  */
 
 import type { Recipe } from '../../types/contract';

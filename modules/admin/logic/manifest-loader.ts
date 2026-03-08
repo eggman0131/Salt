@@ -8,7 +8,7 @@
 import { AdminManifest, AdminTool } from '../types';
 
 /**
- * Load all admin manifests from modules_new domain modules.
+ * Load all admin manifests from modules domain modules.
  * Returns a flat list of manifests.
  */
 export async function loadAllManifests(): Promise<AdminManifest[]> {

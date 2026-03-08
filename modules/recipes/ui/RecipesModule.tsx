@@ -10,16 +10,16 @@ import {
   updateRecipe,
 } from '../api';
 import type { RecipeSaveProgress } from '../types';
-import { getCategories as getCategoriesApi } from '../../../modules_new/categories/api';
+import { getCategories as getCategoriesApi } from '../../../modules/categories/api';
 import { Toaster } from '../../../components/ui/sonner';
 import { softToast } from '../../../lib/soft-toast';
 import { RecipesList } from './RecipesList';
 import { RecipeDetailView } from './RecipeDetailView';
 import { RepairRecipeModal } from './RepairRecipeModal';
-import { getAllCookGuides } from '../../../modules_new/assist-mode/api';
+import { getAllCookGuides } from '../../../modules/assist-mode/api';
 
 /**
- * Transitional Recipes tab implementation inside modules_new.
+ * Transitional Recipes tab implementation inside modules.
  *
  * Behaviour is intentionally unchanged. Child components are still sourced from
  * legacy module paths and will be moved in follow-up steps.

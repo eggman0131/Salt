@@ -2,7 +2,7 @@
  * Kitchen settings and inventory provider.
  *
  * Provides kitchen-wide context needed by recipe AI workflows.
- * These collections do not yet have dedicated modules_new modules.
+ * These collections do not yet have dedicated modules modules.
  */
 
 import { db } from '../../../shared/backend/firebase';
