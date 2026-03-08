@@ -204,7 +204,7 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'recipes' && (
-          <RecipesModule key={`recipes-${resetKey}`} />
+          <RecipesModule key={`recipes-${resetKey}`} onNavigateToChef={() => setActiveTab('ai')} />
         )}
 
         {activeTab === 'admin' && (

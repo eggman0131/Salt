@@ -18,6 +18,25 @@ import {
   SheetTitle,
 } from '../../../components/ui/sheet';
 import { CategoriesManagement } from '../../../modules/categories/ui/CategoriesManagement';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu';
+import { Plus, Wand2, Link, PenTool, Loader2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../../components/ui/dialog';
+import { Label } from '../../../components/ui/label';
+import { importRecipeFromUrl, generateRecipeImage } from '../api';
+import { softToast } from '../../../lib/soft-toast';
 
 interface RecipesListProps {
   recipes: Recipe[];
@@ -30,6 +49,7 @@ interface RecipesListProps {
     onProgress?: (progress: RecipeSaveProgress) => void
   ) => Promise<void>;
   onRepairRecipe?: (recipe: Recipe) => void;
+  onNavigateToChef?: () => void;
 }
 
 export const RecipesList: React.FC<RecipesListProps> = ({
@@ -44,6 +64,9 @@ export const RecipesList: React.FC<RecipesListProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [assistOnly, setAssistOnly] = useState(false);
@@ -87,6 +110,75 @@ export const RecipesList: React.FC<RecipesListProps> = ({
     setIsCreateDialogOpen(false);
   };
 
+  const handleImport = async () => {
+    const url = importUrl.trim();
+    if (!url || isImporting) return;
+
+    setIsImporting(true);
+    try {
+      const importedRecipe = await importRecipeFromUrl(url);
+      const imageData = await generateRecipeImage(
+        importedRecipe.title || 'Dish',
+        importedRecipe.description
+      );
+
+      await onCreateRecipe({
+        ...importedRecipe,
+        ingredients: importedRecipe.ingredients || [],
+        instructions: importedRecipe.instructions || [],
+        equipmentNeeded: importedRecipe.equipmentNeeded || [],
+        title: importedRecipe.title || 'Imported Recipe',
+        description: importedRecipe.description || 'Imported from external source.',
+        prepTime: importedRecipe.prepTime || '---',
+        cookTime: importedRecipe.cookTime || '---',
+        totalTime: importedRecipe.totalTime || '---',
+        servings: importedRecipe.servings || '---',
+        complexity: (importedRecipe.complexity as any) || 'Intermediate',
+      } as any);
+
+      softToast.success('Recipe imported', { description: importedRecipe.title });
+      setIsImportDialogOpen(false);
+      setImportUrl('');
+    } catch (err) {
+      console.error('Import error:', err);
+      softToast.error('Import failed', { description: 'Check the URL and try again' });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const AddRecipeMenu = ({ className }: { className?: string }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button className={className}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={() => onNavigateToChef?.()} className="cursor-pointer py-3">
+          <Wand2 className="h-4 w-4 mr-3 text-primary" />
+          <div className="flex flex-col">
+            <span className="font-medium">Ask the Chef (AI)</span>
+            <span className="text-[10px] text-muted-foreground">Describe what you want</span>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)} className="cursor-pointer py-3">
+          <Link className="h-4 w-4 mr-3" />
+          <div className="flex flex-col">
+            <span className="font-medium">Import from URL</span>
+             <span className="text-[10px] text-muted-foreground">Extract from any website</span>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setIsCreateDialogOpen(true)} className="cursor-pointer py-2">
+          <PenTool className="h-4 w-4 mr-3" />
+          <span>Manual Entry</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -117,7 +209,7 @@ export const RecipesList: React.FC<RecipesListProps> = ({
               <Tags className="h-4 w-4" />
               <span className="hidden sm:inline">Categories</span>
             </Button>
-            <AddButton onClick={() => setIsCreateDialogOpen(true)} label="Add" />
+            <AddRecipeMenu />
           </div>
         </div>
 
@@ -204,12 +296,9 @@ export const RecipesList: React.FC<RecipesListProps> = ({
               <>
                 <p className="text-lg font-medium">No recipes yet</p>
                 <p className="mt-1">Create your first recipe to get started</p>
-                <AddButton
-                  onClick={() => setIsCreateDialogOpen(true)}
-                  className="mt-4"
-                  variant="outline"
-                  label="Add"
-                />
+                <div className="flex justify-center mt-4">
+                  <AddRecipeMenu />
+                </div>
               </>
             )}
           </div>
@@ -244,6 +333,53 @@ export const RecipesList: React.FC<RecipesListProps> = ({
           <CategoriesManagement />
         </SheetContent>
       </Sheet>
+
+      {/* Import URL Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Recipe from URL</DialogTitle>
+            <DialogDescription>
+              Enter the web address of a recipe to import it into Salt
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="import-url">Recipe URL</Label>
+              <Input
+                id="import-url"
+                placeholder="https://example.com/recipe"
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && importUrl.trim()) {
+                    void handleImport();
+                  }
+                }}
+                disabled={isImporting}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsImportDialogOpen(false)}
+              disabled={isImporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleImport()}
+              disabled={!importUrl.trim() || isImporting}
+            >
+              {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isImporting ? 'Importing...' : 'Import Recipe'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Stack>
   );
 };
