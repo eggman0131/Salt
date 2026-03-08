@@ -1,20 +1,5 @@
 {
-
   "permissions": {
-    "deny": [
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./**/secrets/**)",
-      "Bash(rm -rf *)",
-      "Bash(chmod *)",
-      "Bash(chown *)"
-    ],
-
-    "ask": [
-      "Edit(./types/contract.ts)",
-      "Write(./types/contract.ts)"
-    ],
-
     "allow": [
       "Bash(git status *)",
       "Bash(git diff *)",
@@ -22,13 +7,11 @@
       "Bash(git commit *)",
       "Bash(git switch *)",
       "Bash(git checkout *)",
-
       "Bash(npm *)",
       "Bash(pnpm *)",
       "Bash(node *)",
       "Bash(ts-node *)",
       "Bash(npx *)",
-
       "Bash(ls *)",
       "Bash(cat *)",
       "Bash(grep *)",
@@ -38,19 +21,32 @@
       "Bash(mv *)",
       "Bash(mkdir *)",
       "Bash(touch *)",
-
       "Bash(curl *)",
       "Bash(wget *)",
-
       "Bash(docker *)",
-
       "Edit(*)",
       "Write(*)",
       "Read(*)",
-
-      "mcp__*"
+      "mcp__*",
+      "Bash(gh repo view --json nameWithOwner -q .nameWithOwner)",
+      "Bash(gh auth status)",
+      "Bash(gh issue view 112 --repo eggman0131/Salt --json body -q .body)",
+      "Bash(gh issue:*)",
+      "Read(//home/eggman/.claude/**)",
+      "Read(//home/eggman/.config/claude/**)"
     ],
-
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/secrets/**)",
+      "Bash(rm -rf *)",
+      "Bash(chmod *)",
+      "Bash(chown *)"
+    ],
+    "ask": [
+      "Edit(./types/contract.ts)",
+      "Write(./types/contract.ts)"
+    ],
     "defaultMode": "acceptEdits"
   }
 }
