@@ -13,7 +13,7 @@ import { debugLogger } from '@/shared/backend/debug-logger';
 import { InventoryModule, getInventory } from './modules/inventory';
 import {
   AIModule as RecipesAIModule,
-  getRecipes as getRecipesNew,
+  getRecipes,
   RecipesModule,
 } from './modules/recipes';
 import { PlannerModule, getPlans, getKitchenSettings, findPlanForDate } from './modules/planner';
@@ -63,7 +63,7 @@ const App: React.FC = () => {
     const nextWeekStr = getLocalDateString(nextWeekDate);
 
     const [r, i, u, plans] = await Promise.all([
-      getRecipesNew(),
+      getRecipes(),
       getInventory(),
       systemBackend.getUsers(),
       getPlans(),
