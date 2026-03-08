@@ -214,8 +214,6 @@ export const RecipesModule: React.FC = () => {
         isLoading={isLoading}
         onSelectRecipe={setSelectedRecipe}
         onCreateRecipe={handleCreateRecipe}
-        onUploadRecipeImage={handleUploadRecipeImage}
-        onRegenerateRecipeImage={handleRegenerateRecipeImage}
         onRepairRecipe={handleOpenRepairModal}
       />
       <RepairRecipeModal

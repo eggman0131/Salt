@@ -5,10 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
 import { X, AlertCircle } from 'lucide-react';
-import type { Ingredient, Unit } from '@/types/contract';
+import type { RecipeIngredient, Unit } from '@/types/contract';
 
 interface RecipeIngredientsInputProps {
-  ingredients: Ingredient[];
+  ingredients: RecipeIngredient[];
   units: Unit[];
   onAddIngredient: () => void;
   onRemoveIngredient: (id: string) => void;
@@ -95,11 +95,10 @@ export function RecipeIngredientsInput({
                   <Combobox
                     options={unitOptions}
                     value={ingredient.unit}
-                    onChange={(value) => onChangeUnit(index, value)}
+                    onValueChange={(value) => onChangeUnit(index, value)}
                     placeholder="Select unit..."
                     searchPlaceholder="Search units..."
                     emptyMessage="No unit found"
-                    allowCustomValues={true}
                   />
                 </div>
               </div>

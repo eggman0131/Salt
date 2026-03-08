@@ -918,7 +918,7 @@ async function buildAisleMapping(cofidItems: CofIDItem[]): Promise<Record<string
   const groupToAisleName: Record<string, string> = {};
   groupMappingsSnapshot.forEach(docSnap => {
     const data = docSnap.data() as CoFIDGroupAisleMapping;
-    groupToAisleName[data.cofidGroup] = data.aisle;
+    groupToAisleName[data.cofidGroup] = data.aisleId;
   });
 
   // 3. Build final mapping: CofID item ID → canon aisle ID

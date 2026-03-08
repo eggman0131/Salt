@@ -6,26 +6,27 @@
  */
 
 import { z } from 'zod';
+import type { Unit, Aisle } from '@/types/contract';
 
 /** Result of sortAisles / sortUnits helpers */
 export type SortOrder = number;
 
 /** Grouped units by category */
 export type UnitsByCategory = {
-  weight: import('../../../types/contract').Unit[];
-  volume: import('../../../types/contract').Unit[];
-  count: import('../../../types/contract').Unit[];
-  colloquial: import('../../../types/contract').Unit[];
+  weight: Unit[];
+  volume: Unit[];
+  count: Unit[];
+  colloquial: Unit[];
 };
 
 /** Result of an aisle name lookup */
 export type AisleLookupResult =
-  | { found: true; aisle: import('../../../types/contract').Aisle }
+  | { found: true; aisle: Aisle }
   | { found: false };
 
 /** Result of a unit lookup */
 export type UnitLookupResult =
-  | { found: true; unit: import('../../../types/contract').Unit }
+  | { found: true; unit: Unit }
   | { found: false };
 
 // ── PR4-A: AI Parse Types ────────────────────────────────────────────────────

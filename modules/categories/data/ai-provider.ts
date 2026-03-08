@@ -65,7 +65,6 @@ export async function callGeminForCategorization(
       temperature: 0,
       topP: 0.1,
       maxOutputTokens: 256,
-      thinkingLevel: 'low',
     },
   };
 
