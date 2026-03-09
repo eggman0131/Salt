@@ -48,7 +48,8 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-import { Loader2, Plus, Check, Pencil, AlertCircle, Link, Unlink, Sparkles, Trash2, Info, Search } from 'lucide-react';
+import { Loader2, Plus, Check, Pencil, AlertCircle, Link, Unlink, Sparkles, Trash2, Info, Search, Merge } from 'lucide-react';
+import { MergeCanonItemsDialog } from './MergeCanonItemsDialog';
 import {
   Dialog,
   DialogContent,
@@ -98,6 +99,7 @@ export const CanonItems: React.FC = () => {
   const [showCofidDialog, setShowCofidDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
   const [detailItem, setDetailItem] = useState<CanonItem | null>(null);
   const [cofidDetail, setCofidDetail] = useState<any | null>(null);
@@ -471,6 +473,16 @@ export const CanonItems: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+            {selectedItems.size === 2 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowMergeDialog(true)}
+              >
+                <Merge className="h-4 w-4 mr-2" />
+                Merge 2 items
+              </Button>
+            )}
             <Button
               variant="destructive"
               size="sm"
@@ -639,6 +651,28 @@ export const CanonItems: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Merge Dialog */}
+      {showMergeDialog && selectedItems.size === 2 && (() => {
+        const [idA, idB] = Array.from(selectedItems);
+        const itemA = items.find(i => i.id === idA);
+        const itemB = items.find(i => i.id === idB);
+        if (!itemA || !itemB) return null;
+        return (
+          <MergeCanonItemsDialog
+            itemA={itemA}
+            itemB={itemB}
+            aisles={aisles}
+            units={units}
+            onSuccess={() => {
+              setShowMergeDialog(false);
+              setSelectedItems(new Set());
+              loadData();
+            }}
+            onCancel={() => setShowMergeDialog(false)}
+          />
+        );
+      })()}
 
       {/* Bulk Delete Confirmation */}
       <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>

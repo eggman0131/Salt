@@ -42,6 +42,16 @@ import {
   fetchMatchEvents,
   getMatchPerformanceStats,
 } from './data/match-events-provider';
+import {
+  getCanonItemMergeImpact,
+  getAisleMergeImpact,
+  mergeCanonItems,
+  mergeCanonAisles,
+  type CanonItemMergeImpact,
+  type AisleMergeImpact,
+  type CanonItemMergeUpdates,
+  type AisleMergeUpdates,
+} from './data/merge-provider';
 import { CanonItem } from './logic/items';
 
 // ── Persistence-backed read helpers ──────────────────────────────────────────
@@ -236,6 +246,11 @@ export async function editCofidMapping(
 export async function removeCofidMapping(id: string): Promise<void> {
   return deleteCofidMapping(id);
 }
+
+// ── Merge operations ──────────────────────────────────────────────────────────
+
+export { getCanonItemMergeImpact, getAisleMergeImpact, mergeCanonItems, mergeCanonAisles };
+export type { CanonItemMergeImpact, AisleMergeImpact, CanonItemMergeUpdates, AisleMergeUpdates };
 
 // ── Pure logic helpers (re-exported for convenience) ─────────────────────────
 

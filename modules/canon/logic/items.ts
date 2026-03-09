@@ -63,6 +63,7 @@ export const CanonItemSchema = z.object({
   updatedAt: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   externalSources: z.array(ExternalSourceLinkSchema).optional(),
+  synonyms: z.array(z.string()).optional(),
 });
 
 export type CanonItem = z.infer<typeof CanonItemSchema>;
