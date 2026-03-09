@@ -58,6 +58,7 @@ export const CanonItemSchema = z.object({
   aisleId: z.string().min(1),
   preferredUnitId: z.string().min(1),
   needsReview: z.boolean().default(true),
+  isStaple: z.boolean().default(false),  // storecupboard/pantry item — not auto-added to shopping list
   createdAt: z.string(),
   updatedAt: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),

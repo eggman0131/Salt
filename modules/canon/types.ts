@@ -206,6 +206,14 @@ export const CanonMatchEventSchema = z.object({
     method: z.enum(['exact', 'fuzzy', 'semantic', 'manual', 'merged']).optional(), // Match method
     embeddingGenerated: z.boolean().optional(), // Whether new embedding was created
     embeddingReused: z.boolean().optional(), // Whether existing embedding was reused
+    // Near-miss candidates — top results considered but not chosen (match-decision events)
+    candidates: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      score: z.number(),
+      method: z.string(),
+      reason: z.string().optional(),
+    })).optional(),
   }).passthrough(), // Allow additional stage-specific fields
 
   // Performance metrics
@@ -214,6 +222,7 @@ export const CanonMatchEventSchema = z.object({
     batchId: z.string().optional(), // If part of batch operation
     batchSize: z.number().optional(), // Total items in batch
     batchIndex: z.number().optional(), // This item's position in batch (0-indexed)
+    sessionLabel: z.string().optional(), // Human-readable label (recipe title, operation description)
   }),
 
   // Additional metadata for troubleshooting

@@ -31,7 +31,7 @@ import { ImageEditor } from '../../../shared/components/ImageEditor';
 import { softToast } from '../../../lib/soft-toast';
 import { systemBackend } from '../../../shared/backend/system-backend';
 import { buildManualEditSummary, createHistoryEntry } from '../api';
-import { addRecipeToShoppingList } from '../../shopping-list';
+import { addRecipeToList, getDefaultShoppingList } from '../../shopping-list';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -581,7 +581,8 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
 
   const handleAddToShoppingList = async () => {
     try {
-      await addRecipeToShoppingList(recipe.id);
+      const list = await getDefaultShoppingList();
+      await addRecipeToList(recipe.id, list.id);
       softToast.success('Added to shopping list');
     } catch (e) {
       console.error(e);

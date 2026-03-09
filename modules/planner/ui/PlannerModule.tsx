@@ -34,7 +34,7 @@ import {
   getFriday,
   TEMPLATE_ID,
 } from '../api';
-import { addMultipleRecipesToShoppingList } from '../../shopping-list';
+import { syncPlannerToList, getDefaultShoppingList } from '../../shopping-list';
 import { softToast } from '@/lib/soft-toast';
 
 interface PlannerModuleProps {
@@ -274,8 +274,9 @@ export const PlannerModule: React.FC<PlannerModuleProps> = ({ users, recipes, on
     }
     
     try {
-      await addMultipleRecipesToShoppingList(uniqueIds);
-      softToast.success(`Added ${uniqueIds.length} recipes to shopping list`);
+      const list = await getDefaultShoppingList();
+      const result = await syncPlannerToList(startDate, list.id);
+      softToast.success(`Synced ${result.added} items${result.needsReview > 0 ? `, ${result.needsReview} to review` : ''}`);
     } catch (e) {
       console.error(e);
       softToast.error('Failed to add week to shopping list');

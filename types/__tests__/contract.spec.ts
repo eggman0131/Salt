@@ -465,10 +465,10 @@ describe('Contract Runtime Validation - ShoppingList', () => {
   const validList: ShoppingList = {
     id: 'list-1',
     name: 'Weekly Shop',
-    recipeIds: ['rec-1', 'rec-2'],
-    isDefault: false,
+    isDefault: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    createdBy: 'user-1',
   };
 
   it('should accept valid shopping list', () => {
@@ -476,10 +476,17 @@ describe('Contract Runtime Validation - ShoppingList', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should allow optional fields', () => {
+  it('should require isDefault', () => {
+    const missing = { id: 'list-2', name: 'Quick Shop', createdAt: new Date().toISOString() };
+    const result = ShoppingListSchema.safeParse(missing);
+    expect(result.success).toBe(false);
+  });
+
+  it('should allow optional updatedAt and createdBy', () => {
     const minimal: ShoppingList = {
       id: 'list-2',
       name: 'Quick Shop',
+      isDefault: false,
       createdAt: new Date().toISOString(),
     };
     const result = ShoppingListSchema.safeParse(minimal);
@@ -494,10 +501,23 @@ describe('Contract Runtime Validation - ShoppingListItem', () => {
     canonicalItemId: 'item-onion',
     name: 'Onion',
     aisle: 'Produce',
-    quantity: 4,
-    unit: 'pieces',
+    totalBaseQty: 4,
+    baseUnit: 'g',
+    contributions: [
+      {
+        sourceType: 'recipe',
+        recipeId: 'rec-1',
+        recipeTitle: 'Pasta Bake',
+        rawText: '4 onions, diced',
+        qty: 4,
+        unit: 'g',
+        addedBy: 'user-1',
+        addedAt: new Date().toISOString(),
+      },
+    ],
+    status: 'active',
     checked: false,
-    isStaple: false,
+    updatedAt: new Date().toISOString(),
   };
 
   it('should accept valid shopping list item', () => {
@@ -505,21 +525,56 @@ describe('Contract Runtime Validation - ShoppingListItem', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should track source recipes', () => {
+  it('should accept item with needs_review status (storecupboard)', () => {
     const result = ShoppingListItemSchema.safeParse({
       ...validItem,
-      sourceRecipeIds: ['rec-1', 'rec-2'],
-      sourceRecipeIngredientIds: ['ri-1', 'ri-2'],
+      status: 'needs_review',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept unmatched manual item (no canonicalItemId)', () => {
+    const unmatched: ShoppingListItem = {
+      id: 'sli-2',
+      shoppingListId: 'list-1',
+      name: 'Dishwasher tablets',
+      contributions: [
+        {
+          sourceType: 'manual',
+          rawText: 'Dishwasher tablets',
+          addedBy: 'user-1',
+          addedAt: new Date().toISOString(),
+        },
+      ],
+      status: 'active',
+      checked: false,
+      addedBy: 'user-1',
+      updatedAt: new Date().toISOString(),
+    };
+    const result = ShoppingListItemSchema.safeParse(unmatched);
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept multiple contributions from different recipes', () => {
+    const result = ShoppingListItemSchema.safeParse({
+      ...validItem,
+      totalBaseQty: 300,
+      contributions: [
+        { sourceType: 'recipe', recipeId: 'rec-1', recipeTitle: 'Pasta', rawText: '200g butter', qty: 200, unit: 'g', addedBy: 'user-1', addedAt: new Date().toISOString() },
+        { sourceType: 'recipe', recipeId: 'rec-2', recipeTitle: 'Cake', rawText: '100g butter', qty: 100, unit: 'g', addedBy: 'user-1', addedAt: new Date().toISOString() },
+      ],
     });
     expect(result.success).toBe(true);
   });
 
   it('should allow optional note', () => {
-    const result = ShoppingListItemSchema.safeParse({
-      ...validItem,
-      note: 'Buy red onions',
-    });
+    const result = ShoppingListItemSchema.safeParse({ ...validItem, note: 'Buy unsalted' });
     expect(result.success).toBe(true);
+  });
+
+  it('should enforce status enum', () => {
+    const result = ShoppingListItemSchema.safeParse({ ...validItem, status: 'pending' });
+    expect(result.success).toBe(false);
   });
 });
 
@@ -725,13 +780,16 @@ describe('Contract Type-Level Tests - Type Safety', () => {
       canonicalItemId: 'item-1',
       name: 'Onion',
       aisle: 'Produce',
-      quantity: 1,
-      unit: 'piece',
+      totalBaseQty: 4,
+      baseUnit: 'g',
+      contributions: [],
+      status: 'active',
       checked: false,
-      isStaple: false,
+      updatedAt: new Date().toISOString(),
     };
-    expectTypeOf(item.quantity).toBeNumber();
     expectTypeOf(item.checked).toBeBoolean();
+    expectTypeOf(item.contributions).toBeArray();
+    expectTypeOf(item.status).toMatchTypeOf<'needs_review' | 'active'>();
   });
 
   it('should preserve enum types', () => {
@@ -851,13 +909,12 @@ describe('Contract Type-Level Tests - Field Relationships', () => {
       shoppingListId: 'list-1',
       canonicalItemId: 'item-1',
       name: 'Onion',
-      aisle: 'Produce',
-      quantity: 1,
-      unit: 'g',
+      contributions: [],
+      status: 'active',
       checked: false,
-      isStaple: false,
+      updatedAt: new Date().toISOString(),
     };
-    expectTypeOf(item.canonicalItemId).toBeString();
+    expectTypeOf(item.canonicalItemId).toMatchTypeOf<string | undefined>();
     expectTypeOf(item.shoppingListId).toBeString();
   });
 });
@@ -920,6 +977,7 @@ describe('Contract Stability - Core Relationships', () => {
     const list: ShoppingList = {
       id: 'list-1',
       name: 'Weekly',
+      isDefault: true,
       createdAt: new Date().toISOString(),
     };
 
@@ -929,10 +987,10 @@ describe('Contract Stability - Core Relationships', () => {
       canonicalItemId: 'item-1',
       name: 'Onion',
       aisle: 'Produce',
-      quantity: 1,
-      unit: 'g',
+      contributions: [],
+      status: 'active',
       checked: false,
-      isStaple: false,
+      updatedAt: new Date().toISOString(),
     };
 
     expect(item.shoppingListId).toBe(list.id);
@@ -1060,10 +1118,14 @@ describe('Contract Validation Consistency', () => {
       canonicalItemId: 'item-1',
       name: 'Tomato',
       aisle: 'Produce',
-      quantity: 3,
-      unit: 'pieces',
+      totalBaseQty: 3,
+      baseUnit: 'g',
+      contributions: [
+        { sourceType: 'recipe', recipeId: 'rec-1', recipeTitle: 'Salad', rawText: '3 tomatoes', qty: 3, unit: 'g', addedBy: 'user-1', addedAt: new Date().toISOString() },
+      ],
+      status: 'active',
       checked: false,
-      isStaple: false,
+      updatedAt: new Date().toISOString(),
     };
 
     const result = ShoppingListItemSchema.safeParse(item);

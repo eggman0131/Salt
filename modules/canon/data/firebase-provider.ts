@@ -404,6 +404,7 @@ export async function fetchCanonItems(): Promise<CanonItem[]> {
       aisleId: data.aisleId,
       preferredUnitId: data.preferredUnitId,
       needsReview: data.needsReview ?? true,
+      isStaple: data.isStaple ?? false,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       metadata: data.metadata,
@@ -433,6 +434,7 @@ export async function fetchCanonItemById(id: string): Promise<CanonItem | null> 
     aisleId: data.aisleId,
     preferredUnitId: data.preferredUnitId,
     needsReview: data.needsReview ?? true,
+      isStaple: data.isStaple ?? false,
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
     metadata: data.metadata,
@@ -457,6 +459,7 @@ export async function createCanonItem(input: {
     aisleId: input.aisleId,
     preferredUnitId: input.preferredUnitId,
     needsReview: input.needsReview ?? true,
+    isStaple: false,
     createdAt: now,
   });
 
@@ -467,6 +470,7 @@ export async function createCanonItem(input: {
     aisleId: input.aisleId,
     preferredUnitId: input.preferredUnitId,
     needsReview: input.needsReview ?? true,
+    isStaple: false,
     createdAt: now,
   };
 
