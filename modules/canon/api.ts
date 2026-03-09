@@ -8,7 +8,7 @@
  */
 
 import { Aisle, Unit } from '../../types/contract';
-import { CoFIDGroupAisleMapping, CanonMatchEvent } from './types';
+import { CanonMatchEvent } from './types';
 import {
   fetchCanonAisles,
   fetchCanonUnits,
@@ -33,10 +33,6 @@ import {
   updateCanonUnit,
   deleteCanonUnit,
   reorderCanonUnits,
-  fetchCofidMappings,
-  createCofidMapping,
-  updateCofidMapping,
-  deleteCofidMapping,
 } from './data/firebase-provider';
 import {
   fetchMatchEvents,
@@ -209,44 +205,6 @@ export async function reorderUnits(
   return reorderCanonUnits(updates);
 }
 
-// ── CofID Group Aisle Mappings CRUD ───────────────────────────────────────────
-
-/**
- * Get all CofID group aisle mappings.
- */
-export async function getCofidMappings(): Promise<CoFIDGroupAisleMapping[]> {
-  return fetchCofidMappings();
-}
-
-/**
- * Create a new CofID group aisle mapping.
- */
-export async function addCofidMapping(input: {
-  cofidGroup: string;
-  cofidGroupName: string;
-  aisleId: string;
-  aisleName: string;
-}): Promise<CoFIDGroupAisleMapping> {
-  return createCofidMapping(input);
-}
-
-/**
- * Update an existing CofID group aisle mapping.
- */
-export async function editCofidMapping(
-  id: string,
-  updates: Partial<Pick<CoFIDGroupAisleMapping, 'cofidGroup' | 'cofidGroupName' | 'aisleId' | 'aisleName'>>
-): Promise<void> {
-  return updateCofidMapping(id, updates);
-}
-
-/**
- * Delete a CofID group aisle mapping.
- */
-export async function removeCofidMapping(id: string): Promise<void> {
-  return deleteCofidMapping(id);
-}
-
 // ── Merge operations ──────────────────────────────────────────────────────────
 
 export { getCanonItemMergeImpact, getAisleMergeImpact, mergeCanonItems, mergeCanonAisles };
@@ -289,22 +247,6 @@ export {
   validateItemDoc,
 } from './logic/items';
 
-// ── CofID Logic (mapping resolver) ────────────────────────────────────────────
-
-export {
-  normaliseAisleName,
-  resolveGroupToAisle,
-  validateEmbedding,
-  resolveCofidItemsToAisles,
-  generateCofidImportReport,
-} from './logic/cofid-mapping';
-
-export type {
-  CofidAisleEntry,
-  CofidMapping,
-  AisleInfo,
-  MappingResult,
-} from './logic/cofid-mapping';
 
 // ── CofID Data (for admin tools) ──────────────────────────────────────────────
 
@@ -428,17 +370,6 @@ export async function seedCanonAisles(aisles: Aisle[]): Promise<void> {
  */
 export async function seedCanonUnits(units: Unit[]): Promise<void> {
   return seedUnits(units);
-}
-
-/**
- * Batch seed CofID group → aisle mappings into cofid_group_aisle_mappings collection.
- * Idempotent — uses setDoc with group code as document ID.
- */
-export async function seedCofidGroupAisleMappings(
-  mappings: Record<string, any>
-): Promise<void> {
-  const { seedCofidGroupAisleMappings: seedFn } = await import('./data/firebase-provider');
-  return seedFn(mappings);
 }
 
 /**

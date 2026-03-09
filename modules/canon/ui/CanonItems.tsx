@@ -1575,11 +1575,7 @@ const CofidSuggestionsDialog: React.FC<CofidSuggestionsDialogProps> = ({
                           ? <Badge variant="default" className="text-xs"><Sparkles className="h-3 w-3 mr-1" />Best match</Badge>
                           : <Badge variant={match.method === 'exact' ? 'default' : 'secondary'} className="text-xs">{match.method}</Badge>
                         }
-                        aisleBadge={match.aisleId ? (
-                          <Badge variant="outline" className={match.aisleMatches ? 'text-xs text-green-600 border-green-400' : 'text-xs text-muted-foreground'}>
-                            {aisleMap.get(match.aisleId) ?? match.aisleId}
-                          </Badge>
-                        ) : null}
+                        aisleBadge={null}
                         sub={`${Math.round(match.score * 100)}% similarity`}
                         isSelected={selectedMatch?.cofidId === match.cofidId}
                         onSelect={() => setSelectedMatch(match)}

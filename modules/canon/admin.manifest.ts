@@ -22,13 +22,6 @@ export const canonAdminTools = [
       import('./ui/admin/AiIngredientParseTool').then(m => ({ default: m.default })),
   },
   {
-    id: 'canon.cofid-mappings',
-    label: 'CofID Aisle Mappings',
-    description: 'Manage CofID group → aisle mappings with full CRUD and validation reporting.',
-    component: () =>
-      import('./ui/admin/CofidMappingsAdmin').then(m => ({ default: m.CofidMappingsAdmin })),
-  },
-  {
     id: 'canon.embedding-coverage',
     label: 'Embedding Coverage',
     description: 'Manage semantic matching embeddings for CofID and canon items.',

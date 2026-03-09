@@ -6,7 +6,7 @@
  */
 
 import { Aisle, Unit } from '../../../types/contract';
-import { CofIDItem, CoFIDGroupAisleMapping } from '../types';
+import { CofIDItem } from '../types';
 import { db } from '../../../shared/backend/firebase';
 import {
   collection,
@@ -42,7 +42,6 @@ const CANON_AISLES_COLLECTION = 'canonAisles';
 const CANON_UNITS_COLLECTION = 'canonUnits';
 const CANON_ITEMS_COLLECTION = 'canonItems';
 const CANON_COFID_ITEMS_COLLECTION = 'canonCofidItems';
-const COFID_GROUP_AISLE_MAPPINGS_COLLECTION = 'cofid_group_aisle_mappings';
 
 function getCofidSourceFromExternalSources(
   externalSources?: ExternalSourceLink[]
@@ -313,78 +312,6 @@ export async function reorderCanonAisles(
   });
   
   await batch.commit();
-}
-
-// ── CofID Group Aisle Mappings CRUD ───────────────────────────────────────────
-
-/**
- * Fetch all CofID group aisle mappings.
- */
-export async function fetchCofidMappings(): Promise<CoFIDGroupAisleMapping[]> {
-  const snapshot = await getDocs(collection(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION));
-  const mappings: CoFIDGroupAisleMapping[] = [];
-
-  snapshot.forEach(docSnap => {
-    const data = docSnap.data();
-    mappings.push({
-      id: docSnap.id,
-      cofidGroup: data.cofidGroup,
-      cofidGroupName: data.cofidGroupName,
-      aisleId: data.aisleId,
-      aisleName: data.aisleName,
-      createdAt: data.createdAt,
-      createdBy: data.createdBy,
-    });
-  });
-
-  return mappings;
-}
-
-/**
- * Create a new CofID group aisle mapping.
- */
-export async function createCofidMapping(input: {
-  cofidGroup: string;
-  cofidGroupName: string;
-  aisleId: string;
-  aisleName: string;
-}): Promise<CoFIDGroupAisleMapping> {
-  const now = new Date().toISOString();
-  const docRef = await addDoc(collection(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION), {
-    cofidGroup: input.cofidGroup,
-    cofidGroupName: input.cofidGroupName,
-    aisleId: input.aisleId,
-    aisleName: input.aisleName,
-    createdAt: now,
-  });
-
-  return {
-    id: docRef.id,
-    cofidGroup: input.cofidGroup,
-    cofidGroupName: input.cofidGroupName,
-    aisleId: input.aisleId,
-    aisleName: input.aisleName,
-    createdAt: now,
-  };
-}
-
-/**
- * Update an existing CofID group aisle mapping.
- */
-export async function updateCofidMapping(
-  id: string,
-  updates: Partial<Pick<CoFIDGroupAisleMapping, 'cofidGroup' | 'cofidGroupName' | 'aisleId' | 'aisleName'>>
-): Promise<void> {
-  const docRef = doc(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION, id);
-  await updateDoc(docRef, updates);
-}
-
-/**
- * Delete a CofID group aisle mapping.
- */
-export async function deleteCofidMapping(id: string): Promise<void> {
-  const docRef = doc(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION, id);
-  await deleteDoc(docRef);
 }
 
 // ── Canon Items CRUD ──────────────────────────────────────────────────────────
@@ -731,55 +658,9 @@ export async function suggestCofidForCanonItem(
   // 2. Fetch all CofID items
   const cofidItems = await fetchCanonCofidItems() as CofIDItem[];
 
-  // 3. Build aisle mapping: CofID item ID → canon aisle ID
-  const aisleMapping = await buildAisleMapping(cofidItems);
-
-  // 4. Get lexical candidates — aisle-filtered first, fall back to all aisles if too few results
+  // 3. Get lexical candidates — full pool
   const lexicalTimer = startTimer();
-  let lexicalCandidates = rankCandidates(
-    canonItem.name,
-    canonItem.aisleId,
-    cofidItems,
-    aisleMapping,
-    8
-  );
-  // Tag aisle-match status
-  lexicalCandidates = lexicalCandidates.map(c => ({
-    ...c,
-    aisleId: aisleMapping[c.cofidId],
-    aisleMatches: aisleMapping[c.cofidId] === canonItem.aisleId,
-  }));
-
-  if (lexicalCandidates.length < 3) {
-    // Fallback: search all aisles for lexical matches (no aisle filter)
-    const allLexical: SuggestedMatch[] = [];
-    for (const candidate of cofidItems) {
-      const exactMatch = tryExactMatch(canonItem.name, candidate);
-      if (exactMatch) {
-        allLexical.push({
-          ...exactMatch,
-          aisleId: aisleMapping[candidate.id],
-          aisleMatches: aisleMapping[candidate.id] === canonItem.aisleId,
-        });
-        continue;
-      }
-      const fuzzyMatch = tryFuzzyMatch(canonItem.name, candidate, 0.6);
-      if (fuzzyMatch) {
-        allLexical.push({
-          ...fuzzyMatch,
-          aisleId: aisleMapping[candidate.id],
-          aisleMatches: aisleMapping[candidate.id] === canonItem.aisleId,
-        });
-      }
-    }
-    allLexical.sort((a, b) => b.score - a.score);
-    // Merge: keep existing aisle-matched ones, add global ones not already present
-    const existingIds = new Set(lexicalCandidates.map(c => c.cofidId));
-    for (const c of allLexical.slice(0, 8)) {
-      if (!existingIds.has(c.cofidId)) lexicalCandidates.push(c);
-    }
-    lexicalCandidates = lexicalCandidates.slice(0, 8);
-  }
+  let lexicalCandidates = rankCandidates(canonItem.name, cofidItems, 8);
   const lexicalDuration = lexicalTimer();
 
   // Log lexical matching event
@@ -860,8 +741,6 @@ export async function suggestCofidForCanonItem(
         score: match.similarity,
         method: 'semantic' as const,
         reason: match.reason,
-        aisleId: match.aisleId,
-        aisleMatches: match.aisleId === canonItem.aisleId,
       }));
       const semanticDuration = semanticTimer();
 
@@ -936,50 +815,12 @@ export async function suggestCofidForCanonItem(
     },
   });
 
-  const bestMatch = candidates[0] ?? suggestBestMatch(
-    canonItem.name,
-    canonItem.aisleId,
-    cofidItems,
-    aisleMapping
-  );
+  const bestMatch = candidates[0] ?? suggestBestMatch(canonItem.name, cofidItems);
 
   return { bestMatch, candidates };
 }
 
 /**
- * Build aisle mapping for CofID items.
- * Maps CofID item ID → canon aisle ID.
- * 
- * Process:
- * 1. Fetch all canon aisles
- * 2. Fetch all CofID group-to-aisle mappings
- * 3. Build map: aisle name → aisle ID
- * 4. Build map: CofID group → aisle name
- * 5. For each CofID item: item.group → aisle name → aisle ID
- */
-async function buildAisleMapping(cofidItems: CofIDItem[]): Promise<Record<string, string>> {
-  // Fetch CofID group-to-aisle mappings.
-  // CoFIDGroupAisleMapping.aisleId is already a canon aisle ID — use it directly.
-  const groupMappingsSnapshot = await getDocs(
-    collection(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION)
-  );
-  const groupToAisleId: Record<string, string> = {};
-  groupMappingsSnapshot.forEach(docSnap => {
-    const data = docSnap.data() as CoFIDGroupAisleMapping;
-    groupToAisleId[data.cofidGroup] = data.aisleId;
-  });
-
-  // Build final mapping: CofID item ID → canon aisle ID
-  const aisleMapping: Record<string, string> = {};
-  for (const cofidItem of cofidItems) {
-    const aisleId = groupToAisleId[cofidItem.group];
-    if (aisleId) {
-      aisleMapping[cofidItem.id] = aisleId;
-    }
-  }
-
-  return aisleMapping;
-}
 
 // ── Seed Operations (batch writes) ───────────────────────────────────────────
 
@@ -1025,29 +866,6 @@ export async function seedUnits(units: Unit[]): Promise<void> {
   await batch.commit();
 }
 
-/**
- * Batch write CofID group → aisle mappings to cofid_group_aisle_mappings collection.
- * Uses setDoc with the group code as the document ID (idempotent).
- */
-export async function seedCofidGroupAisleMappings(
-  mappings: Record<string, CoFIDGroupAisleMapping>
-): Promise<void> {
-  const batch = writeBatch(db);
-  
-  Object.entries(mappings).forEach(([groupCode, mapping]) => {
-    const docRef = doc(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION, groupCode);
-    batch.set(docRef, {
-      id: groupCode,
-      cofidGroup: groupCode,
-      cofidGroupName: mapping.cofidGroupName,
-      aisleId: mapping.aisleId,
-      aisleName: mapping.aisleName,
-      createdAt: new Date().toISOString(),
-    });
-  });
-
-  await batch.commit();
-}
 
 /**
  * Batch write CofID items to canonCofidItems collection.

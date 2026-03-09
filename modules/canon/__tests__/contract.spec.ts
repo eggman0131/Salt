@@ -20,14 +20,8 @@ import {
   AisleSchema,
   UnitSchema,
 } from '../../../types/contract';
-import type {
-  CoFIDGroupAisleMapping,
-  CofIDItem,
-} from '../types';
-import {
-  CoFIDGroupAisleMappingSchema,
-  CofIDItemSchema,
-} from '../types';
+import type { CofIDItem } from '../types';
+import { CofIDItemSchema } from '../types';
 
 // ============================================================================
 // SECTION 1: Test Fixtures (Contract-Shaped Data)
@@ -105,27 +99,6 @@ const CANONICAL_ITEMS_FIXTURE: CanonicalItem[] = [
     createdAt: '2024-01-01T00:00:00.000Z',
     createdBy: 'user-1',
     approved: true,
-  },
-];
-
-const COFID_MAPPINGS_FIXTURE: CoFIDGroupAisleMapping[] = [
-  {
-    id: 'mapping-A',
-    cofidGroup: 'A',
-    cofidGroupName: 'Cereals and cereal products',
-    aisleId: 'aisle-baking',
-    aisleName: 'Baking & Cooking Ingredients',
-    createdAt: '2024-01-01T00:00:00.000Z',
-    createdBy: 'user-1',
-  },
-  {
-    id: 'mapping-B',
-    cofidGroup: 'B',
-    cofidGroupName: 'Vegetables, herbs and spices',
-    aisleId: 'aisle-produce',
-    aisleName: 'Produce',
-    createdAt: '2024-01-01T00:00:00.000Z',
-    createdBy: 'user-1',
   },
 ];
 
@@ -433,69 +406,7 @@ describe('Canon Module - CanonicalItem Schema', () => {
 });
 
 // ============================================================================
-// SECTION 5: CoFIDGroupAisleMapping Schema Tests
-// ============================================================================
-
-describe('Canon Module - CoFIDGroupAisleMapping Schema', () => {
-  it('should validate all fixture mappings conform to schema', () => {
-    COFID_MAPPINGS_FIXTURE.forEach(mapping => {
-      expect(() => CoFIDGroupAisleMappingSchema.parse(mapping)).not.toThrow();
-    });
-  });
-
-  it('should have all required fields', () => {
-    const mapping = COFID_MAPPINGS_FIXTURE[0];
-    expect(mapping.id).toBeDefined();
-    expect(mapping.cofidGroup).toBeDefined();
-    expect(mapping.cofidGroupName).toBeDefined();
-    expect(mapping.aisleId).toBeDefined();
-    expect(mapping.aisleName).toBeDefined();
-    expect(mapping.createdAt).toBeDefined();
-  });
-
-  it('should reject mapping without id', () => {
-    const invalid = { ...COFID_MAPPINGS_FIXTURE[0], id: undefined };
-    expect(() => CoFIDGroupAisleMappingSchema.parse(invalid)).toThrow();
-  });
-
-  it('should reject mapping without cofidGroup', () => {
-    const invalid = { ...COFID_MAPPINGS_FIXTURE[0], cofidGroup: undefined };
-    expect(() => CoFIDGroupAisleMappingSchema.parse(invalid)).toThrow();
-  });
-
-  it('should reject mapping without cofidGroupName', () => {
-    const invalid = { ...COFID_MAPPINGS_FIXTURE[0], cofidGroupName: undefined };
-    expect(() => CoFIDGroupAisleMappingSchema.parse(invalid)).toThrow();
-  });
-
-  it('should reject mapping without aisleId', () => {
-    const invalid = { ...COFID_MAPPINGS_FIXTURE[0], aisleId: undefined };
-    expect(() => CoFIDGroupAisleMappingSchema.parse(invalid)).toThrow();
-  });
-
-  it('should reject mapping without aisleName', () => {
-    const invalid = { ...COFID_MAPPINGS_FIXTURE[0], aisleName: undefined };
-    expect(() => CoFIDGroupAisleMappingSchema.parse(invalid)).toThrow();
-  });
-
-  it('should reject mapping without createdAt', () => {
-    const invalid = { ...COFID_MAPPINGS_FIXTURE[0], createdAt: undefined };
-    expect(() => CoFIDGroupAisleMappingSchema.parse(invalid)).toThrow();
-  });
-
-  it('should accept mapping without createdBy', () => {
-    const noCreatedBy = { ...COFID_MAPPINGS_FIXTURE[0], createdBy: undefined };
-    expect(() => CoFIDGroupAisleMappingSchema.parse(noCreatedBy)).not.toThrow();
-  });
-
-  it('should maintain type safety', () => {
-    const mapping: CoFIDGroupAisleMapping = COFID_MAPPINGS_FIXTURE[0];
-    expectTypeOf(mapping).toMatchTypeOf<CoFIDGroupAisleMapping>();
-  });
-});
-
-// ============================================================================
-// SECTION 6: CofIDItem Schema Tests
+// SECTION 5: CofIDItem Schema Tests
 // ============================================================================
 
 describe('Canon Module - CofIDItem Schema', () => {
@@ -571,15 +482,6 @@ describe('Canon Module - Data Consistency', () => {
     expect(ids.size).toBe(CANONICAL_ITEMS_FIXTURE.length);
   });
 
-  it('should have unique IDs within CofID mapping collection', () => {
-    const ids = new Set(COFID_MAPPINGS_FIXTURE.map(m => m.id));
-    expect(ids.size).toBe(COFID_MAPPINGS_FIXTURE.length);
-  });
-
-  it('should have unique CofID groups within mapping collection', () => {
-    const groups = new Set(COFID_MAPPINGS_FIXTURE.map(m => m.cofidGroup));
-    expect(groups.size).toBe(COFID_MAPPINGS_FIXTURE.length);
-  });
 
   it('should have normalised names in lowercase', () => {
     CANONICAL_ITEMS_FIXTURE.forEach(item => {
@@ -649,22 +551,6 @@ describe('Canon Module - Edge Cases', () => {
     expect(() => AisleSchema.parse(aisle)).not.toThrow();
   });
 
-  it('should handle single-letter CofID group codes', () => {
-    const mapping: CoFIDGroupAisleMapping = {
-      ...COFID_MAPPINGS_FIXTURE[0],
-      cofidGroup: 'A',
-    };
-    expect(() => CoFIDGroupAisleMappingSchema.parse(mapping)).not.toThrow();
-  });
-
-  it('should handle multi-letter CofID group codes', () => {
-    const mapping: CoFIDGroupAisleMapping = {
-      ...COFID_MAPPINGS_FIXTURE[0],
-      cofidGroup: 'AAA',
-    };
-    expect(() => CoFIDGroupAisleMappingSchema.parse(mapping)).not.toThrow();
-  });
-
   it('should handle empty metadata object', () => {
     const item: CanonicalItem = {
       ...CANONICAL_ITEMS_FIXTURE[0],
@@ -697,12 +583,10 @@ describe('Canon Module - Module Boundaries', () => {
     const item: CanonicalItem = CANONICAL_ITEMS_FIXTURE[0];
     const aisle: Aisle = AISLES_FIXTURE[0];
     const unit: Unit = UNITS_FIXTURE[0];
-    const mapping: CoFIDGroupAisleMapping = COFID_MAPPINGS_FIXTURE[0];
 
     expectTypeOf(item).toMatchTypeOf<CanonicalItem>();
     expectTypeOf(aisle).toMatchTypeOf<Aisle>();
     expectTypeOf(unit).toMatchTypeOf<Unit>();
-    expectTypeOf(mapping).toMatchTypeOf<CoFIDGroupAisleMapping>();
   });
 
   it('should not expose internal implementation details', () => {

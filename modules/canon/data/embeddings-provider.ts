@@ -22,7 +22,6 @@ import { validateEmbedding } from '../logic/embeddings';
 
 // ── Collection names ─────────────────────────────────────────────────────────
 
-const COFID_GROUP_AISLE_MAPPINGS_COLLECTION = 'cofid_group_aisle_mappings';
 const CANON_AISLES_COLLECTION = 'canonAisles';
 const CANON_ITEMS_COLLECTION = 'canonItems';
 
@@ -39,13 +38,6 @@ const MASTER_SYNC_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 let lastMasterSyncCheckMs = 0;
 
-// ── Helper Types ─────────────────────────────────────────────────────────────
-
-interface CoFIDGroupAisleMapping {
-  cofidGroup: string;
-  aisleId: string; // Aisle ID (stable reference)
-  aisleName: string; // Denormalized aisle name for reference
-}
 
 interface EmbedBatchResponse {
   embeddings: number[][];
@@ -451,29 +443,6 @@ async function fetchCanonAisles(): Promise<Aisle[]> {
   }
 }
 
-/**
- * Fetch CofID group → aisle mappings.
- * 
- * @returns Record mapping CofID group code to aisle name
- */
-async function fetchCofidGroupAisleMappings(): Promise<Record<string, string>> {
-  try {
-    const snapshot = await getDocs(
-      collection(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION)
-    );
-
-    const mappings: Record<string, string> = {};
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data() as CoFIDGroupAisleMapping;
-      mappings[data.cofidGroup] = data.aisleId;
-    });
-
-    return mappings;
-  } catch (error) {
-    console.error('[fetchCofidGroupAisleMappings] Error:', error);
-    throw error;
-  }
-}
 
 /**
  * Fetch canon items (optionally filtered to generic items only).
@@ -582,11 +551,7 @@ export async function seedCofidEmbeddings(
       };
     }
 
-    // 2. Fetch group → aisle ID mappings
-    const groupToAisleId = await fetchCofidGroupAisleMappings();
-    console.log(`[seedCofidEmbeddings] Loaded ${Object.keys(groupToAisleId).length} group mappings`);
-
-    // 3. Build lookup entries
+    // 2. Build lookup entries
     const lookupEntries: CanonEmbeddingLookup[] = [];
     let skipped = 0;
     let errors = 0;
@@ -610,21 +575,13 @@ export async function seedCofidEmbeddings(
         continue;
       }
 
-      // Derive aisle ID directly from group mapping
-      const aisleId = groupToAisleId[item.group];
-      if (!aisleId) {
-        console.warn(`[seedCofidEmbeddings] No aisle mapping for CofID group ${item.group}`);
-        skipped++;
-        continue;
-      }
-
-      // Create lookup entry
+      // Create lookup entry — aisleId not used for filtering so 'uncategorised' is fine
       lookupEntries.push({
         id: item.id,
         kind: 'cofid',
         refId: item.id,
         name: item.name,
-        aisleId,
+        aisleId: 'uncategorised',
         embedding: item.embedding,
         embeddingModel: item.embeddingModel,
         embeddingDim: item.embedding.length,

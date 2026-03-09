@@ -97,18 +97,6 @@ export const UNCATEGORISED_AISLE: AisleRef = {
 
 // ── Canon-specific domain types (moved from types/contract.ts) ───────────────
 
-// CoFID Group to Aisle Mapping Schema
-// Maps CoFID food groups (1-3 letter codes) to kitchen aisles for auto-created canonical items
-export const CoFIDGroupAisleMappingSchema = z.object({
-  id: z.string(),
-  cofidGroup: z.string(), // CoFID group code (1-3 letters, e.g., "A", "B", "C")
-  cofidGroupName: z.string(), // Full name of CoFID group (e.g., "Cereals and cereal products")
-  aisleId: z.string(), // ID of target aisle (stable reference, not affected by name changes)
-  aisleName: z.string(), // Denormalized aisle name for reference/debugging
-  createdAt: z.string(),
-  createdBy: z.string().optional(),
-});
-export type CoFIDGroupAisleMapping = z.infer<typeof CoFIDGroupAisleMappingSchema>;
 
 // CofID Item Schema (Imported from CofID JSON backup)
 // Raw CofID items stored in canonCofidItems collection for matching and linking
