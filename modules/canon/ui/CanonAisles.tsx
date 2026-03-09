@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Pencil, Trash2, GripVertical, Shield } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, GripVertical, Shield, Merge } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -47,8 +47,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { softToast } from '@/lib/soft-toast';
 import { useAdminRefresh } from '@/shared/providers';
+import { MergeCanonAislesDialog } from './MergeCanonAislesDialog';
 import { Page, Section, Stack } from '@/shared/components/primitives';
 import {
   DndContext,
@@ -81,6 +84,8 @@ export const CanonAisles: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [currentAisle, setCurrentAisle] = useState<Aisle | null>(null);
   const [inlineEditing, setInlineEditing] = useState<string | null>(null);
+  const [selectedAisles, setSelectedAisles] = useState<Set<string>>(new Set());
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
 
   // ── Search / Filter ──────────────────────────────────────────────────────
   const filteredAisles = useMemo(() => {
@@ -251,6 +256,30 @@ export const CanonAisles: React.FC = () => {
           )}
         </Section>
 
+        {/* Bulk Action Bar */}
+        {selectedAisles.size > 0 && (
+          <Section className="rounded-md border border-primary/20 bg-primary/5 p-4" spacing="space-y-3">
+            <p className="text-sm font-medium">
+              {selectedAisles.size} aisle{selectedAisles.size !== 1 ? 's' : ''} selected
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+              {selectedAisles.size === 2 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMergeDialog(true)}
+                >
+                  <Merge className="h-4 w-4 mr-2" />
+                  Merge 2 aisles
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setSelectedAisles(new Set())}>
+                Clear
+              </Button>
+            </div>
+          </Section>
+        )}
+
         {/* Aisles List Section */}
         <Section spacing="space-y-4">
           <Stack spacing="gap-2">
@@ -281,6 +310,12 @@ export const CanonAisles: React.FC = () => {
                       <AisleRow
                         key={aisle.id}
                         aisle={aisle}
+                        isSelected={selectedAisles.has(aisle.id)}
+                        onToggleSelect={id => {
+                          const next = new Set(selectedAisles);
+                          if (next.has(id)) next.delete(id); else next.add(id);
+                          setSelectedAisles(next);
+                        }}
                         onEdit={(a) => {
                           setCurrentAisle(a);
                           setShowEditDialog(true);
@@ -352,6 +387,26 @@ export const CanonAisles: React.FC = () => {
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {/* Merge Dialog */}
+      {showMergeDialog && selectedAisles.size === 2 && (() => {
+        const [idA, idB] = Array.from(selectedAisles);
+        const aisleA = aisles.find(a => a.id === idA);
+        const aisleB = aisles.find(a => a.id === idB);
+        if (!aisleA || !aisleB) return null;
+        return (
+          <MergeCanonAislesDialog
+            aisleA={aisleA}
+            aisleB={aisleB}
+            onSuccess={() => {
+              setShowMergeDialog(false);
+              setSelectedAisles(new Set());
+              loadData();
+            }}
+            onCancel={() => setShowMergeDialog(false)}
+          />
+        );
+      })()}
     </>
   );
 };
@@ -360,11 +415,13 @@ export const CanonAisles: React.FC = () => {
 
 interface AisleRowProps {
   aisle: Aisle;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
   onEdit: (aisle: Aisle) => void;
   onDelete: (aisle: Aisle) => void;
 }
 
-const AisleRow: React.FC<AisleRowProps> = ({ aisle, onEdit, onDelete }) => {
+const AisleRow: React.FC<AisleRowProps> = ({ aisle, isSelected, onToggleSelect, onEdit, onDelete }) => {
   const {
     attributes,
     listeners,
@@ -388,6 +445,14 @@ const AisleRow: React.FC<AisleRowProps> = ({ aisle, onEdit, onDelete }) => {
       style={style}
       className="flex items-center gap-2 p-3 border rounded-lg bg-background shadow-sm hover:shadow-md transition-shadow"
     >
+      {/* Checkbox */}
+      <Checkbox
+        checked={isSelected}
+        onCheckedChange={() => onToggleSelect(aisle.id)}
+        aria-label={`Select ${aisle.name}`}
+        className="shrink-0"
+      />
+
       {/* Drag Handle */}
       <button
         className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none shrink-0"
