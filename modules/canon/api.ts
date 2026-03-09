@@ -252,6 +252,15 @@ export async function removeCofidMapping(id: string): Promise<void> {
 export { getCanonItemMergeImpact, getAisleMergeImpact, mergeCanonItems, mergeCanonAisles };
 export type { CanonItemMergeImpact, AisleMergeImpact, CanonItemMergeUpdates, AisleMergeUpdates };
 
+// ── Split operations ──────────────────────────────────────────────────────────
+
+export {
+  getCanonItemIngredientRefs,
+  splitCanonItem,
+  splitCanonAisle,
+} from './data/split-provider';
+export type { IngredientRef, CanonItemSplitDef, AisleSplitDef } from './data/split-provider';
+
 // ── Pure logic helpers (re-exported for convenience) ─────────────────────────
 
 export {

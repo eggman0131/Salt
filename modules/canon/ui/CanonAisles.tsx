@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Pencil, Trash2, GripVertical, Shield, Merge } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, GripVertical, Shield, Merge, Scissors } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -52,6 +52,7 @@ import { toast } from 'sonner';
 import { softToast } from '@/lib/soft-toast';
 import { useAdminRefresh } from '@/shared/providers';
 import { MergeCanonAislesDialog } from './MergeCanonAislesDialog';
+import { SplitCanonAisleDialog } from './SplitCanonAisleDialog';
 import { Page, Section, Stack } from '@/shared/components/primitives';
 import {
   DndContext,
@@ -86,6 +87,8 @@ export const CanonAisles: React.FC = () => {
   const [inlineEditing, setInlineEditing] = useState<string | null>(null);
   const [selectedAisles, setSelectedAisles] = useState<Set<string>>(new Set());
   const [showMergeDialog, setShowMergeDialog] = useState(false);
+  const [showSplitDialog, setShowSplitDialog] = useState(false);
+  const [splitAisle, setSplitAisle] = useState<Aisle | null>(null);
 
   // ── Search / Filter ──────────────────────────────────────────────────────
   const filteredAisles = useMemo(() => {
@@ -324,6 +327,10 @@ export const CanonAisles: React.FC = () => {
                           setCurrentAisle(a);
                           setShowDeleteDialog(true);
                         }}
+                        onSplit={(a) => {
+                          setSplitAisle(a);
+                          setShowSplitDialog(true);
+                        }}
                       />
                     ))}
                   </SortableContext>
@@ -388,6 +395,22 @@ export const CanonAisles: React.FC = () => {
         </AlertDialog>
       )}
 
+      {/* Split Dialog */}
+      {showSplitDialog && splitAisle && (
+        <SplitCanonAisleDialog
+          aisle={splitAisle}
+          onSuccess={() => {
+            setShowSplitDialog(false);
+            setSplitAisle(null);
+            loadData();
+          }}
+          onCancel={() => {
+            setShowSplitDialog(false);
+            setSplitAisle(null);
+          }}
+        />
+      )}
+
       {/* Merge Dialog */}
       {showMergeDialog && selectedAisles.size === 2 && (() => {
         const [idA, idB] = Array.from(selectedAisles);
@@ -419,9 +442,10 @@ interface AisleRowProps {
   onToggleSelect: (id: string) => void;
   onEdit: (aisle: Aisle) => void;
   onDelete: (aisle: Aisle) => void;
+  onSplit: (aisle: Aisle) => void;
 }
 
-const AisleRow: React.FC<AisleRowProps> = ({ aisle, isSelected, onToggleSelect, onEdit, onDelete }) => {
+const AisleRow: React.FC<AisleRowProps> = ({ aisle, isSelected, onToggleSelect, onEdit, onDelete, onSplit }) => {
   const {
     attributes,
     listeners,
@@ -486,6 +510,14 @@ const AisleRow: React.FC<AisleRowProps> = ({ aisle, isSelected, onToggleSelect, 
           onClick={() => onEdit(aisle)}
         >
           <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onSplit(aisle)}
+          title="Split aisle"
+        >
+          <Scissors className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"

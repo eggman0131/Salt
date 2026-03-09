@@ -13,6 +13,10 @@ import {
   instructionArrayReferences,
   mergeItemSynonyms,
   isValidAisleMerge,
+  reassignIngredientById,
+  reassignIngredientsByIds,
+  reassignInstructionIngredientsByIds,
+  collectIngredientRefs,
 } from '../logic/merge';
 import { UNCATEGORISED_AISLE_ID } from '../logic/aisles';
 
@@ -203,6 +207,16 @@ describe('mergeItemSynonyms', () => {
     expect(mergeItemSynonyms([], [])).toEqual([]);
   });
 
+  it('retains secondary name when passed as a synonym (merge dialog pattern)', () => {
+    // The dialog always passes secondary.name into the synonyms set
+    const result = mergeItemSynonyms(
+      ['onion', 'brown onion'],          // primary synonyms
+      ['spanish onion', 'white onion', 'Shallot']  // secondary synonyms + secondary.name
+    );
+    expect(result).toContain('Shallot');
+    expect(result).toContain('onion');
+  });
+
   it('handles one empty array', () => {
     const result = mergeItemSynonyms(['onion', 'shallot'], []);
     expect(result).toEqual(['onion', 'shallot']);
@@ -234,5 +248,142 @@ describe('isValidAisleMerge', () => {
 
   it('returns false when primary and secondary are the same id', () => {
     expect(isValidAisleMerge('produce', 'produce')).toBe(false);
+  });
+});
+
+// ── reassignIngredientById ─────────────────────────────────────────────────────
+
+describe('reassignIngredientById', () => {
+  it('reassigns the ingredient with the matching id', () => {
+    const ingredients = [
+      { id: 'ing-1', canonicalItemId: 'item-A' },
+      { id: 'ing-2', canonicalItemId: 'item-A' },
+    ];
+    const { patched, changed } = reassignIngredientById(ingredients, 'ing-1', 'item-B');
+    expect(changed).toBe(true);
+    expect(patched[0].canonicalItemId).toBe('item-B');
+    expect(patched[1].canonicalItemId).toBe('item-A'); // untouched
+  });
+
+  it('does not touch ingredients with different ids', () => {
+    const ingredients = [{ id: 'ing-1', canonicalItemId: 'item-A' }];
+    const { changed } = reassignIngredientById(ingredients, 'ing-99', 'item-B');
+    expect(changed).toBe(false);
+  });
+
+  it('does not mutate the original array', () => {
+    const ingredients = [{ id: 'ing-1', canonicalItemId: 'item-A' }];
+    const original = ingredients[0].canonicalItemId;
+    reassignIngredientById(ingredients, 'ing-1', 'item-B');
+    expect(ingredients[0].canonicalItemId).toBe(original);
+  });
+});
+
+// ── reassignIngredientsByIds ───────────────────────────────────────────────────
+
+describe('reassignIngredientsByIds', () => {
+  it('reassigns all ingredients whose ids are in the set', () => {
+    const ingredients = [
+      { id: 'ing-1', canonicalItemId: 'item-A' },
+      { id: 'ing-2', canonicalItemId: 'item-A' },
+      { id: 'ing-3', canonicalItemId: 'item-A' },
+    ];
+    const ids = new Set(['ing-1', 'ing-3']);
+    const { patched, changed } = reassignIngredientsByIds(ingredients, ids, 'item-B');
+    expect(changed).toBe(true);
+    expect(patched[0].canonicalItemId).toBe('item-B');
+    expect(patched[1].canonicalItemId).toBe('item-A'); // not in set
+    expect(patched[2].canonicalItemId).toBe('item-B');
+  });
+
+  it('returns changed:false when no ids match', () => {
+    const ingredients = [{ id: 'ing-1', canonicalItemId: 'item-A' }];
+    const { changed } = reassignIngredientsByIds(ingredients, new Set(['ing-99']), 'item-B');
+    expect(changed).toBe(false);
+  });
+
+  it('handles ingredients with no id field gracefully', () => {
+    const ingredients = [{ canonicalItemId: 'item-A' }]; // no id
+    const { changed } = reassignIngredientsByIds(ingredients, new Set(['ing-1']), 'item-B');
+    expect(changed).toBe(false);
+  });
+
+  it('handles empty set', () => {
+    const ingredients = [{ id: 'ing-1', canonicalItemId: 'item-A' }];
+    const { changed } = reassignIngredientsByIds(ingredients, new Set(), 'item-B');
+    expect(changed).toBe(false);
+  });
+});
+
+// ── reassignInstructionIngredientsByIds ───────────────────────────────────────
+
+describe('reassignInstructionIngredientsByIds', () => {
+  it('reassigns matching ingredients inside steps', () => {
+    const instructions = [
+      { id: 'step-1', ingredients: [{ id: 'ing-1', canonicalItemId: 'item-A' }] },
+      { id: 'step-2', ingredients: [{ id: 'ing-2', canonicalItemId: 'item-A' }, { id: 'ing-3', canonicalItemId: 'item-C' }] },
+    ];
+    const ids = new Set(['ing-1', 'ing-3']);
+    const { patched, changed } = reassignInstructionIngredientsByIds(instructions, ids, 'item-B');
+    expect(changed).toBe(true);
+    expect(patched[0].ingredients![0].canonicalItemId).toBe('item-B');
+    expect(patched[1].ingredients![0].canonicalItemId).toBe('item-A'); // not in set
+    expect(patched[1].ingredients![1].canonicalItemId).toBe('item-B');
+  });
+
+  it('does not mutate original instructions', () => {
+    const instructions = [
+      { id: 'step-1', ingredients: [{ id: 'ing-1', canonicalItemId: 'item-A' }] },
+    ];
+    const original = instructions[0].ingredients[0].canonicalItemId;
+    reassignInstructionIngredientsByIds(instructions, new Set(['ing-1']), 'item-B');
+    expect(instructions[0].ingredients[0].canonicalItemId).toBe(original);
+  });
+
+  it('skips steps with no ingredients', () => {
+    const instructions = [{ id: 'step-1', text: 'Preheat oven' }];
+    const { changed } = reassignInstructionIngredientsByIds(instructions as any, new Set(['ing-1']), 'item-B');
+    expect(changed).toBe(false);
+  });
+});
+
+// ── collectIngredientRefs ──────────────────────────────────────────────────────
+
+describe('collectIngredientRefs', () => {
+  it('collects matching ingredients from the flat array', () => {
+    const flat = [
+      { id: 'ing-1', canonicalItemId: 'item-A' },
+      { id: 'ing-2', canonicalItemId: 'item-B' },
+    ];
+    const refs = collectIngredientRefs(flat, [], 'item-A');
+    expect(refs).toHaveLength(1);
+    expect(refs[0].id).toBe('ing-1');
+  });
+
+  it('collects matching ingredients from instructions', () => {
+    const instructions = [
+      { ingredients: [{ id: 'ing-3', canonicalItemId: 'item-A' }] },
+      { ingredients: [{ id: 'ing-4', canonicalItemId: 'item-B' }] },
+    ];
+    const refs = collectIngredientRefs([], instructions, 'item-A');
+    expect(refs).toHaveLength(1);
+    expect(refs[0].id).toBe('ing-3');
+  });
+
+  it('collects from both flat and instructions', () => {
+    const flat = [{ id: 'ing-1', canonicalItemId: 'item-A' }];
+    const instructions = [{ ingredients: [{ id: 'ing-2', canonicalItemId: 'item-A' }] }];
+    const refs = collectIngredientRefs(flat, instructions, 'item-A');
+    expect(refs).toHaveLength(2);
+  });
+
+  it('returns empty array when no references found', () => {
+    const flat = [{ id: 'ing-1', canonicalItemId: 'item-B' }];
+    const refs = collectIngredientRefs(flat, [], 'item-A');
+    expect(refs).toHaveLength(0);
+  });
+
+  it('handles empty inputs', () => {
+    expect(collectIngredientRefs([], [], 'item-A')).toHaveLength(0);
   });
 });
