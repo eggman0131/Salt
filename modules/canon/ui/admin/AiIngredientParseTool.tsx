@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle, CheckCircle2, GitBranch } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, GitBranch, ChevronDown, ChevronRight, XCircle, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getCanonAisles,
@@ -83,6 +83,169 @@ function getFlagLabel(flag: string): string {
     default:
       return flag;
   }
+}
+
+// ── Pipeline Ingredient Card ───────────────────────────────────────────────────
+
+type NearMiss = { name: string; score: number; method: 'exact' | 'fuzzy' | 'semantic' };
+
+function scoreColor(score: number): string {
+  if (score >= 0.85) return 'text-green-600 dark:text-green-400';
+  if (score >= 0.70) return 'text-amber-600 dark:text-amber-400';
+  return 'text-red-500';
+}
+
+function NearMissList({ candidates, label }: { candidates: NearMiss[]; label: string }) {
+  if (candidates.length === 0) {
+    return (
+      <div className="flex items-start gap-2 text-xs">
+        <span className="text-muted-foreground w-20 shrink-0 pt-0.5">{label}</span>
+        <span className="text-muted-foreground italic">No candidates above threshold</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-start gap-2 text-xs">
+      <span className="text-muted-foreground w-20 shrink-0 pt-0.5">{label}</span>
+      <div className="flex flex-wrap gap-2">
+        {candidates.map((c, i) => (
+          <span key={i} className="flex items-center gap-1">
+            <span className={`font-mono font-medium ${scoreColor(c.score)}`}>
+              {(c.score * 100).toFixed(0)}%
+            </span>
+            <span className="text-foreground">{c.name}</span>
+            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">{c.method}</Badge>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PipelineIngredientCard({ result }: { result: import('../../../../types/contract').RecipeIngredient }) {
+  const [expanded, setExpanded] = useState(false);
+  const audit = result.matchingAudit;
+  const decision = audit?.decisionAction ?? 'no_match';
+  const score = audit?.topScore;
+  const nearMisses: NearMiss[] = (audit?.nearMisses ?? []) as NearMiss[];
+
+  const fuzzyMisses = nearMisses.filter(m => m.method !== 'semantic');
+  const semanticMisses = nearMisses.filter(m => m.method === 'semantic');
+
+  // Top match name from nearMisses[0] when use_existing_canon
+  const topMatchName = decision === 'use_existing_canon' ? nearMisses[0]?.name : undefined;
+
+  function DecisionIcon() {
+    if (decision === 'use_existing_canon') return <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />;
+    if (decision === 'create_new_canon') return <PlusCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />;
+    return <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />;
+  }
+
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-start gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left"
+      >
+        {expanded
+          ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+          : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+        }
+        <DecisionIcon />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium">{result.ingredientName}</span>
+            {decision === 'use_existing_canon' && topMatchName && (
+              <span className="text-xs text-muted-foreground">
+                → <span className="font-medium text-foreground">{topMatchName}</span>
+              </span>
+            )}
+            {decision === 'create_new_canon' && (
+              <span className="text-xs text-amber-600 dark:text-amber-400">new canon item</span>
+            )}
+            {decision === 'no_match' && (
+              <span className="text-xs text-red-500">unmatched</span>
+            )}
+          </div>
+          {result.raw && result.raw !== result.ingredientName && (
+            <p className="text-xs text-muted-foreground truncate">{result.raw}</p>
+          )}
+        </div>
+        <div className="shrink-0 flex items-center gap-2">
+          {typeof score === 'number' && (
+            <span className={`text-xs font-mono font-medium ${scoreColor(score)}`}>
+              {(score * 100).toFixed(0)}%
+            </span>
+          )}
+          {nearMisses.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {nearMisses.length} candidate{nearMisses.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t bg-muted/20 px-4 py-3 space-y-2.5">
+          {/* Parse info */}
+          <div className="flex items-start gap-2 text-xs">
+            <span className="text-muted-foreground w-20 shrink-0 pt-0.5">Parse</span>
+            <div className="flex flex-wrap gap-3 text-foreground">
+              {result.quantity != null && (
+                <span>
+                  <span className="text-muted-foreground">qty </span>
+                  <span className="font-mono">{result.quantity}</span>
+                </span>
+              )}
+              {result.unit && (
+                <span>
+                  <span className="text-muted-foreground">unit </span>
+                  <span className="font-mono">{result.unit}</span>
+                </span>
+              )}
+              {result.preparation && (
+                <span>
+                  <span className="text-muted-foreground">prep </span>
+                  <span className="font-mono">{result.preparation}</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Lexical candidates */}
+          <NearMissList candidates={fuzzyMisses} label="Lexical" />
+
+          {/* Semantic candidates */}
+          {nearMisses.length === 0 && fuzzyMisses.length === 0 ? (
+            <div className="flex items-start gap-2 text-xs">
+              <span className="text-muted-foreground w-20 shrink-0">Semantic</span>
+              <span className="text-muted-foreground italic">
+                {result.embedding ? 'No candidates above threshold' : 'No embedding available for query'}
+              </span>
+            </div>
+          ) : (
+            <NearMissList candidates={semanticMisses} label="Semantic" />
+          )}
+
+          {/* Decision reason */}
+          {audit?.reason && (
+            <div className="flex items-start gap-2 text-xs">
+              <span className="text-muted-foreground w-20 shrink-0 pt-0.5">Decision</span>
+              <span className="text-foreground">{audit.reason}</span>
+            </div>
+          )}
+
+          {/* Stage */}
+          {audit?.stage && (
+            <div className="flex items-start gap-2 text-xs">
+              <span className="text-muted-foreground w-20 shrink-0">Stage</span>
+              <span className="font-mono text-muted-foreground">{audit.stage}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AiIngredientParseTool() {
@@ -474,63 +637,11 @@ export default function AiIngredientParseTool() {
             </Button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 px-3 font-medium">Ingredient</th>
-                  <th className="text-left py-2 px-3 font-medium">Canon Item</th>
-                  <th className="text-left py-2 px-3 font-medium">Decision</th>
-                  <th className="text-left py-2 px-3 font-medium">Stage</th>
-                  <th className="text-left py-2 px-3 font-medium">Score</th>
-                  <th className="text-left py-2 px-3 font-medium">Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.pipelineResults.map((result) => {
-                  const decision = result.matchingAudit?.decisionAction ?? 'no_match';
-                  const stage = result.matchingAudit?.stage ?? '—';
-                  const score = result.matchingAudit?.topScore;
-                  const scoreLabel = typeof score === 'number' ? `${Math.round(score * 100)}%` : '—';
-
-                  return (
-                    <tr key={result.id} className="border-b hover:bg-muted/30 transition-colors">
-                      <td className="py-3 px-3">
-                        <div className="font-medium">{result.ingredientName}</div>
-                        <div className="text-xs text-muted-foreground">{result.raw}</div>
-                      </td>
-                      <td className="py-3 px-3">
-                        {result.canonicalItemId ? (
-                          <code className="text-xs">{result.canonicalItemId}</code>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Unlinked</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3">
-                        <Badge variant={decision === 'create_new_canon' ? 'secondary' : decision === 'use_existing_canon' ? 'default' : 'outline'}>
-                          {decision}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className="text-xs">{stage}</span>
-                      </td>
-                      <td className="py-3 px-3">{scoreLabel}</td>
-                      <td className="py-3 px-3">
-                        <span className="text-xs text-muted-foreground">{result.matchingAudit?.reason ?? '—'}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="space-y-1">
+            {state.pipelineResults.map((result) => (
+              <PipelineIngredientCard key={result.id} result={result} />
+            ))}
           </div>
-
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Full pipeline mode parses raw lines, runs matching (lexical + semantic), links to existing canon items, and creates pending canon items when no suitable match exists.
-            </AlertDescription>
-          </Alert>
         </>
       )}
     </div>

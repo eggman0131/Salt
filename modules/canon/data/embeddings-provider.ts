@@ -781,6 +781,24 @@ export async function generateTextEmbedding(
 }
 
 /**
+ * Generate embeddings for a batch of texts in one API call.
+ * Returns null for any text that fails or is empty.
+ */
+export async function generateTextEmbeddingsBatch(
+  texts: string[],
+  model: string = 'text-embedding-005'
+): Promise<(number[] | null)[]> {
+  if (texts.length === 0) return [];
+
+  const result = await callEmbedBatch(texts.map(t => t.trim()), model);
+  if (!result.success || !result.data) {
+    return texts.map(() => null);
+  }
+
+  return result.data.embeddings.map(e => e ?? null);
+}
+
+/**
  * Upsert a single canon item embedding into local lookup and publish to master snapshot.
  * Reuses an existing embedding from lookup when an identical name already exists.
  */

@@ -212,6 +212,11 @@ export const RecipeIngredientSchema = z.object({
     scoreGap: z.number().optional(),
     reason: z.string().optional(),
     recordedAt: z.string().optional(),
+    nearMisses: z.array(z.object({
+      name: z.string(),
+      score: z.number(),
+      method: z.enum(['exact', 'fuzzy', 'semantic']),
+    })).optional(), // Top candidates from fuzzy + semantic stages (max 3)
   }).optional(),
   // Parser versioning: track parser improvements to enable incremental updates
   parserVersion: z.number().optional(), // Parser version that created this structure
