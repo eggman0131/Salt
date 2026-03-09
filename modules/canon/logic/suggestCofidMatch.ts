@@ -14,6 +14,8 @@ export interface SuggestedMatch {
   score: number;
   method: 'exact' | 'fuzzy' | 'semantic';
   reason: string;
+  aisleId?: string;       // The CoFID item's canon aisle (if known)
+  aisleMatches?: boolean; // Whether it matches the canon item's aisle
 }
 
 /**

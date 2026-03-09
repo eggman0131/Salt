@@ -22,7 +22,6 @@ import {
   editCanonItem,
   approveItem,
   deleteItem,
-  deleteAllItems,
   sortItems,
   filterItemsNeedingReview,
   normalizeItemName,
@@ -31,15 +30,24 @@ import {
   unlinkCofidMatch,
   buildCofidMatch,
   getCofidItemById,
+  getCanonCofidItems,
   type CanonItem,
   type SuggestedMatch,
 } from '../api';
+import type { CofIDItem } from '../types';
 import type { Aisle, Unit } from '@/types/contract';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Check, Pencil, AlertCircle, Link, Unlink, Sparkles, Trash2, CheckSquare } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import { Loader2, Plus, Check, Pencil, AlertCircle, Link, Unlink, Sparkles, Trash2, Info, Search } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -84,12 +92,15 @@ export const CanonItems: React.FC = () => {
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [currentItem, setCurrentItem] = useState<CanonItem | null>(null);
-  const [filterNeedsReview, setFilterNeedsReview] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [inlineEditing, setInlineEditing] = useState<string | null>(null);
   const [showCofidDialog, setShowCofidDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [showDetailSheet, setShowDetailSheet] = useState(false);
+  const [detailItem, setDetailItem] = useState<CanonItem | null>(null);
+  const [cofidDetail, setCofidDetail] = useState<any | null>(null);
+  const [isLoadingCofidDetail, setIsLoadingCofidDetail] = useState(false);
   const [cofidSuggestions, setCofidSuggestions] = useState<{
     bestMatch: SuggestedMatch | null;
     candidates: SuggestedMatch[];
@@ -105,16 +116,22 @@ export const CanonItems: React.FC = () => {
   };
 
   // ── Search / Filter ──────────────────────────────────────────────────────
-  const displayItems = filterNeedsReview ? filterItemsNeedingReview(items) : items;
-  const filteredDisplayItems = useMemo(() => {
-    if (!searchTerm.trim()) return displayItems;
+  const filteredItems = useMemo(() => {
+    if (!searchTerm.trim()) return items;
     const lower = searchTerm.toLowerCase();
-    return displayItems.filter(item =>
+    return items.filter(item =>
       item.name.toLowerCase().includes(lower) ||
       item.normalisedName.toLowerCase().includes(lower)
     );
-  }, [displayItems, searchTerm]);
-  const sortedItems = sortItems(filteredDisplayItems);
+  }, [items, searchTerm]);
+
+  // Needs-review items always at top, then alphabetical within each group
+  const sortedItems = useMemo(() => {
+    const needsReview = sortItems(filteredItems.filter(i => i.needsReview));
+    const approved = sortItems(filteredItems.filter(i => !i.needsReview));
+    return [...needsReview, ...approved];
+  }, [filteredItems]);
+
   const needsReviewCount = filterItemsNeedingReview(items).length;
   const allItemsSelected = sortedItems.length > 0 && selectedItems.size === sortedItems.length;
 
@@ -294,14 +311,34 @@ export const CanonItems: React.FC = () => {
     }
   };
 
-  const handleDeleteAll = async () => {
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return;
     try {
-      await deleteAllItems();
-      toast.success('All items deleted');
-      setShowDeleteAllDialog(false);
+      await Promise.all(Array.from(selectedItems).map(id => deleteItem(id)));
+      toast.success(`Deleted ${selectedItems.size} item${selectedItems.size !== 1 ? 's' : ''}`);
+      setSelectedItems(new Set());
+      setShowBulkDeleteDialog(false);
       await loadData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete all items');
+      toast.error(err instanceof Error ? err.message : 'Failed to delete items');
+    }
+  };
+
+  const handleViewDetail = async (item: CanonItem) => {
+    setDetailItem(item);
+    setShowDetailSheet(true);
+    setCofidDetail(null);
+    const cofidSource = item.externalSources?.find(s => s.source === 'cofid');
+    if (cofidSource?.externalId) {
+      setIsLoadingCofidDetail(true);
+      try {
+        const cofidItem = await getCofidItemById(cofidSource.externalId);
+        setCofidDetail(cofidItem);
+      } catch {
+        // non-critical — detail panel shows what we have
+      } finally {
+        setIsLoadingCofidDetail(false);
+      }
     }
   };
 
@@ -340,45 +377,23 @@ export const CanonItems: React.FC = () => {
               Manage canonical item catalog, approve pending items, and link CofID references
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => setShowCreateDialog(true)} size="lg">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Item
-            </Button>
-            <Button
-              onClick={() => setShowDeleteAllDialog(true)}
-              variant="destructive"
-              size="lg"
-              disabled={items.length === 0}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete All
-            </Button>
-          </div>
+          <Button onClick={() => setShowCreateDialog(true)} size="lg">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
         </div>
       </Section>
 
-      {/* Filter & Stats Section */}
+      {/* Stats Section */}
       <Section spacing="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline">{items.length} total</Badge>
-            {needsReviewCount > 0 && (
-              <Badge variant="destructive">{needsReviewCount} pending</Badge>
-            )}
-            {selectedItems.size > 0 && (
-              <Badge className="bg-primary/10 text-primary border-primary/20">{selectedItems.size} selected</Badge>
-            )}
-          </div>
-          <Button
-            variant={filterNeedsReview ? 'default' : 'outline'}
-            onClick={() => setFilterNeedsReview(!filterNeedsReview)}
-            disabled={needsReviewCount === 0}
-            size="sm"
-          >
-            <AlertCircle className="h-4 w-4 mr-2" />
-            {filterNeedsReview ? 'All Items' : 'Review Queue'}
-          </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline">{items.length} total</Badge>
+          {needsReviewCount > 0 && (
+            <Badge variant="destructive">{needsReviewCount} need review</Badge>
+          )}
+          {selectedItems.size > 0 && (
+            <Badge className="bg-primary/10 text-primary border-primary/20">{selectedItems.size} selected</Badge>
+          )}
         </div>
       </Section>
 
@@ -403,7 +418,7 @@ export const CanonItems: React.FC = () => {
         </div>
         {searchTerm && (
           <p className="text-xs text-muted-foreground mt-2">
-            Found {sortedItems.length} of {filterNeedsReview ? needsReviewCount : items.length} items
+            Found {sortedItems.length} of {items.length} items
           </p>
         )}
       </Section>
@@ -414,17 +429,11 @@ export const CanonItems: React.FC = () => {
           <p className="text-sm font-medium">
             {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
           </p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            {filterNeedsReview && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleBulkApprove}
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Approve Selected
-              </Button>
-            )}
+          <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+            <Button variant="default" size="sm" onClick={handleBulkApprove}>
+              <Check className="h-4 w-4 mr-2" />
+              Approve Selected
+            </Button>
             <div className="flex gap-2 items-center">
               <span className="text-xs text-muted-foreground">Assign aisle:</span>
               <Select onValueChange={handleBulkAssignAisle}>
@@ -441,10 +450,14 @@ export const CanonItems: React.FC = () => {
               </Select>
             </div>
             <Button
-              variant="ghost"
+              variant="destructive"
               size="sm"
-              onClick={() => setSelectedItems(new Set())}
+              onClick={() => setShowBulkDeleteDialog(true)}
             >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Selected
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedItems(new Set())}>
               Clear
             </Button>
           </div>
@@ -456,13 +469,9 @@ export const CanonItems: React.FC = () => {
         {sortedItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 rounded-md border-2 border-dashed">
             <AlertCircle className="h-12 w-12 text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground font-medium">
-              {filterNeedsReview ? 'No items need review' : 'No canon items yet'}
-            </p>
+            <p className="text-muted-foreground font-medium">No canon items found</p>
             <p className="text-sm text-muted-foreground mt-1">
-              {filterNeedsReview
-                ? 'All items have been reviewed and approved'
-                : 'Create an item to get started'}
+              {searchTerm ? 'Try a different search term' : 'Create an item to get started'}
             </p>
           </div>
         ) : (
@@ -505,6 +514,7 @@ export const CanonItems: React.FC = () => {
                     aisles={aisles}
                     units={units}
                     onToggleSelect={() => toggleItemSelection(item.id)}
+                    onViewDetail={() => handleViewDetail(item)}
                     onEdit={() => {
                       setCurrentItem(item);
                       setShowEditDialog(true);
@@ -576,6 +586,7 @@ export const CanonItems: React.FC = () => {
       {showCofidDialog && currentItem && (
         <CofidSuggestionsDialog
           item={currentItem}
+          aisles={aisles}
           suggestions={cofidSuggestions}
           isLoading={isLoadingCofid}
           onLink={handleLinkCofid}
@@ -610,28 +621,42 @@ export const CanonItems: React.FC = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete All Confirmation Dialog */}
-      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete All Canon Items</AlertDialogTitle>
+            <AlertDialogTitle>Delete {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>all {items.length} canon items</strong>?
-              <br /><br />
-              This is a destructive operation that cannot be undone. All recipes with canon item references will have orphaned links.
+              This cannot be undone. Any recipes referencing these items will have orphaned links.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteAll}
+              onClick={handleBulkDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete All Items
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Item Detail Sheet */}
+      {detailItem && (
+        <ItemDetailSheet
+          item={detailItem}
+          aisle={aisles.find(a => a.id === detailItem.aisleId)}
+          unit={units.find(u => u.id === detailItem.preferredUnitId)}
+          cofidDetail={cofidDetail}
+          isLoadingCofidDetail={isLoadingCofidDetail}
+          open={showDetailSheet}
+          onOpenChange={(open) => {
+            setShowDetailSheet(open);
+            if (!open) { setDetailItem(null); setCofidDetail(null); }
+          }}
+        />
+      )}
     </Page>
   );
 };
@@ -799,6 +824,7 @@ interface ItemRowProps {
   aisles: Aisle[];
   units: Unit[];
   onToggleSelect: () => void;
+  onViewDetail: () => void;
   onEdit: () => void;
   onApprove: () => void;
   onSuggestCofid: () => void;
@@ -818,14 +844,19 @@ const ItemRow: React.FC<ItemRowProps> = ({
   aisles,
   units,
   onToggleSelect,
+  onViewDetail,
   onEdit,
   onApprove,
   onSuggestCofid,
   onUnlinkCofid,
   onDelete,
 }) => {
+  const reviewHighlight = item.needsReview
+    ? 'border-l-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20'
+    : '';
+
   return (
-    <div className="border-b last:border-b-0">
+    <div className={`border-b last:border-b-0 ${reviewHighlight}`}>
       {/* Mobile card view */}
       <div className="sm:hidden px-4 py-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
@@ -837,7 +868,12 @@ const ItemRow: React.FC<ItemRowProps> = ({
               aria-label={`Select ${item.name}`}
             />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm truncate">{item.name}</h3>
+              <button
+                onClick={onViewDetail}
+                className="font-semibold text-sm truncate hover:underline text-left block w-full"
+              >
+                {item.name}
+              </button>
               <p className="text-xs text-muted-foreground mt-1">
                 {aisle?.name || 'Unknown aisle'} • {unit?.name || 'Unknown unit'}
               </p>
@@ -902,7 +938,12 @@ const ItemRow: React.FC<ItemRowProps> = ({
           />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate">{item.name}</p>
+          <button
+            onClick={onViewDetail}
+            className="font-medium text-sm truncate hover:underline text-left block max-w-full"
+          >
+            {item.name}
+          </button>
         </div>
         <div className="w-32 text-xs text-muted-foreground truncate">
           {aisle?.name || 'Unknown'}
@@ -926,6 +967,9 @@ const ItemRow: React.FC<ItemRowProps> = ({
           </div>
         </div>
         <div className="w-32 flex gap-1 justify-end">
+          <Button size="sm" variant="ghost" onClick={onViewDetail} title="View details">
+            <Info className="h-3 w-3" />
+          </Button>
           {item.needsReview && (
             <Button size="sm" variant="outline" onClick={onApprove}>
               <Check className="h-3 w-3 mr-1" />
@@ -1159,10 +1203,175 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
   );
 };
 
+// ── Item Detail Sheet ─────────────────────────────────────────────────────────
+
+interface ItemDetailSheetProps {
+  item: CanonItem;
+  aisle?: Aisle;
+  unit?: Unit;
+  cofidDetail: any | null;
+  isLoadingCofidDetail: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
+  item,
+  aisle,
+  unit,
+  cofidDetail,
+  isLoadingCofidDetail,
+  open,
+  onOpenChange,
+}) => {
+  const cofidSource = item.externalSources?.find(s => s.source === 'cofid');
+  const nutrition = cofidSource?.properties && typeof cofidSource.properties === 'object'
+    ? (cofidSource.properties as any).nutrition
+    : null;
+
+  const NUTRIENT_LABELS: Record<string, string> = {
+    energy_kcal: 'Energy (kcal)',
+    protein_g: 'Protein (g)',
+    fat_g: 'Total fat (g)',
+    saturated_fat_g: 'Saturated fat (g)',
+    carbohydrate_g: 'Carbohydrate (g)',
+    sugars_g: 'Sugars (g)',
+    fibre_g: 'Fibre (g)',
+    sodium_mg: 'Sodium (mg)',
+    salt_g: 'Salt (g)',
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader className="pb-4">
+          <SheetTitle>{item.name}</SheetTitle>
+          <SheetDescription>
+            {item.needsReview ? 'Pending review' : 'Approved'}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="space-y-6">
+          {/* Core fields */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">Item</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Aisle</span>
+                <span className="font-medium">{aisle?.name ?? '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Preferred unit</span>
+                <span className="font-medium">{unit?.name ?? '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Staple</span>
+                <span>{item.isStaple ? 'Yes' : 'No'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Status</span>
+                {item.needsReview
+                  ? <Badge variant="outline" className="text-amber-600 border-amber-400">Needs review</Badge>
+                  : <Badge variant="secondary">Approved</Badge>
+                }
+              </div>
+            </div>
+          </section>
+
+          {/* CoFID link */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">CoFID Link</h3>
+            {cofidSource ? (
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">CoFID ID</span>
+                  <span className="font-mono text-xs">{cofidSource.externalId}</span>
+                </div>
+                {isLoadingCofidDetail && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span className="text-xs">Loading CoFID details…</span>
+                  </div>
+                )}
+                {cofidDetail && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">CoFID name</span>
+                    <span className="font-medium text-right max-w-[60%]">{cofidDetail.name ?? '—'}</span>
+                  </div>
+                )}
+                {cofidSource.confidence != null && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Match confidence</span>
+                    <span>{Math.round(cofidSource.confidence * 100)}%</span>
+                  </div>
+                )}
+                {cofidSource.syncedAt && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Synced</span>
+                    <span className="text-xs">
+                      {new Date(cofidSource.syncedAt).toLocaleDateString('en-GB', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No CoFID link — use the Sparkles button to suggest matches.</p>
+            )}
+          </section>
+
+          {/* Nutritional data */}
+          {nutrition && typeof nutrition === 'object' && (
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold">Nutritional Data <span className="font-normal text-muted-foreground">(per 100g)</span></h3>
+              <div className="rounded-md border divide-y text-sm">
+                {Object.entries(NUTRIENT_LABELS).map(([key, label]) => {
+                  const val = (nutrition as any)[key];
+                  if (val == null) return null;
+                  return (
+                    <div key={key} className="flex justify-between px-3 py-1.5">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="font-mono">{typeof val === 'number' ? val.toFixed(1) : val}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Other external sources */}
+          {item.externalSources && item.externalSources.filter(s => s.source !== 'cofid').length > 0 && (
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold">Other External Sources</h3>
+              <div className="space-y-2">
+                {item.externalSources
+                  .filter(s => s.source !== 'cofid')
+                  .map((src, i) => (
+                    <div key={i} className="rounded-md border px-3 py-2 text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span className="font-medium capitalize">{src.source}</span>
+                        {src.confidence != null && (
+                          <span className="text-muted-foreground text-xs">{Math.round(src.confidence * 100)}% confidence</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground font-mono">{src.externalId}</p>
+                    </div>
+                  ))}
+              </div>
+            </section>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
 // ── CofID Suggestions Dialog (PR5) ────────────────────────────────────────────
 
 interface CofidSuggestionsDialogProps {
   item: CanonItem;
+  aisles: Aisle[];
   suggestions: {
     bestMatch: SuggestedMatch | null;
     candidates: SuggestedMatch[];
@@ -1174,12 +1383,17 @@ interface CofidSuggestionsDialogProps {
 
 const CofidSuggestionsDialog: React.FC<CofidSuggestionsDialogProps> = ({
   item,
+  aisles,
   suggestions,
   isLoading,
   onLink,
   onCancel,
 }) => {
   const [selectedMatch, setSelectedMatch] = useState<SuggestedMatch | null>(null);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [allCofidItems, setAllCofidItems] = useState<CofIDItem[]>([]);
+  const [isLoadingAll, setIsLoadingAll] = useState(false);
+  const aisleMap = new Map(aisles.map(a => [a.id, a.name]));
 
   // Auto-select best match on load
   useEffect(() => {
@@ -1188,80 +1402,149 @@ const CofidSuggestionsDialog: React.FC<CofidSuggestionsDialogProps> = ({
     }
   }, [suggestions, selectedMatch]);
 
+  // Load full CoFID collection once for direct search
+  useEffect(() => {
+    setIsLoadingAll(true);
+    getCanonCofidItems()
+      .then(items => setAllCofidItems(items as CofIDItem[]))
+      .catch(() => {/* non-critical */})
+      .finally(() => setIsLoadingAll(false));
+  }, []);
+
+  // Suggestion candidates filtered by search
+  const filteredCandidates = useMemo(() => {
+    if (!suggestions?.candidates) return [];
+    if (!searchFilter.trim()) return suggestions.candidates;
+    const lower = searchFilter.toLowerCase();
+    return suggestions.candidates.filter(c => c.name.toLowerCase().includes(lower));
+  }, [suggestions?.candidates, searchFilter]);
+
+  // Full CoFID search results (only shown when search is active, excludes suggestion hits)
+  const dbSearchResults = useMemo(() => {
+    if (!searchFilter.trim() || searchFilter.trim().length < 2) return [];
+    const lower = searchFilter.toLowerCase();
+    const suggestionIds = new Set(suggestions?.candidates?.map(c => c.cofidId) ?? []);
+    return allCofidItems
+      .filter(c => c.name.toLowerCase().includes(lower) && !suggestionIds.has(c.id))
+      .slice(0, 30);
+  }, [allCofidItems, searchFilter, suggestions?.candidates]);
+
+  // Convert a raw CofIDItem to the SuggestedMatch shape for onLink
+  const cofidItemToMatch = (ci: CofIDItem): SuggestedMatch => ({
+    cofidId: ci.id,
+    name: ci.name,
+    score: 1.0,
+    method: 'exact',
+    reason: 'Manual selection from CoFID database',
+  });
+
+  const hasSuggestions = (suggestions?.candidates?.length ?? 0) > 0;
+
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Link CofID Item: {item.name}</DialogTitle>
+          <DialogTitle>Link CoFID Item: {item.name}</DialogTitle>
+          <DialogDescription>
+            Algorithm suggestions are shown first. Search to browse the full CoFID database.
+          </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
+        <div className="py-2">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />
-              <span className="ml-2 text-muted-foreground">Finding matches...</span>
-            </div>
-          ) : suggestions && suggestions.candidates.length > 0 ? (
-            <div className="space-y-4">
-              <div>
-                <Label>Select a CofID item to link:</Label>
-                <div className="mt-2 space-y-2 max-h-96 overflow-y-auto">
-                  {suggestions.candidates.map((match, idx) => (
-                    <button
-                      key={match.cofidId}
-                      onClick={() => setSelectedMatch(match)}
-                      className={`w-full text-left px-4 py-3 rounded-md border transition-colors ${
-                        selectedMatch?.cofidId === match.cofidId
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:bg-muted/50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{match.name}</span>
-                            {idx === 0 && suggestions.bestMatch?.cofidId === match.cofidId && (
-                              <Badge variant="default" className="text-xs">
-                                <Sparkles className="h-3 w-3 mr-1" />
-                                Best Match
-                              </Badge>
-                            )}
-                            <Badge
-                              variant={match.method === 'exact' ? 'default' : 'secondary'}
-                              className="text-xs"
-                            >
-                              {match.method}
-                            </Badge>
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Score: {Math.round(match.score * 100)}% • {match.reason}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <span className="ml-2 text-muted-foreground">Finding matches…</span>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed rounded-lg">
-              <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
-              <p className="text-muted-foreground">
-                No CofID matches found for "{item.name}"
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Try adjusting the aisle or item name
-              </p>
+            <div className="space-y-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search CoFID database by name…"
+                  value={searchFilter}
+                  onChange={e => setSearchFilter(e.target.value)}
+                  className="pl-9"
+                  autoFocus
+                />
+                {isLoadingAll && (
+                  <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
+
+              <div className="max-h-[420px] overflow-y-auto space-y-3 pr-1">
+                {/* Algorithm suggestions */}
+                {filteredCandidates.length > 0 && (
+                  <div className="space-y-1.5">
+                    {searchFilter && <p className="text-xs font-medium text-muted-foreground px-1">Suggestions</p>}
+                    {filteredCandidates.map((match, idx) => (
+                      <CofidMatchButton
+                        key={match.cofidId}
+                        name={match.name}
+                        cofidId={match.cofidId}
+                        badge={idx === 0 && !searchFilter && suggestions?.bestMatch?.cofidId === match.cofidId
+                          ? <Badge variant="default" className="text-xs"><Sparkles className="h-3 w-3 mr-1" />Best match</Badge>
+                          : <Badge variant={match.method === 'exact' ? 'default' : 'secondary'} className="text-xs">{match.method}</Badge>
+                        }
+                        aisleBadge={match.aisleId ? (
+                          <Badge variant="outline" className={match.aisleMatches ? 'text-xs text-green-600 border-green-400' : 'text-xs text-muted-foreground'}>
+                            {aisleMap.get(match.aisleId) ?? match.aisleId}
+                          </Badge>
+                        ) : null}
+                        sub={`${Math.round(match.score * 100)}% similarity`}
+                        isSelected={selectedMatch?.cofidId === match.cofidId}
+                        onSelect={() => setSelectedMatch(match)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* No suggestions but have search */}
+                {filteredCandidates.length === 0 && hasSuggestions && searchFilter && (
+                  <p className="text-xs text-muted-foreground px-1">No suggestions match — see database results below.</p>
+                )}
+
+                {/* No suggestions at all and no search */}
+                {!hasSuggestions && !searchFilter && (
+                  <div className="flex flex-col items-center justify-center py-6 text-center border border-dashed rounded-lg">
+                    <AlertCircle className="h-7 w-7 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">No automatic matches found.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Type above to search the full CoFID database.</p>
+                  </div>
+                )}
+
+                {/* Full database results */}
+                {dbSearchResults.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground px-1">
+                      CoFID database ({dbSearchResults.length}{dbSearchResults.length === 30 ? '+' : ''})
+                    </p>
+                    {dbSearchResults.map(ci => (
+                      <CofidMatchButton
+                        key={ci.id}
+                        name={ci.name}
+                        cofidId={ci.id}
+                        badge={<Badge variant="outline" className="text-xs text-muted-foreground">Group {ci.group}</Badge>}
+                        aisleBadge={null}
+                        sub={ci.id}
+                        isSelected={selectedMatch?.cofidId === ci.id}
+                        onSelect={() => setSelectedMatch(cofidItemToMatch(ci))}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Search hint when results are empty */}
+                {searchFilter.trim().length > 0 && searchFilter.trim().length < 2 && (
+                  <p className="text-xs text-muted-foreground px-1">Type at least 2 characters to search the database.</p>
+                )}
+              </div>
             </div>
           )}
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => selectedMatch && onLink(selectedMatch)}
-            disabled={!selectedMatch || isLoading}
-          >
+          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+          <Button onClick={() => selectedMatch && onLink(selectedMatch)} disabled={!selectedMatch || isLoading}>
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Link Selected Item'}
           </Button>
         </DialogFooter>
@@ -1270,3 +1553,29 @@ const CofidSuggestionsDialog: React.FC<CofidSuggestionsDialogProps> = ({
   );
 };
 
+
+// ── CofidMatchButton ─────────────────────────────────────────────────────────
+
+const CofidMatchButton: React.FC<{
+  name: string;
+  cofidId: string;
+  badge: React.ReactNode;
+  aisleBadge: React.ReactNode;
+  sub: string;
+  isSelected: boolean;
+  onSelect: () => void;
+}> = ({ name, badge, aisleBadge, sub, isSelected, onSelect }) => (
+  <button
+    onClick={onSelect}
+    className={`w-full text-left px-3 py-2 rounded-md border transition-colors ${
+      isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
+    }`}
+  >
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span className="font-medium text-sm">{name}</span>
+      {badge}
+      {aisleBadge}
+    </div>
+    <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+  </button>
+);

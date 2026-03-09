@@ -23,7 +23,7 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import { CanonItem, ExternalSourceLink } from '../logic/items';
-import { suggestBestMatch, rankCandidates, buildCofidMatch, type SuggestedMatch } from '../logic/suggestCofidMatch';
+import { suggestBestMatch, rankCandidates, tryExactMatch, tryFuzzyMatch, buildCofidMatch, type SuggestedMatch } from '../logic/suggestCofidMatch';
 import { findSemanticMatches } from '../logic/embeddings';
 import {
   fetchEmbeddingsFromLookup,
@@ -711,15 +711,52 @@ export async function suggestCofidForCanonItem(
   // 3. Build aisle mapping: CofID item ID → canon aisle ID
   const aisleMapping = await buildAisleMapping(cofidItems);
 
-  // 4. Get lexical aisle-bounded candidates
+  // 4. Get lexical candidates — aisle-filtered first, fall back to all aisles if too few results
   const lexicalTimer = startTimer();
-  const lexicalCandidates = rankCandidates(
+  let lexicalCandidates = rankCandidates(
     canonItem.name,
     canonItem.aisleId,
     cofidItems,
     aisleMapping,
     8
   );
+  // Tag aisle-match status
+  lexicalCandidates = lexicalCandidates.map(c => ({
+    ...c,
+    aisleId: aisleMapping[c.cofidId],
+    aisleMatches: aisleMapping[c.cofidId] === canonItem.aisleId,
+  }));
+
+  if (lexicalCandidates.length < 3) {
+    // Fallback: search all aisles for lexical matches (no aisle filter)
+    const allLexical: SuggestedMatch[] = [];
+    for (const candidate of cofidItems) {
+      const exactMatch = tryExactMatch(canonItem.name, candidate);
+      if (exactMatch) {
+        allLexical.push({
+          ...exactMatch,
+          aisleId: aisleMapping[candidate.id],
+          aisleMatches: aisleMapping[candidate.id] === canonItem.aisleId,
+        });
+        continue;
+      }
+      const fuzzyMatch = tryFuzzyMatch(canonItem.name, candidate, 0.6);
+      if (fuzzyMatch) {
+        allLexical.push({
+          ...fuzzyMatch,
+          aisleId: aisleMapping[candidate.id],
+          aisleMatches: aisleMapping[candidate.id] === canonItem.aisleId,
+        });
+      }
+    }
+    allLexical.sort((a, b) => b.score - a.score);
+    // Merge: keep existing aisle-matched ones, add global ones not already present
+    const existingIds = new Set(lexicalCandidates.map(c => c.cofidId));
+    for (const c of allLexical.slice(0, 8)) {
+      if (!existingIds.has(c.cofidId)) lexicalCandidates.push(c);
+    }
+    lexicalCandidates = lexicalCandidates.slice(0, 8);
+  }
   const lexicalDuration = lexicalTimer();
 
   // Log lexical matching event
@@ -746,17 +783,21 @@ export async function suggestCofidForCanonItem(
     },
   });
 
-  // 5. Semantic ranking from embedding lookup (best effort)
+  // 5. Semantic ranking — searches ALL CoFID embeddings (no aisle filter).
+  //    Aisle-bounded search caused poor results because CoFID food groups are broad
+  //    and don't align cleanly with shopping aisles. The embedding distance is a
+  //    better signal than aisle membership here.
   let semanticCandidates: SuggestedMatch[] = [];
   try {
-    const lookupEntries = await fetchEmbeddingsFromLookup(canonItem.aisleId);
-    
-    // Embedding generation/reuse with timing
+    // Load all embeddings — no aisle filter
+    const allLookupEntries = await fetchEmbeddingsFromLookup();
+
+    // Resolve query embedding from the global lookup or generate fresh
     const embeddingTimer = startTimer();
     const cachedQueryEmbedding = resolveQueryEmbeddingFromLookup(
       canonItem.name,
       canonItem.id,
-      lookupEntries as Array<{
+      allLookupEntries as Array<{
         kind: 'canon' | 'cofid';
         refId: string;
         name: string;
@@ -768,35 +809,26 @@ export async function suggestCofidForCanonItem(
     const queryEmbedding = cachedQueryEmbedding ?? await generateTextEmbedding(canonItem.name);
     const embeddingDuration = embeddingTimer();
 
-    // Log embedding generation event
     logMatchEvent({
       eventType: 'embedding-generation',
       entityType: 'canon-item',
       entityId: canonItem.id,
       entityName: canonItem.name,
       aisleId: canonItem.aisleId,
-      input: {
-        queryText: canonItem.name,
-        embeddingDim: queryEmbedding?.length,
-      },
-      output: {
-        embeddingGenerated: !embeddingReused,
-        embeddingReused: embeddingReused,
-      },
-      metrics: {
-        durationMs: embeddingDuration,
-      },
+      input: { queryText: canonItem.name, embeddingDim: queryEmbedding?.length },
+      output: { embeddingGenerated: !embeddingReused, embeddingReused },
+      metrics: { durationMs: embeddingDuration },
     });
 
     if (queryEmbedding) {
-      // Semantic matching with timing
       const semanticTimer = startTimer();
+      // No aisle filter — higher threshold (0.65) to compensate for broader pool
       const semanticMatches = findSemanticMatches(
         queryEmbedding,
-        lookupEntries,
-        canonItem.aisleId,
-        0.55,
-        12
+        allLookupEntries,
+        undefined,   // no aisle filter
+        0.65,
+        15
       ).filter(match => match.kind === 'cofid');
 
       semanticCandidates = semanticMatches.map(match => ({
@@ -805,10 +837,11 @@ export async function suggestCofidForCanonItem(
         score: match.similarity,
         method: 'semantic' as const,
         reason: match.reason,
+        aisleId: match.aisleId,
+        aisleMatches: match.aisleId === canonItem.aisleId,
       }));
       const semanticDuration = semanticTimer();
 
-      // Log semantic matching event
       logMatchEvent({
         eventType: 'semantic-match',
         entityType: 'canon-item',
@@ -817,8 +850,8 @@ export async function suggestCofidForCanonItem(
         aisleId: canonItem.aisleId,
         input: {
           embeddingDim: queryEmbedding.length,
-          candidateCount: lookupEntries.length,
-          aisleFiltered: true,
+          candidateCount: allLookupEntries.length,
+          aisleFiltered: false,
         },
         output: {
           resultCount: semanticCandidates.length,
@@ -827,12 +860,8 @@ export async function suggestCofidForCanonItem(
           topMatchName: semanticCandidates[0]?.name,
           method: 'semantic',
         },
-        metrics: {
-          durationMs: semanticDuration,
-        },
-        metadata: {
-          threshold: 0.55,
-        },
+        metrics: { durationMs: semanticDuration },
+        metadata: { threshold: 0.65 },
       });
     }
   } catch (error) {
@@ -906,34 +935,23 @@ export async function suggestCofidForCanonItem(
  * 5. For each CofID item: item.group → aisle name → aisle ID
  */
 async function buildAisleMapping(cofidItems: CofIDItem[]): Promise<Record<string, string>> {
-  const normaliseAisleName = (name: string) => name.toLowerCase().trim().replace(/\s+/g, ' ');
-
-  // 1. Fetch aisles
-  const aisles = await fetchCanonAisles();
-  const aisleNameToId: Record<string, string> = {};
-  for (const aisle of aisles) {
-    aisleNameToId[normaliseAisleName(aisle.name)] = aisle.id;
-  }
-
-  // 2. Fetch CofID group-to-aisle mappings
+  // Fetch CofID group-to-aisle mappings.
+  // CoFIDGroupAisleMapping.aisleId is already a canon aisle ID — use it directly.
   const groupMappingsSnapshot = await getDocs(
     collection(db, COFID_GROUP_AISLE_MAPPINGS_COLLECTION)
   );
-  const groupToAisleName: Record<string, string> = {};
+  const groupToAisleId: Record<string, string> = {};
   groupMappingsSnapshot.forEach(docSnap => {
     const data = docSnap.data() as CoFIDGroupAisleMapping;
-    groupToAisleName[data.cofidGroup] = data.aisleId;
+    groupToAisleId[data.cofidGroup] = data.aisleId;
   });
 
-  // 3. Build final mapping: CofID item ID → canon aisle ID
+  // Build final mapping: CofID item ID → canon aisle ID
   const aisleMapping: Record<string, string> = {};
   for (const cofidItem of cofidItems) {
-    const aisleName = groupToAisleName[cofidItem.group];
-    if (aisleName) {
-      const aisleId = aisleNameToId[normaliseAisleName(aisleName)];
-      if (aisleId) {
-        aisleMapping[cofidItem.id] = aisleId;
-      }
+    const aisleId = groupToAisleId[cofidItem.group];
+    if (aisleId) {
+      aisleMapping[cofidItem.id] = aisleId;
     }
   }
 
