@@ -34,7 +34,8 @@
       "Bash(gh issue:*)",
       "Read(//home/eggman/.claude/**)",
       "Read(//home/eggman/.config/claude/**)",
-      "Bash(python3 -c \":*)"
+      "Bash(python3 -c \":*)",
+      "Bash(python3:*)"
     ],
     "deny": [
       "Read(./.env)",
