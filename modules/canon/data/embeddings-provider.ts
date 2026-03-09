@@ -173,6 +173,70 @@ async function readEmbeddings(aisleId?: string): Promise<CanonEmbeddingLookup[]>
   }
 }
 
+/**
+ * Delete specific embeddings by their IDs from IndexedDB.
+ */
+export async function deleteEmbeddings(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const database = await openEmbeddingsDb();
+
+  try {
+    const tx = database.transaction(EMBEDDINGS_STORE, 'readwrite');
+    const store = tx.objectStore(EMBEDDINGS_STORE);
+
+    for (const id of ids) {
+      store.delete(id);
+    }
+
+    await transactionDone(tx);
+  } finally {
+    database.close();
+  }
+
+  // Publish the updated local IndexedDB State to the Firebase Storage master file
+  // so the deletion propagates to all clients.
+  await publishLocalToMaster();
+}
+
+/**
+ * Delete all canon-kind embeddings from IndexedDB.
+ */
+export async function clearCanonEmbeddings(): Promise<void> {
+  const database = await openEmbeddingsDb();
+
+  try {
+    const tx = database.transaction(EMBEDDINGS_STORE, 'readwrite');
+    const store = tx.objectStore(EMBEDDINGS_STORE);
+    
+    // We need to find all entries with kind === 'canon'
+    // Since we don't have an index on 'kind', we'll iterate
+    const request = store.openCursor();
+    
+    await new Promise<void>((resolve, reject) => {
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+        if (cursor) {
+          if (cursor.value.kind === 'canon') {
+            cursor.delete();
+          }
+          cursor.continue();
+        } else {
+          resolve();
+        }
+      };
+      request.onerror = () => reject(request.error);
+    });
+
+    await transactionDone(tx);
+  } finally {
+    database.close();
+  }
+
+  // Publish the updated local IndexedDB State to the Firebase Storage master file
+  // so the deletion propagates to all clients.
+  await publishLocalToMaster();
+}
+
 async function replaceEmbeddings(entries: CanonEmbeddingLookup[]): Promise<void> {
   const database = await openEmbeddingsDb();
 
@@ -317,7 +381,7 @@ async function syncFromMasterIfNeeded(force: boolean = false): Promise<void> {
   }
 }
 
-async function publishLocalToMaster(): Promise<void> {
+export async function publishLocalToMaster(): Promise<void> {
   const allLocalEmbeddings = await readEmbeddings();
   await publishMasterEmbeddings(allLocalEmbeddings);
 }
