@@ -35,6 +35,7 @@ import {
   type SuggestedMatch,
 } from '../api';
 import type { CofIDItem } from '../types';
+import { onCanonItemsDeleted } from '../../recipes/api';
 import type { Aisle, Unit } from '@/types/contract';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,7 +75,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { toast } from 'sonner';
+import { softToast } from '@/lib/soft-toast';
 import { useAdminRefresh } from '@/shared/providers';
 import { Page, Section, Stack } from '@/shared/components/primitives';
 
@@ -165,11 +166,11 @@ export const CanonItems: React.FC = () => {
   }) => {
     try {
       await addCanonItem({ ...input, needsReview: true });
-      toast.success('Item created successfully');
+      softToast.success('Item created successfully');
       await loadData();
       setShowCreateDialog(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create item');
+      softToast.error(err instanceof Error ? err.message : 'Failed to create item');
     }
   };
 
@@ -179,43 +180,61 @@ export const CanonItems: React.FC = () => {
   ) => {
     try {
       await editCanonItem(id, updates);
-      toast.success('Item updated successfully');
+      softToast.success('Item updated successfully');
       await loadData();
       setShowEditDialog(false);
       setCurrentItem(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update item');
+      softToast.error(err instanceof Error ? err.message : 'Failed to update item');
     }
   };
 
   const handleApprove = async (id: string) => {
     try {
       await approveItem(id);
-      toast.success('Item approved');
+      softToast.success('Item approved');
       await loadData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to approve item');
+      softToast.error(err instanceof Error ? err.message : 'Failed to approve item');
+    }
+  };
+
+  // Combined edit + approve in one atomic action — used by ApprovalItemDialog
+  // to avoid multiple toasts from the separate handleEdit / handleApprove calls.
+  const handleApproveWithEdits = async (
+    updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId'>>
+  ) => {
+    if (!currentItem) return;
+    try {
+      await editCanonItem(currentItem.id, updates);
+      await approveItem(currentItem.id);
+      softToast.success('Item approved');
+      await loadData();
+      setShowApprovalDialog(false);
+      setCurrentItem(null);
+    } catch (err) {
+      softToast.error(err instanceof Error ? err.message : 'Failed to approve item');
     }
   };
 
   const handleBulkApprove = async () => {
     if (selectedItems.size === 0) {
-      toast.error('No items selected');
+      softToast.error('No items selected');
       return;
     }
     try {
       await Promise.all(Array.from(selectedItems).map(id => approveItem(id)));
-      toast.success(`Approved ${selectedItems.size} items`);
+      softToast.success(`Approved ${selectedItems.size} items`);
       setSelectedItems(new Set());
       await loadData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to approve items');
+      softToast.error(err instanceof Error ? err.message : 'Failed to approve items');
     }
   };
 
   const handleBulkAssignAisle = async (aisleId: string) => {
     if (selectedItems.size === 0) {
-      toast.error('No items selected');
+      softToast.error('No items selected');
       return;
     }
     try {
@@ -228,11 +247,11 @@ export const CanonItems: React.FC = () => {
           return Promise.resolve();
         })
       );
-      toast.success(`Assigned ${selectedItems.size} items to aisle`);
+      softToast.success(`Assigned ${selectedItems.size} items to aisle`);
       setSelectedItems(new Set());
       await loadData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to assign aisle');
+      softToast.error(err instanceof Error ? err.message : 'Failed to assign aisle');
     }
   };
 
@@ -263,7 +282,7 @@ export const CanonItems: React.FC = () => {
       const suggestions = await suggestCofidMatch(item.id);
       setCofidSuggestions(suggestions);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to suggest CofID matches');
+      softToast.error(err instanceof Error ? err.message : 'Failed to suggest CofID matches');
       setShowCofidDialog(false);
     } finally {
       setIsLoadingCofid(false);
@@ -276,13 +295,13 @@ export const CanonItems: React.FC = () => {
     try {
       const matchMetadata = buildCofidMatch(match, 'manual');
       await linkCofidMatch(currentItem.id, match.cofidId, matchMetadata);
-      toast.success(`Linked to ${match.name}`);
+      softToast.success(`Linked to ${match.name}`);
       await loadData();
       setShowCofidDialog(false);
       setCofidSuggestions(null);
       setCurrentItem(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to link CofID match');
+      softToast.error(err instanceof Error ? err.message : 'Failed to link CofID match');
     } finally {
       setIsLoadingCofid(false);
     }
@@ -291,10 +310,10 @@ export const CanonItems: React.FC = () => {
   const handleUnlinkCofid = async (item: CanonItem) => {
     try {
       await unlinkCofidMatch(item.id);
-      toast.success('CofID link removed');
+      softToast.success('CofID link removed');
       await loadData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to unlink CofID');
+      softToast.error(err instanceof Error ? err.message : 'Failed to unlink CofID');
     }
   };
 
@@ -302,25 +321,28 @@ export const CanonItems: React.FC = () => {
     if (!currentItem) return;
     try {
       await deleteItem(currentItem.id);
-      toast.success('Item deleted');
+      await onCanonItemsDeleted([currentItem.id]);
+      softToast.success('Item deleted');
       setShowDeleteDialog(false);
       setCurrentItem(null);
       await loadData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete item');
+      softToast.error(err instanceof Error ? err.message : 'Failed to delete item');
     }
   };
 
   const handleBulkDelete = async () => {
     if (selectedItems.size === 0) return;
+    const ids = Array.from(selectedItems);
     try {
-      await Promise.all(Array.from(selectedItems).map(id => deleteItem(id)));
-      toast.success(`Deleted ${selectedItems.size} item${selectedItems.size !== 1 ? 's' : ''}`);
+      await Promise.all(ids.map(id => deleteItem(id)));
+      await onCanonItemsDeleted(ids);
+      softToast.success(`Deleted ${ids.length} item${ids.length !== 1 ? 's' : ''}`);
       setSelectedItems(new Set());
       setShowBulkDeleteDialog(false);
       await loadData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete items');
+      softToast.error(err instanceof Error ? err.message : 'Failed to delete items');
     }
   };
 
@@ -571,10 +593,7 @@ export const CanonItems: React.FC = () => {
           aisles={aisles}
           units={units}
           hasNutrients={hasCofidNutrition(currentItem)}
-          onSubmit={async (updates) => {
-            await handleEdit(currentItem.id, updates);
-            await handleApprove(currentItem.id);
-          }}
+          onSubmit={handleApproveWithEdits}
           onCancel={() => {
             setShowApprovalDialog(false);
             setCurrentItem(null);
@@ -689,13 +708,12 @@ const ApprovalItemDialog: React.FC<ApprovalItemDialogProps> = ({
     e.preventDefault();
     const normalizedName = normalizeItemName(name);
     if (!normalizedName || !aisleId || !preferredUnitId) {
-      toast.error('All fields are required');
+      softToast.error('All fields are required');
       return;
     }
     setIsSubmitting(true);
     try {
       await onSubmit({ name: normalizedName, aisleId, preferredUnitId });
-      toast.success('Item approved successfully');
     } finally {
       setIsSubmitting(false);
     }
@@ -1020,7 +1038,7 @@ const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
     e.preventDefault();
     const normalizedName = normalizeItemName(name);
     if (!normalizedName || !aisleId || !preferredUnitId) {
-      toast.error('All fields are required');
+      softToast.error('All fields are required');
       return;
     }
     setIsSubmitting(true);
@@ -1126,7 +1144,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
     e.preventDefault();
     const normalizedName = normalizeItemName(name);
     if (!normalizedName || !aisleId || !preferredUnitId) {
-      toast.error('All fields are required');
+      softToast.error('All fields are required');
       return;
     }
     setIsSubmitting(true);
@@ -1225,20 +1243,27 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
   onOpenChange,
 }) => {
   const cofidSource = item.externalSources?.find(s => s.source === 'cofid');
-  const nutrition = cofidSource?.properties && typeof cofidSource.properties === 'object'
-    ? (cofidSource.properties as any).nutrition
-    : null;
+  // Prefer live CoFID data (cofidDetail.nutrients) over stored snapshot.
+  // Stored snapshot may be absent for items linked before the nutrition-at-link fix.
+  const nutrition =
+    (cofidDetail?.nutrients && typeof cofidDetail.nutrients === 'object' ? cofidDetail.nutrients : null)
+    ?? (cofidSource?.properties && typeof cofidSource.properties === 'object'
+        ? (cofidSource.properties as any).nutrition
+        : null);
 
+  // CoFID nutrient field names as stored in the database
   const NUTRIENT_LABELS: Record<string, string> = {
-    energy_kcal: 'Energy (kcal)',
-    protein_g: 'Protein (g)',
-    fat_g: 'Total fat (g)',
-    saturated_fat_g: 'Saturated fat (g)',
-    carbohydrate_g: 'Carbohydrate (g)',
-    sugars_g: 'Sugars (g)',
-    fibre_g: 'Fibre (g)',
-    sodium_mg: 'Sodium (mg)',
-    salt_g: 'Salt (g)',
+    energyKcal: 'Energy (kcal)',
+    energyKj: 'Energy (kJ)',
+    protein: 'Protein (g)',
+    fat: 'Total fat (g)',
+    satFatPer100gFood: 'Saturated fat (g)',
+    carbs: 'Carbohydrate (g)',
+    sugars: 'Sugars (g)',
+    fibre: 'Fibre (g)',
+    salt: 'Salt (mg)',
+    cholesterol: 'Cholesterol (mg)',
+    water: 'Water (g)',
   };
 
   return (

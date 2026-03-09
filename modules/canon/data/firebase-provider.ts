@@ -632,9 +632,16 @@ export async function linkCofidMatchToCanonItem(
     ? (itemData.externalSources as ExternalSourceLink[])
     : undefined;
 
+  // Fetch nutrition data from the CoFID item and store it alongside the match metadata.
+  const cofidItem = await fetchCofidItemById(cofidId);
+  const nutritionProps = cofidItem?.nutrients
+    ? { nutrition: cofidItem.nutrients, nutritionImportedAt: new Date().toISOString() }
+    : {};
+
   await updateDoc(docRef, {
     externalSources: withCofidSource(existingSources, cofidId, {
       match: matchMetadata,
+      ...nutritionProps,
     }),
     lastSyncedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
