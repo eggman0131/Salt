@@ -377,11 +377,11 @@ export function RecipeFormDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <div>
                 <Label htmlFor="prepTime">Prep Time</Label>
                 <div className="relative">
-                  <div className="text-muted-foreground pointer-events-none absolute inset  -y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
+                  <div className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
                     <Clock8 className="size-4" />
                   </div>
                   <Input
@@ -432,9 +432,6 @@ export function RecipeFormDialog({
                   placeholder="4 people"
                 />
               </div>
-            </div>
-
-            <div className="w-full">
               <div>
                 <Label htmlFor="complexity">Complexity</Label>
                 <Select value={complexity} onValueChange={(value: any) => setComplexity(value)}>
