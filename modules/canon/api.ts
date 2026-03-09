@@ -482,6 +482,7 @@ export {
  */
 export async function getMatchEvents(options: {
   entityId?: string;
+  batchId?: string;
   eventType?: CanonMatchEvent['eventType'];
   startDate?: Date;
   endDate?: Date;

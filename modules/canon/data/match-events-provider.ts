@@ -118,6 +118,7 @@ export async function logMatchEvent(
  */
 export async function fetchMatchEvents(options: {
   entityId?: string;
+  batchId?: string;
   eventType?: CanonMatchEvent['eventType'];
   startDate?: Date;
   endDate?: Date;
@@ -130,6 +131,10 @@ export async function fetchMatchEvents(options: {
 
   if (options.entityId) {
     constraints.push(where('entityId', '==', options.entityId));
+  }
+
+  if (options.batchId) {
+    constraints.push(where('metrics.batchId', '==', options.batchId));
   }
 
   if (options.eventType) {

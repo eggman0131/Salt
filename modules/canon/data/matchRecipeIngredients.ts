@@ -30,6 +30,7 @@ import { logMatchEvent, createBatchId, startTimer } from './match-events-provide
 
 export interface MatchingPipelineOptions {
   dryRun?: boolean;
+  sessionLabel?: string; // Human-readable label for this batch (e.g. recipe title)
 }
 
 interface MatchingPipelineContext {
@@ -141,6 +142,7 @@ export async function processRawRecipeIngredients(
       durationMs: validationDuration,
       batchId,
       batchSize: parseResult.data.length,
+      sessionLabel: options.sessionLabel,
     },
   }).catch(err => console.error('Failed to log parse-validation event:', err));
 
@@ -168,6 +170,7 @@ export async function processRawRecipeIngredients(
       durationMs: contextLoadDurationMs,
       batchId,
       batchSize: validated.results.length,
+      sessionLabel: options.sessionLabel,
     },
     metadata: {
       pipelineVersion: 'match-v3-batch-context',
@@ -414,12 +417,14 @@ export async function matchAndLinkRecipeIngredient(
         scoreGap: decision.scoreGap,
         stage: decision.stage,
         reason: decision.reason,
+        candidates: decision.candidates.slice(0, 5).map(c => ({ id: c.canonItemId, name: c.name, score: c.score, method: c.method, reason: c.reason })),
       },
       metrics: {
         durationMs: decisionTimer(),
         batchId,
         batchSize: batchIndex !== undefined ? batchIndex + 1 : undefined,
         batchIndex,
+        sessionLabel: options.sessionLabel,
       },
       metadata: {
         decisionAlgorithmMs: stageTimings.decision,
@@ -467,12 +472,14 @@ export async function matchAndLinkRecipeIngredient(
           stage: decision.stage,
           reason: decision.reason,
           dryRun: true,
+          candidates: decision.candidates.slice(0, 5).map(c => ({ id: c.canonItemId, name: c.name, score: c.score, method: c.method, reason: c.reason })),
         },
         metrics: {
           durationMs: decisionTimer(),
           batchId,
           batchSize: batchIndex !== undefined ? batchIndex + 1 : undefined,
           batchIndex,
+          sessionLabel: options.sessionLabel,
         },
         metadata: {
           decisionAlgorithmMs: stageTimings.decision,
@@ -540,12 +547,14 @@ export async function matchAndLinkRecipeIngredient(
         reason: decision.reason,
         inferredAisleId,
         preferredUnitId,
+        candidates: decision.candidates.slice(0, 5).map(c => ({ id: c.canonItemId, name: c.name, score: c.score, method: c.method, reason: c.reason })),
       },
       metrics: {
         durationMs: decisionTimer(),
         batchId,
         batchSize: batchIndex !== undefined ? batchIndex + 1 : undefined,
         batchIndex,
+        sessionLabel: options.sessionLabel,
       },
       metadata: {
         decisionAlgorithmMs: stageTimings.decision,
@@ -597,12 +606,14 @@ export async function matchAndLinkRecipeIngredient(
         scoreGap: decision.scoreGap,
         stage: decision.stage,
         reason: decision.reason,
+        candidates: decision.candidates.slice(0, 5).map(c => ({ id: c.canonItemId, name: c.name, score: c.score, method: c.method, reason: c.reason })),
       },
       metrics: {
         durationMs: decisionTimer(),
         batchId,
         batchSize: batchIndex !== undefined ? batchIndex + 1 : undefined,
         batchIndex,
+        sessionLabel: options.sessionLabel,
       },
       metadata: {
         decisionAlgorithmMs: stageTimings.decision,

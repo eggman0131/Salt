@@ -139,6 +139,14 @@ export const CanonicalItemSchema = z.object({
   // Approval workflow (auto-created items from CoFID require human review)
   approved: z.boolean().default(true).optional(), // True for user-created, false for auto-created from external sources
   
+  // v2: Shopping unit for display (e.g. { name: 'pack', quantity: 250, unit: 'g' })
+  // If present: displayQty = ceil(totalBaseQty / shoppingUnit.quantity)
+  shoppingUnit: z.object({
+    name: z.string(),
+    quantity: z.number(),
+    unit: z.string(),
+  }).optional(),
+
   // Matching audit trail (tracks how this item was matched/created, including near misses)
   matchingAudit: z.object({
     // Core decision metadata
@@ -230,8 +238,7 @@ export type RecipeInstruction = z.infer<typeof RecipeInstructionSchema>;
 export const ShoppingListSchema = z.object({
   id: z.string(),
   name: z.string(),
-  recipeIds: z.array(z.string()).optional(),
-  isDefault: z.boolean().optional(),
+  isDefault: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string().optional(),
   createdBy: z.string().optional(),
@@ -239,20 +246,46 @@ export const ShoppingListSchema = z.object({
 export type ShoppingList = z.infer<typeof ShoppingListSchema>;
 
 // Shopping List Item Schema
+// One doc per canonical item (or unmatched manual entry) per list.
+// contributions[] tracks every recipe/manual entry that contributes to this item.
+// Quantities are aggregated and stored — the shopping view is pure reads.
 export const ShoppingListItemSchema = z.object({
   id: z.string(),
   shoppingListId: z.string(),
-  canonicalItemId: z.string(), // Links to CanonicalItem
-  name: z.string(), // Snapshot at creation time
-  aisle: z.string(), // Snapshot at creation time
-  recipeQuantity: z.number().default(0), // Quantity driven by recipes
-  manualQuantity: z.number().default(0), // Quantity driven by manual user input
-  unit: z.string(),
+  canonicalItemId: z.string().optional(), // undefined = unmatched manual entry
+
+  name: z.string(),
+  aisle: z.string().optional(),
+
+  // Aggregated quantities (stored, computed from contributions at write time)
+  totalBaseQty: z.number().optional(),
+  baseUnit: z.string().optional(),       // 'g' | 'ml' | unit as-is for count/colloquial
+  displayQty: z.number().optional(),     // v2: shopping unit qty if defined on CanonicalItem
+  displayUnit: z.string().optional(),
+
+  // Embedded source records — one entry per recipe ingredient or manual addition
+  contributions: z.array(z.object({
+    sourceType: z.enum(['recipe', 'manual']),
+    recipeId: z.string().optional(),
+    recipeTitle: z.string().optional(),
+    rawText: z.string(),                 // original ingredient string, always preserved
+    qty: z.number().optional(),
+    unit: z.string().optional(),
+    addedBy: z.string(),
+    addedAt: z.string(),
+  })),
+
+  status: z.enum(['needs_review', 'active']),
+  // needs_review: staple/storecupboard item pending user approval
+  // active: on the main list
+
   checked: z.boolean(),
-  isStaple: z.boolean(),
-  sourceRecipeIds: z.array(z.string()).optional(),
-  sourceRecipeIngredientIds: z.array(z.string()).optional(),
+  checkedAt: z.string().optional(),
+  checkedBy: z.string().optional(),
+
   note: z.string().optional(),
+  addedBy: z.string().optional(),        // populated for manually-initiated items
+  updatedAt: z.string(),
 });
 export type ShoppingListItem = z.infer<typeof ShoppingListItemSchema>;
 

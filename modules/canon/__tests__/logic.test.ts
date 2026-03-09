@@ -55,11 +55,11 @@ const UNITS: Unit[] = [
 ];
 
 const ITEMS: CanonItem[] = [
-  { id: 'item-carrot', name: 'Carrot', aisleId: 'produce', preferredUnitId: 'g', needsReview: false, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'item-onion', name: 'Onion', aisleId: 'produce', preferredUnitId: 'g', needsReview: true, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'item-butter', name: 'Butter', aisleId: 'dairy-eggs', preferredUnitId: 'g', needsReview: false, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'item-salt', name: 'Salt', aisleId: 'pantry', preferredUnitId: 'pinch', needsReview: true, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'item-apple', name: 'Apple', aisleId: 'produce', preferredUnitId: 'g', needsReview: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'item-carrot', name: 'Carrot', aisleId: 'produce', preferredUnitId: 'g', needsReview: false, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'item-onion', name: 'Onion', aisleId: 'produce', preferredUnitId: 'g', needsReview: true, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'item-butter', name: 'Butter', aisleId: 'dairy-eggs', preferredUnitId: 'g', needsReview: false, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'item-salt', name: 'Salt', aisleId: 'pantry', preferredUnitId: 'pinch', needsReview: true, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'item-apple', name: 'Apple', aisleId: 'produce', preferredUnitId: 'g', needsReview: false, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
 ];
 
 // ── sortAisles ────────────────────────────────────────────────────────────────
