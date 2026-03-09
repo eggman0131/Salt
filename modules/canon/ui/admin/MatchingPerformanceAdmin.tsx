@@ -376,8 +376,14 @@ const SessionsView: React.FC<{ sessions: SessionSummary[] }> = ({ sessions }) =>
 // ── Ingredient Row ─────────────────────────────────────────────────────────────
 
 const IngredientRow: React.FC<{ decision: MatchDecision }> = ({ decision: d }) => {
-  const [showCandidates, setShowCandidates] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const hasCandidates = (d.candidates?.length ?? 0) > 0;
+
+  const lexicalEvent = d.stageEvents.find(e => e.eventType === 'lexical-match');
+  const semanticEvent = d.stageEvents.find(e => e.eventType === 'semantic-match');
+  const lexicalCandidates: any[] = (lexicalEvent?.output as any)?.candidates ?? [];
+  const semanticCandidates: any[] = (semanticEvent?.output as any)?.candidates ?? [];
+  const hasStageDetail = hasCandidates || lexicalCandidates.length > 0 || semanticCandidates.length > 0 || !!d.reason;
 
   return (
     <div className="px-6 py-3 bg-background">
@@ -429,36 +435,100 @@ const IngredientRow: React.FC<{ decision: MatchDecision }> = ({ decision: d }) =
           )}
 
           {/* Reason for borderline or failed matches */}
-          {d.reason && (d.decision !== 'use_existing_canon' || (d.topScore ?? 1) < 0.85) && (
+          {!expanded && d.reason && (d.decision !== 'use_existing_canon' || (d.topScore ?? 1) < 0.85) && (
             <p className="text-xs text-muted-foreground mt-0.5 italic">{d.reason}</p>
           )}
         </div>
 
-        {hasCandidates && (
+        {hasStageDetail && (
           <button
-            onClick={() => setShowCandidates(v => !v)}
-            className="text-xs text-muted-foreground hover:text-foreground shrink-0 mt-0.5"
+            onClick={() => setExpanded(v => !v)}
+            className="text-xs text-muted-foreground hover:text-foreground shrink-0 mt-0.5 flex items-center gap-0.5"
           >
-            {showCandidates ? 'Hide' : `${d.candidates!.length} candidate${d.candidates!.length !== 1 ? 's' : ''}`}
+            {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            {expanded ? 'Hide' : 'Detail'}
           </button>
         )}
       </div>
 
-      {showCandidates && hasCandidates && (
-        <div className="mt-2 ml-7 space-y-1 border-l-2 border-muted pl-3">
-          {d.candidates!.map((c, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className={`font-mono ${scoreColor(c.score)}`}>{(c.score * 100).toFixed(0)}%</span>
-              <span className="font-medium text-foreground">{c.name}</span>
-              <Badge variant="outline" className="text-[9px] px-1 py-0">{c.method}</Badge>
-              {c.reason && <span className="italic">{c.reason}</span>}
+      {expanded && (
+        <div className="mt-2 ml-7 space-y-2 border-l-2 border-muted pl-3">
+          {/* Lexical stage */}
+          <StageRow
+            label="Lexical"
+            durationMs={lexicalEvent?.metrics.durationMs}
+            poolCount={(lexicalEvent?.input as any)?.candidateCount}
+            candidates={lexicalCandidates}
+            emptyLabel="No candidates above 75%"
+          />
+
+          {/* Semantic stage */}
+          <StageRow
+            label="Semantic"
+            durationMs={semanticEvent?.metrics.durationMs}
+            poolCount={(semanticEvent?.input as any)?.candidateCount}
+            candidates={semanticCandidates}
+            emptyLabel={
+              (semanticEvent?.input as any)?.embeddingDim
+                ? 'No candidates above 70%'
+                : 'No embedding available'
+            }
+          />
+
+          {/* Merged decision candidates */}
+          {hasCandidates && (
+            <div className="space-y-0.5">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Merged (decision input)</p>
+              {d.candidates!.map((c, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className={`font-mono w-8 text-right ${scoreColor(c.score)}`}>{(c.score * 100).toFixed(0)}%</span>
+                  <span className="font-medium text-foreground">{c.name}</span>
+                  <Badge variant="outline" className="text-[9px] px-1 py-0">{c.method}</Badge>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+
+          {/* Reason */}
+          {d.reason && (
+            <p className="text-xs text-muted-foreground italic">{d.reason}</p>
+          )}
         </div>
       )}
     </div>
   );
 };
+
+const StageRow: React.FC<{
+  label: string;
+  durationMs?: number;
+  poolCount?: number;
+  candidates: Array<{ name: string; score: number; method: string }>;
+  emptyLabel: string;
+}> = ({ label, durationMs, poolCount, candidates, emptyLabel }) => (
+  <div className="space-y-0.5">
+    <div className="flex items-center gap-2">
+      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+      {poolCount != null && (
+        <span className="text-[10px] text-muted-foreground">pool: {poolCount.toLocaleString()}</span>
+      )}
+      {durationMs != null && (
+        <span className="text-[10px] font-mono text-muted-foreground">{durationMs}ms</span>
+      )}
+    </div>
+    {candidates.length === 0 ? (
+      <p className="text-xs text-muted-foreground italic">{emptyLabel}</p>
+    ) : (
+      candidates.map((c, i) => (
+        <div key={i} className="flex items-center gap-2 text-xs">
+          <span className={`font-mono w-8 text-right ${scoreColor(c.score)}`}>{(c.score * 100).toFixed(0)}%</span>
+          <span className="text-foreground">{c.name}</span>
+          <Badge variant="outline" className="text-[9px] px-1 py-0">{c.method}</Badge>
+        </div>
+      ))
+    )}
+  </div>
+);
 
 // ── Item History View ─────────────────────────────────────────────────────────
 

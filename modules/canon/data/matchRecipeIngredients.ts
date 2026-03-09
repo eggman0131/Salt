@@ -21,7 +21,7 @@ import {
   createCanonItem,
   suggestCofidForCanonItem,
 } from './firebase-provider';
-import { fetchEmbeddingsFromLookup } from './embeddings-provider';
+import { fetchEmbeddingsFromLookup, generateTextEmbeddingsBatch, generateTextEmbedding } from './embeddings-provider';
 import type { RecipeIngredient } from '../../../types/contract';
 import { callAiParseIngredients } from './aiParseIngredients';
 import { validateAiParseResults } from '../logic/validateAiParse';
@@ -181,9 +181,43 @@ export async function processRawRecipeIngredients(
   const unitById = new Map(units.map(u => [u.id, { id: u.id, name: u.name }]));
   const matchedIngredients: RecipeIngredient[] = [];
 
+  // Batch-generate query embeddings for all ingredients in one API call
+  // so that semantic matching runs for every ingredient.
+  const batchEmbedTimer = startTimer();
+  const ingredientNames = validated.results.map(r => r.itemName);
+  const batchEmbeddings = await generateTextEmbeddingsBatch(ingredientNames).catch(() => {
+    return ingredientNames.map(() => null as number[] | null);
+  });
+  const batchEmbedDurationMs = batchEmbedTimer();
+
+  logMatchEvent({
+    eventType: 'embedding-generation',
+    entityType: 'recipe-ingredient',
+    entityId: batchId,
+    entityName: `Batch query embeddings for ${validated.results.length} ingredients`,
+    input: { ingredientCount: validated.results.length },
+    output: {
+      generatedCount: batchEmbeddings.filter(Boolean).length,
+      failedCount: batchEmbeddings.filter(e => !e).length,
+      embeddingGenerated: true,
+    },
+    metrics: {
+      durationMs: batchEmbedDurationMs,
+      batchId,
+      batchSize: validated.results.length,
+      sessionLabel: options.sessionLabel,
+    },
+    metadata: { pipelineVersion: 'match-v3-batch-context' },
+  }).catch(err => console.error('Failed to log batch embedding-generation event:', err));
+
   for (let i = 0; i < validated.results.length; i++) {
     const parsed = validated.results[i];
     const recipeIngredient = mapValidatedParseToRecipeIngredient(parsed, unitById);
+    // Attach the pre-generated query embedding so semantic matching can run
+    const queryEmbedding = batchEmbeddings[i];
+    if (queryEmbedding) {
+      recipeIngredient.embedding = queryEmbedding;
+    }
     const linkedIngredient = await matchAndLinkRecipeIngredient(
       recipeIngredient,
       parsed.aisleId,
@@ -235,10 +269,18 @@ export async function matchAndLinkRecipeIngredient(
   const embeddingLookup = resolvedContext.embeddingLookup;
   const units = resolvedContext.units;
 
-  // Query embedding stage: reuse existing embedding or report skipped generation.
+  // Query embedding stage: use cached embedding, or generate one if not present.
   const embeddingTimer = startTimer();
-  const queryEmbedding = ingredient.embedding;
-  const hasQueryEmbedding = Array.isArray(queryEmbedding) && queryEmbedding.length > 0;
+  const cachedEmbedding = Array.isArray(ingredient.embedding) && ingredient.embedding.length > 0
+    ? ingredient.embedding
+    : null;
+  // Fallback: generate on-the-fly if not pre-computed (e.g. standalone call path)
+  const generatedEmbedding = cachedEmbedding
+    ? null
+    : await generateTextEmbedding(ingredient.ingredientName).catch(() => null);
+  const queryEmbedding: number[] | undefined =
+    cachedEmbedding ?? generatedEmbedding ?? undefined;
+  const hasQueryEmbedding = !!queryEmbedding;
   const embeddingDurationMs = embeddingTimer();
 
   logMatchEvent({
@@ -249,12 +291,12 @@ export async function matchAndLinkRecipeIngredient(
     aisleId: effectiveAisleId,
     input: {
       queryText: ingredient.ingredientName,
-      embeddingDim: hasQueryEmbedding ? queryEmbedding.length : undefined,
+      embeddingDim: hasQueryEmbedding ? queryEmbedding!.length : undefined,
       aisleFiltered: !!effectiveAisleId,
     },
     output: {
-      embeddingGenerated: false,
-      embeddingReused: hasQueryEmbedding,
+      embeddingGenerated: !!generatedEmbedding,
+      embeddingReused: !!cachedEmbedding,
       method: hasQueryEmbedding ? 'semantic' : 'fuzzy',
     },
     metrics: {
@@ -263,9 +305,9 @@ export async function matchAndLinkRecipeIngredient(
       batchSize: batchIndex !== undefined ? batchIndex + 1 : undefined,
       batchIndex,
     },
-    metadata: hasQueryEmbedding
-      ? { warning: 'Using precomputed ingredient embedding from recipe context' }
-      : { warning: 'No query embedding available in parse pipeline; semantic similarity skipped' },
+    metadata: !hasQueryEmbedding
+      ? { warning: 'Embedding generation failed; semantic similarity skipped' }
+      : undefined,
   }).catch(err => console.error('Failed to log embedding-generation event:', err));
 
   // Run matching pipeline
@@ -320,6 +362,7 @@ export async function matchAndLinkRecipeIngredient(
       topMatchId: topLexical?.canonItemId,
       topMatchName: topLexical?.name,
       method: topLexical?.method,
+      candidates: lexicalCandidates.slice(0, 3).map(c => ({ id: c.canonItemId, name: c.name, score: c.score, method: c.method })),
     },
     metrics: {
       durationMs: lexicalOperationalMs,
@@ -353,6 +396,7 @@ export async function matchAndLinkRecipeIngredient(
       topMatchId: topSemantic?.canonItemId,
       topMatchName: topSemantic?.name,
       method: 'semantic',
+      candidates: semanticCandidates.slice(0, 3).map(c => ({ id: c.canonItemId, name: c.name, score: c.score, method: c.method })),
     },
     metrics: {
       durationMs: semanticOperationalMs,
@@ -447,6 +491,7 @@ export async function matchAndLinkRecipeIngredient(
         scoreGap: decision.scoreGap,
         reason: decision.reason,
         recordedAt: new Date().toISOString(),
+        nearMisses: decision.candidates.slice(0, 3).map(c => ({ name: c.name, score: c.score, method: c.method })),
       },
       matchedAt: new Date().toISOString(),
     };
@@ -499,6 +544,7 @@ export async function matchAndLinkRecipeIngredient(
           scoreGap: decision.scoreGap,
           reason: `[dry-run] ${decision.reason}`,
           recordedAt: new Date().toISOString(),
+          nearMisses: decision.candidates.slice(0, 3).map(c => ({ name: c.name, score: c.score, method: c.method })),
         },
         matchedAt: new Date().toISOString(),
       };
@@ -582,6 +628,7 @@ export async function matchAndLinkRecipeIngredient(
         scoreGap: decision.scoreGap,
         reason: decision.reason,
         recordedAt: new Date().toISOString(),
+        nearMisses: decision.candidates.slice(0, 3).map(c => ({ name: c.name, score: c.score, method: c.method })),
       },
       matchedAt: new Date().toISOString(),
     };
@@ -634,6 +681,7 @@ export async function matchAndLinkRecipeIngredient(
         scoreGap: decision.scoreGap,
         reason: decision.reason,
         recordedAt: new Date().toISOString(),
+        nearMisses: decision.candidates.slice(0, 3).map(c => ({ name: c.name, score: c.score, method: c.method })),
       },
       matchedAt: new Date().toISOString(),
     };
