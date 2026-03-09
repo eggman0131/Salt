@@ -30,6 +30,8 @@ import {
   generateTextEmbedding,
   upsertCanonItemEmbedding,
   upsertCanonItemEmbeddingById,
+  deleteEmbeddings,
+  clearCanonEmbeddings,
 } from './embeddings-provider';
 import {
   logMatchEvent,
@@ -565,6 +567,13 @@ export async function approveCanonItem(id: string): Promise<void> {
 export async function deleteCanonItem(id: string): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
   await deleteDoc(docRef);
+
+  // Keep local embedding lookup in sync
+  try {
+    await deleteEmbeddings([id]);
+  } catch (error) {
+    console.warn('[deleteCanonItem] Failed to delete embedding (non-blocking):', error);
+  }
 }
 
 /**
@@ -575,6 +584,13 @@ export async function deleteAllCanonItems(): Promise<void> {
   const snapshot = await getDocs(collection(db, CANON_ITEMS_COLLECTION));
   const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
   await Promise.all(deletePromises);
+
+  // Keep local embedding lookup in sync
+  try {
+    await clearCanonEmbeddings();
+  } catch (error) {
+    console.warn('[deleteAllCanonItems] Failed to clear embeddings (non-blocking):', error);
+  }
 }
 
 // ── CofID Items Read ──────────────────────────────────────────────────────────

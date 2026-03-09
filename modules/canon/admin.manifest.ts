@@ -42,4 +42,11 @@ export const canonAdminTools = [
     component: () =>
       import('./ui/admin/MatchingPerformanceAdmin').then(m => ({ default: m.MatchingPerformanceAdmin })),
   },
+  {
+    id: 'canon.embedding-sync',
+    label: 'Embedding Sync Utility',
+    description: 'Reconcile local IndexedDB embeddings with Firestore Canon Items and publish to Master.',
+    component: () =>
+      import('./ui/admin/EmbeddingSyncUtility').then(m => ({ default: m.EmbeddingSyncUtility })),
+  },
 ];
