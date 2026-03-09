@@ -74,6 +74,96 @@ export function instructionArrayReferences(
   );
 }
 
+// ── Split: targeted ingredient reassignment ───────────────────────────────────
+
+type IngredientLike = { id?: string; canonicalItemId?: string; [key: string]: unknown };
+type StepLike = { ingredients?: IngredientLike[]; [key: string]: unknown };
+
+/**
+ * Reassign a single ingredient (identified by its own `id`) to a new canon item.
+ * Used for split operations where only selected references should move.
+ * Returns a new array; does not mutate the input.
+ */
+export function reassignIngredientById(
+  ingredients: IngredientLike[],
+  ingredientId: string,
+  newCanonItemId: string
+): { patched: IngredientLike[]; changed: boolean } {
+  let changed = false;
+  const patched = ingredients.map(ing => {
+    if (ing.id === ingredientId) {
+      changed = true;
+      return { ...ing, canonicalItemId: newCanonItemId };
+    }
+    return ing;
+  });
+  return { patched, changed };
+}
+
+/**
+ * Reassign a set of ingredients (by their own `id`s) across a flat ingredients array.
+ * Returns a new array; does not mutate the input.
+ */
+export function reassignIngredientsByIds(
+  ingredients: IngredientLike[],
+  ingredientIds: Set<string>,
+  newCanonItemId: string
+): { patched: IngredientLike[]; changed: boolean } {
+  let changed = false;
+  const patched = ingredients.map(ing => {
+    if (ing.id && ingredientIds.has(ing.id)) {
+      changed = true;
+      return { ...ing, canonicalItemId: newCanonItemId };
+    }
+    return ing;
+  });
+  return { patched, changed };
+}
+
+/**
+ * Reassign a set of ingredients (by their own `id`s) across a recipe instructions array.
+ * Returns a new array; does not mutate the input.
+ */
+export function reassignInstructionIngredientsByIds(
+  instructions: StepLike[],
+  ingredientIds: Set<string>,
+  newCanonItemId: string
+): { patched: StepLike[]; changed: boolean } {
+  let changed = false;
+  const patched = instructions.map(step => {
+    if (!step.ingredients?.length) return step;
+    const result = reassignIngredientsByIds(step.ingredients, ingredientIds, newCanonItemId);
+    if (result.changed) {
+      changed = true;
+      return { ...step, ingredients: result.patched };
+    }
+    return step;
+  });
+  return { patched, changed };
+}
+
+/**
+ * Collect all ingredient references from a recipe doc (flat + embedded in instructions)
+ * that match a given canonicalItemId. Returns an array of ingredient objects with
+ * the ingredient's own `id` field.
+ */
+export function collectIngredientRefs(
+  flatIngredients: IngredientLike[],
+  instructions: StepLike[],
+  canonItemId: string
+): IngredientLike[] {
+  const results: IngredientLike[] = [];
+  for (const ing of flatIngredients) {
+    if (ing.canonicalItemId === canonItemId) results.push(ing);
+  }
+  for (const step of instructions) {
+    for (const ing of step.ingredients ?? []) {
+      if (ing.canonicalItemId === canonItemId) results.push(ing);
+    }
+  }
+  return results;
+}
+
 // ── Synonym merging ────────────────────────────────────────────────────────────
 
 /**

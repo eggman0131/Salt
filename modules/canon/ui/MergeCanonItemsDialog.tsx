@@ -114,11 +114,12 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
     setAisleId(primary.aisleId);
     setPreferredUnitId(primary.preferredUnitId);
 
-    // Union synonyms from both items
+    // Union synonyms from both items, and always include the secondary's name
     const allSynonyms = Array.from(
       new Set([
         ...(primary.synonyms ?? []),
         ...(secondary.synonyms ?? []),
+        secondary.name,
       ])
     );
     setSynonymsText(allSynonyms.join(', '));

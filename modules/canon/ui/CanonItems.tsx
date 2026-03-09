@@ -48,8 +48,9 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-import { Loader2, Plus, Check, Pencil, AlertCircle, Link, Unlink, Sparkles, Trash2, Info, Search, Merge } from 'lucide-react';
+import { Loader2, Plus, Check, Pencil, AlertCircle, Link, Unlink, Sparkles, Trash2, Info, Search, Merge, Scissors } from 'lucide-react';
 import { MergeCanonItemsDialog } from './MergeCanonItemsDialog';
+import { SplitCanonItemDialog } from './SplitCanonItemDialog';
 import {
   Dialog,
   DialogContent,
@@ -100,6 +101,8 @@ export const CanonItems: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showMergeDialog, setShowMergeDialog] = useState(false);
+  const [showSplitDialog, setShowSplitDialog] = useState(false);
+  const [splitItem, setSplitItem] = useState<CanonItem | null>(null);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
   const [detailItem, setDetailItem] = useState<CanonItem | null>(null);
   const [cofidDetail, setCofidDetail] = useState<any | null>(null);
@@ -566,6 +569,10 @@ export const CanonItems: React.FC = () => {
                       setCurrentItem(item);
                       setShowDeleteDialog(true);
                     }}
+                    onSplit={() => {
+                      setSplitItem(item);
+                      setShowSplitDialog(true);
+                    }}
                   />
                 );
               })}
@@ -651,6 +658,24 @@ export const CanonItems: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Split Dialog */}
+      {showSplitDialog && splitItem && (
+        <SplitCanonItemDialog
+          item={splitItem}
+          aisles={aisles}
+          units={units}
+          onSuccess={() => {
+            setShowSplitDialog(false);
+            setSplitItem(null);
+            loadData();
+          }}
+          onCancel={() => {
+            setShowSplitDialog(false);
+            setSplitItem(null);
+          }}
+        />
+      )}
 
       {/* Merge Dialog */}
       {showMergeDialog && selectedItems.size === 2 && (() => {
@@ -883,6 +908,7 @@ interface ItemRowProps {
   onUnlinkCofid: () => void;
   onInlineEdit: (fieldName: string) => void;
   onDelete: () => void;
+  onSplit: () => void;
 }
 
 const ItemRow: React.FC<ItemRowProps> = ({
@@ -902,6 +928,7 @@ const ItemRow: React.FC<ItemRowProps> = ({
   onSuggestCofid,
   onUnlinkCofid,
   onDelete,
+  onSplit,
 }) => {
   const reviewHighlight = item.needsReview
     ? 'border-l-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20'
@@ -1040,6 +1067,9 @@ const ItemRow: React.FC<ItemRowProps> = ({
           )}
           <Button size="sm" variant="ghost" onClick={onEdit}>
             <Pencil className="h-3 w-3" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onSplit} title="Split item">
+            <Scissors className="h-3 w-3" />
           </Button>
           <Button size="sm" variant="ghost" onClick={onDelete} className="text-destructive hover:text-destructive">
             <Trash2 className="h-3 w-3" />
