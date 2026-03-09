@@ -18,10 +18,8 @@ import {
   prepareUnitForFirestore,
   seedCanonAisles,
   seedCanonUnits,
-  seedCofidGroupAisleMappings,
   seedCofidItems,
   seedCofidEmbeddings,
-  getCanonAisles,
   SeedResult,
 } from '../../api';
 
@@ -29,23 +27,18 @@ import {
 import aislesData from '@/seed-data/canon-aisles.json';
 import unitsData from '@/seed-data/canon-units.json';
 import cofidItemsData from '@/seed-data/cofid-items.backup.v1.json';
-import cofidMappingsData from '@/scripts/cofid-aisle-mapping.json';
-
 // Type the CofID items as array (it's either [{ id, data }] from backup or [CofIDItem])
 const cofidItemsArray = (cofidItemsData as any[]) || [];
-const cofidMappingsCount = Object.keys(cofidMappingsData).length;
 
 type SeedStatus = 'idle' | 'seeding' | 'success' | 'error' | 'cancelled';
 
 interface SeedState {
   aisles: SeedStatus;
   units: SeedStatus;
-  cofidMappings: SeedStatus;
   cofidItems: SeedStatus;
   cofidEmbeddings: SeedStatus;
   aislesResult?: SeedResult;
   unitsResult?: SeedResult;
-  cofidMappingsResult?: { count: number; errors: number };
   cofidItemsResult?: { imported: number; failed: number; errors: Array<{ id: string; reason: string }> };
   cofidEmbeddingsResult?: { success: boolean; imported: number; skipped: number; errors: number };
   // Progress tracking for large operations
@@ -57,7 +50,6 @@ export default function CanonSeeder() {
   const [state, setState] = useState<SeedState>({
     aisles: 'idle',
     units: 'idle',
-    cofidMappings: 'idle',
     cofidItems: 'idle',
     cofidEmbeddings: 'idle',
   });
@@ -124,59 +116,6 @@ export default function CanonSeeder() {
     }
   };
 
-  const handleSeedCofidMappings = async () => {
-    setState(s => ({ ...s, cofidMappings: 'seeding' }));
-
-    try {
-      // Fetch seeded aisles to build name → ID lookup
-      const aisles = await getCanonAisles();
-      const aisleNameToId: Record<string, string> = {};
-      for (const aisle of aisles) {
-        aisleNameToId[aisle.name] = aisle.id;
-      }
-
-      // Transform raw mappings (with aisle names) to Firestore format (with aisleIds)
-      const transformedMappings: Record<string, any> = {};
-      let missingAisles = 0;
-
-      Object.entries(cofidMappingsData).forEach(([groupCode, mapping]: [string, any]) => {
-        const aisleName = mapping.aisle;
-        const aisleId = aisleNameToId[aisleName];
-
-        if (!aisleId) {
-          console.warn(`[CanonSeeder] No aisle ID found for aisle name: "${aisleName}"`);
-          missingAisles++;
-          return; // Skip this mapping
-        }
-
-        transformedMappings[groupCode] = {
-          id: groupCode,
-          cofidGroup: groupCode,
-          cofidGroupName: mapping.name,
-          aisleId,
-          aisleName,
-        };
-      });
-
-      if (missingAisles > 0) {
-        toast.warning(`Skipped ${missingAisles} mappings with missing aisle names`);
-      }
-
-      await seedCofidGroupAisleMappings(transformedMappings);
-
-      const count = Object.keys(transformedMappings).length;
-      setState(s => ({
-        ...s,
-        cofidMappings: 'success',
-        cofidMappingsResult: { count, errors: missingAisles },
-      }));
-      toast.success(`Seeded ${count} CofID group mappings`);
-    } catch (error) {
-      console.error('Error seeding CofID mappings:', error);
-      toast.error('Failed to seed CofID mappings');
-      setState(s => ({ ...s, cofidMappings: 'error' }));
-    }
-  };
 
   const handleSeedCofidItems = async () => {
     const abortController = new AbortController();
@@ -245,7 +184,6 @@ export default function CanonSeeder() {
   const handleSeedAll = async () => {
     await handleSeedAisles();
     await handleSeedUnits();
-    await handleSeedCofidMappings();
     await handleSeedCofidItems();
     await handleSeedCofidEmbeddings();
   };
@@ -282,7 +220,7 @@ export default function CanonSeeder() {
               Seed Everything
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Seed all collections in order: aisles → units → CofID mappings → CofID items
+              Seed all collections in order: aisles → units → CofID items → embeddings
             </p>
           </div>
           <Button
@@ -290,14 +228,12 @@ export default function CanonSeeder() {
             disabled={
               state.aisles === 'seeding' ||
               state.units === 'seeding' ||
-              state.cofidMappings === 'seeding' ||
               state.cofidItems === 'seeding'
             }
             className="gap-2"
           >
             {(state.aisles === 'seeding' ||
               state.units === 'seeding' ||
-              state.cofidMappings === 'seeding' ||
               state.cofidItems === 'seeding') ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -395,49 +331,6 @@ export default function CanonSeeder() {
                 <>
                   <Upload className="h-4 w-4 mr-2" />
                   Seed Units
-                </>
-              )}
-            </Button>
-          </div>
-        </Card>
-
-        {/* CofID Group Mappings */}
-        <Card className="p-4">
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium flex items-center gap-2">
-                CofID Group → Aisle Mappings
-                {renderStatusIcon(state.cofidMappings)}
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                {cofidMappingsCount} mappings ready
-              </p>
-            </div>
-
-            {state.cofidMappingsResult && (
-              <div className="text-sm space-y-1 p-3 bg-green-50 dark:bg-green-950 rounded border border-green-200 dark:border-green-800">
-                <div className="font-medium text-green-900 dark:text-green-100">✓ Seeded</div>
-                <div className="text-muted-foreground">
-                  {state.cofidMappingsResult.count} mappings
-                </div>
-              </div>
-            )}
-
-            <Button
-              onClick={handleSeedCofidMappings}
-              disabled={state.cofidMappings === 'seeding'}
-              variant="outline"
-              className="w-full"
-            >
-              {state.cofidMappings === 'seeding' ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Seeding...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Seed Mappings
                 </>
               )}
             </Button>

@@ -310,27 +310,15 @@ export async function matchAndLinkRecipeIngredient(
       : undefined,
   }).catch(err => console.error('Failed to log embedding-generation event:', err));
 
-  // Run matching pipeline
-  const matchResult = matchIngredientToCanonItem(
+  // Run matching pipeline — no aisle filter, search full canon item pool.
+  // Aisle-bounded search was removed because the AI-assigned aisle can be wrong,
+  // turning the filter into a hard constraint that causes missed matches.
+  const decision = matchIngredientToCanonItem(
     ingredient.ingredientName,
     canonItems,
     embeddingLookup,
-    queryEmbedding,
-    effectiveAisleId
+    queryEmbedding
   );
-
-  // If aisle-bounded search found nothing, retry globally before creating a new canon item.
-  const fallbackResult =
-    effectiveAisleId && matchResult.decision === 'create_new_canon'
-      ? matchIngredientToCanonItem(
-          ingredient.ingredientName,
-          canonItems,
-          embeddingLookup,
-          queryEmbedding
-        )
-      : matchResult;
-
-  const decision = fallbackResult;
 
   const stageTimings = decision.timingsMs;
   const lexicalOperationalMs = stageTimings.lexical;

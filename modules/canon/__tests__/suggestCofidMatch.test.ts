@@ -147,135 +147,64 @@ describe('CofID Match Suggestion', () => {
   });
 
   describe('suggestBestMatch', () => {
-    it('should prefer exact match in aisle', () => {
-      const items = mockCofidItems();
-      const mapping: Record<string, string> = {
-        cofid_001: 'meat-fish',
-        cofid_002: 'meat-fish',
-        cofid_003: 'produce',
-        cofid_004: 'produce',
-      };
-
-      const match = suggestBestMatch('Chicken Breast', 'meat-fish', items, mapping);
+    it('should prefer exact match', () => {
+      const match = suggestBestMatch('Chicken Breast', mockCofidItems());
       expect(match).not.toBeNull();
       expect(match?.method).toBe('exact');
     });
 
     it('should fall back to fuzzy match', () => {
-      const items = mockCofidItems();
-      const mapping: Record<string, string> = {
-        cofid_001: 'meat-fish',
-        cofid_002: 'meat-fish',
-        cofid_003: 'produce',
-        cofid_004: 'produce',
-      };
-
-      // "Chicken Thighs" (plural) vs "Chicken Thigh" (singular) - should fuzzy match
-      const match = suggestBestMatch('Chicken Thighs', 'meat-fish', items, mapping);
+      // "Chicken Thighs" (plural) vs "Chicken Thigh" (singular)
+      const match = suggestBestMatch('Chicken Thighs', mockCofidItems());
       expect(match).not.toBeNull();
       expect(match?.method).toBe('fuzzy');
     });
 
-    it('should filter by aisle only', () => {
-      const items = mockCofidItems();
-      const mapping: Record<string, string> = {
-        cofid_001: 'meat-fish',
-        cofid_002: 'meat-fish',
-        cofid_003: 'produce',
-        cofid_004: 'produce',
-      };
-
-      // Try to match "Apple" in meat-fish aisle (should fail)
-      const match = suggestBestMatch('Apple', 'meat-fish', items, mapping);
-      expect(match).toBeNull();
+    it('should find matches across all items regardless of category', () => {
+      // "Apple" is in produce group — should now be found even when searching with no aisle filter
+      const match = suggestBestMatch('Apple', mockCofidItems());
+      expect(match).not.toBeNull();
+      expect(match?.cofidId).toBe('cofid_003');
     });
 
     it('should return null for no good match', () => {
-      const items = mockCofidItems();
-      const mapping: Record<string, string> = {
-        cofid_001: 'meat-fish',
-        cofid_002: 'meat-fish',
-        cofid_003: 'produce',
-        cofid_004: 'produce',
-      };
-
-      const match = suggestBestMatch('Completely Different Item', 'meat-fish', items, mapping);
+      const match = suggestBestMatch('Completely Different Item', mockCofidItems());
       expect(match).toBeNull();
     });
   });
 
   describe('rankCandidates', () => {
     it('should rank exact matches highest', () => {
-      const items = mockCofidItems();
-      const mapping: Record<string, string> = {
-        cofid_001: 'meat-fish',
-        cofid_002: 'meat-fish',
-        cofid_003: 'produce',
-        cofid_004: 'produce',
-      };
-      const candidates = rankCandidates('Apple', 'produce', items, mapping);
-      
+      const candidates = rankCandidates('Apple', mockCofidItems());
       expect(candidates.length).toBeGreaterThan(0);
       expect(candidates[0].method).toBe('exact');
       expect(candidates[0].cofidId).toBe('cofid_003');
     });
 
-    it('should include fuzzy matches below exact', () => {
-      const items = mockCofidItems();
-      const mapping: Record<string, string> = {
-        cofid_001: 'meat-fish',
-        cofid_002: 'meat-fish',
-        cofid_003: 'produce',
-        cofid_004: 'produce',
-      };
+    it('should include fuzzy matches', () => {
       // "chicken breasts" (plural) vs "Chicken Breast" - fuzzy match with 0.6 threshold
-      const candidates = rankCandidates('chicken breasts', 'meat-fish', items, mapping);
-      
-      // Should have at least one match for "Chicken Breast"  
+      const candidates = rankCandidates('chicken breasts', mockCofidItems());
       expect(candidates.length).toBeGreaterThanOrEqual(1);
-      // First should be the fuzzy match
-      const firstCandidate = candidates[0];
-      expect(firstCandidate.cofidId).toBe('cofid_001');
+      expect(candidates[0].cofidId).toBe('cofid_001');
+    });
+
+    it('should find candidates across all groups, not just one aisle', () => {
+      // "Apple" is produce; "Chicken Breast" is meat — both should appear in a broad search
+      const candidates = rankCandidates('Apple', mockCofidItems(), 10);
+      const ids = candidates.map(c => c.cofidId);
+      expect(ids).toContain('cofid_003'); // Apple (produce)
     });
 
     it('should respect limit', () => {
-      const items = mockCofidItems();
-      const mapping: Record<string, string> = {
-        cofid_001: 'meat-fish',
-        cofid_002: 'meat-fish',
-        cofid_003: 'produce',
-        cofid_004: 'produce',
-      };
-      const candidates = rankCandidates('Chicken', 'meat-fish', items, mapping, 2);
+      const candidates = rankCandidates('Chicken', mockCofidItems(), 2);
       expect(candidates.length).toBeLessThanOrEqual(2);
     });
 
     it('should sort by score descending', () => {
-      const items = mockCofidItems();
-      const mapping: Record<string, string> = {
-        cofid_001: 'meat-fish',
-        cofid_002: 'meat-fish',
-        cofid_003: 'produce',
-        cofid_004: 'produce',
-      };
-      const candidates = rankCandidates('Chicken', 'meat-fish', items, mapping, 10);
-      
+      const candidates = rankCandidates('Chicken', mockCofidItems(), 10);
       for (let i = 1; i < candidates.length; i++) {
         expect(candidates[i].score).toBeLessThanOrEqual(candidates[i - 1].score);
       }
-    });
-
-    it('should only include candidates from the same aisle', () => {
-      const items = mockCofidItems();
-      const mapping: Record<string, string> = {
-        cofid_001: 'meat-fish',
-        cofid_002: 'meat-fish',
-        cofid_003: 'produce',
-        cofid_004: 'produce',
-      };
-
-      const candidates = rankCandidates('Apple', 'meat-fish', items, mapping, 10);
-      expect(candidates.length).toBe(0);
     });
   });
 

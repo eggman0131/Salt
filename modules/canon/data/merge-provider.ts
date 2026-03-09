@@ -7,7 +7,7 @@
  * Merge rules:
  * - Primary record keeps its UUID; secondary is deleted after all FKs are migrated.
  * - Canon Items: updates all recipe ingredient references + shopping list items.
- * - Aisles: updates canonItems, cofid_group_aisle_mappings, canonEmbeddingLookup.
+ * - Aisles: updates canonItems and canonEmbeddingLookup.
  * - Shopping list collision (both items on same list) → blocked, caller must handle.
  * - Synonyms are unioned from both items.
  * - externalSources: primary's are kept only (secondary's dropped).
@@ -38,7 +38,6 @@ import { upsertCanonItemEmbeddingById } from './embeddings-provider';
 
 const CANON_ITEMS_COLLECTION = 'canonItems';
 const CANON_AISLES_COLLECTION = 'canonAisles';
-const COFID_MAPPINGS_COLLECTION = 'cofid_group_aisle_mappings';
 const EMBEDDING_LOOKUP_COLLECTION = 'canonEmbeddingLookup';
 const RECIPES_COLLECTION = 'recipes';
 const SHOPPING_LIST_ITEMS_COLLECTION = 'shoppingListItems';
@@ -263,7 +262,7 @@ export interface AisleMergeUpdates {
  * Merge two aisles.
  *
  * - Updates primary aisle with the provided field values.
- * - Re-points canonItems, cofid_group_aisle_mappings, and canonEmbeddingLookup
+ * - Re-points canonItems and canonEmbeddingLookup
  *   from secondary → primary.
  * - Deletes secondary aisle.
  *
@@ -312,10 +311,7 @@ export async function mergeCanonAisles(
   // 2. Migrate canon items
   await migrateAisleId(CANON_ITEMS_COLLECTION, 'aisleId');
 
-  // 3. Migrate CoFID group mappings
-  await migrateAisleId(COFID_MAPPINGS_COLLECTION, 'aisleId');
-
-  // 4. Migrate embedding lookup entries
+  // 3. Migrate embedding lookup entries
   await migrateAisleId(EMBEDDING_LOOKUP_COLLECTION, 'aisleId');
 
   // 5. Delete secondary aisle (all references now gone so the guard passes)

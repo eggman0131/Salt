@@ -14,8 +14,6 @@ export interface SuggestedMatch {
   score: number;
   method: 'exact' | 'fuzzy' | 'semantic';
   reason: string;
-  aisleId?: string;       // The CoFID item's canon aisle (if known)
-  aisleMatches?: boolean; // Whether it matches the canon item's aisle
 }
 
 /**
@@ -141,45 +139,29 @@ export function tryFuzzyMatch(
 
 /**
  * Suggest a best CofID match for a canon item.
- * 
+ *
  * Strategy:
- * 1. Filter candidates to same aisle only (aisle-bounded)
- * 2. Try exact match first
- * 3. If no exact, try fuzzy (with threshold)
- * 4. Return best match or null
- * 
- * Args:
- *   - canonName: The canon item name
- *   - canonAisleId: The canon aisle ID
- *   - candidates: Pool of CofID items (already filtered if possible)
- *   - aisleMapping: Map of CofID aisle ID → canon aisle ID (for filtering)
- * 
- * Returns:
- *   - Best match with score and method, or null if no good match
+ * 1. Try exact match first across all candidates
+ * 2. Fall back to fuzzy (with threshold)
+ * 3. Return best match or null
+ *
+ * No aisle filtering — CoFID food groups don't align cleanly with shopping
+ * aisles, and filtering caused missed matches when the aisle assignment was
+ * imprecise. Searching the full pool is fast enough locally.
  */
 export function suggestBestMatch(
   canonName: string,
-  canonAisleId: string,
-  candidates: CofIDItem[],
-  aisleMapping: Record<CofIDItem['id'], string>
+  candidates: CofIDItem[]
 ): SuggestedMatch | null {
-  // Filter to same aisle only (aisle-bounded search)
-  const aisleFiltered = candidates.filter(c => {
-    const mappedAisleId = aisleMapping[c.id];
-    return mappedAisleId === canonAisleId;
-  });
-
   // Try exact match first
-  for (const candidate of aisleFiltered) {
+  for (const candidate of candidates) {
     const exactMatch = tryExactMatch(canonName, candidate);
-    if (exactMatch) {
-      return exactMatch;
-    }
+    if (exactMatch) return exactMatch;
   }
 
   // Fall back to fuzzy
   let bestFuzzy: SuggestedMatch | null = null;
-  for (const candidate of aisleFiltered) {
+  for (const candidate of candidates) {
     const fuzzyMatch = tryFuzzyMatch(canonName, candidate);
     if (fuzzyMatch && (!bestFuzzy || fuzzyMatch.score > bestFuzzy.score)) {
       bestFuzzy = fuzzyMatch;
@@ -190,41 +172,30 @@ export function suggestBestMatch(
 }
 
 /**
- * Get top N candidates ranked by score.
+ * Get top N candidates ranked by score across all CoFID items.
  * Includes both exact and fuzzy matches.
+ * No aisle filtering — see suggestBestMatch for rationale.
  */
 export function rankCandidates(
   canonName: string,
-  canonAisleId: string,
   candidates: CofIDItem[],
-  aisleMapping: Record<CofIDItem['id'], string>,
   limit: number = 5
 ): SuggestedMatch[] {
-  const aisleFiltered = candidates.filter(c => {
-    const mappedAisleId = aisleMapping[c.id];
-    return mappedAisleId === canonAisleId;
-  });
-
   const matches: SuggestedMatch[] = [];
 
-  // Collect exact matches
-  for (const candidate of aisleFiltered) {
+  for (const candidate of candidates) {
     const exactMatch = tryExactMatch(canonName, candidate);
     if (exactMatch) {
       matches.push(exactMatch);
+      continue;
     }
-  }
-
-  // Collect fuzzy matches (with lower threshold for ranking)
-  for (const candidate of aisleFiltered) {
-    if (tryExactMatch(canonName, candidate)) continue; // Skip if already exact
     const fuzzyMatch = tryFuzzyMatch(canonName, candidate, 0.6);
     if (fuzzyMatch) {
       matches.push(fuzzyMatch);
     }
   }
 
-  // Sort by score descending, then by method (exact before fuzzy)
+  // Sort by score descending, then exact before fuzzy
   matches.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     return (b.method === 'exact' ? 1 : 0) - (a.method === 'exact' ? 1 : 0);
