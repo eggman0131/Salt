@@ -136,7 +136,8 @@ export function RecipeEquipmentInput({
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="text-muted-foreground hover:text-destructive shrink-0"
                 onClick={() => onRemoveEquipment(index)}
               >
                 <X className="h-4 w-4" />

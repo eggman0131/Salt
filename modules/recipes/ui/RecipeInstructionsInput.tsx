@@ -32,24 +32,29 @@ export function RecipeInstructionsInput({
           <p className="text-sm text-muted-foreground">No instructions added</p>
         )}
         {instructions.map((instruction, index) => (
-          <div key={index} className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label className="w-16">Step {index + 1}</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => onRemoveInstruction(index)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+          <div key={index} className="flex items-start gap-3">
+            <div className="flex flex-col items-center mt-1">
+              <div className="rounded-full bg-primary/10 text-primary w-8 h-8 flex items-center justify-center font-bold text-sm shrink-0">
+                {index + 1}
+              </div>
             </div>
-            <Textarea
-              value={instruction}
-              onChange={(e) => onChangeInstruction(index, e.target.value)}
-              placeholder="Describe this step..."
-              className="min-h-20"
-            />
+            <div className="flex-1">
+              <Textarea
+                value={instruction}
+                onChange={(e) => onChangeInstruction(index, e.target.value)}
+                placeholder="Describe this step..."
+                className="min-h-[80px] w-full"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-destructive shrink-0 mt-1"
+              onClick={() => onRemoveInstruction(index)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         ))}
       </div>

@@ -50,9 +50,9 @@ export function RecipeIngredientsInput({
           const hasReviewFlags = ingredient.parseReviewFlags && ingredient.parseReviewFlags.length > 0;
 
           return (
-            <div key={ingredient.id} className="space-y-2 rounded-md border p-3">
+            <div key={ingredient.id} className="space-y-4 rounded-md border p-4 bg-card">
               {hasReviewFlags && (
-                <div className="flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-950 p-2 text-xs text-amber-900 dark:text-amber-100">
+                <div className="flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-950 p-2 text-xs text-amber-900 dark:text-amber-100 mb-2">
                   <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     {ingredient.parseReviewFlags!.map((flag, i) => (
@@ -62,83 +62,89 @@ export function RecipeIngredientsInput({
                 </div>
               )}
 
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Ingredient {index + 1}</Label>
+              <div className="flex items-start gap-4">
+                <div className="flex-1 space-y-4">
+                  {/* Primary Row: Quantity, Unit, Name */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4">
+                    <div className="md:col-span-2 flex flex-col gap-1.5">
+                      <Label htmlFor={`ingredient-${index}-quantity`} className="text-xs text-muted-foreground">
+                        Qty
+                      </Label>
+                      <Input
+                        id={`ingredient-${index}-quantity`}
+                        type="number"
+                        step="any"
+                        value={ingredient.quantity || ''}
+                        onChange={(e) => onChangeQuantity(index, e.target.value)}
+                        placeholder="0"
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="md:col-span-3 flex flex-col gap-1.5">
+                      <Label htmlFor={`ingredient-${index}-unit`} className="text-xs text-muted-foreground">
+                        Unit
+                      </Label>
+                      <Combobox
+                        options={unitOptions}
+                        value={ingredient.unit}
+                        onValueChange={(value) => onChangeUnit(index, value)}
+                        placeholder="Unit"
+                        searchPlaceholder="Search units..."
+                        emptyMessage="No unit found"
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="md:col-span-7 flex flex-col gap-1.5">
+                      <Label htmlFor={`ingredient-${index}-name`} className="text-xs text-muted-foreground">
+                        Ingredient Name *
+                      </Label>
+                      <Input
+                        id={`ingredient-${index}-name`}
+                        value={ingredient.ingredientName}
+                        onChange={(e) => onChangeIngredientName(index, e.target.value)}
+                        placeholder="e.g., chicken breast"
+                        required
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Secondary Row: Qualifiers, Preparation */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 pl-0 md:pl-3 border-l-2 border-muted/50">
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`ingredient-${index}-qualifiers`} className="text-xs text-muted-foreground">
+                        Qualifiers
+                      </Label>
+                      <Input
+                        id={`ingredient-${index}-qualifiers`}
+                        value={ingredient.qualifiers || ''}
+                        onChange={(e) => onChangeQualifiers(index, e.target.value)}
+                        placeholder="e.g., fresh, organic"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`ingredient-${index}-preparation`} className="text-xs text-muted-foreground">
+                        Preparation
+                      </Label>
+                      <Input
+                        id={`ingredient-${index}-preparation`}
+                        value={ingredient.preparation || ''}
+                        onChange={(e) => onChangePreparation(index, e.target.value)}
+                        placeholder="e.g., diced, sliced"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
+                  size="icon"
+                  className="text-muted-foreground hover:text-destructive shrink-0 mt-6 md:mt-6"
                   onClick={() => onRemoveIngredient(ingredient.id)}
                 >
                   <X className="h-4 w-4" />
                 </Button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor={`ingredient-${index}-quantity`} className="text-xs">
-                    Quantity
-                  </Label>
-                  <Input
-                    id={`ingredient-${index}-quantity`}
-                    type="number"
-                    step="any"
-                    value={ingredient.quantity || ''}
-                    onChange={(e) => onChangeQuantity(index, e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`ingredient-${index}-unit`} className="text-xs">
-                    Unit
-                  </Label>
-                  <Combobox
-                    options={unitOptions}
-                    value={ingredient.unit}
-                    onValueChange={(value) => onChangeUnit(index, value)}
-                    placeholder="Select unit..."
-                    searchPlaceholder="Search units..."
-                    emptyMessage="No unit found"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor={`ingredient-${index}-name`} className="text-xs">
-                  Ingredient Name *
-                </Label>
-                <Input
-                  id={`ingredient-${index}-name`}
-                  value={ingredient.ingredientName}
-                  onChange={(e) => onChangeIngredientName(index, e.target.value)}
-                  placeholder="e.g., chicken breast"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor={`ingredient-${index}-qualifiers`} className="text-xs">
-                    Qualifiers
-                  </Label>
-                  <Input
-                    id={`ingredient-${index}-qualifiers`}
-                    value={ingredient.qualifiers || ''}
-                    onChange={(e) => onChangeQualifiers(index, e.target.value)}
-                    placeholder="e.g., fresh, organic"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`ingredient-${index}-preparation`} className="text-xs">
-                    Preparation
-                  </Label>
-                  <Input
-                    id={`ingredient-${index}-preparation`}
-                    value={ingredient.preparation || ''}
-                    onChange={(e) => onChangePreparation(index, e.target.value)}
-                    placeholder="e.g., diced, sliced"
-                  />
-                </div>
               </div>
             </div>
           );
