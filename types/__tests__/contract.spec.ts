@@ -494,7 +494,8 @@ describe('Contract Runtime Validation - ShoppingListItem', () => {
     canonicalItemId: 'item-onion',
     name: 'Onion',
     aisle: 'Produce',
-    quantity: 4,
+    recipeQuantity: 4,
+    manualQuantity: 0,
     unit: 'pieces',
     checked: false,
     isStaple: false,
@@ -725,12 +726,14 @@ describe('Contract Type-Level Tests - Type Safety', () => {
       canonicalItemId: 'item-1',
       name: 'Onion',
       aisle: 'Produce',
-      quantity: 1,
+      recipeQuantity: 1,
+      manualQuantity: 0,
       unit: 'piece',
       checked: false,
       isStaple: false,
     };
-    expectTypeOf(item.quantity).toBeNumber();
+    expectTypeOf(item.recipeQuantity).toEqualTypeOf<number>();
+    expectTypeOf(item.manualQuantity).toEqualTypeOf<number>();
     expectTypeOf(item.checked).toBeBoolean();
   });
 
@@ -852,7 +855,8 @@ describe('Contract Type-Level Tests - Field Relationships', () => {
       canonicalItemId: 'item-1',
       name: 'Onion',
       aisle: 'Produce',
-      quantity: 1,
+      recipeQuantity: 1,
+      manualQuantity: 0,
       unit: 'g',
       checked: false,
       isStaple: false,
@@ -929,7 +933,8 @@ describe('Contract Stability - Core Relationships', () => {
       canonicalItemId: 'item-1',
       name: 'Onion',
       aisle: 'Produce',
-      quantity: 1,
+      recipeQuantity: 1,
+      manualQuantity: 0,
       unit: 'g',
       checked: false,
       isStaple: false,
@@ -1060,7 +1065,8 @@ describe('Contract Validation Consistency', () => {
       canonicalItemId: 'item-1',
       name: 'Tomato',
       aisle: 'Produce',
-      quantity: 3,
+      recipeQuantity: 3,
+      manualQuantity: 0,
       unit: 'pieces',
       checked: false,
       isStaple: false,
