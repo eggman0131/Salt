@@ -41,4 +41,6 @@ export interface CookGuide {
   steps: CookingStep[];
   generatedAt: string;
   generatedBy: string;
+  isReviewed?: boolean;   // True once a human has edited any step or prep group
+  reviewedAt?: string;    // ISO timestamp of last human edit
 }

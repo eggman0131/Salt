@@ -8,6 +8,8 @@
 export {
   getOrGenerateCookGuide,
   generateCookGuide,
+  regenerateCookGuide,
+  isGuideStale,
   getCookGuide,
   updateCookingStep,
   updatePrepGroups,

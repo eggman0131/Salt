@@ -25,6 +25,14 @@ const COLLECTION = 'cookGuides';
 // Mutex: prevents concurrent generation for the same recipe
 const generatingGuides = new Map<string, Promise<CookGuide>>();
 
+/**
+ * Returns the existing guide if it exists (even if stale), or generates a new one.
+ *
+ * IMPORTANT: Reviewed guides are NEVER auto-deleted. If the recipe has changed
+ * since the guide was reviewed, the guide is returned as-is so the UI can show
+ * a stale warning and let the user decide whether to regenerate.
+ * Unreviewed stale guides are safe to silently replace.
+ */
 export async function getOrGenerateCookGuide(recipe: Recipe): Promise<CookGuide> {
   if (generatingGuides.has(recipe.id)) {
     return generatingGuides.get(recipe.id)!;
@@ -37,7 +45,13 @@ export async function getOrGenerateCookGuide(recipe: Recipe): Promise<CookGuide>
     if (!snapshot.empty) {
       const guide = snapshot.docs[0].data() as CookGuide;
       if (guide.recipeVersion === hashRecipe(recipe)) return guide;
-      // Stale — delete and regenerate
+
+      // Stale guide — only auto-replace if it has NOT been human-reviewed
+      if (guide.isReviewed) {
+        return guide; // Return stale reviewed guide; UI will show warning
+      }
+
+      // Unreviewed stale guide — safe to delete and regenerate
       await Promise.all(snapshot.docs.map((d) => deleteDoc(d.ref)));
     }
 
@@ -50,6 +64,18 @@ export async function getOrGenerateCookGuide(recipe: Recipe): Promise<CookGuide>
   } finally {
     generatingGuides.delete(recipe.id);
   }
+}
+
+/** Check whether a guide's version matches the current recipe. */
+export function isGuideStale(guide: CookGuide, recipe: Recipe): boolean {
+  return guide.recipeVersion !== hashRecipe(recipe);
+}
+
+/** Force-regenerate a guide, replacing the old one regardless of review status. */
+export async function regenerateCookGuide(recipe: Recipe): Promise<CookGuide> {
+  const existing = await getCookGuidesForRecipe(recipe.id);
+  await Promise.all(existing.map((g) => deleteCookGuide(g.id)));
+  return generateCookGuide(recipe);
 }
 
 export async function generateCookGuide(recipe: Recipe): Promise<CookGuide> {
@@ -90,6 +116,8 @@ export async function updateCookingStep(
   if (idx === -1) throw new Error(`Step ${stepId} not found in guide ${guideId}`);
 
   guide.steps[idx] = { ...guide.steps[idx], ...updatedStep };
+  guide.isReviewed = true;
+  guide.reviewedAt = new Date().toISOString();
   await setDoc(doc(db, COLLECTION, guideId), guide);
   return guide;
 }
@@ -102,6 +130,8 @@ export async function updatePrepGroups(
   if (!guide) throw new Error(`Cook guide ${guideId} not found`);
 
   guide.prepGroups = prepGroups;
+  guide.isReviewed = true;
+  guide.reviewedAt = new Date().toISOString();
   await setDoc(doc(db, COLLECTION, guideId), guide);
   return guide;
 }
