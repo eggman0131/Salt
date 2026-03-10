@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu';
-import { Plus, Wand2, Link, PenTool, Loader2 } from 'lucide-react';
+import { Plus, Filter, ArrowUpDown, ChevronDown, Check, Wand2, Sparkles, BookOpen, Utensils, X, Image as ImageIcon, Link, PenTool, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -156,11 +156,13 @@ export const RecipesList: React.FC<RecipesListProps> = ({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => onNavigateToChef?.()} className="cursor-pointer py-3">
-          <Wand2 className="h-4 w-4 mr-3 text-primary" />
+        <DropdownMenuItem onClick={() => {}} className="cursor-pointer py-3">
           <div className="flex flex-col">
-            <span className="font-medium">Ask the Chef (AI)</span>
-            <span className="text-[10px] text-muted-foreground">Describe what you want</span>
+            <span className="font-medium flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              Ask the AI Chef
+            </span>
+            <span className="text-xs text-muted-foreground mt-1">Get recipe ideas based on what you have</span>
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)} className="cursor-pointer py-3">

@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+@theme {
+  --color-v2-background: var(--v2-background);
+  --color-v2-foreground: var(--v2-foreground);
+  
+  --color-v2-card: var(--v2-card);
+  --color-v2-card-foreground: var(--v2-card-foreground);
+  
+  --color-v2-popover: var(--v2-popover);
+  --color-v2-popover-foreground: var(--v2-popover-foreground);
+  
+  --color-v2-primary: var(--v2-primary);
+  --color-v2-primary-foreground: var(--v2-primary-foreground);
+  
+  --color-v2-secondary: var(--v2-secondary);
+  --color-v2-secondary-foreground: var(--v2-secondary-foreground);
+  
+  --color-v2-muted: var(--v2-muted);
+  --color-v2-muted-foreground: var(--v2-muted-foreground);
+  
+  --color-v2-accent: var(--v2-accent);
+  --color-v2-accent-foreground: var(--v2-accent-foreground);
+  
+  --color-v2-destructive: var(--v2-destructive);
+  --color-v2-destructive-foreground: var(--v2-destructive-foreground);
+  
+  --color-v2-border: var(--v2-border);
+  --color-v2-input: var(--v2-input);
+  --color-v2-ring: var(--v2-ring);
+
+  --radius-v2-sm: 0.5rem;
+  --radius-v2-md: 0.75rem;
+  --radius-v2-lg: 1rem;
+  --radius-v2-xl: 1.5rem;
+  --radius-v2-2xl: 2rem;
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+/* Light Mode Tokens (Default) - Project Alpha: Premium Slate & Indigo */
+:root {
+  --v2-background: #f8f9fa;
+  --v2-foreground: #111827;
+  
+  --v2-card: #ffffff;
+  --v2-card-foreground: #111827;
+  
+  --v2-popover: #ffffff;
+  --v2-popover-foreground: #111827;
+  
+  /* Sophisticated Indigo */
+  --v2-primary: #4f46e5; 
+  --v2-primary-foreground: #ffffff;
+  
+  --v2-secondary: #f3f4f6;
+  --v2-secondary-foreground: #111827;
+  
+  --v2-muted: #f3f4f6;
+  --v2-muted-foreground: #6b7280;
+  
+  /* Elegant Fuchsia Accent */
+  --v2-accent: #c026d3;
+  --v2-accent-foreground: #ffffff;
+  
+  --v2-destructive: #ef4444;
+  --v2-destructive-foreground: #ffffff;
+  
+  --v2-border: #e5e7eb;
+  --v2-input: #f3f4f6;
+  --v2-ring: #4f46e5;
+
+  --v2-glass-bg: rgba(255, 255, 255, 0.75);
+  --v2-glass-border: rgba(255, 255, 255, 0.9);
+  --v2-surface-gradient: radial-gradient(circle at top right, rgba(79,70,229,0.03) 0%, rgba(192,38,211,0.02) 60%);
+}
+
+/* Dark Mode Tokens - Project Alpha: Deep Slate & Sapphire */
+.dark, [data-theme="dark"] {
+  --v2-background: #0f172a; /* Slate 900 */
+  --v2-foreground: #f8fafc;
+  
+  --v2-card: #1e293b; /* Slate 800 */
+  --v2-card-foreground: #f8fafc;
+  
+  --v2-popover: #1e293b;
+  --v2-popover-foreground: #f8fafc;
+  
+  /* Elegant Sapphire */
+  --v2-primary: #6366f1; 
+  --v2-primary-foreground: #ffffff;
+  
+  --v2-secondary: #334155; /* Slate 700 */
+  --v2-secondary-foreground: #f8fafc;
+  
+  --v2-muted: #334155;
+  --v2-muted-foreground: #94a3b8;
+  
+  /* Vibrant Fuchsia Accent */
+  --v2-accent: #d946ef;
+  --v2-accent-foreground: #0f172a;
+  
+  --v2-destructive: #f43f5e;
+  --v2-destructive-foreground: #ffffff;
+  
+  --v2-border: #334155;
+  --v2-input: #334155;
+  --v2-ring: #6366f1;
+
+  --v2-glass-bg: rgba(30, 41, 59, 0.6);
+  --v2-glass-border: rgba(248, 250, 252, 0.05);
+  --v2-surface-gradient: radial-gradient(circle at top right, rgba(99,102,241,0.05) 0%, rgba(217,70,239,0.03) 40%, rgba(15,23,42,0) 80%);
+}
+
+@layer base {
+  .v2-ui {
+    background-color: var(--v2-background);
+    color: var(--v2-foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    min-height: 100vh;
+    width: 100%;
+    background-image: var(--v2-surface-gradient);
+    background-attachment: fixed;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .v2-ui * {
+    border-color: var(--v2-border);
+  }
+  
+  .v2-glass {
+    background: var(--v2-glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--v2-glass-border);
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+}

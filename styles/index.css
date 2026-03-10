@@ -29,6 +29,7 @@
 /* Tailwind entry - processed by PostCSS/Tailwind in build */
 
 @import "tailwindcss";
+@import "../modules/v2-ui/design-system/v2-theme.css";
 @plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
