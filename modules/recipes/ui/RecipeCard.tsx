@@ -2,16 +2,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Timer, Flame, Clock, Users } from 'lucide-react';
-import type { Recipe } from '@/types/contract';
+import type { Recipe, RecipeCategory } from '@/types/contract';
 import { useRecipeImage } from '@/hooks/useRecipeImage';
 
 interface RecipeCardProps {
   recipe: Recipe;
+  categories?: RecipeCategory[];
   onClick: () => void;
   onRepair?: (recipe: Recipe) => void;
 }
 
-export function RecipeCard({ recipe, onClick, onRepair }: RecipeCardProps) {
+export function RecipeCard({ recipe, categories = [], onClick, onRepair }: RecipeCardProps) {
+  const categoryMap = new Map(categories.map(c => [c.id, c.name]));
   const { src: imageUrl, isLoading: imageLoading } = useRecipeImage(recipe.imagePath);
 
   const hasIssues =
@@ -104,7 +106,7 @@ export function RecipeCard({ recipe, onClick, onRepair }: RecipeCardProps) {
             <div className="flex flex-wrap gap-1">
               {recipe.categoryIds.slice(0, 3).map((categoryId) => (
                 <Badge key={categoryId} variant="secondary" className="text-xs">
-                  {categoryId}
+                  {categoryMap.get(categoryId) ?? 'Category Not Found'}
                 </Badge>
               ))}
               {recipe.categoryIds.length > 3 && (

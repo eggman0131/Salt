@@ -10,6 +10,7 @@
     {
       "source": "functions",
       "codebase": "default",
+      "secrets": ["GEMINI_API_KEY"],
       "ignore": [
         "node_modules",
         ".git",
