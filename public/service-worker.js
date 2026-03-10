@@ -3,7 +3,7 @@
 // -----------------------------
 
 // ⚠️ IMPORTANT: bump this on every deploy
-const BUILD_VERSION = "2026-02-27-01";
+const BUILD_VERSION = "2026-03-10-01";
 
 const CACHE_STATIC = `salt-static-${BUILD_VERSION}`;
 const CACHE_RUNTIME = `salt-runtime-${BUILD_VERSION}`;
@@ -63,7 +63,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 2. Firebase / API → network-first
+  // 2. Firebase / API → network-first (only cache GET responses — Cache API rejects POST/HEAD)
   if (
     url.hostname.includes("googleapis.com") ||
     url.pathname.startsWith("/api/")
@@ -71,13 +71,13 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          if (res.status === 200) {
+          if (res.status === 200 && req.method === "GET") {
             const clone = res.clone();
             caches.open(CACHE_RUNTIME).then((cache) => cache.put(req, clone));
           }
           return res;
         })
-        .catch(() => caches.match(req))
+        .catch(() => req.method === "GET" ? caches.match(req) : Promise.reject())
     );
     return;
   }

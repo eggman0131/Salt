@@ -1,0 +1,7 @@
+[
+  {
+    "origin": ["https://salt.eggyman.net"],
+    "method": ["GET", "HEAD"],
+    "maxAgeSeconds": 3600
+  }
+]

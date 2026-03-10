@@ -309,6 +309,7 @@ export const RecipesList: React.FC<RecipesListProps> = ({
             <RecipeCard
               key={recipe.id}
               recipe={recipe}
+              categories={categories}
               onClick={() => onSelectRecipe(recipe)}
               onRepair={() => onRepairRecipe?.(recipe)}
             />
