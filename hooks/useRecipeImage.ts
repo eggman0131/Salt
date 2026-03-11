@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { resolveImagePath } from '../modules/recipes/data/storage-provider';
 
 interface UseRecipeImageOptions {
   onError?: () => void;
@@ -13,25 +14,18 @@ export const useRecipeImage = (imagePath: string | undefined, _options?: UseReci
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    setIsLoading(true);
-
     if (!imagePath) {
       setSrc('');
       setIsLoading(false);
       return;
     }
 
-    // Resolve the image URL without validation
-    // The img tag's onError handler will catch missing files silently
-    if (import.meta.env.DEV) {
-      const bucket = 'gen-lang-client-0015061880.firebasestorage.app';
-      const encodedPath = encodeURIComponent(imagePath);
-      setSrc(`/v0/b/${bucket}/o/${encodedPath}?alt=media`);
-    } else {
-      setSrc(`https://firebasestorage.googleapis.com/v0/b/${imagePath}`);
-    }
+    setIsLoading(true);
 
-    setIsLoading(false);
+    resolveImagePath(imagePath)
+      .then(url => setSrc(url))
+      .catch(() => setSrc(''))
+      .finally(() => setIsLoading(false));
   }, [imagePath]);
 
   return { src, isLoading };
