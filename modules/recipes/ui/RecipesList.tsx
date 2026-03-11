@@ -60,6 +60,7 @@ export const RecipesList: React.FC<RecipesListProps> = ({
   onSelectRecipe,
   onCreateRecipe,
   onRepairRecipe,
+  onNavigateToChef,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
