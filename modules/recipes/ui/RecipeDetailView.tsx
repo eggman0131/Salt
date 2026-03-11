@@ -452,10 +452,11 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
     }
   }, [autoOpenImageEditor, onImageEditorOpened]);
 
-  // Get category names for this recipe
-  const recipeCategories = categories.filter(cat => 
-    recipe.categoryIds?.includes(cat.id)
-  );
+  // Get category names for this recipe (including missing ones)
+  const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
+  const recipeCategories = (recipe.categoryIds || []).map(catId =>
+    categoryMap.get(catId) || { id: catId, name: 'Category Not Found', createdAt: new Date() }
+  ) as RecipeCategory[];
 
   const toggleCategory = async (categoryId: string) => {
     const currentCategoryIds = recipe.categoryIds || [];
