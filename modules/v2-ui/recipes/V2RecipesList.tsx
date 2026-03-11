@@ -283,9 +283,9 @@ export const V2RecipesList: React.FC<V2RecipesListProps> = ({
                   )}
 
                   <CardHeader className="pb-3 border-b border-[var(--color-v2-border)]/50 bg-[var(--color-v2-secondary)]/40 backdrop-blur-md z-10 relative h-[88px] shrink-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1 w-full">
-                        <CardTitle className="text-xl font-bold line-clamp-2 leading-tight drop-shadow-sm">{recipe.title}</CardTitle>
+                    <div className="flex items-center justify-center gap-3 w-full h-full">
+                      <div className="space-y-1 w-full flex items-center justify-center">
+                        <CardTitle className="text-xl font-bold line-clamp-2 leading-tight drop-shadow-sm text-center text-balance w-full">{recipe.title}</CardTitle>
                       </div>
                     </div>
                   </CardHeader>
