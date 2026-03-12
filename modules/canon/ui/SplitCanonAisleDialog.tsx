@@ -43,6 +43,8 @@ export const SplitCanonAisleDialog: React.FC<Props> = ({ aisle, onSuccess, onCan
 
   // Step 1 state
   const [newName, setNewName] = useState('');
+  const [newTier2, setNewTier2] = useState(aisle.tier2 ?? '');
+  const [newTier3, setNewTier3] = useState(aisle.tier3 ?? '');
   const [newSortOrder, setNewSortOrder] = useState(String((aisle.sortOrder ?? 999) + 1));
 
   // Step 2 state
@@ -101,7 +103,7 @@ export const SplitCanonAisleDialog: React.FC<Props> = ({ aisle, onSuccess, onCan
     setIsSubmitting(true);
     try {
       await splitCanonAisle(
-        { name: newName.trim(), sortOrder },
+        { name: newName.trim(), tier2: newTier2.trim(), tier3: newTier3.trim(), sortOrder },
         Array.from(selectedIds)
       );
       softToast.success(
@@ -152,6 +154,24 @@ export const SplitCanonAisleDialog: React.FC<Props> = ({ aisle, onSuccess, onCan
                 onChange={e => setNewName(e.target.value)}
                 placeholder={`e.g. ${aisle.name} (2)`}
                 autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="split-aisle-tier3">Category (tier 3)</Label>
+              <Input
+                id="split-aisle-tier3"
+                value={newTier3}
+                onChange={e => setNewTier3(e.target.value)}
+                placeholder="e.g. food, drink, household"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="split-aisle-tier2">Group (tier 2)</Label>
+              <Input
+                id="split-aisle-tier2"
+                value={newTier2}
+                onChange={e => setNewTier2(e.target.value)}
+                placeholder="e.g. fresh, frozen, ambient"
               />
             </div>
             <div className="space-y-1.5">

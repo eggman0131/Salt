@@ -121,10 +121,10 @@ export const CanonAisles: React.FC = () => {
     loadData();
   }, [refreshTrigger]);
 
-  const handleCreate = async (input: { name: string }) => {
+  const handleCreate = async (input: { name: string; tier2: string; tier3: string }) => {
     try {
       const maxSortOrder = aisles.reduce((max, a) => Math.max(max, a.sortOrder), 0);
-      await addCanonAisle({ name: input.name, sortOrder: maxSortOrder + 1 });
+      await addCanonAisle({ name: input.name, tier2: input.tier2, tier3: input.tier3, sortOrder: maxSortOrder + 1 });
       toast.success('Aisle created successfully');
       await loadData();
       setShowCreateDialog(false);
@@ -133,7 +133,7 @@ export const CanonAisles: React.FC = () => {
     }
   };
 
-  const handleEdit = async (id: string, updates: Partial<Pick<Aisle, 'name'>>) => {
+  const handleEdit = async (id: string, updates: Partial<Pick<Aisle, 'name' | 'tier2' | 'tier3'>>) => {
     try {
       await editCanonAisle(id, updates);
       toast.success('Aisle updated successfully');
@@ -498,7 +498,7 @@ const AisleRow: React.FC<AisleRowProps> = ({ aisle, isSelected, onToggleSelect, 
           )}
         </div>
         <div className="text-xs text-muted-foreground mt-1">
-          Sort Order: {aisle.sortOrder}
+          {aisle.tier3} &rsaquo; {aisle.tier2}
         </div>
       </div>
 
@@ -536,24 +536,26 @@ const AisleRow: React.FC<AisleRowProps> = ({ aisle, isSelected, onToggleSelect, 
 // ── Create Dialog ─────────────────────────────────────────────────────────────
 
 interface CreateAisleDialogProps {
-  onSubmit: (input: { name: string }) => Promise<void>;
+  onSubmit: (input: { name: string; tier2: string; tier3: string }) => Promise<void>;
   onCancel: () => void;
 }
 
 const CreateAisleDialog: React.FC<CreateAisleDialogProps> = ({ onSubmit, onCancel }) => {
   const [name, setName] = useState('');
+  const [tier2, setTier2] = useState('');
+  const [tier3, setTier3] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast.error('Aisle name is required');
+    if (!name.trim() || !tier2.trim() || !tier3.trim()) {
+      toast.error('All fields are required');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await onSubmit({ name: name.trim() });
+      await onSubmit({ name: name.trim(), tier2: tier2.trim(), tier3: tier3.trim() });
     } finally {
       setIsSubmitting(false);
     }
@@ -571,13 +573,31 @@ const CreateAisleDialog: React.FC<CreateAisleDialogProps> = ({ onSubmit, onCance
         <form onSubmit={handleSubmit}>
           <Stack spacing="gap-4">
             <div>
-              <Label htmlFor="name">Aisle Name</Label>
+              <Label htmlFor="tier3">Category (tier 3)</Label>
+              <Input
+                id="tier3"
+                value={tier3}
+                onChange={(e) => setTier3(e.target.value)}
+                placeholder="e.g., food, drink, household"
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label htmlFor="tier2">Group (tier 2)</Label>
+              <Input
+                id="tier2"
+                value={tier2}
+                onChange={(e) => setTier2(e.target.value)}
+                placeholder="e.g., fresh, frozen, chilled dairy"
+              />
+            </div>
+            <div>
+              <Label htmlFor="name">Aisle Name (tier 1)</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Dairy, Bakery, Frozen"
-                autoFocus
+                placeholder="e.g., fresh vegetables, cheese"
               />
             </div>
 
@@ -585,7 +605,7 @@ const CreateAisleDialog: React.FC<CreateAisleDialogProps> = ({ onSubmit, onCance
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || !name.trim()}>
+              <Button type="submit" disabled={isSubmitting || !name.trim() || !tier2.trim() || !tier3.trim()}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -610,29 +630,32 @@ const CreateAisleDialog: React.FC<CreateAisleDialogProps> = ({ onSubmit, onCance
 
 interface EditAisleDialogProps {
   aisle: Aisle;
-  onSubmit: (updates: Partial<Pick<Aisle, 'name'>>) => Promise<void>;
+  onSubmit: (updates: Partial<Pick<Aisle, 'name' | 'tier2' | 'tier3'>>) => Promise<void>;
   onCancel: () => void;
 }
 
 const EditAisleDialog: React.FC<EditAisleDialogProps> = ({ aisle, onSubmit, onCancel }) => {
   const [name, setName] = useState(aisle.name);
+  const [tier2, setTier2] = useState(aisle.tier2);
+  const [tier3, setTier3] = useState(aisle.tier3);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast.error('Aisle name is required');
+    if (!name.trim() || !tier2.trim() || !tier3.trim()) {
+      toast.error('All fields are required');
       return;
     }
 
-    if (name.trim() === aisle.name) {
+    const unchanged = name.trim() === aisle.name && tier2.trim() === aisle.tier2 && tier3.trim() === aisle.tier3;
+    if (unchanged) {
       onCancel();
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await onSubmit({ name: name.trim() });
+      await onSubmit({ name: name.trim(), tier2: tier2.trim(), tier3: tier3.trim() });
     } finally {
       setIsSubmitting(false);
     }
@@ -644,19 +667,37 @@ const EditAisleDialog: React.FC<EditAisleDialogProps> = ({ aisle, onSubmit, onCa
         <DialogHeader>
           <DialogTitle>Edit Aisle</DialogTitle>
           <DialogDescription>
-            Update the aisle name
+            Update the aisle details
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <Stack spacing="gap-4">
             <div>
-              <Label htmlFor="edit-name">Aisle Name</Label>
+              <Label htmlFor="edit-tier3">Category (tier 3)</Label>
+              <Input
+                id="edit-tier3"
+                value={tier3}
+                onChange={(e) => setTier3(e.target.value)}
+                placeholder="e.g., food, drink, household"
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-tier2">Group (tier 2)</Label>
+              <Input
+                id="edit-tier2"
+                value={tier2}
+                onChange={(e) => setTier2(e.target.value)}
+                placeholder="e.g., fresh, frozen, chilled dairy"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-name">Aisle Name (tier 1)</Label>
               <Input
                 id="edit-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Dairy, Bakery, Frozen"
-                autoFocus
+                placeholder="e.g., fresh vegetables, cheese"
               />
             </div>
 
@@ -664,7 +705,7 @@ const EditAisleDialog: React.FC<EditAisleDialogProps> = ({ aisle, onSubmit, onCa
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || !name.trim()}>
+              <Button type="submit" disabled={isSubmitting || !name.trim() || !tier2.trim() || !tier3.trim()}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

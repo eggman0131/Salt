@@ -19,6 +19,7 @@ import {
   collection,
   doc,
   setDoc,
+  writeBatch,
   query,
   where,
   orderBy,
@@ -76,40 +77,71 @@ function createEventDocId(): string {
   return `${timestamp}-${random}`;
 }
 
+// ── Batched event queue ──────────────────────────────────────────────────────
+// Events are queued in memory and flushed to Firestore in batches to avoid
+// overwhelming the emulator with rapid individual writes during matching.
+
+const EVENT_QUEUE: Array<{ id: string; data: Record<string, unknown> }> = [];
+const FLUSH_BATCH_SIZE = 20;
+let flushScheduled = false;
+
+async function flushEventQueue(): Promise<void> {
+  if (EVENT_QUEUE.length === 0) return;
+
+  const db = getFirestore();
+  const eventsRef = collection(db, MATCH_EVENTS_COLLECTION);
+
+  // Drain in chunks of FLUSH_BATCH_SIZE (Firestore writeBatch limit is 500)
+  while (EVENT_QUEUE.length > 0) {
+    const chunk = EVENT_QUEUE.splice(0, FLUSH_BATCH_SIZE);
+    try {
+      const batch = writeBatch(db);
+      for (const item of chunk) {
+        batch.set(doc(eventsRef, item.id), item.data);
+      }
+      await batch.commit();
+    } catch (error) {
+      console.error(`[match-events] Batch flush failed (${chunk.length} events dropped):`, error);
+    }
+  }
+}
+
+function scheduleFlush(): void {
+  if (flushScheduled) return;
+  flushScheduled = true;
+  // Use microtask so events from the same synchronous flow are batched together
+  queueMicrotask(() => {
+    flushScheduled = false;
+    flushEventQueue().catch(() => {});
+  });
+}
+
 /**
  * Log a match event to Firestore.
- * Non-blocking: errors are logged but don't interrupt the matching pipeline.
+ * Non-blocking: events are queued and flushed in batches.
  */
 export async function logMatchEvent(
   event: Omit<CanonMatchEvent, 'id' | 'timestamp'>
 ): Promise<void> {
   try {
-    const db = getFirestore();
-    const eventsRef = collection(db, MATCH_EVENTS_COLLECTION);
-
     const fullEvent = sanitizeForFirestore({
       ...event,
       timestamp: new Date().toISOString(),
-    }) as Omit<CanonMatchEvent, 'id'>;
+    }) as Record<string, unknown>;
 
-    // Use explicit IDs to avoid emulator addDoc auto-ID collision behaviour.
-    const maxAttempts = 3;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const eventRef = doc(eventsRef, createEventDocId());
-        await setDoc(eventRef, fullEvent);
-        return;
-      } catch (writeError) {
-        const canRetry = isAlreadyExistsError(writeError) && attempt < maxAttempts;
-        if (!canRetry) {
-          throw writeError;
-        }
-      }
-    }
+    EVENT_QUEUE.push({ id: createEventDocId(), data: fullEvent });
+    scheduleFlush();
   } catch (error) {
-    // Non-blocking: log error but don't throw
-    console.error('[match-events] Failed to log event:', error);
+    console.error('[match-events] Failed to queue event:', error);
   }
+}
+
+/**
+ * Flush any pending events immediately. Call at the end of a batch pipeline
+ * to ensure all events are written before the operation completes.
+ */
+export async function flushMatchEvents(): Promise<void> {
+  await flushEventQueue();
 }
 
 /**

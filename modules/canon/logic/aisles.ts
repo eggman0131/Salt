@@ -13,6 +13,8 @@ import { AisleLookupResult } from '../types';
 export const CanonAisleSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
+  tier2: z.string().min(1),
+  tier3: z.string().min(1),
   sortOrder: z.number().default(999),
   createdAt: z.string().optional(),
 });

@@ -363,6 +363,8 @@ describe('Contract Runtime Validation - Aisle', () => {
   const validAisle: Aisle = {
     id: 'aisle-1',
     name: 'Produce',
+    tier2: 'fresh',
+    tier3: 'food',
     sortOrder: 1,
     createdAt: new Date().toISOString(),
   };
@@ -376,6 +378,8 @@ describe('Contract Runtime Validation - Aisle', () => {
     const result = AisleSchema.parse({
       id: 'aisle-2',
       name: 'Dairy',
+      tier2: 'fresh',
+      tier3: 'food',
       createdAt: new Date().toISOString(),
     });
     expect(result.sortOrder).toBe(999);

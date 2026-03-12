@@ -25,6 +25,7 @@ export interface IngredientMatchResult {
   scoreGap: number; // Difference between top and second match
   reason: string;
   candidates: MatchCandidate[];
+  staleEmbeddingIds: string[]; // Embedding IDs referencing deleted canon items (caller should clean up)
   timingsMs: {
     lexical: number;
     semantic: number;
@@ -241,9 +242,17 @@ export function matchIngredientToCanonItem(
   }
   const semanticDuration = performance.now() - semanticStart;
 
+  // Filter semantic candidates to only include IDs that exist in the current canon items list.
+  // The embedding lookup can contain stale entries for deleted canon items.
+  const canonItemIds = new Set(canonItems.map(item => item.id));
+  const staleEmbeddingIds = semanticCandidates
+    .filter(c => !canonItemIds.has(c.canonItemId))
+    .map(c => c.canonItemId);
+  const validSemanticCandidates = semanticCandidates.filter(c => canonItemIds.has(c.canonItemId));
+
   // Merge candidates
   const mergeStart = performance.now();
-  const allCandidates = mergeAndRankCandidates(fuzzyCandidates, semanticCandidates);
+  const allCandidates = mergeAndRankCandidates(fuzzyCandidates, validSemanticCandidates);
   const mergeDuration = performance.now() - mergeStart;
 
   const decisionStart = performance.now();
@@ -260,6 +269,7 @@ export function matchIngredientToCanonItem(
       scoreGap: 0,
       reason: 'No matching canon items found',
       candidates: [],
+      staleEmbeddingIds,
       timingsMs: {
         lexical: lexicalDuration,
         semantic: semanticDuration,
@@ -291,6 +301,7 @@ export function matchIngredientToCanonItem(
       scoreGap,
       reason: `Auto-linked: ${allCandidates[0].reason} (gap: ${(scoreGap * 100).toFixed(0)}%)`,
       candidates: allCandidates,
+      staleEmbeddingIds,
       timingsMs: {
         lexical: lexicalDuration,
         semantic: semanticDuration,
@@ -310,6 +321,7 @@ export function matchIngredientToCanonItem(
       scoreGap,
       reason: `Match ambiguous (top: ${(topScore * 100).toFixed(0)}%, gap: ${(scoreGap * 100).toFixed(0)}%) — creating pending item`,
       candidates: allCandidates,
+      staleEmbeddingIds,
       timingsMs: {
         lexical: lexicalDuration,
         semantic: semanticDuration,

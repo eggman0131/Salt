@@ -66,14 +66,16 @@ export default function CanonSeeder() {
         return;
       }
 
-      const prepared = valid.map(prepareAisleForFirestore);
+      const prepared = valid.map((seed, index) =>
+        prepareAisleForFirestore(seed, crypto.randomUUID(), index)
+      );
       await seedCanonAisles(prepared);
 
       const result: SeedResult = {
         total: valid.length,
         succeeded: valid.length,
         failed: 0,
-        items: valid.map(a => ({ id: a.id, success: true })),
+        items: prepared.map(a => ({ id: a.id, success: true })),
       };
 
       setState(s => ({ ...s, aisles: 'success', aislesResult: result }));

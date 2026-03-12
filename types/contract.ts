@@ -81,9 +81,12 @@ export const UnitSchema = z.object({
 export type Unit = z.infer<typeof UnitSchema>;
 
 // Aisle Schema (for shopping lists and item database)
+// Three-tier hierarchy: tier3 (top) > tier2 (middle) > tier1/name (specific aisle)
 export const AisleSchema = z.object({
   id: z.string(),
-  name: z.string(), // e.g., 'Produce', 'Dairy & Eggs', 'Household / Cleaning'
+  name: z.string(), // tier1: most specific level, e.g. 'fresh vegetables', 'cheese'
+  tier2: z.string(), // middle grouping, e.g. 'fresh', 'chilled dairy'
+  tier3: z.string(), // top-level category, e.g. 'food', 'drink', 'household'
   sortOrder: z.number().default(999),
   createdAt: z.string(),
 });

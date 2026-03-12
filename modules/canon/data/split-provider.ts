@@ -53,6 +53,8 @@ export interface CanonItemSplitDef {
 
 export interface AisleSplitDef {
   name: string;
+  tier2: string;
+  tier3: string;
   sortOrder: number;
 }
 
@@ -182,6 +184,8 @@ export async function splitCanonAisle(
   // 1. Create the new aisle
   const newAisle = await createCanonAisle({
     name: newAisleDef.name,
+    tier2: newAisleDef.tier2,
+    tier3: newAisleDef.tier3,
     sortOrder: newAisleDef.sortOrder,
   });
 
