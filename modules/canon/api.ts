@@ -18,6 +18,7 @@ import {
   updateCanonItem,
   approveCanonItem,
   deleteCanonItem,
+  batchDeleteCanonItems,
   deleteAllCanonItems,
   seedAisles,
   seedUnits,
@@ -97,7 +98,7 @@ export async function addCanonItem(input: {
  */
 export async function editCanonItem(
   id: string,
-  updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId' | 'needsReview'>>
+  updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId' | 'needsReview' | 'isStaple'>>
 ): Promise<void> {
   return updateCanonItem(id, updates);
 }
@@ -118,6 +119,13 @@ export async function deleteItem(id: string): Promise<void> {
 }
 
 /**
+ * Batch-delete multiple canon items efficiently (single Firestore batch + single embedding cleanup).
+ */
+export async function deleteItems(ids: string[]): Promise<void> {
+  return batchDeleteCanonItems(ids);
+}
+
+/**
  * Delete all canon items.
  * Warning: This is a destructive operation.
  */
@@ -132,6 +140,8 @@ export async function deleteAllItems(): Promise<void> {
  */
 export async function addCanonAisle(input: {
   name: string;
+  tier2: string;
+  tier3: string;
   sortOrder?: number;
 }): Promise<Aisle> {
   return createCanonAisle(input);
@@ -142,7 +152,7 @@ export async function addCanonAisle(input: {
  */
 export async function editCanonAisle(
   id: string,
-  updates: Partial<Pick<Aisle, 'name' | 'sortOrder'>>
+  updates: Partial<Pick<Aisle, 'name' | 'tier2' | 'tier3' | 'sortOrder'>>
 ): Promise<void> {
   return updateCanonAisle(id, updates);
 }
@@ -320,7 +330,7 @@ export async function getEmbeddingsFromLookup(aisleId?: string) {
 }
 
 /**
- * Generate embeddings for canon items (generic only).
+ * Generate embeddings for all canon items (approved and unapproved).
  * Calls embedBatch Cloud Function and stores in the local lookup index.
  * 
  * @returns Generation summary with counts

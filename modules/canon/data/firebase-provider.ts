@@ -134,6 +134,8 @@ export async function fetchCanonAisles(): Promise<Aisle[]> {
     aisles.push({
       id: docSnap.id,
       name: data.name,
+      tier2: data.tier2 ?? '',
+      tier3: data.tier3 ?? '',
       sortOrder: data.sortOrder ?? 999,
       createdAt: data.createdAt ?? new Date().toISOString(),
     });
@@ -251,11 +253,15 @@ export async function reorderCanonUnits(
  */
 export async function createCanonAisle(input: {
   name: string;
+  tier2: string;
+  tier3: string;
   sortOrder?: number;
 }): Promise<Aisle> {
   const now = new Date().toISOString();
   const docRef = await addDoc(collection(db, CANON_AISLES_COLLECTION), {
     name: input.name,
+    tier2: input.tier2,
+    tier3: input.tier3,
     sortOrder: input.sortOrder ?? 999,
     createdAt: now,
   });
@@ -263,6 +269,8 @@ export async function createCanonAisle(input: {
   return {
     id: docRef.id,
     name: input.name,
+    tier2: input.tier2,
+    tier3: input.tier3,
     sortOrder: input.sortOrder ?? 999,
     createdAt: now,
   };
@@ -273,7 +281,7 @@ export async function createCanonAisle(input: {
  */
 export async function updateCanonAisle(
   id: string,
-  updates: Partial<Pick<Aisle, 'name' | 'sortOrder'>>
+  updates: Partial<Pick<Aisle, 'name' | 'tier2' | 'tier3' | 'sortOrder'>>
 ): Promise<void> {
   const docRef = doc(db, CANON_AISLES_COLLECTION, id);
   await updateDoc(docRef, updates);
@@ -382,9 +390,10 @@ export async function createCanonItem(input: {
   needsReview?: boolean;
 }): Promise<CanonItem> {
   const now = new Date().toISOString();
+  const lowerName = input.name.toLowerCase();
   const docRef = await addDoc(collection(db, CANON_ITEMS_COLLECTION), {
-    name: input.name,
-    normalisedName: input.name.toLowerCase(),
+    name: lowerName,
+    normalisedName: lowerName,
     aisleId: input.aisleId,
     preferredUnitId: input.preferredUnitId,
     needsReview: input.needsReview ?? true,
@@ -394,8 +403,8 @@ export async function createCanonItem(input: {
 
   const createdItem: CanonItem = {
     id: docRef.id,
-    name: input.name,
-    normalisedName: input.name.toLowerCase(),
+    name: lowerName,
+    normalisedName: lowerName,
     aisleId: input.aisleId,
     preferredUnitId: input.preferredUnitId,
     needsReview: input.needsReview ?? true,
@@ -422,7 +431,7 @@ export async function createCanonItem(input: {
  */
 export async function updateCanonItem(
   id: string,
-  updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId' | 'needsReview'>>
+  updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId' | 'needsReview' | 'isStaple'>>
 ): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
   const payload: Record<string, unknown> = {
@@ -431,6 +440,7 @@ export async function updateCanonItem(
   };
 
   if (typeof updates.name === 'string') {
+    payload.name = updates.name.toLowerCase();
     payload.normalisedName = updates.name.toLowerCase();
   }
 
@@ -500,6 +510,32 @@ export async function deleteCanonItem(id: string): Promise<void> {
     await deleteEmbeddings([id]);
   } catch (error) {
     console.warn('[deleteCanonItem] Failed to delete embedding (non-blocking):', error);
+  }
+}
+
+/**
+ * Batch-delete multiple canon items in a single Firestore writeBatch,
+ * with a single embedding cleanup + publishLocalToMaster at the end.
+ */
+export async function batchDeleteCanonItems(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+
+  // Firestore writeBatch limit is 500 — chunk if needed
+  const BATCH_LIMIT = 450;
+  for (let i = 0; i < ids.length; i += BATCH_LIMIT) {
+    const chunk = ids.slice(i, i + BATCH_LIMIT);
+    const batch = writeBatch(db);
+    for (const id of chunk) {
+      batch.delete(doc(db, CANON_ITEMS_COLLECTION, id));
+    }
+    await batch.commit();
+  }
+
+  // Single embedding cleanup (one IndexedDB tx + one publishLocalToMaster)
+  try {
+    await deleteEmbeddings(ids);
+  } catch (error) {
+    console.warn('[batchDeleteCanonItems] Failed to delete embeddings (non-blocking):', error);
   }
 }
 
@@ -817,6 +853,17 @@ export async function suggestCofidForCanonItem(
 
   const bestMatch = candidates[0] ?? suggestBestMatch(canonItem.name, cofidItems);
 
+  // Auto-link when the best match has high confidence (≥ 0.85)
+  const AUTO_LINK_THRESHOLD = 0.85;
+  if (bestMatch && bestMatch.score >= AUTO_LINK_THRESHOLD) {
+    try {
+      const matchMetadata = buildCofidMatch(bestMatch, 'auto');
+      await linkCofidMatchToCanonItem(canonItemId, bestMatch.cofidId, matchMetadata);
+    } catch (error) {
+      console.warn('[suggestCofidForCanonItem] Auto-link failed (non-blocking):', error);
+    }
+  }
+
   return { bestMatch, candidates };
 }
 
@@ -836,6 +883,8 @@ export async function seedAisles(aisles: Aisle[]): Promise<void> {
     batch.set(docRef, {
       id: aisle.id,
       name: aisle.name,
+      tier2: aisle.tier2,
+      tier3: aisle.tier3,
       sortOrder: aisle.sortOrder,
       createdAt: aisle.createdAt,
     });

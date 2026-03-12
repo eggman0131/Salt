@@ -9,12 +9,14 @@ import { z } from 'zod';
 import { Aisle, Unit } from '../../../types/contract';
 
 /**
- * Raw aisle seed schema (JSON format)
+ * Raw aisle seed schema (new three-tier JSON format)
+ * { tier3: "food", tier2: "fresh", tier1: "fresh vegetables" }
+ * The id is auto-generated as a UUID during seeding.
  */
 const RawAisleSeedSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  sortOrder: z.number().int().nonnegative(),
+  tier1: z.string().min(1),
+  tier2: z.string().min(1),
+  tier3: z.string().min(1),
 });
 
 /**
@@ -125,13 +127,20 @@ export function validateUnitSeeds(rawArray: unknown[]): {
 }
 
 /**
- * Convert raw aisle seed to Firestore-ready format
+ * Convert raw aisle seed to Firestore-ready format.
+ * Caller provides the generated id and sortOrder (array index).
  */
-export function prepareAisleForFirestore(seed: RawAisleSeed): Aisle {
+export function prepareAisleForFirestore(
+  seed: RawAisleSeed,
+  id: string,
+  sortOrder: number
+): Aisle {
   return {
-    id: seed.id,
-    name: seed.name,
-    sortOrder: seed.sortOrder,
+    id,
+    name: seed.tier1,
+    tier2: seed.tier2,
+    tier3: seed.tier3,
+    sortOrder,
     createdAt: new Date().toISOString(),
   };
 }

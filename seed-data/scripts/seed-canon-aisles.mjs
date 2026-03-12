@@ -3,11 +3,15 @@
 /**
  * Seed Canon Aisles
  *
- * Loads canon-aisles.json and upserts Aisle documents into the
- * `canonAisles` Firestore collection. Safe to run multiple times
- * (idempotent: each document is set by its known ID).
+ * Loads canon-aisles.json (three-tier format) and upserts Aisle documents
+ * into the `canonAisles` Firestore collection. Each entry gets a UUID as
+ * its document ID and sortOrder derived from array position.
  *
- * The `uncategorised` system aisle is always guaranteed after seeding.
+ * Safe to run multiple times — existing documents with the same UUID are
+ * overwritten. However, re-running after the JSON changes will create new
+ * UUIDs (old documents are NOT deleted automatically).
+ *
+ * An `uncategorised` system aisle is always guaranteed after seeding.
  *
  * Usage:
  *   node seed-data/scripts/seed-canon-aisles.mjs
@@ -15,6 +19,7 @@
  */
 
 import admin from 'firebase-admin';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -28,13 +33,15 @@ if (!fs.existsSync(aislesFilePath)) {
 }
 
 const aislesData = JSON.parse(fs.readFileSync(aislesFilePath, 'utf-8'));
-console.log(`📋 Loaded ${aislesData.length} canon aisles`);
+console.log(`📋 Loaded ${aislesData.length} canon aisles (three-tier format)`);
 
-// Validate that the required system aisle is present in the seed file
-const hasUncategorised = aislesData.some(a => a.id === 'uncategorised');
-if (!hasUncategorised) {
-  console.error('❌ seed file is missing required system aisle: id="uncategorised"');
-  process.exit(1);
+// Validate format
+for (let i = 0; i < aislesData.length; i++) {
+  const a = aislesData[i];
+  if (!a.tier1 || !a.tier2 || !a.tier3) {
+    console.error(`❌ Entry ${i} missing required field (tier1, tier2, tier3):`, JSON.stringify(a));
+    process.exit(1);
+  }
 }
 
 // Initialise Firebase Admin SDK
@@ -75,15 +82,24 @@ async function seedCanonAisles() {
     let batchCount = 0;
     let totalCount = 0;
 
-    for (const aisle of aislesData) {
-      const docRef = db.collection('canonAisles').doc(aisle.id);
+    const seededAisles = [];
 
-      batch.set(docRef, {
-        id: aisle.id,
-        name: aisle.name,
-        sortOrder: aisle.sortOrder ?? 999,
+    for (let i = 0; i < aislesData.length; i++) {
+      const entry = aislesData[i];
+      const id = crypto.randomUUID();
+      const docRef = db.collection('canonAisles').doc(id);
+
+      const aisleDoc = {
+        id,
+        name: entry.tier1,
+        tier2: entry.tier2,
+        tier3: entry.tier3,
+        sortOrder: i,
         createdAt: now,
-      });
+      };
+
+      batch.set(docRef, aisleDoc);
+      seededAisles.push(aisleDoc);
 
       batchCount++;
       totalCount++;
@@ -96,6 +112,21 @@ async function seedCanonAisles() {
       }
     }
 
+    // Ensure the `uncategorised` system aisle exists
+    const uncatId = 'uncategorised';
+    const uncatRef = db.collection('canonAisles').doc(uncatId);
+    batch.set(uncatRef, {
+      id: uncatId,
+      name: 'uncategorised',
+      tier2: 'system',
+      tier3: 'system',
+      sortOrder: 999,
+      createdAt: now,
+    });
+    batchCount++;
+    totalCount++;
+    seededAisles.push({ id: uncatId, name: 'uncategorised', tier2: 'system', tier3: 'system', sortOrder: 999 });
+
     if (batchCount > 0) {
       await batch.commit();
       console.log(`✓ Committed ${batchCount} aisles (total: ${totalCount})`);
@@ -104,10 +135,9 @@ async function seedCanonAisles() {
     console.log(`\n✅ Successfully seeded ${totalCount} canon aisles!\n`);
 
     console.log('📌 Aisles seeded:');
-    aislesData
-      .slice()
-      .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
-      .forEach(a => console.log(`   ${String(a.sortOrder).padStart(3)}  ${a.id.padEnd(24)} ${a.name}`));
+    seededAisles
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .forEach(a => console.log(`   ${String(a.sortOrder).padStart(3)}  ${a.tier3.padEnd(18)} ${a.tier2.padEnd(22)} ${a.name}`));
 
     console.log();
     process.exit(0);

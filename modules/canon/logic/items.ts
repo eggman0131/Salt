@@ -77,7 +77,7 @@ export type ItemLookupResult =
  * Normalize an item name: trim whitespace and collapse internal spaces.
  */
 export function normalizeItemName(name: string): string {
-  return name.trim().replace(/\s+/g, ' ');
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 /**
@@ -85,7 +85,7 @@ export function normalizeItemName(name: string): string {
  */
 export function sortItems(items: CanonItem[]): CanonItem[] {
   return [...items].sort((a, b) =>
-    a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    a.name.localeCompare(b.name)
   );
 }
 
@@ -103,8 +103,8 @@ export function findItemById(items: CanonItem[], id: string): ItemLookupResult {
  * Returns the first match.
  */
 export function findItemByName(items: CanonItem[], name: string): ItemLookupResult {
-  const needle = normalizeItemName(name).toLowerCase();
-  const item = items.find(i => normalizeItemName(i.name).toLowerCase() === needle);
+  const needle = normalizeItemName(name);
+  const item = items.find(i => normalizeItemName(i.name) === needle);
   return item ? { found: true, item } : { found: false };
 }
 

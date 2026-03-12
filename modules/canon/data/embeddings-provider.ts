@@ -445,19 +445,12 @@ async function fetchCanonAisles(): Promise<Aisle[]> {
 
 
 /**
- * Fetch canon items (optionally filtered to generic items only).
- * 
- * @param genericOnly - If true, only fetch items with isGeneric=true
+ * Fetch all canon items for embedding generation.
  * @returns Array of CanonItem objects
  */
-async function fetchCanonItems(genericOnly: boolean = false): Promise<CanonItem[]> {
+async function fetchCanonItems(): Promise<CanonItem[]> {
   try {
-    let q = query(collection(db, CANON_ITEMS_COLLECTION));
-
-    if (genericOnly) {
-      q = query(q, where('isGeneric', '==', true));
-    }
-
+    const q = query(collection(db, CANON_ITEMS_COLLECTION));
     const snapshot = await getDocs(q);
     const items: CanonItem[] = [];
 
@@ -857,14 +850,14 @@ export async function upsertCanonItemEmbeddingById(
 
 /**
  * Generate embeddings for canon items and store in local IndexedDB lookup table.
- * 
+ *
  * This function:
- * 1. Fetches canon items (generic only)
+ * 1. Fetches ALL canon items (approved and unapproved)
  * 2. Calls embedBatch Cloud Function for all item names
  * 3. Creates canonEmbeddingLookup entries with kind='canon'
  * 4. Upserts to IndexedDB
  * 5. Publishes master snapshot to Firebase Storage
- * 
+ *
  * @returns Summary of generation operation
  */
 export async function generateCanonItemEmbeddings(): Promise<{
@@ -874,16 +867,16 @@ export async function generateCanonItemEmbeddings(): Promise<{
   message?: string;
 }> {
   try {
-    // 1. Fetch generic canon items
-    const canonItems = await fetchCanonItems(true);
-    console.log(`[generateCanonItemEmbeddings] Found ${canonItems.length} generic canon items`);
+    // 1. Fetch all canon items (approved and unapproved)
+    const canonItems = await fetchCanonItems();
+    console.log(`[generateCanonItemEmbeddings] Found ${canonItems.length} canon items`);
 
     if (canonItems.length === 0) {
       return {
         success: true,
         generated: 0,
         errors: 0,
-        message: 'No generic canon items found',
+        message: 'No canon items found',
       };
     }
 

@@ -37,11 +37,11 @@ import { Aisle, Unit } from '../../../types/contract';
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const AISLES: Aisle[] = [
-  { id: 'pantry', name: 'Pantry', sortOrder: 50, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'produce', name: 'Produce', sortOrder: 10, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'frozen', name: 'Frozen', sortOrder: 60, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'uncategorised', name: 'Uncategorised', sortOrder: 999, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'dairy-eggs', name: 'Dairy & Eggs', sortOrder: 30, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'pantry', name: 'Pantry', tier2: 'ambient', tier3: 'food', sortOrder: 50, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'produce', name: 'Produce', tier2: 'fresh', tier3: 'food', sortOrder: 10, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'frozen', name: 'Frozen', tier2: 'frozen', tier3: 'food', sortOrder: 60, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'uncategorised', name: 'Uncategorised', tier2: 'system', tier3: 'system', sortOrder: 999, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'dairy-eggs', name: 'Dairy & Eggs', tier2: 'fresh', tier3: 'food', sortOrder: 30, createdAt: '2024-01-01T00:00:00.000Z' },
 ];
 
 const UNITS: Unit[] = [
@@ -78,8 +78,8 @@ describe('sortAisles', () => {
 
   it('breaks ties alphabetically by name', () => {
     const tied: Aisle[] = [
-      { id: 'b', name: 'Bakery', sortOrder: 10, createdAt: '' },
-      { id: 'a', name: 'Alcohol', sortOrder: 10, createdAt: '' },
+      { id: 'b', name: 'Bakery', tier2: 'ambient', tier3: 'food', sortOrder: 10, createdAt: '' },
+      { id: 'a', name: 'Alcohol', tier2: 'ambient', tier3: 'drink', sortOrder: 10, createdAt: '' },
     ];
     const sorted = sortAisles(tied);
     expect(sorted[0].name).toBe('Alcohol');
@@ -172,25 +172,25 @@ describe('hasUncategorisedAisle', () => {
 
 describe('validateAisleDoc', () => {
   it('accepts a valid aisle document', () => {
-    const doc = { id: 'produce', name: 'Produce', sortOrder: 10, createdAt: '2024-01-01T00:00:00.000Z' };
+    const doc = { id: 'produce', name: 'Produce', tier2: 'fresh', tier3: 'food', sortOrder: 10, createdAt: '2024-01-01T00:00:00.000Z' };
     const result = validateAisleDoc(doc);
     expect(result.success).toBe(true);
   });
 
   it('rejects a document with a missing name', () => {
-    const doc = { id: 'produce', sortOrder: 10, createdAt: '2024-01-01T00:00:00.000Z' };
+    const doc = { id: 'produce', tier2: 'fresh', tier3: 'food', sortOrder: 10, createdAt: '2024-01-01T00:00:00.000Z' };
     const result = validateAisleDoc(doc);
     expect(result.success).toBe(false);
   });
 
   it('rejects a document with an empty id', () => {
-    const doc = { id: '', name: 'Produce', sortOrder: 10, createdAt: '2024-01-01T00:00:00.000Z' };
+    const doc = { id: '', name: 'Produce', tier2: 'fresh', tier3: 'food', sortOrder: 10, createdAt: '2024-01-01T00:00:00.000Z' };
     const result = validateAisleDoc(doc);
     expect(result.success).toBe(false);
   });
 
   it('applies the default sortOrder when omitted', () => {
-    const doc = { id: 'produce', name: 'Produce' };
+    const doc = { id: 'produce', name: 'Produce', tier2: 'fresh', tier3: 'food' };
     const result = validateAisleDoc(doc);
     expect(result.success).toBe(true);
     if (result.success) {
@@ -199,7 +199,7 @@ describe('validateAisleDoc', () => {
   });
 
   it('accepts a document without createdAt', () => {
-    const doc = { id: 'produce', name: 'Produce', sortOrder: 10 };
+    const doc = { id: 'produce', name: 'Produce', tier2: 'fresh', tier3: 'food', sortOrder: 10 };
     const result = validateAisleDoc(doc);
     expect(result.success).toBe(true);
   });
@@ -331,7 +331,7 @@ describe('CanonUnitSchema', () => {
 
 describe('CanonAisleSchema', () => {
   it('parses a complete aisle', () => {
-    const raw = { id: 'produce', name: 'Produce', sortOrder: 10, createdAt: '2024-01-01T00:00:00.000Z' };
+    const raw = { id: 'produce', name: 'Produce', tier2: 'fresh', tier3: 'food', sortOrder: 10, createdAt: '2024-01-01T00:00:00.000Z' };
     const parsed = CanonAisleSchema.parse(raw);
     expect(parsed.id).toBe('produce');
     expect(parsed.name).toBe('Produce');
@@ -341,20 +341,20 @@ describe('CanonAisleSchema', () => {
 // ── normalizeItemName ─────────────────────────────────────────────────────────
 
 describe('normalizeItemName', () => {
-  it('trims leading and trailing whitespace', () => {
-    expect(normalizeItemName('  Carrot  ')).toBe('Carrot');
+  it('trims leading and trailing whitespace and lowercases', () => {
+    expect(normalizeItemName('  Carrot  ')).toBe('carrot');
   });
 
-  it('collapses internal whitespace to a single space', () => {
-    expect(normalizeItemName('Cherry  Tomato')).toBe('Cherry Tomato');
+  it('collapses internal whitespace to a single space and lowercases', () => {
+    expect(normalizeItemName('Cherry  Tomato')).toBe('cherry tomato');
   });
 
   it('returns an empty string for an all-whitespace input', () => {
     expect(normalizeItemName('   ')).toBe('');
   });
 
-  it('leaves a clean name unchanged', () => {
-    expect(normalizeItemName('Butter')).toBe('Butter');
+  it('lowercases a clean name', () => {
+    expect(normalizeItemName('Butter')).toBe('butter');
   });
 });
 
