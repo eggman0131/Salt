@@ -332,7 +332,7 @@ export async function getEmbeddingsFromLookup(aisleId?: string) {
 /**
  * Generate embeddings for all canon items (approved and unapproved).
  * Calls embedBatch Cloud Function and stores in the local lookup index.
- * 
+ *
  * @returns Generation summary with counts
  */
 export async function generateCanonItemEmbeddings() {

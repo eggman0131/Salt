@@ -19,6 +19,7 @@ import {
   fetchCanonUnits,
   fetchCanonItems,
   createCanonItem,
+  suggestCofidForCanonItem,
 } from './firebase-provider';
 import { fetchEmbeddingsFromLookup, generateTextEmbeddingsBatch, generateTextEmbedding, deleteEmbeddings } from './embeddings-provider';
 import type { RecipeIngredient } from '../../../types/contract';
@@ -611,10 +612,10 @@ export async function matchAndLinkRecipeIngredient(
       },
     }).catch(err => console.error('Failed to log match-decision event:', err));
 
-    // CofID auto-linking happens inside createCanonItem for high-confidence matches.
-    // No need to fire-and-forget suggestCofidForCanonItem here — it triggers heavy
-    // Firestore reads (all CofID items + embeddings) per item, overwhelming the emulator
-    // during batch processing.
+    // Auto-suggest CofID mapping — fire and forget so it doesn't block recipe import.
+    suggestCofidForCanonItem(newCanonItem.id).catch(() => {
+      // Silently fail if CofID suggestion fails
+    });
 
     // Link to new canon item
     return {

@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Trash2, ScanSearch } from 'lucide-react';
 import { softToast } from '@/lib/soft-toast';
-import { cleanupOrphanedRecipeImages, type CleanupStats } from '../data/storage-cleanup';
+import { cleanupOrphanedRecipeImages, type CleanupStats } from '../api';
 
 export const RecipeStorageAdmin: React.FC = () => {
   const [stats, setStats] = useState<CleanupStats | null>(null);

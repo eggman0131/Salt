@@ -10,8 +10,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import type { Aisle, Unit } from '@/types/contract';
-import type { CanonItem } from '../logic/items';
-import { normalizeItemName } from '../logic/items';
+import { type CanonItem, normalizeItemName } from '../api';
 import {
   getCanonItemIngredientRefs,
   splitCanonItem,

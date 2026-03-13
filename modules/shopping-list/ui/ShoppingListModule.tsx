@@ -45,6 +45,24 @@ export const ShoppingListModule: React.FC = () => {
     }
   }, []);
 
+  // Refresh only items — used after add/sync/clear (no need to re-fetch lists)
+  const refreshItems = useCallback(async (listId: string) => {
+    try {
+      setItems(await getItemsForList(listId));
+    } catch {
+      softToast.error('Failed to refresh items');
+    }
+  }, []);
+
+  // Optimistic helpers — update local state without any Firestore read
+  const optimisticUpdateItem = useCallback((id: string, patch: Partial<ShoppingListItem>) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, ...patch } : item));
+  }, []);
+
+  const optimisticRemoveItem = useCallback((id: string) => {
+    setItems(prev => prev.filter(item => item.id !== id));
+  }, []);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -78,8 +96,9 @@ export const ShoppingListModule: React.FC = () => {
       <MobileShoppingView
         list={activeList}
         items={items}
-        onRefresh={() => loadData(activeList.id)}
+        onRefresh={() => refreshItems(activeList.id)}
         onExitMobile={() => setIsMobileView(false)}
+        onUpdateItem={optimisticUpdateItem}
       />
     );
   }
@@ -96,9 +115,11 @@ export const ShoppingListModule: React.FC = () => {
         lists={lists}
         items={items}
         isLoading={isLoading}
-        onRefresh={() => loadData(activeList.id)}
+        onRefresh={() => refreshItems(activeList.id)}
         onSelectList={handleSelectList}
         onSwitchToMobile={() => setIsMobileView(true)}
+        onUpdateItem={optimisticUpdateItem}
+        onRemoveItem={optimisticRemoveItem}
       />
     </div>
   );

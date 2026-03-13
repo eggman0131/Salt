@@ -141,6 +141,9 @@ export const recipesApi = {
 
 export { buildManualEditSummary, createHistoryEntry } from './logic/recipe-updates';
 
+export { cleanupOrphanedRecipeImages } from './data/storage-cleanup';
+export type { CleanupStats } from './data/storage-cleanup';
+
 export type {
   CreateRecipeInput,
   RecipeConversationTurn,

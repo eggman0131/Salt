@@ -19,6 +19,7 @@ interface MobileShoppingViewProps {
   items: ShoppingListItem[];
   onRefresh: () => void;
   onExitMobile: () => void;
+  onUpdateItem: (id: string, patch: Partial<ShoppingListItem>) => void;
 }
 
 export const MobileShoppingView: React.FC<MobileShoppingViewProps> = ({
@@ -26,6 +27,7 @@ export const MobileShoppingView: React.FC<MobileShoppingViewProps> = ({
   items,
   onRefresh,
   onExitMobile,
+  onUpdateItem,
 }) => {
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -94,7 +96,7 @@ export const MobileShoppingView: React.FC<MobileShoppingViewProps> = ({
               key={aisle}
               aisleName={aisle}
               items={byAisle[aisle]}
-              onUpdated={onRefresh}
+              onUpdateItem={onUpdateItem}
             />
           ))
         )}

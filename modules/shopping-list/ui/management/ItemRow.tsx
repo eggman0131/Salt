@@ -10,30 +10,33 @@ import { hasUnitMismatch } from '../../logic/aggregation';
 
 interface ItemRowProps {
   item: ShoppingListItem;
-  onUpdated: () => void;
+  onUpdateItem: (id: string, patch: Partial<ShoppingListItem>) => void;
+  onRemoveItem: (id: string) => void;
 }
 
-export const ItemRow: React.FC<ItemRowProps> = ({ item, onUpdated }) => {
+export const ItemRow: React.FC<ItemRowProps> = ({ item, onUpdateItem, onRemoveItem }) => {
   const [expanded, setExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
     setIsDeleting(true);
+    onRemoveItem(item.id); // optimistic
     try {
       await deleteItem(item.id);
-      onUpdated();
     } catch {
       softToast.error('Failed to remove item');
+      onUpdateItem(item.id, item); // roll back by re-inserting (best-effort)
       setIsDeleting(false);
     }
   };
 
   const handleToggleChecked = async () => {
+    onUpdateItem(item.id, { checked: !item.checked }); // optimistic
     try {
       await updateItemChecked(item.id, !item.checked);
-      onUpdated();
     } catch {
       softToast.error('Failed to update item');
+      onUpdateItem(item.id, { checked: item.checked }); // roll back
     }
   };
 

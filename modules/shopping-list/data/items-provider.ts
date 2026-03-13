@@ -31,11 +31,25 @@ import type { ShoppingListItem } from '../../../types/contract';
 import type { ShoppingListContribution } from '../types';
 import { sumContributions } from '../logic/aggregation';
 
-/** Strip undefined values — Firestore rejects them in set/update calls. */
-function stripUndefined<T extends object>(obj: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== undefined)
-  ) as Partial<T>;
+/** Recursively strip undefined values — Firestore rejects them at any nesting level. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function deepStripUndefined(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(deepStripUndefined);
+  if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, deepStripUndefined(v)])
+    );
+  }
+  return obj;
+}
+
+const stripUndefined = deepStripUndefined;
+
+/** Strip undefined from a contribution object before writing to Firestore. */
+function cleanContribution(c: ShoppingListContribution): ShoppingListContribution {
+  return deepStripUndefined(c) as ShoppingListContribution;
 }
 
 // ── Reads ─────────────────────────────────────────────────────────────────────
@@ -83,7 +97,7 @@ export async function upsertCanonItem(
 
     if (current.exists()) {
       const data = current.data() as ShoppingListItem;
-      const updatedContributions = [...data.contributions, contribution];
+      const updatedContributions = [...data.contributions, cleanContribution(contribution)];
       const { totalBaseQty, baseUnit } = sumContributions(updatedContributions);
       tx.update(itemRef, stripUndefined({
         contributions: updatedContributions,
@@ -101,7 +115,7 @@ export async function upsertCanonItem(
         aisle: canonMeta.aisle ?? null,
         totalBaseQty: totalBaseQty || null,
         baseUnit: baseUnit || null,
-        contributions: [contribution],
+        contributions: [cleanContribution(contribution)],
         status: isStaple ? 'needs_review' : 'active',
         checked: false,
         updatedAt: new Date().toISOString(),
@@ -125,13 +139,13 @@ export async function createUnmatchedItem(
     id: itemId,
     shoppingListId: listId,
     name,
-    contributions: [contribution],
+    contributions: [cleanContribution(contribution)],
     status: 'active',
     checked: false,
-    addedBy: auth.currentUser?.uid,
+    addedBy: auth.currentUser?.uid ?? null,
     updatedAt: new Date().toISOString(),
   };
-  await setDoc(doc(db, 'shoppingListItems', itemId), newItem);
+  await setDoc(doc(db, 'shoppingListItems', itemId), deepStripUndefined(newItem));
   return itemId;
 }
 

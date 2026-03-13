@@ -12,18 +12,18 @@ import { formatQty } from '../../logic/unit-normalisation';
 
 interface MobileShoppingItemProps {
   item: ShoppingListItem;
-  onUpdated: () => void;
+  onUpdateItem: (id: string, patch: Partial<ShoppingListItem>) => void;
 }
 
-export const MobileShoppingItem: React.FC<MobileShoppingItemProps> = ({ item, onUpdated }) => {
+export const MobileShoppingItem: React.FC<MobileShoppingItemProps> = ({ item, onUpdateItem }) => {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const handleTap = async () => {
+    onUpdateItem(item.id, { checked: !item.checked }); // optimistic
     try {
       await updateItemChecked(item.id, !item.checked);
-      onUpdated();
     } catch {
-      // Silent — optimistic update already applied by parent if needed
+      onUpdateItem(item.id, { checked: item.checked }); // roll back
     }
   };
 

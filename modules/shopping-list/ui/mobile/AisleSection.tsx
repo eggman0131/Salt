@@ -5,10 +5,10 @@ import { MobileShoppingItem } from './MobileShoppingItem';
 interface AisleSectionProps {
   aisleName: string;
   items: ShoppingListItem[];
-  onUpdated: () => void;
+  onUpdateItem: (id: string, patch: Partial<ShoppingListItem>) => void;
 }
 
-export const AisleSection: React.FC<AisleSectionProps> = ({ aisleName, items, onUpdated }) => {
+export const AisleSection: React.FC<AisleSectionProps> = ({ aisleName, items, onUpdateItem }) => {
   const unchecked = items.filter((i) => !i.checked);
   const checked = items.filter((i) => i.checked);
   const sorted = [...unchecked, ...checked]; // unchecked first
@@ -25,7 +25,7 @@ export const AisleSection: React.FC<AisleSectionProps> = ({ aisleName, items, on
       </div>
       <div>
         {sorted.map((item) => (
-          <MobileShoppingItem key={item.id} item={item} onUpdated={onUpdated} />
+          <MobileShoppingItem key={item.id} item={item} onUpdateItem={onUpdateItem} />
         ))}
       </div>
     </section>

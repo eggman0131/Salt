@@ -78,8 +78,8 @@ export async function syncPlannerToList(
         recipeId,
         recipeTitle: recipe.title,
         rawText: ingredient.raw,
-        qty: ingredient.quantity ?? undefined,
-        unit: ingredient.unit ?? undefined,
+        ...(ingredient.quantity != null && { qty: ingredient.quantity }),
+        ...(ingredient.unit != null && { unit: ingredient.unit }),
         addedBy: userId,
         addedAt: new Date().toISOString(),
       };

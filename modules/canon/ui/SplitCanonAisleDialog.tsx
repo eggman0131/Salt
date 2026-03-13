@@ -10,7 +10,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import type { Aisle } from '@/types/contract';
 import { getCanonItems, splitCanonAisle } from '../api';
-import type { CanonItem } from '../logic/items';
+import type { CanonItem } from '../api';
 import {
   Dialog,
   DialogContent,

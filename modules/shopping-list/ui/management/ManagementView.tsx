@@ -37,6 +37,8 @@ interface ManagementViewProps {
   onRefresh: () => void;
   onSelectList: (id: string) => void;
   onSwitchToMobile: () => void;
+  onUpdateItem: (id: string, patch: Partial<ShoppingListItem>) => void;
+  onRemoveItem: (id: string) => void;
 }
 
 export const ManagementView: React.FC<ManagementViewProps> = ({
@@ -47,6 +49,8 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
   onRefresh,
   onSelectList,
   onSwitchToMobile,
+  onUpdateItem,
+  onRemoveItem,
 }) => {
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [newListOpen, setNewListOpen] = useState(false);
@@ -148,7 +152,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
           {/* Storecupboard review */}
           {reviewItems.length > 0 && (
             <div className="border rounded-lg p-4">
-              <StapleReviewPanel items={reviewItems} onUpdated={onRefresh} />
+              <StapleReviewPanel items={reviewItems} onUpdateItem={onUpdateItem} onRemoveItem={onRemoveItem} />
             </div>
           )}
 
@@ -174,7 +178,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
                 </h3>
                 <div className="space-y-1.5">
                   {byAisle[aisle].map((item) => (
-                    <ItemRow key={item.id} item={item} onUpdated={onRefresh} />
+                    <ItemRow key={item.id} item={item} onUpdateItem={onUpdateItem} onRemoveItem={onRemoveItem} />
                   ))}
                 </div>
               </section>
@@ -189,7 +193,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
               </h3>
               <div className="space-y-1.5">
                 {checkedItems.map((item) => (
-                  <ItemRow key={item.id} item={item} onUpdated={onRefresh} />
+                  <ItemRow key={item.id} item={item} onUpdateItem={onUpdateItem} onRemoveItem={onRemoveItem} />
                 ))}
               </div>
             </section>

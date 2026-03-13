@@ -48,7 +48,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-import { Loader2, Plus, Check, AlertCircle, Link, Unlink, Sparkles, Trash2, Search, Merge, Scissors } from 'lucide-react';
+import { Loader2, Plus, Check, AlertCircle, Link, Unlink, Sparkles, Trash2, Search, Merge, Scissors, Layers } from 'lucide-react';
 import { MergeCanonItemsDialog } from './MergeCanonItemsDialog';
 import { SplitCanonItemDialog } from './SplitCanonItemDialog';
 import {
@@ -99,6 +99,7 @@ export const CanonItems: React.FC = () => {
   const [showSplitDialog, setShowSplitDialog] = useState(false);
   const [splitItem, setSplitItem] = useState<CanonItem | null>(null);
   const [currentItem, setCurrentItem] = useState<CanonItem | null>(null);
+  const [groupByAisle, setGroupByAisle] = useState(false);
 
   // Unified detail sheet
   const [showDetailSheet, setShowDetailSheet] = useState(false);
@@ -123,6 +124,27 @@ export const CanonItems: React.FC = () => {
     const approved = sortItems(filteredItems.filter(i => !i.needsReview));
     return [...needsReview, ...approved];
   }, [filteredItems]);
+
+  // Group sorted items by aisle for the grouped view
+  const groupedItems = useMemo(() => {
+    if (!groupByAisle) return null;
+    const groups = new Map<string, { aisle: Aisle | undefined; items: CanonItem[] }>();
+    for (const item of sortedItems) {
+      if (!groups.has(item.aisleId)) {
+        groups.set(item.aisleId, { aisle: aisles.find(a => a.id === item.aisleId), items: [] });
+      }
+      groups.get(item.aisleId)!.items.push(item);
+    }
+    return Array.from(groups.values()).sort((a, b) => {
+      const t3A = a.aisle?.tier3 ?? 'zzz';
+      const t3B = b.aisle?.tier3 ?? 'zzz';
+      if (t3A !== t3B) return t3A.localeCompare(t3B);
+      const t2A = a.aisle?.tier2 ?? 'zzz';
+      const t2B = b.aisle?.tier2 ?? 'zzz';
+      if (t2A !== t2B) return t2A.localeCompare(t2B);
+      return (a.aisle?.name ?? 'zzz').localeCompare(b.aisle?.name ?? 'zzz');
+    });
+  }, [groupByAisle, sortedItems, aisles]);
 
   const needsReviewCount = filterItemsNeedingReview(items).length;
   const allItemsSelected = sortedItems.length > 0 && selectedItems.size === sortedItems.length;
@@ -328,6 +350,15 @@ export const CanonItems: React.FC = () => {
               Clear
             </Button>
           )}
+          <Button
+            variant={groupByAisle ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setGroupByAisle(v => !v)}
+            className="gap-2 shrink-0"
+          >
+            <Layers className="h-4 w-4" />
+            Group by aisle
+          </Button>
         </div>
         {searchTerm && (
           <p className="text-xs text-muted-foreground mt-2">
@@ -396,6 +427,43 @@ export const CanonItems: React.FC = () => {
             <p className="text-sm text-muted-foreground mt-1">
               {searchTerm ? 'Try a different search term' : 'Create an item to get started'}
             </p>
+          </div>
+        ) : groupedItems ? (
+          <div className="space-y-4">
+            {groupedItems.map(({ aisle, items: groupItems }) => (
+              <div key={aisle?.id ?? 'uncategorised'} className="border rounded-lg divide-y">
+                <div className="px-4 py-2 bg-muted/50 flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-sm">{aisle?.name ?? 'Uncategorised'}</span>
+                    {aisle && (
+                      <span className="text-xs text-muted-foreground ml-2">{aisle.tier3} / {aisle.tier2}</span>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">{groupItems.length}</span>
+                </div>
+                <Stack spacing="gap-1">
+                  {groupItems.map(item => {
+                    const unit = units.find(u => u.id === item.preferredUnitId);
+                    const isLinked = !!getCofidSource(item);
+                    const isSelected = selectedItems.has(item.id);
+                    return (
+                      <ItemRow
+                        key={item.id}
+                        item={item}
+                        aisle={aisle}
+                        unit={unit}
+                        isLinked={isLinked}
+                        isSelected={isSelected}
+                        onToggleSelect={() => toggleItemSelection(item.id)}
+                        onOpenDetail={() => handleOpenDetail(item)}
+                        onDelete={() => { setCurrentItem(item); setShowDeleteDialog(true); }}
+                        onSplit={() => { setSplitItem(item); setShowSplitDialog(true); }}
+                      />
+                    );
+                  })}
+                </Stack>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="border rounded-lg divide-y">
