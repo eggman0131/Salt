@@ -7,9 +7,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { CanonItem } from '../logic/items';
 import type { Aisle, Unit } from '@/types/contract';
-import { normalizeItemName } from '../logic/items';
+import { type CanonItem, normalizeItemName } from '../api';
 import {
   getCanonItemMergeImpact,
   mergeCanonItems,

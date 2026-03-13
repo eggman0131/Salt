@@ -9,29 +9,32 @@ import { formatQty } from '../../logic/unit-normalisation';
 
 interface StapleReviewPanelProps {
   items: ShoppingListItem[];
-  onUpdated: () => void;
+  onUpdateItem: (id: string, patch: Partial<ShoppingListItem>) => void;
+  onRemoveItem: (id: string) => void;
 }
 
-export const StapleReviewPanel: React.FC<StapleReviewPanelProps> = ({ items, onUpdated }) => {
+export const StapleReviewPanel: React.FC<StapleReviewPanelProps> = ({ items, onUpdateItem, onRemoveItem }) => {
   const [open, setOpen] = useState(true);
 
   if (items.length === 0) return null;
 
   const handleApprove = async (item: ShoppingListItem) => {
+    onUpdateItem(item.id, { status: 'active' }); // optimistic
     try {
       await updateItemStatus(item.id, 'active');
-      onUpdated();
     } catch {
       softToast.error('Failed to approve item');
+      onUpdateItem(item.id, { status: 'needs_review' }); // roll back
     }
   };
 
   const handleDismiss = async (item: ShoppingListItem) => {
+    onRemoveItem(item.id); // optimistic
     try {
       await deleteItem(item.id);
-      onUpdated();
     } catch {
       softToast.error('Failed to dismiss item');
+      onUpdateItem(item.id, item); // roll back
     }
   };
 
