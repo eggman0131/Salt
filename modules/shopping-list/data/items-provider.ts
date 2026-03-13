@@ -32,7 +32,6 @@ import type { ShoppingListContribution } from '../types';
 import { sumContributions } from '../logic/aggregation';
 
 /** Recursively strip undefined values — Firestore rejects them at any nesting level. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function deepStripUndefined(obj: any): any {
   if (Array.isArray(obj)) return obj.map(deepStripUndefined);
   if (obj !== null && typeof obj === 'object') {
