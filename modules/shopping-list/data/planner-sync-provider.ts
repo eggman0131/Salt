@@ -12,7 +12,7 @@
 import { auth } from '../../../shared/backend/firebase';
 import { getPlanByDate } from '../../planner/api';
 import { getRecipe } from '../../recipes/api';
-import { getCanonItemById, getCanonAisles } from '../../canon/api';
+import { getCanonItemById } from '../../canon/api';
 import {
   upsertCanonItem,
   createUnmatchedItem,
@@ -39,10 +39,6 @@ export async function syncPlannerToList(
   if (!plan) {
     return result;
   }
-
-  // Load aisles once for name resolution
-  const aisles = await getCanonAisles();
-  const aisleMap = new Map(aisles.map((a) => [a.id, a.name]));
 
   // Collect all unique recipeIds from the week
   const allRecipeIds = plan.days.flatMap((d) => d.recipeIds ?? []);
@@ -88,12 +84,11 @@ export async function syncPlannerToList(
         // Fetch canon item metadata
         const canonItem = await getCanonItemById(ingredient.canonicalItemId);
         if (canonItem) {
-          const aisleName = aisleMap.get(canonItem.aisleId);
           await upsertCanonItem(
             listId,
             ingredient.canonicalItemId,
             contribution,
-            { name: canonItem.name, aisle: aisleName },
+            { name: canonItem.name, aisle: canonItem.aisle.tier1 },
             canonItem.isStaple ?? false
           );
           if (canonItem.isStaple) {
@@ -131,9 +126,6 @@ export async function addRecipeToList(
   const userId = auth.currentUser?.uid ?? 'system';
   const result: SyncResult = { added: 0, updated: 0, needsReview: 0, skipped: 0 };
 
-  const aisles = await getCanonAisles();
-  const aisleMap = new Map(aisles.map((a) => [a.id, a.name]));
-
   const existingItems = await getItemsForList(listId);
   const existingRecipeIds = new Set(
     existingItems.flatMap((item) =>
@@ -166,8 +158,7 @@ export async function addRecipeToList(
     if (ingredient.canonicalItemId) {
       const canonItem = await getCanonItemById(ingredient.canonicalItemId);
       if (canonItem) {
-        const aisleName = aisleMap.get(canonItem.aisleId);
-        await upsertCanonItem(listId, ingredient.canonicalItemId, contribution, { name: canonItem.name, aisle: aisleName }, canonItem.isStaple ?? false);
+        await upsertCanonItem(listId, ingredient.canonicalItemId, contribution, { name: canonItem.name, aisle: canonItem.aisle.tier1 }, canonItem.isStaple ?? false);
         canonItem.isStaple ? result.needsReview++ : result.added++;
       } else {
         await createUnmatchedItem(listId, contribution, ingredient.ingredientName);

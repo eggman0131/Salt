@@ -145,7 +145,7 @@ export async function getAisleMergeImpact(
 export interface CanonItemMergeUpdates {
   name: string;
   aisleId: string;
-  preferredUnitId: string;
+  unit?: CanonItem['unit'];
   synonyms?: string[];
 }
 
@@ -176,7 +176,7 @@ export async function mergeCanonItems(
   await updateCanonItem(primaryId, {
     name: updates.name,
     aisleId: updates.aisleId,
-    preferredUnitId: updates.preferredUnitId,
+    ...(updates.unit !== undefined && { unit: updates.unit }),
   });
 
   // Write synonyms + externalSources directly since updateCanonItem only takes a subset of fields
@@ -308,10 +308,22 @@ export async function mergeCanonAisles(
     if (count > 0) await batch.commit();
   }
 
-  // 2. Migrate canon items
+  // 2. Migrate canon items aisleId FK
   await migrateAisleId(CANON_ITEMS_COLLECTION, 'aisleId');
 
-  // 3. Migrate embedding lookup entries
+  // 3. Update aisle snapshots on migrated items (now pointing to primary)
+  const { syncAisleSnapshots } = await import('./firebase-provider');
+  const newSnapshot = await (async () => {
+    const { fetchCanonAisles } = await import('./firebase-provider');
+    const aisles = await fetchCanonAisles();
+    const primary = aisles.find(a => a.id === primaryId);
+    return primary
+      ? { tier1: primary.name, tier2: primary.tier2, tier3: primary.tier3 }
+      : { tier1: 'Uncategorised', tier2: 'Uncategorised', tier3: 'Uncategorised' };
+  })();
+  await syncAisleSnapshots(primaryId, newSnapshot);
+
+  // 4. Migrate embedding lookup entries
   await migrateAisleId(EMBEDDING_LOOKUP_COLLECTION, 'aisleId');
 
   // 5. Delete secondary aisle (all references now gone so the guard passes)

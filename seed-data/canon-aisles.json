@@ -4,7 +4,6 @@
   { "tier3": "food", "tier2": "fresh", "tier1": "fresh salad" },
   { "tier3": "food", "tier2": "fresh", "tier1": "fresh herbs" },
   { "tier3": "food", "tier2": "fresh", "tier1": "fresh prepared produce" },
-  { "tier3": "food", "tier2": "fresh", "tier1": "fresh seafood" },
 
   { "tier3": "food", "tier2": "meat & fish", "tier1": "beef" },
   { "tier3": "food", "tier2": "meat & fish", "tier1": "pork" },
@@ -13,6 +12,7 @@
   { "tier3": "food", "tier2": "meat & fish", "tier1": "turkey" },
   { "tier3": "food", "tier2": "meat & fish", "tier1": "sausages & bacon" },
   { "tier3": "food", "tier2": "meat & fish", "tier1": "fresh fish" },
+  { "tier3": "food", "tier2": "meat & fish", "tier1": "fresh seafood" },
 
   { "tier3": "food", "tier2": "chilled dairy", "tier1": "milk" },
   { "tier3": "food", "tier2": "chilled dairy", "tier1": "cheese" },
@@ -76,19 +76,19 @@
   { "tier3": "drink", "tier2": "alcohol", "tier1": "wine" },
   { "tier3": "drink", "tier2": "alcohol", "tier1": "spirits" },
 
-  { "tier3": "household", "tier2": "cleaning", "tier1": "laundry detergent" },
-  { "tier3": "household", "tier2": "cleaning", "tier1": "surface cleaners" },
-  { "tier3": "household", "tier2": "cleaning", "tier1": "dishwasher products" },
-  { "tier3": "household", "tier2": "cleaning", "tier1": "bleach" },
+  { "tier3": "household", "tier2": "laundry & cleaning", "tier1": "laundry detergent" },
+  { "tier3": "household", "tier2": "laundry & cleaning", "tier1": "surface cleaners" },
+  { "tier3": "household", "tier2": "laundry & cleaning", "tier1": "anti-bacterial" },
+  { "tier3": "household", "tier2": "laundry & cleaning", "tier1": "dishwasher products" },
+  { "tier3": "household", "tier2": "laundry & cleaning", "tier1": "bleach" },
 
   { "tier3": "household", "tier2": "paper goods", "tier1": "toilet roll" },
   { "tier3": "household", "tier2": "paper goods", "tier1": "kitchen roll" },
   { "tier3": "household", "tier2": "paper goods", "tier1": "tissues" },
 
-  { "tier3": "household", "tier2": "kitchen essentials", "tier1": "foil" },
-  { "tier3": "household", "tier2": "kitchen essentials", "tier1": "cling film" },
-  { "tier3": "household", "tier2": "kitchen essentials", "tier1": "baking paper" },
-  { "tier3": "household", "tier2": "kitchen essentials", "tier1": "food bags & containers" },
+  { "tier3": "household", "tier2": "housegold essentials", "tier1": "foil, food bags, and storage" },
+  { "tier3": "household", "tier2": "housegold essentials", "tier1": "batteries" },
+  { "tier3": "household", "tier2": "housegold essentials", "tier1": "bin bags" },
 
   { "tier3": "health & beauty", "tier2": "toiletries", "tier1": "shampoo & conditioner" },
   { "tier3": "health & beauty", "tier2": "toiletries", "tier1": "soap & shower gel" },
@@ -102,7 +102,7 @@
   { "tier3": "health & beauty", "tier2": "medicines", "tier1": "cold & flu" },
   { "tier3": "health & beauty", "tier2": "medicines", "tier1": "digestive remedies" },
 
-  { "tier3": "health & beauty", "tier2": "first aid", "tier1": "plasters" },
+  { "tier3": "health & beauty", "tier2": "first aid", "tier1": "plasters & bandages" },
   { "tier3": "health & beauty", "tier2": "first aid", "tier1": "antiseptics" },
   { "tier3": "health & beauty", "tier2": "first aid", "tier1": "bandages" },
 

@@ -5,7 +5,7 @@
  * Loads data from seed JSON files and writes to Firestore in authenticated context.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -20,6 +20,7 @@ import {
   seedCanonUnits,
   seedCofidItems,
   seedCofidEmbeddings,
+  seedItems,
   SeedResult,
 } from '../../api';
 
@@ -27,8 +28,10 @@ import {
 import aislesData from '@/seed-data/canon-aisles.json';
 import unitsData from '@/seed-data/canon-units.json';
 import cofidItemsData from '@/seed-data/cofid-items.backup.v1.json';
+import canonItemsData from '@/seed-data/canon-items-combined.json';
 // Type the CofID items as array (it's either [{ id, data }] from backup or [CofIDItem])
 const cofidItemsArray = (cofidItemsData as any[]) || [];
+const canonItemsArray = (canonItemsData as any[]) || [];
 
 type SeedStatus = 'idle' | 'seeding' | 'success' | 'error' | 'cancelled';
 
@@ -37,13 +40,17 @@ interface SeedState {
   units: SeedStatus;
   cofidItems: SeedStatus;
   cofidEmbeddings: SeedStatus;
+  canonItems: SeedStatus;
   aislesResult?: SeedResult;
   unitsResult?: SeedResult;
   cofidItemsResult?: { imported: number; failed: number; errors: Array<{ id: string; reason: string }> };
   cofidEmbeddingsResult?: { success: boolean; imported: number; skipped: number; errors: number };
+  canonItemsResult?: { imported: number; failed: number; errors: Array<{ id: string; reason: string }> };
   // Progress tracking for large operations
   cofidItemsProgress?: { processed: number; total: number };
+  canonItemsProgress?: { processed: number; total: number };
   abortController?: AbortController;
+  canonAbortController?: AbortController;
 }
 
 export default function CanonSeeder() {
@@ -52,7 +59,9 @@ export default function CanonSeeder() {
     units: 'idle',
     cofidItems: 'idle',
     cofidEmbeddings: 'idle',
+    canonItems: 'idle',
   });
+  const canonFileRef = useRef<HTMLInputElement>(null);
 
   const handleSeedAisles = async () => {
     setState(s => ({ ...s, aisles: 'seeding' }));
@@ -180,6 +189,93 @@ export default function CanonSeeder() {
       console.error('Error seeding CofID embeddings:', error);
       setState(s => ({ ...s, cofidEmbeddings: 'error' }));
       toast.error(msg || 'Failed to seed CofID embeddings');
+    }
+  };
+
+  const handleSeedCanonItems = async (file: File) => {
+    const abortController = new AbortController();
+    setState(s => ({ ...s, canonItems: 'seeding', canonAbortController: abortController, canonItemsProgress: { processed: 0, total: 0 } }));
+
+    try {
+      const text = await file.text();
+      const items = JSON.parse(text);
+      if (!Array.isArray(items)) throw new Error('JSON must be an array of canon items');
+
+      setState(s => ({ ...s, canonItemsProgress: { processed: 0, total: items.length } }));
+
+      const result = await seedItems(
+        items,
+        (processed, total) => {
+          setState(s => ({ ...s, canonItemsProgress: { processed, total } }));
+        },
+        abortController.signal
+      );
+
+      setState(s => ({
+        ...s,
+        canonItems: result.failed === 0 ? 'success' : 'error',
+        canonItemsResult: result,
+        canonItemsProgress: undefined,
+        canonAbortController: undefined,
+      }));
+
+      if (result.imported > 0) {
+        toast.success(`Imported ${result.imported} canon items${result.failed > 0 ? ` (${result.failed} failed)` : ''}`);
+      } else {
+        toast.error(`No items imported (${result.failed} failed)`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('cancelled') || msg.includes('aborted')) {
+        setState(s => ({ ...s, canonItems: 'cancelled', canonItemsProgress: undefined, canonAbortController: undefined }));
+        toast.info('Canon items import cancelled');
+      } else {
+        setState(s => ({ ...s, canonItems: 'error', canonItemsProgress: undefined, canonAbortController: undefined }));
+        toast.error(msg || 'Failed to import canon items');
+      }
+    }
+  };
+
+  const handleCancelCanonItems = () => {
+    state.canonAbortController?.abort();
+    setState(s => ({ ...s, canonItems: 'cancelled', canonAbortController: undefined }));
+  };
+
+  const handleSeedCanonItemsFromFile = async () => {
+    const abortController = new AbortController();
+    setState(s => ({ ...s, canonItems: 'seeding', canonAbortController: abortController, canonItemsProgress: { processed: 0, total: canonItemsArray.length } }));
+
+    try {
+      const result = await seedItems(
+        canonItemsArray,
+        (processed, total) => {
+          setState(s => ({ ...s, canonItemsProgress: { processed, total } }));
+        },
+        abortController.signal
+      );
+
+      setState(s => ({
+        ...s,
+        canonItems: result.failed === 0 ? 'success' : 'error',
+        canonItemsResult: result,
+        canonItemsProgress: undefined,
+        canonAbortController: undefined,
+      }));
+
+      if (result.imported > 0) {
+        toast.success(`Imported ${result.imported} canon items${result.failed > 0 ? ` (${result.failed} failed)` : ''}`);
+      } else {
+        toast.error(`No items imported (${result.failed} failed)`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('cancelled') || msg.includes('aborted')) {
+        setState(s => ({ ...s, canonItems: 'cancelled', canonItemsProgress: undefined, canonAbortController: undefined }));
+        toast.info('Canon items import cancelled');
+      } else {
+        setState(s => ({ ...s, canonItems: 'error', canonItemsProgress: undefined, canonAbortController: undefined }));
+        toast.error(msg || 'Failed to import canon items');
+      }
     }
   };
 
@@ -456,6 +552,107 @@ export default function CanonSeeder() {
             </Button>
           </div>
         </Card>
+        {/* Canon Items */}
+        <Card className="p-4">
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-medium flex items-center gap-2">
+                Canon Items
+                {renderStatusIcon(state.canonItems)}
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {canonItemsArray.length} items from generated seed data
+              </p>
+            </div>
+
+            {state.canonItemsResult && (
+              <div className={`text-sm space-y-1 p-3 rounded border ${state.canonItemsResult.failed === 0 ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800'}`}>
+                <div className={`font-medium ${state.canonItemsResult.failed === 0 ? 'text-green-900 dark:text-green-100' : 'text-amber-900 dark:text-amber-100'}`}>
+                  {state.canonItemsResult.failed === 0 ? '✓ Imported' : '⚠ Partial import'}
+                </div>
+                <div className="text-muted-foreground">
+                  {state.canonItemsResult.imported} imported
+                  {state.canonItemsResult.failed > 0 && `, ${state.canonItemsResult.failed} failed`}
+                </div>
+                {state.canonItemsResult.errors.length > 0 && (
+                  <ul className="text-xs mt-1 space-y-0.5">
+                    {state.canonItemsResult.errors.slice(0, 3).map((e, i) => (
+                      <li key={i} className="text-destructive">{e.id}: {e.reason}</li>
+                    ))}
+                    {state.canonItemsResult.errors.length > 3 && (
+                      <li className="text-muted-foreground">…and {state.canonItemsResult.errors.length - 3} more</li>
+                    )}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            <input
+              ref={canonFileRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) handleSeedCanonItems(file);
+                e.target.value = '';
+              }}
+            />
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSeedCanonItemsFromFile}
+                disabled={state.canonItems === 'seeding' || canonItemsArray.length === 0}
+                variant="outline"
+                className="flex-1"
+              >
+                {state.canonItems === 'seeding' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Seed Canon Items
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => canonFileRef.current?.click()}
+                disabled={state.canonItems === 'seeding'}
+                variant="ghost"
+                size="sm"
+                title="Upload custom JSON"
+                className="px-3"
+              >
+                Upload
+              </Button>
+              {state.canonItems === 'seeding' && (
+                <Button onClick={handleCancelCanonItems} variant="destructive" size="sm" className="px-3">
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {state.canonItems === 'seeding' && state.canonItemsProgress && state.canonItemsProgress.total > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {state.canonItemsProgress.processed} of {state.canonItemsProgress.total} items…
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {Math.round((state.canonItemsProgress.processed / state.canonItemsProgress.total) * 100)}%
+                  </span>
+                </div>
+                <Progress
+                  value={(state.canonItemsProgress.processed / state.canonItemsProgress.total) * 100}
+                  className="h-2"
+                />
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
 
           {/* Info Box */}
@@ -465,6 +662,7 @@ export default function CanonSeeder() {
           <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
             <li>Canon Aisles (foundational reference data)</li>
             <li>Canon Units (foundational reference data)</li>
+            <li>Canon Items (ingredient and product data from seed generation)</li>
             <li>CofID Group → Aisle Mappings (for CofID item resolution)</li>
             <li>CofID Items (with embeddings for semantic matching)</li>
             <li>CofID Embeddings (build local lookup and publish Firebase Storage master snapshot)</li>

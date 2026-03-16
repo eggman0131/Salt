@@ -2,14 +2,14 @@
  * SplitCanonItemDialog
  *
  * Two-step dialog for splitting one canon item into two:
- * Step 1 — define the new item (name, aisle, unit).
+ * Step 1 — define the new item (name, aisle, unit type).
  * Step 2 — assign: search + checkboxes on recipe ingredient references.
  *           Shows ingredient raw text + recipe title so the user can decide.
  *           Nothing selected by default; unticked references stay on the original item.
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
-import type { Aisle, Unit } from '@/types/contract';
+import type { Aisle } from '@/types/contract';
 import { type CanonItem, normalizeItemName } from '../api';
 import {
   getCanonItemIngredientRefs,
@@ -43,7 +43,6 @@ import { softToast } from '@/lib/soft-toast';
 interface Props {
   item: CanonItem;
   aisles: Aisle[];
-  units: Unit[];
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -55,7 +54,6 @@ type Step = 'define' | 'assign';
 export const SplitCanonItemDialog: React.FC<Props> = ({
   item,
   aisles,
-  units,
   onSuccess,
   onCancel,
 }) => {
@@ -64,7 +62,9 @@ export const SplitCanonItemDialog: React.FC<Props> = ({
   // Step 1 state
   const [newName, setNewName] = useState('');
   const [newAisleId, setNewAisleId] = useState(item.aisleId);
-  const [newPreferredUnitId, setNewPreferredUnitId] = useState(item.preferredUnitId);
+  const [newUnitType, setNewUnitType] = useState<'mass' | 'volume' | 'count'>(
+    item.unit?.canonical_unit_type ?? 'mass'
+  );
 
   // Step 2 state
   const [refs, setRefs] = useState<IngredientRef[]>([]);
@@ -117,7 +117,7 @@ export const SplitCanonItemDialog: React.FC<Props> = ({
     e.preventDefault();
     const normalized = normalizeItemName(newName);
     if (!normalized) { softToast.error('Name is required'); return; }
-    if (!newAisleId || !newPreferredUnitId) { softToast.error('Aisle and unit are required'); return; }
+    if (!newAisleId) { softToast.error('Aisle is required'); return; }
     setStep('assign');
   }
 
@@ -126,11 +126,17 @@ export const SplitCanonItemDialog: React.FC<Props> = ({
     const normalizedName = normalizeItemName(newName);
     if (!normalizedName) return;
 
+    const canonicalUnit = newUnitType === 'mass' ? 'g' : newUnitType === 'volume' ? 'ml' : 'each';
+
     setIsSubmitting(true);
     try {
       await splitCanonItem(
         item.id,
-        { name: normalizedName, aisleId: newAisleId, preferredUnitId: newPreferredUnitId },
+        {
+          name: normalizedName,
+          aisleId: newAisleId,
+          unit: { canonical_unit_type: newUnitType, canonical_unit: canonicalUnit, density_g_per_ml: null },
+        },
         selectedIds
       );
       softToast.success(
@@ -193,17 +199,25 @@ export const SplitCanonItemDialog: React.FC<Props> = ({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Preferred unit</Label>
-              <Select value={newPreferredUnitId} onValueChange={setNewPreferredUnitId}>
-                <SelectTrigger><SelectValue placeholder="Select unit…" /></SelectTrigger>
-                <SelectContent>
-                  {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label>Unit type</Label>
+              <div className="flex gap-2">
+                {(['mass', 'volume', 'count'] as const).map(type => (
+                  <Button
+                    key={type}
+                    type="button"
+                    variant={newUnitType === type ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setNewUnitType(type)}
+                    className="flex-1"
+                  >
+                    {type === 'mass' ? 'Mass (g)' : type === 'volume' ? 'Volume (ml)' : 'Count (each)'}
+                  </Button>
+                ))}
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-              <Button type="submit" disabled={!newName.trim() || !newAisleId || !newPreferredUnitId}>
+              <Button type="submit" disabled={!newName.trim() || !newAisleId}>
                 Next <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </DialogFooter>

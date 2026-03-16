@@ -169,9 +169,9 @@ export const CanonUnits: React.FC = () => {
     }
   };
 
-  const getAffectedItems = (unitId: string): CanonItem[] => {
-    return items.filter(item => item.preferredUnitId === unitId);
-  };
+  // Units are no longer FK'd to items (unit intelligence is now embedded per item),
+  // so no items are "affected" when a unit is deleted.
+  const getAffectedItems = (_unitId: string): CanonItem[] => [];
 
   const handleDelete = async (id: string) => {
     try {

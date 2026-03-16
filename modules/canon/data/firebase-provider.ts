@@ -5,7 +5,8 @@
  * Called from api.ts only — never imported directly from UI or logic.
  */
 
-import { Aisle, Unit } from '../../../types/contract';
+import { Aisle, Unit, CanonicalItemSchema, AisleSnapshotSchema, UnitIntelligenceSchema, ShoppingIntelligenceSchema } from '../../../types/contract';
+import type { AisleSnapshot, UnitIntelligence, ShoppingIntelligence } from '../../../types/contract';
 import { CofIDItem } from '../types';
 import { db } from '../../../shared/backend/firebase';
 import {
@@ -76,6 +77,52 @@ function withCofidSource(
 
 function withoutCofidSource(existingSources: ExternalSourceLink[] | undefined): ExternalSourceLink[] {
   return (existingSources ?? []).filter(source => source.source !== 'cofid');
+}
+
+/**
+ * Resolve aisle snapshot from the canonAisles collection.
+ * Returns tier1/tier2/tier3 values for embedding in a canon item.
+ * Falls back to 'Uncategorised' if the aisle doc is not found.
+ */
+async function resolveAisleSnapshot(aisleId: string): Promise<AisleSnapshot> {
+  if (!aisleId || aisleId === 'uncategorised') {
+    return { tier1: 'Uncategorised', tier2: 'Uncategorised', tier3: 'Uncategorised' };
+  }
+  const aisleDoc = await getDoc(doc(db, CANON_AISLES_COLLECTION, aisleId));
+  if (!aisleDoc.exists()) {
+    return { tier1: 'Uncategorised', tier2: 'Uncategorised', tier3: 'Uncategorised' };
+  }
+  const data = aisleDoc.data();
+  return {
+    tier1: data.name ?? 'Uncategorised',
+    tier2: data.tier2 ?? '',
+    tier3: data.tier3 ?? '',
+  };
+}
+
+/**
+ * Propagate an aisle rename to all items that reference the given aisleId.
+ * Called after updateCanonAisle and mergeCanonAisles to keep snapshots consistent.
+ * Returns the number of items updated.
+ */
+export async function syncAisleSnapshots(
+  aisleId: string,
+  newSnapshot: AisleSnapshot
+): Promise<number> {
+  const snapshot = await getDocs(collection(db, CANON_ITEMS_COLLECTION));
+  const BATCH_LIMIT = 450;
+  let count = 0;
+
+  const affected = snapshot.docs.filter(d => d.data().aisleId === aisleId);
+  for (let i = 0; i < affected.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    const chunk = affected.slice(i, i + BATCH_LIMIT);
+    chunk.forEach(d => batch.update(d.ref, { aisle: newSnapshot }));
+    await batch.commit();
+    count += chunk.length;
+  }
+
+  return count;
 }
 
 function normaliseEmbeddingName(value: string): string {
@@ -213,19 +260,10 @@ export async function updateCanonUnit(
 
 /**
  * Delete a canon unit.
- * Checks if any canon items reference this unit.
+ * Units are now embedded in each item (no FK reference), so deletion is always safe.
  */
 export async function deleteCanonUnit(id: string): Promise<void> {
   const docRef = doc(db, CANON_UNITS_COLLECTION, id);
-  
-  // Check if any canon items reference this unit
-  const itemsSnapshot = await getDocs(collection(db, CANON_ITEMS_COLLECTION));
-  const hasReferences = itemsSnapshot.docs.some(doc => doc.data().preferredUnitId === id);
-  
-  if (hasReferences) {
-    throw new Error(`Cannot delete unit: ${id} is in use by ${itemsSnapshot.docs.filter(doc => doc.data().preferredUnitId === id).length} canon items`);
-  }
-  
   await deleteDoc(docRef);
 }
 
@@ -278,6 +316,7 @@ export async function createCanonAisle(input: {
 
 /**
  * Update an existing canon aisle.
+ * Propagates any tier changes to the embedded snapshots on all referencing items.
  */
 export async function updateCanonAisle(
   id: string,
@@ -285,6 +324,12 @@ export async function updateCanonAisle(
 ): Promise<void> {
   const docRef = doc(db, CANON_AISLES_COLLECTION, id);
   await updateDoc(docRef, updates);
+
+  // Propagate snapshot if any display fields changed
+  if (updates.name !== undefined || updates.tier2 !== undefined || updates.tier3 !== undefined) {
+    const newSnapshot = await resolveAisleSnapshot(id);
+    await syncAisleSnapshots(id, newSnapshot);
+  }
 }
 
 /**
@@ -334,22 +379,41 @@ export async function fetchCanonItems(): Promise<CanonItem[]> {
 
   snapshot.forEach(docSnap => {
     const data = docSnap.data();
-    items.push({
-      id: docSnap.id,
-      name: data.name,
-      normalisedName: data.normalisedName ?? String(data.name ?? '').toLowerCase(),
-      aisleId: data.aisleId,
-      preferredUnitId: data.preferredUnitId,
-      needsReview: data.needsReview ?? true,
-      isStaple: data.isStaple ?? false,
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt,
-      metadata: data.metadata,
-      externalSources: Array.isArray(data.externalSources) ? data.externalSources : undefined,
-    });
+    items.push(deserializeCanonItem(docSnap.id, data));
   });
 
   return items;
+}
+
+/**
+ * Deserialize a Firestore doc into a typed CanonItem (v3 schema).
+ * Applies safe defaults so stale/partial docs don't cause runtime errors.
+ */
+function deserializeCanonItem(id: string, data: Record<string, any>): CanonItem {
+  return {
+    id,
+    name: data.name ?? '',
+    normalisedName: data.normalisedName ?? String(data.name ?? '').toLowerCase(),
+    synonyms: Array.isArray(data.synonyms) ? data.synonyms : [],
+    aisleId: data.aisleId ?? 'uncategorised',
+    aisle: data.aisle ?? { tier1: 'Uncategorised', tier2: 'Uncategorised', tier3: 'Uncategorised' },
+    unit: data.unit ?? { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+    shopping: data.shopping,
+    isStaple: data.isStaple ?? false,
+    itemType: data.itemType ?? 'ingredient',
+    allergens: Array.isArray(data.allergens) ? data.allergens : [],
+    barcodes: Array.isArray(data.barcodes) ? data.barcodes : [],
+    externalSources: Array.isArray(data.externalSources) ? data.externalSources : [],
+    metadata: data.metadata,
+    embedding: data.embedding,
+    embeddingModel: data.embeddingModel,
+    embeddedAt: data.embeddedAt,
+    createdAt: data.createdAt ?? new Date().toISOString(),
+    createdBy: data.createdBy,
+    approved: data.approved ?? !(data.needsReview ?? false), // migrate: needsReview=true → approved=false
+    lastSyncedAt: data.lastSyncedAt,
+    matchingAudit: data.matchingAudit,
+  };
 }
 
 /**
@@ -363,53 +427,61 @@ export async function fetchCanonItemById(id: string): Promise<CanonItem | null> 
     return null;
   }
 
-  const data = docSnap.data();
-  return {
-    id: docSnap.id,
-    name: data.name,
-    normalisedName: data.normalisedName ?? String(data.name ?? '').toLowerCase(),
-    aisleId: data.aisleId,
-    preferredUnitId: data.preferredUnitId,
-    needsReview: data.needsReview ?? true,
-      isStaple: data.isStaple ?? false,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-    metadata: data.metadata,
-    externalSources: Array.isArray(data.externalSources) ? data.externalSources : undefined,
-  };
+  return deserializeCanonItem(docSnap.id, docSnap.data() as Record<string, any>);
 }
 
 /**
- * Create a new canon item.
+ * Create a new canon item (v3 schema).
+ * Resolves the aisle snapshot from canonAisles so the item is self-contained.
  * Returns the newly created item with its Firestore-generated ID.
  */
 export async function createCanonItem(input: {
   name: string;
   aisleId: string;
-  preferredUnitId: string;
-  needsReview?: boolean;
+  unit?: Partial<UnitIntelligence>;
+  shopping?: Partial<ShoppingIntelligence>;
+  itemType?: 'ingredient' | 'product' | 'household';
+  synonyms?: string[];
+  allergens?: string[];
+  isStaple?: boolean;
+  approved?: boolean;
 }): Promise<CanonItem> {
   const now = new Date().toISOString();
-  const lowerName = input.name.toLowerCase();
-  const docRef = await addDoc(collection(db, CANON_ITEMS_COLLECTION), {
+  const lowerName = input.name.toLowerCase().trim();
+
+  const aisleSnapshot = await resolveAisleSnapshot(input.aisleId);
+
+  const unitData: UnitIntelligence = {
+    canonical_unit_type: input.unit?.canonical_unit_type ?? 'mass',
+    canonical_unit: input.unit?.canonical_unit ?? 'g',
+    density_g_per_ml: input.unit?.density_g_per_ml ?? null,
+    count_equivalents: input.unit?.count_equivalents,
+    volume_equivalents: input.unit?.volume_equivalents,
+  };
+
+  const firestoreDoc = {
     name: lowerName,
     normalisedName: lowerName,
+    synonyms: input.synonyms ?? [],
     aisleId: input.aisleId,
-    preferredUnitId: input.preferredUnitId,
-    needsReview: input.needsReview ?? true,
-    isStaple: false,
+    aisle: aisleSnapshot,
+    unit: unitData,
+    ...(input.shopping ? { shopping: input.shopping } : {}),
+    isStaple: input.isStaple ?? false,
+    itemType: input.itemType ?? 'ingredient',
+    allergens: input.allergens ?? [],
+    barcodes: [],
+    externalSources: [],
+    approved: input.approved ?? false,
     createdAt: now,
-  });
+  };
+
+  const docRef = await addDoc(collection(db, CANON_ITEMS_COLLECTION), firestoreDoc);
 
   const createdItem: CanonItem = {
     id: docRef.id,
-    name: lowerName,
-    normalisedName: lowerName,
-    aisleId: input.aisleId,
-    preferredUnitId: input.preferredUnitId,
-    needsReview: input.needsReview ?? true,
-    isStaple: false,
-    createdAt: now,
+    ...firestoreDoc,
+    shopping: input.shopping as ShoppingIntelligence | undefined,
   };
 
   // Keep canon embedding lookup fresh for semantic matching.
@@ -427,26 +499,37 @@ export async function createCanonItem(input: {
 }
 
 /**
- * Update an existing canon item.
+ * Update an existing canon item (v3 schema).
+ * If aisleId changes, re-resolves the aisle snapshot automatically.
  */
 export async function updateCanonItem(
   id: string,
-  updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId' | 'needsReview' | 'isStaple'>>
+  updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'unit' | 'shopping' | 'isStaple' | 'itemType' | 'allergens' | 'synonyms' | 'approved' | 'barcodes' | 'metadata'>>
 ): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
-  const payload: Record<string, unknown> = {
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
+  const payload: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 
   if (typeof updates.name === 'string') {
-    payload.name = updates.name.toLowerCase();
-    payload.normalisedName = updates.name.toLowerCase();
+    payload.name = updates.name.toLowerCase().trim();
+    payload.normalisedName = updates.name.toLowerCase().trim();
   }
 
-  await updateDoc(docRef, {
-    ...payload,
-  });
+  if (updates.aisleId !== undefined) {
+    payload.aisleId = updates.aisleId;
+    payload.aisle = await resolveAisleSnapshot(updates.aisleId);
+  }
+
+  if (updates.unit !== undefined) payload.unit = updates.unit;
+  if (updates.shopping !== undefined) payload.shopping = updates.shopping;
+  if (updates.isStaple !== undefined) payload.isStaple = updates.isStaple;
+  if (updates.itemType !== undefined) payload.itemType = updates.itemType;
+  if (updates.allergens !== undefined) payload.allergens = updates.allergens;
+  if (updates.synonyms !== undefined) payload.synonyms = updates.synonyms;
+  if (updates.approved !== undefined) payload.approved = updates.approved;
+  if (updates.barcodes !== undefined) payload.barcodes = updates.barcodes;
+  if (updates.metadata !== undefined) payload.metadata = updates.metadata;
+
+  await updateDoc(docRef, payload);
 
   // Refresh embedding when the query text changes (rename).
   if (typeof updates.name === 'string') {
@@ -478,7 +561,7 @@ export async function approveCanonItem(id: string): Promise<void> {
   const cofidSource = getCofidSourceFromExternalSources(existingSources);
 
   const updates: any = {
-    needsReview: false,
+    approved: true,
     updatedAt: new Date().toISOString(),
   };
 
@@ -867,8 +950,6 @@ export async function suggestCofidForCanonItem(
   return { bestMatch, candidates };
 }
 
-/**
-
 // ── Seed Operations (batch writes) ───────────────────────────────────────────
 
 /**
@@ -915,6 +996,84 @@ export async function seedUnits(units: Unit[]): Promise<void> {
   await batch.commit();
 }
 
+
+/**
+ * Batch seed canonical items (v3 schema) into canonItems collection.
+ * Idempotent — uses setDoc with item.id as the document ID.
+ * Resolves aisle snapshots from canonAisles if the snapshot is missing.
+ *
+ * @param items  Raw item records (validated against CanonicalItemSchema)
+ * @param onProgress  Optional progress callback (processed, total)
+ * @param signal  AbortSignal for cancellation
+ */
+export async function seedCanonItems(
+  items: unknown[],
+  onProgress?: (processed: number, total: number) => void,
+  signal?: AbortSignal
+): Promise<{ imported: number; failed: number; errors: Array<{ id: string; reason: string }> }> {
+  const BATCH_SIZE = 50;
+  const results = { imported: 0, failed: 0, errors: [] as Array<{ id: string; reason: string }> };
+
+  // Pre-load all aisles for snapshot resolution
+  const allAisles = await fetchCanonAisles();
+  const aisleById = new Map(allAisles.map(a => [a.id, a]));
+
+  const validItems: Array<{ id: string; doc: Record<string, unknown> }> = [];
+
+  for (const raw of items) {
+    if (signal?.aborted) throw new Error('Seeding cancelled by user');
+
+    const parsed = CanonicalItemSchema.safeParse(raw);
+    if (!parsed.success) {
+      const id = (raw as any)?.id ?? 'unknown';
+      results.errors.push({ id, reason: parsed.error.issues.map(i => i.message).join('; ') });
+      results.failed++;
+      continue;
+    }
+
+    const item = parsed.data;
+
+    // Resolve aisle snapshot if not already present or if it looks like a default placeholder
+    let aisleSnapshot = item.aisle;
+    if (!aisleSnapshot.tier1 || aisleSnapshot.tier1 === 'Uncategorised') {
+      const aisleDoc = aisleById.get(item.aisleId);
+      if (aisleDoc) {
+        aisleSnapshot = { tier1: aisleDoc.name, tier2: aisleDoc.tier2, tier3: aisleDoc.tier3 };
+      }
+    }
+
+    validItems.push({
+      id: item.id,
+      doc: { ...item, aisle: aisleSnapshot },
+    });
+  }
+
+  for (let i = 0; i < validItems.length; i += BATCH_SIZE) {
+    if (signal?.aborted) throw new Error('Seeding cancelled by user');
+
+    const chunk = validItems.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+
+    for (const { id, doc: itemDoc } of chunk) {
+      const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
+      batch.set(docRef, itemDoc);
+    }
+
+    try {
+      await batch.commit();
+      results.imported += chunk.length;
+      onProgress?.(results.imported, validItems.length);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      for (const { id } of chunk) {
+        results.errors.push({ id, reason: `Batch write failed: ${errorMsg}` });
+        results.failed++;
+      }
+    }
+  }
+
+  return results;
+}
 
 /**
  * Batch write CofID items to canonCofidItems collection.

@@ -27,12 +27,16 @@ import {
   findItemById,
   findItemByName,
   normalizeItemName,
-  filterItemsNeedingReview,
+  filterUnapprovedItems,
   filterItemsByAisle,
   validateItemDoc,
   CanonItem,
 } from '../logic/items';
 import { Aisle, Unit } from '../../../types/contract';
+
+const DEFAULT_UNIT: CanonItem['unit'] = { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null };
+const DEFAULT_AISLE: CanonItem['aisle'] = { tier1: 'produce', tier2: 'fresh', tier3: 'food' };
+const BASE_ITEM = { normalisedName: '', synonyms: [] as string[], itemType: 'ingredient' as const, allergens: [] as string[], barcodes: [] as string[], externalSources: [] as CanonItem['externalSources'] };
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -55,11 +59,11 @@ const UNITS: Unit[] = [
 ];
 
 const ITEMS: CanonItem[] = [
-  { id: 'item-carrot', name: 'Carrot', aisleId: 'produce', preferredUnitId: 'g', needsReview: false, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'item-onion', name: 'Onion', aisleId: 'produce', preferredUnitId: 'g', needsReview: true, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'item-butter', name: 'Butter', aisleId: 'dairy-eggs', preferredUnitId: 'g', needsReview: false, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'item-salt', name: 'Salt', aisleId: 'pantry', preferredUnitId: 'pinch', needsReview: true, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'item-apple', name: 'Apple', aisleId: 'produce', preferredUnitId: 'g', needsReview: false, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { ...BASE_ITEM, id: 'item-carrot', name: 'Carrot', normalisedName: 'carrot', aisleId: 'produce', aisle: DEFAULT_AISLE, unit: DEFAULT_UNIT, approved: true, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { ...BASE_ITEM, id: 'item-onion', name: 'Onion', normalisedName: 'onion', aisleId: 'produce', aisle: DEFAULT_AISLE, unit: DEFAULT_UNIT, approved: false, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { ...BASE_ITEM, id: 'item-butter', name: 'Butter', normalisedName: 'butter', aisleId: 'dairy-eggs', aisle: { tier1: 'dairy & eggs', tier2: 'chilled', tier3: 'food' }, unit: DEFAULT_UNIT, approved: true, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { ...BASE_ITEM, id: 'item-salt', name: 'Salt', normalisedName: 'salt', aisleId: 'pantry', aisle: { tier1: 'pantry', tier2: 'ambient', tier3: 'food' }, unit: DEFAULT_UNIT, approved: false, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
+  { ...BASE_ITEM, id: 'item-apple', name: 'Apple', normalisedName: 'apple', aisleId: 'produce', aisle: DEFAULT_AISLE, unit: DEFAULT_UNIT, approved: true, isStaple: false, createdAt: '2024-01-01T00:00:00.000Z' },
 ];
 
 // ── sortAisles ────────────────────────────────────────────────────────────────
@@ -429,17 +433,17 @@ describe('findItemByName', () => {
   });
 });
 
-// ── filterItemsNeedingReview ──────────────────────────────────────────────────
+// ── filterUnapprovedItems ─────────────────────────────────────────────────────
 
-describe('filterItemsNeedingReview', () => {
-  it('returns only items where needsReview is true', () => {
-    const result = filterItemsNeedingReview(ITEMS);
+describe('filterUnapprovedItems', () => {
+  it('returns only items where approved is false', () => {
+    const result = filterUnapprovedItems(ITEMS);
     expect(result.map(i => i.id)).toEqual(['item-onion', 'item-salt']);
   });
 
-  it('returns an empty array when no items need review', () => {
-    const noReview = ITEMS.map(i => ({ ...i, needsReview: false }));
-    expect(filterItemsNeedingReview(noReview)).toEqual([]);
+  it('returns an empty array when all items are approved', () => {
+    const allApproved = ITEMS.map(i => ({ ...i, approved: true }));
+    expect(filterUnapprovedItems(allApproved)).toEqual([]);
   });
 });
 
@@ -459,31 +463,35 @@ describe('filterItemsByAisle', () => {
 // ── validateItemDoc ───────────────────────────────────────────────────────────
 
 describe('validateItemDoc', () => {
-  it('accepts a valid item document', () => {
+  it('accepts a valid v3 item document', () => {
     const doc = {
       id: 'item-carrot',
       name: 'Carrot',
+      normalisedName: 'carrot',
       aisleId: 'produce',
-      preferredUnitId: 'g',
-      needsReview: false,
+      aisle: { tier1: 'produce', tier2: 'fresh', tier3: 'food' },
+      unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+      approved: true,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
     const result = validateItemDoc(doc);
     expect(result.success).toBe(true);
   });
 
-  it('applies the default needsReview (true) when omitted', () => {
+  it('applies the default approved (true) when omitted', () => {
     const doc = {
       id: 'item-carrot',
       name: 'Carrot',
+      normalisedName: 'carrot',
       aisleId: 'produce',
-      preferredUnitId: 'g',
+      aisle: { tier1: 'produce', tier2: 'fresh', tier3: 'food' },
+      unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
       createdAt: '2024-01-01T00:00:00.000Z',
     };
     const result = validateItemDoc(doc);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.needsReview).toBe(true);
+      expect(result.data.approved).toBe(true);
     }
   });
 
@@ -491,9 +499,10 @@ describe('validateItemDoc', () => {
     const doc = {
       id: 'item-carrot',
       name: '',
+      normalisedName: '',
       aisleId: 'produce',
-      preferredUnitId: 'g',
-      needsReview: false,
+      aisle: { tier1: 'produce', tier2: 'fresh', tier3: 'food' },
+      unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
       createdAt: '2024-01-01T00:00:00.000Z',
     };
     const result = validateItemDoc(doc);
@@ -504,22 +513,5 @@ describe('validateItemDoc', () => {
     const doc = { id: 'item-carrot', name: 'Carrot' };
     const result = validateItemDoc(doc);
     expect(result.success).toBe(false);
-  });
-
-  it('accepts a document with an optional updatedAt field', () => {
-    const doc = {
-      id: 'item-carrot',
-      name: 'Carrot',
-      aisleId: 'produce',
-      preferredUnitId: 'g',
-      needsReview: false,
-      createdAt: '2024-01-01T00:00:00.000Z',
-      updatedAt: '2024-06-01T00:00:00.000Z',
-    };
-    const result = validateItemDoc(doc);
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.updatedAt).toBe('2024-06-01T00:00:00.000Z');
-    }
   });
 });

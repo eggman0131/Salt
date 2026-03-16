@@ -22,6 +22,7 @@ import {
   deleteAllCanonItems,
   seedAisles,
   seedUnits,
+  seedCanonItems as seedCanonItemsFn,
   fetchCofidItemById,
   linkCofidMatchToCanonItem,
   unlinkCofidMatchFromCanonItem,
@@ -34,6 +35,7 @@ import {
   updateCanonUnit,
   deleteCanonUnit,
   reorderCanonUnits,
+  syncAisleSnapshots,
 } from './data/firebase-provider';
 import {
   fetchMatchEvents,
@@ -82,23 +84,30 @@ export async function getCanonItemById(id: string): Promise<CanonItem | null> {
 }
 
 /**
- * Create a new canon item.
+ * Create a new canon item (v3 schema).
+ * aisleId is required; the aisle snapshot is resolved automatically from canonAisles.
  */
 export async function addCanonItem(input: {
   name: string;
   aisleId: string;
-  preferredUnitId: string;
-  needsReview?: boolean;
+  unit?: Parameters<typeof createCanonItem>[0]['unit'];
+  shopping?: Parameters<typeof createCanonItem>[0]['shopping'];
+  itemType?: 'ingredient' | 'product' | 'household';
+  synonyms?: string[];
+  allergens?: string[];
+  isStaple?: boolean;
+  approved?: boolean;
 }): Promise<CanonItem> {
   return createCanonItem(input);
 }
 
 /**
  * Update an existing canon item.
+ * If aisleId is updated, the aisle snapshot is re-resolved automatically.
  */
 export async function editCanonItem(
   id: string,
-  updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'preferredUnitId' | 'needsReview' | 'isStaple'>>
+  updates: Partial<Pick<CanonItem, 'name' | 'aisleId' | 'unit' | 'shopping' | 'isStaple' | 'itemType' | 'allergens' | 'synonyms' | 'approved' | 'barcodes' | 'metadata'>>
 ): Promise<void> {
   return updateCanonItem(id, updates);
 }
@@ -149,11 +158,13 @@ export async function addCanonAisle(input: {
 
 /**
  * Update an existing canon aisle.
+ * Automatically propagates tier changes to the embedded aisle snapshots on all items.
  */
 export async function editCanonAisle(
   id: string,
   updates: Partial<Pick<Aisle, 'name' | 'tier2' | 'tier3' | 'sortOrder'>>
 ): Promise<void> {
+  // updateCanonAisle already calls syncAisleSnapshots internally
   return updateCanonAisle(id, updates);
 }
 
@@ -252,7 +263,7 @@ export {
   findItemById,
   findItemByName,
   normalizeItemName,
-  filterItemsNeedingReview,
+  filterUnapprovedItems,
   filterItemsByAisle,
   validateItemDoc,
 } from './logic/items';
@@ -380,6 +391,19 @@ export async function seedCanonAisles(aisles: Aisle[]): Promise<void> {
  */
 export async function seedCanonUnits(units: Unit[]): Promise<void> {
   return seedUnits(units);
+}
+
+/**
+ * Batch seed canonical items (v3 schema) into canonItems collection.
+ * Validates each item against CanonicalItemSchema, resolves aisle snapshots,
+ * and writes in 50-item batches.
+ */
+export async function seedItems(
+  items: unknown[],
+  onProgress?: (processed: number, total: number) => void,
+  signal?: AbortSignal
+): Promise<{ imported: number; failed: number; errors: Array<{ id: string; reason: string }> }> {
+  return seedCanonItemsFn(items, onProgress, signal);
 }
 
 /**

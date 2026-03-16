@@ -5,8 +5,14 @@
  * All functions are synchronous, deterministic, and fully testable.
  */
 
-import { CofidMatch } from './items';
 import type { CofIDItem } from '../types';
+
+export interface CofidMatch {
+  status: 'auto' | 'manual';
+  method: 'exact' | 'fuzzy' | 'semantic';
+  score: number;
+  matchedAt: string;
+}
 
 export interface SuggestedMatch {
   cofidId: string;

@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import type { Aisle, Unit } from '@/types/contract';
+import type { Aisle } from '@/types/contract';
 import { type CanonItem, normalizeItemName } from '../api';
 import {
   getCanonItemMergeImpact,
@@ -42,7 +42,6 @@ interface Props {
   itemA: CanonItem;
   itemB: CanonItem;
   aisles: Aisle[];
-  units: Unit[];
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -66,7 +65,6 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
   itemA,
   itemB,
   aisles,
-  units,
   onSuccess,
   onCancel,
 }) => {
@@ -79,7 +77,7 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
   // Edit step state — initialised when primary is chosen
   const [name, setName] = useState('');
   const [aisleId, setAisleId] = useState('');
-  const [preferredUnitId, setPreferredUnitId] = useState('');
+  const [unitType, setUnitType] = useState<'mass' | 'volume' | 'count'>('mass');
   const [synonymsText, setSynonymsText] = useState('');
 
   // Load impact on open
@@ -111,7 +109,7 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
     // Pre-fill edit form from primary
     setName(primary.name);
     setAisleId(primary.aisleId);
-    setPreferredUnitId(primary.preferredUnitId);
+    setUnitType(primary.unit?.canonical_unit_type ?? 'mass');
 
     // Union synonyms from both items, and always include the secondary's name
     const allSynonyms = Array.from(
@@ -131,11 +129,12 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
     if (!primary || !secondary) return;
 
     const normalizedName = normalizeItemName(name);
-    if (!normalizedName || !aisleId || !preferredUnitId) {
-      softToast.error('All fields are required');
+    if (!normalizedName || !aisleId) {
+      softToast.error('Name and aisle are required');
       return;
     }
 
+    const canonicalUnit = unitType === 'mass' ? 'g' : unitType === 'volume' ? 'ml' : 'each';
     const synonyms = synonymsText
       .split(',')
       .map(s => s.trim())
@@ -146,7 +145,11 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
       await mergeCanonItems(primary, secondary, {
         name: normalizedName,
         aisleId,
-        preferredUnitId,
+        unit: {
+          ...(primary.unit ?? { density_g_per_ml: null }),
+          canonical_unit_type: unitType,
+          canonical_unit: canonicalUnit,
+        },
         synonyms,
       });
       softToast.success(`Merged "${secondary.name}" into "${normalizedName}"`);
@@ -219,8 +222,6 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
                     const imp = impactFor(item);
                     const cofidId = getCofidId(item);
                     const cofidName = getCofidName(item);
-                    const aisle = aisles.find(a => a.id === item.aisleId);
-                    const unit = units.find(u => u.id === item.preferredUnitId);
                     const isSelected = primaryId === item.id;
 
                     return (
@@ -243,8 +244,8 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
                         </div>
 
                         <div className="space-y-1 text-xs text-muted-foreground">
-                          <p><span className="text-foreground">Aisle:</span> {aisle?.name ?? item.aisleId}</p>
-                          <p><span className="text-foreground">Unit:</span> {unit?.name ?? item.preferredUnitId}</p>
+                          <p><span className="text-foreground">Aisle:</span> {item.aisle?.tier1 ?? item.aisleId}</p>
+                          <p><span className="text-foreground">Unit:</span> {item.unit?.canonical_unit ?? '—'}</p>
                           {cofidId && (
                             <p>
                               <span className="text-foreground">CoFID:</span>{' '}
@@ -361,19 +362,24 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
                 </Select>
               </div>
 
-              {/* Unit */}
+              {/* Unit type */}
               <div className="space-y-1.5">
-                <Label>Preferred unit</Label>
-                <Select value={preferredUnitId} onValueChange={setPreferredUnitId} disabled={isSubmitting}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select unit…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {units.map(u => (
-                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Unit type</Label>
+                <div className="flex gap-2">
+                  {(['mass', 'volume', 'count'] as const).map(type => (
+                    <Button
+                      key={type}
+                      type="button"
+                      variant={unitType === type ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setUnitType(type)}
+                      disabled={isSubmitting}
+                      className="flex-1"
+                    >
+                      {type === 'mass' ? 'Mass (g)' : type === 'volume' ? 'Volume (ml)' : 'Count (each)'}
+                    </Button>
+                  ))}
+                </div>
               </div>
 
               {/* Synonyms */}

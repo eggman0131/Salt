@@ -48,7 +48,7 @@ export interface IngredientRef {
 export interface CanonItemSplitDef {
   name: string;
   aisleId: string;
-  preferredUnitId: string;
+  unit?: import('../../../types/contract').UnitIntelligence;
 }
 
 export interface AisleSplitDef {
@@ -118,8 +118,8 @@ export async function splitCanonItem(
   const newItem = await createCanonItem({
     name: newItemDef.name,
     aisleId: newItemDef.aisleId,
-    preferredUnitId: newItemDef.preferredUnitId,
-    needsReview: false, // user is explicitly creating it
+    unit: newItemDef.unit,
+    approved: true, // user is explicitly creating it via split
   });
 
   // 2. Fire-and-forget CoFID suggestion
@@ -194,14 +194,15 @@ export async function splitCanonAisle(
   const idSet = new Set(moveCanonItemIds);
   const BATCH_SIZE = 499;
 
-  // 2. Update canonItems for selected items
+  // 2. Update canonItems for selected items (set new aisleId + aisle snapshot)
+  const newSnapshot = { tier1: newAisle.name, tier2: newAisle.tier2, tier3: newAisle.tier3 };
   const itemsSnap = await getDocs(collection(db, CANON_ITEMS_COLLECTION));
   let batch = writeBatch(db);
   let count = 0;
 
   for (const d of itemsSnap.docs) {
     if (!idSet.has(d.id)) continue;
-    batch.update(d.ref, { aisleId: newAisle.id });
+    batch.update(d.ref, { aisleId: newAisle.id, aisle: newSnapshot });
     count++;
     if (count >= BATCH_SIZE) {
       await batch.commit();

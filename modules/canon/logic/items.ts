@@ -1,72 +1,28 @@
 /**
  * Canon Items — Pure logic layer
  *
- * Zod schema and deterministic helper functions for canonical items.
+ * Re-exports the canonical item schema from types/contract.ts (single source of truth)
+ * and provides deterministic helper functions for item operations.
  * No I/O, no side effects, fully testable.
+ *
+ * Architecture note:
+ *   canonUnits collection = parse vocabulary (controlled unit names for AI prompts)
+ *   CanonItem.unit         = conversion intelligence (per-ingredient density, weights, volumes)
  */
 
 import { z } from 'zod';
+import {
+  CanonicalItemSchema,
+  ExternalSourceLinkSchema,
+} from '../../../types/contract';
 
-export const ExternalSourceLinkSchema = z.object({
-  source: z.string(),
-  externalId: z.string(),
-  confidence: z.number().min(0).max(1).optional(),
-  properties: z.record(z.string(), z.unknown()).optional(),
-  syncedAt: z.string().optional(),
-});
-
-export type ExternalSourceLink = z.infer<typeof ExternalSourceLinkSchema>;
-
-/** CofID match metadata (PR4-B) */
-export const CofidMatchSchema = z.object({
-  status: z.enum(['auto', 'manual', 'unlinked']).default('auto'),
-  method: z.enum(['exact', 'fuzzy', 'semantic']).nullable(),
-  score: z.number().min(0).max(1).nullable(),
-  matchedAt: z.string(),
-  candidates: z
-    .array(
-      z.object({
-        cofidId: z.string(),
-        name: z.string(),
-        score: z.number().min(0).max(1),
-        method: z.string(),
-      })
-    )
-    .optional(),
-});
-
-export type CofidMatch = z.infer<typeof CofidMatchSchema>;
-
-/** Nutrient data snapshot (simplified) (PR4-B) */
-export const NutrientSchema = z.object({
-  energy_kcal: z.number().optional(),
-  protein_g: z.number().optional(),
-  fat_g: z.number().optional(),
-  carbs_g: z.number().optional(),
-  fiber_g: z.number().optional(),
-  sodium_mg: z.number().optional(),
-  saturated_fat_g: z.number().optional(),
-});
-
-export type Nutrients = z.infer<typeof NutrientSchema>;
-
-/** Zod schema for a canon item document */
-export const CanonItemSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  normalisedName: z.string().optional(),
-  aisleId: z.string().min(1),
-  preferredUnitId: z.string().min(1),
-  needsReview: z.boolean().default(true),
-  isStaple: z.boolean().default(false),  // storecupboard/pantry item — not auto-added to shopping list
-  createdAt: z.string(),
-  updatedAt: z.string().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-  externalSources: z.array(ExternalSourceLinkSchema).optional(),
-  synonyms: z.array(z.string()).optional(),
-});
-
+// Re-export the canonical schema — module schema is now the contract schema.
+// This eliminates the historical divergence between contract.ts and items.ts.
+export const CanonItemSchema = CanonicalItemSchema;
 export type CanonItem = z.infer<typeof CanonItemSchema>;
+
+export { ExternalSourceLinkSchema };
+export type ExternalSourceLink = z.infer<typeof ExternalSourceLinkSchema>;
 
 /** Result of an item lookup */
 export type ItemLookupResult =
@@ -109,21 +65,22 @@ export function findItemByName(items: CanonItem[], name: string): ItemLookupResu
 }
 
 /**
- * Filter items that need review (needsReview = true).
+ * Filter items that have not yet been approved (approved = false).
+ * These are auto-created items that require human review.
  */
-export function filterItemsNeedingReview(items: CanonItem[]): CanonItem[] {
-  return items.filter(item => item.needsReview);
+export function filterUnapprovedItems(items: CanonItem[]): CanonItem[] {
+  return items.filter(item => !item.approved);
 }
 
 /**
- * Filter items by aisle ID.
+ * Filter items by aisle ID (FK reference, not snapshot).
  */
 export function filterItemsByAisle(items: CanonItem[], aisleId: string): CanonItem[] {
   return items.filter(item => item.aisleId === aisleId);
 }
 
 /**
- * Validate a raw item document against the module schema.
+ * Validate a raw item document against the canon item schema.
  * Returns a Zod SafeParseReturnType so callers can handle errors.
  */
 export function validateItemDoc(doc: unknown) {

@@ -392,8 +392,15 @@ describe('Contract Runtime Validation - CanonicalItem', () => {
     name: 'Onion',
     normalisedName: 'onion',
     isStaple: true,
-    aisle: 'Produce',
-    preferredUnit: 'g',
+    aisleId: 'produce',
+    aisle: { tier1: 'produce', tier2: 'fresh', tier3: 'food' },
+    unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+    synonyms: [],
+    itemType: 'ingredient',
+    allergens: [],
+    barcodes: [],
+    externalSources: [],
+    approved: true,
     createdAt: new Date().toISOString(),
   };
 
@@ -407,18 +414,19 @@ describe('Contract Runtime Validation - CanonicalItem', () => {
       id: 'item-tomato',
       name: 'Tomato',
       isStaple: false,
-      aisle: 'Produce',
-      preferredUnit: 'g',
+      aisleId: 'produce',
+      aisle: { tier1: 'produce', tier2: 'fresh', tier3: 'food' },
+      unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
       createdAt: new Date().toISOString(),
     };
     const result = CanonicalItemSchema.safeParse(invalid);
     expect(result.success).toBe(false);
   });
 
-  it('should allow optional metadata', () => {
+  it('should allow optional metadata with notes and confidence', () => {
     const result = CanonicalItemSchema.safeParse({
       ...validItem,
-      metadata: { color: 'white', texture: 'papery' },
+      metadata: { notes: 'Pungent when raw', confidence: 0.9 },
     });
     expect(result.success).toBe(true);
   });

@@ -40,16 +40,15 @@ interface MatchingPipelineContext {
 }
 
 async function loadMatchingContext(): Promise<MatchingPipelineContext> {
-  const [canonItems, embeddingLookup, units] = await Promise.all([
+  const [canonItems, embeddingLookup] = await Promise.all([
     fetchCanonItems(),
     fetchEmbeddingsFromLookup().catch(() => []),
-    fetchCanonUnits(),
   ]);
 
   return {
     canonItems,
     embeddingLookup,
-    units,
+    units: [], // kept in context type for compatibility; no longer used for unit resolution
   };
 }
 
@@ -553,26 +552,14 @@ export async function matchAndLinkRecipeIngredient(
       };
     }
 
-    // Create pending canon item
-    // Infer aisle and unit from parsed data or use defaults
+    // Create pending canon item — minimal v3 schema, requires human review
     const inferredAisleId = effectiveAisleId || 'uncategorised';
-    
-    // Find preferred unit ID from parsed unit name
-    let preferredUnitId = 'g'; // Default to grams
-    if (ingredient.unit) {
-      const matchedUnit = units.find(
-        u => u.name.toLowerCase() === ingredient.unit!.toLowerCase()
-      );
-      if (matchedUnit) {
-        preferredUnitId = matchedUnit.id;
-      }
-    }
 
     const newCanonItem = await createCanonItem({
       name: ingredient.ingredientName,
       aisleId: inferredAisleId,
-      preferredUnitId,
-      needsReview: true, // Always requires review
+      unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+      approved: false, // Always requires review
     });
 
     // Log match decision event
@@ -595,7 +582,6 @@ export async function matchAndLinkRecipeIngredient(
         stage: decision.stage,
         reason: decision.reason,
         inferredAisleId,
-        preferredUnitId,
         candidates: decision.candidates.slice(0, 5).map(c => ({ id: c.canonItemId, name: c.name, score: c.score, method: c.method, reason: c.reason })),
       },
       metrics: {

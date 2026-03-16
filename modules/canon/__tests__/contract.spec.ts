@@ -81,15 +81,23 @@ const UNITS_FIXTURE: Unit[] = [
   },
 ];
 
+const DEFAULT_UNIT = { canonical_unit_type: 'mass' as const, canonical_unit: 'g' as const, density_g_per_ml: null };
+const DEFAULT_AISLE = { tier1: 'produce', tier2: 'fresh', tier3: 'food' };
+
 const CANONICAL_ITEMS_FIXTURE: CanonicalItem[] = [
   {
     id: 'canon-tomato',
     name: 'Tomato',
     normalisedName: 'tomato',
     isStaple: false,
-    aisle: 'Produce',
-    preferredUnit: 'g',
+    aisleId: 'produce',
+    aisle: DEFAULT_AISLE,
+    unit: DEFAULT_UNIT,
     synonyms: ['Tomatoes', 'Cherry tomatoes'],
+    itemType: 'ingredient',
+    allergens: [],
+    barcodes: [],
+    externalSources: [],
     createdAt: '2024-01-01T00:00:00.000Z',
     createdBy: 'user-1',
     approved: true,
@@ -99,9 +107,14 @@ const CANONICAL_ITEMS_FIXTURE: CanonicalItem[] = [
     name: 'Onion',
     normalisedName: 'onion',
     isStaple: true,
-    aisle: 'Produce',
-    preferredUnit: 'g',
+    aisleId: 'produce',
+    aisle: DEFAULT_AISLE,
+    unit: DEFAULT_UNIT,
     synonyms: ['Onions', 'Red onion', 'White onion'],
+    itemType: 'ingredient',
+    allergens: [],
+    barcodes: [],
+    externalSources: [],
     createdAt: '2024-01-01T00:00:00.000Z',
     createdBy: 'user-1',
     approved: true,
@@ -273,8 +286,9 @@ describe('Canon Module - CanonicalItem Schema', () => {
     expect(item.id).toBeDefined();
     expect(item.name).toBeDefined();
     expect(item.normalisedName).toBeDefined();
+    expect(item.aisleId).toBeDefined();
     expect(item.aisle).toBeDefined();
-    expect(item.preferredUnit).toBeDefined();
+    expect(item.unit).toBeDefined();
     expect(item.createdAt).toBeDefined();
   });
 
@@ -298,8 +312,8 @@ describe('Canon Module - CanonicalItem Schema', () => {
     expect(() => CanonicalItemSchema.parse(invalid)).toThrow();
   });
 
-  it('should reject item without preferredUnit', () => {
-    const invalid = { ...CANONICAL_ITEMS_FIXTURE[0], preferredUnit: undefined };
+  it('should reject item without unit', () => {
+    const invalid = { ...CANONICAL_ITEMS_FIXTURE[0], unit: undefined };
     expect(() => CanonicalItemSchema.parse(invalid)).toThrow();
   });
 
@@ -565,15 +579,12 @@ describe('Canon Module - Edge Cases', () => {
     expect(() => CanonicalItemSchema.parse(item)).not.toThrow();
   });
 
-  it('should handle complex metadata object', () => {
+  it('should handle metadata with notes and confidence', () => {
     const item: CanonicalItem = {
       ...CANONICAL_ITEMS_FIXTURE[0],
       metadata: {
-        brand: 'Tesco',
-        sku: '12345',
-        price: 2.50,
-        inStock: true,
-        tags: ['organic', 'fresh'],
+        notes: 'Commonly used in salads',
+        confidence: 0.95,
       },
     };
     expect(() => CanonicalItemSchema.parse(item)).not.toThrow();

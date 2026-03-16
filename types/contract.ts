@@ -112,70 +112,138 @@ export const ExternalSourceLinkSchema = z.object({
 });
 export type ExternalSourceLink = z.infer<typeof ExternalSourceLinkSchema>;
 
-// CanonicalItem Schema (Universal Shopping Item Catalog)
-// Items can be food ingredients OR household goods (toilet paper, cleaning supplies)
-// Schema is extensible for future integrations (CoFID, Open Food Facts, barcode scanning)
-// Supports linking to multiple external data sources simultaneously
+// CanonicalItem Schema v3 (Universal Shopping Item Catalog)
+// Each distinct purchasable product in a UK supermarket is its own canonical item.
+// Supports multi-source enrichment (CoFID, Open Food Facts, retailer APIs, barcodes).
+// canonUnits = parse vocabulary (AI prompt guidance); item.unit = conversion intelligence.
+
+// ── Sub-schemas ───────────────────────────────────────────────────────────────
+
+// Denormalised aisle snapshot embedded on each item.
+// aisleId is the FK to canonAisles; this snapshot enables fast reads without joins.
+export const AisleSnapshotSchema = z.object({
+  tier3: z.string(), // top-level domain: "food", "drink", "household"
+  tier2: z.string(), // department: "fresh", "chilled dairy", "cleaning"
+  tier1: z.string(), // aisle: "fresh vegetables", "cheese", "laundry detergent"
+});
+export type AisleSnapshot = z.infer<typeof AisleSnapshotSchema>;
+
+// Count-based size descriptors mapped to grams.
+// Used for produce and individually sold items ("2 large carrots" → 2 × large_weight).
+export const CountEquivalentsSchema = z.object({
+  small: z.number().nullable().default(null),
+  medium: z.number().nullable().default(null),
+  large: z.number().nullable().default(null),
+  default_each_weight: z.number().nullable().default(null), // fallback when size not specified
+});
+export type CountEquivalents = z.infer<typeof CountEquivalentsSchema>;
+
+// Spoon/cup volumes mapped to grams or ml for this specific ingredient.
+// Conversion is per-ingredient because density varies ("1 tbsp honey" ≠ "1 tbsp flour").
+export const VolumeEquivalentsSchema = z.object({
+  tsp: z.number().nullable().default(null),   // teaspoon → g or ml
+  tbsp: z.number().nullable().default(null),  // tablespoon → g or ml
+  cup: z.number().nullable().default(null),   // cup → g or ml
+});
+export type VolumeEquivalents = z.infer<typeof VolumeEquivalentsSchema>;
+
+// Per-ingredient unit & conversion intelligence.
+// Defines how this ingredient behaves in recipes and how quantities aggregate internally.
+export const UnitIntelligenceSchema = z.object({
+  canonical_unit_type: z.enum(['mass', 'volume', 'count']),
+  canonical_unit: z.enum(['g', 'ml', 'each']),
+  density_g_per_ml: z.number().nullable().default(null), // e.g. olive oil → 0.91, honey → 1.42
+  count_equivalents: CountEquivalentsSchema.optional(),
+  volume_equivalents: VolumeEquivalentsSchema.optional(),
+});
+export type UnitIntelligence = z.infer<typeof UnitIntelligenceSchema>;
+
+// A purchasable pack size (e.g. "1kg bag", "4-pack").
+export const PackSizeSchema = z.object({
+  unit: z.enum(['g', 'ml', 'each']),
+  size: z.number(),
+  description: z.string(), // e.g. "1kg bag", "4-pack", "bunch"
+});
+export type PackSize = z.infer<typeof PackSizeSchema>;
+
+// Shopping intelligence: how the item is purchased in a UK supermarket.
+export const ShoppingIntelligenceSchema = z.object({
+  shopping_unit: z.enum(['g', 'ml', 'each']),
+  pack_sizes: z.array(PackSizeSchema).default([]),
+  loose: z.boolean().default(false), // true = can buy individually (e.g. loose carrots)
+});
+export type ShoppingIntelligence = z.infer<typeof ShoppingIntelligenceSchema>;
+
+// Freeform item metadata (notes, AI confidence scores).
+export const ItemMetadataSchema = z.object({
+  notes: z.string().optional(),
+  confidence: z.number().min(0).max(1).optional(), // 0-1 confidence for AI-generated entries
+});
+export type ItemMetadata = z.infer<typeof ItemMetadataSchema>;
+
+// ── Main Schema ───────────────────────────────────────────────────────────────
+
 export const CanonicalItemSchema = z.object({
+  // ── Identity & matching ─────────────────────────────────────────────────────
   id: z.string(),
-  name: z.string(), // e.g., "Onion" (singular form preferred)
-  normalisedName: z.string(), // Lowercase, for matching
+  name: z.string().min(1),                   // singular form, e.g. "Carrot"
+  normalisedName: z.string(),                // lowercase, punctuation-stripped, for matching
+  synonyms: z.array(z.string()).default([]), // alternative recipe names/spellings
+
+  // ── Aisle (FK + denorm snapshot) ────────────────────────────────────────────
+  // aisleId is the authoritative reference. aisle is a snapshot for fast reads.
+  // When an aisle is renamed, syncAisleSnapshots() propagates the change to all items.
+  aisleId: z.string(),
+  aisle: AisleSnapshotSchema,
+
+  // ── Unit & conversion intelligence ──────────────────────────────────────────
+  unit: UnitIntelligenceSchema,
+
+  // ── Shopping intelligence ───────────────────────────────────────────────────
+  shopping: ShoppingIntelligenceSchema.optional(),
+
+  // ── Classification ──────────────────────────────────────────────────────────
   isStaple: z.boolean().default(false),
-  aisle: z.string(), // Dynamic aisle name from Aisle table
-  preferredUnit: z.string(), // Dynamic unit from Unit table
-  synonyms: z.array(z.string()).optional(),
-  metadata: z.record(z.string(), z.any()).optional(),
+  itemType: z.enum(['ingredient', 'product', 'household']).default('ingredient'),
+  allergens: z.array(z.string()).default([]), // e.g. ["gluten", "nuts", "dairy"]
+
+  // ── External integrations ───────────────────────────────────────────────────
+  barcodes: z.array(z.string()).default([]),               // EAN-13, UPC, etc.
+  externalSources: z.array(ExternalSourceLinkSchema).default([]), // CoFID, OFF, GS1, etc.
+
+  // ── Freeform metadata ───────────────────────────────────────────────────────
+  metadata: ItemMetadataSchema.optional(),
+
+  // ── Embeddings (optional — can be externalised to canonEmbeddingLookup) ─────
+  embedding: z.array(z.number()).optional(),
+  embeddingModel: z.string().optional(),
+  embeddedAt: z.string().optional(),
+
+  // ── Audit & provenance ──────────────────────────────────────────────────────
   createdAt: z.string(),
   createdBy: z.string().optional(),
-  
-  // External data source integration (all optional for backwards compatibility)
-  externalSources: z.array(ExternalSourceLinkSchema).optional(), // Links to external databases (CoFID, Open Food Facts, etc.)
-  barcodes: z.array(z.string()).optional(), // EAN-13, UPC, etc. for barcode scanning
-  itemType: z.enum(['ingredient', 'product', 'household']).default('ingredient').optional(), // Item categorization
-  lastSyncedAt: z.string().optional(), // Latest sync timestamp across all external sources
-  
-  // Semantic matching fields
-  embedding: z.array(z.number()).optional(), // Vector embedding for semantic similarity search (text-embedding-005)
-  embeddingModel: z.string().optional(), // Model used for embedding (e.g., "text-embedding-005")
-  embeddedAt: z.string().optional(), // ISO timestamp when embedding was generated
-  
-  // Approval workflow (auto-created items from CoFID require human review)
-  approved: z.boolean().default(true).optional(), // True for user-created, false for auto-created from external sources
-  
-  // v2: Shopping unit for display (e.g. { name: 'pack', quantity: 250, unit: 'g' })
-  // If present: displayQty = ceil(totalBaseQty / shoppingUnit.quantity)
-  shoppingUnit: z.object({
-    name: z.string(),
-    quantity: z.number(),
-    unit: z.string(),
-  }).optional(),
+  approved: z.boolean().default(true), // false = auto-created, needs human review
+  lastSyncedAt: z.string().optional(), // latest sync timestamp across all external sources
 
-  // Matching audit trail (tracks how this item was matched/created, including near misses)
+  // ── Matching audit trail ─────────────────────────────────────────────────────
   matchingAudit: z.object({
-    // Core decision metadata
-    stage: z.enum(['fuzzy_match', 'semantic_analysis', 'llm_arbitration', 'manual_creation', 'cofid_import']).optional(), // Which stage made the decision
+    stage: z.enum(['fuzzy_match', 'semantic_analysis', 'llm_arbitration', 'manual_creation', 'cofid_import']).optional(),
     decisionAction: z.enum(['use_existing_canon', 'create_from_cofid', 'create_new_canon', 'manual_create', 'no_match']).optional(),
-    decisionSource: z.enum(['algorithm', 'llm', 'user', 'import']).optional(), // Who/what made the decision
-    
-    // Result metadata
+    decisionSource: z.enum(['algorithm', 'llm', 'user', 'import']).optional(),
     matchedSource: z.enum(['canon', 'cofid', 'new-canon', 'manual', 'unlinked']).optional(),
-    finalCandidateId: z.string().optional(), // ID of the candidate that was selected (if any)
-    reason: z.string().optional(), // Human-readable explanation of the decision
-    recordedAt: z.string().optional(), // ISO timestamp when decision was made
-    
-    // Near misses - candidates that were considered but not chosen
+    finalCandidateId: z.string().optional(),
+    reason: z.string().optional(),
+    recordedAt: z.string().optional(),
     nearMisses: z.array(z.object({
       candidateId: z.string(),
       candidateName: z.string(),
       source: z.enum(['canon', 'cofid']),
       score: z.number().min(0).max(1),
-      reason: z.string().optional(), // Why this candidate wasn't chosen
+      reason: z.string().optional(),
     })).optional(),
-    
-    // Score metadata (for algorithmic decisions)
-    topScore: z.number().min(0).max(1).optional(), // Highest similarity score
-    scoreGap: z.number().min(0).max(1).optional(), // Gap between top and second candidate
-  }).optional(), // Optional for backwards compatibility
+    topScore: z.number().min(0).max(1).optional(),
+    scoreGap: z.number().min(0).max(1).optional(),
+  }).optional(),
 });
 export type CanonicalItem = z.infer<typeof CanonicalItemSchema>;
 

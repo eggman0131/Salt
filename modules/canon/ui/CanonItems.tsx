@@ -15,14 +15,13 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   getCanonItems,
   getCanonAisles,
-  getCanonUnits,
   addCanonItem,
   editCanonItem,
   approveItem,
   deleteItem,
   deleteItems,
   sortItems,
-  filterItemsNeedingReview,
+  filterUnapprovedItems,
   normalizeItemName,
   suggestCofidMatch,
   linkCofidMatch,
@@ -35,7 +34,7 @@ import {
 } from '../api';
 import type { CofIDItem } from '../types';
 import { onCanonItemsDeleted } from '../../recipes/api';
-import type { Aisle, Unit } from '@/types/contract';
+import type { Aisle } from '@/types/contract';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -88,7 +87,6 @@ export const CanonItems: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [items, setItems] = useState<CanonItem[]>([]);
   const [aisles, setAisles] = useState<Aisle[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -118,11 +116,11 @@ export const CanonItems: React.FC = () => {
     );
   }, [items, searchTerm]);
 
-  // Needs-review items always at top, then alphabetical within each group
+  // Unapproved items always at top, then alphabetical within each group
   const sortedItems = useMemo(() => {
-    const needsReview = sortItems(filteredItems.filter(i => i.needsReview));
-    const approved = sortItems(filteredItems.filter(i => !i.needsReview));
-    return [...needsReview, ...approved];
+    const unapproved = sortItems(filteredItems.filter(i => !i.approved));
+    const approved = sortItems(filteredItems.filter(i => i.approved));
+    return [...unapproved, ...approved];
   }, [filteredItems]);
 
   // Group sorted items by aisle for the grouped view
@@ -146,21 +144,19 @@ export const CanonItems: React.FC = () => {
     });
   }, [groupByAisle, sortedItems, aisles]);
 
-  const needsReviewCount = filterItemsNeedingReview(items).length;
+  const needsReviewCount = filterUnapprovedItems(items).length;
   const allItemsSelected = sortedItems.length > 0 && selectedItems.size === sortedItems.length;
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [itemsData, aislesData, unitsData] = await Promise.all([
+      const [itemsData, aislesData] = await Promise.all([
         getCanonItems(),
         getCanonAisles(),
-        getCanonUnits(),
       ]);
       setItems(itemsData);
       setAisles(aislesData);
-      setUnits(unitsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -175,10 +171,16 @@ export const CanonItems: React.FC = () => {
   const handleCreate = async (input: {
     name: string;
     aisleId: string;
-    preferredUnitId: string;
+    unitType: 'mass' | 'volume' | 'count';
   }) => {
+    const canonicalUnit = input.unitType === 'mass' ? 'g' : input.unitType === 'volume' ? 'ml' : 'each';
     try {
-      await addCanonItem({ ...input, needsReview: true });
+      await addCanonItem({
+        name: input.name,
+        aisleId: input.aisleId,
+        unit: { canonical_unit_type: input.unitType, canonical_unit: canonicalUnit, density_g_per_ml: null },
+        approved: false,
+      });
       softToast.success('Item created successfully');
       await loadData();
       setShowCreateDialog(false);
@@ -443,15 +445,12 @@ export const CanonItems: React.FC = () => {
                 </div>
                 <Stack spacing="gap-1">
                   {groupItems.map(item => {
-                    const unit = units.find(u => u.id === item.preferredUnitId);
                     const isLinked = !!getCofidSource(item);
                     const isSelected = selectedItems.has(item.id);
                     return (
                       <ItemRow
                         key={item.id}
                         item={item}
-                        aisle={aisle}
-                        unit={unit}
                         isLinked={isLinked}
                         isSelected={isSelected}
                         onToggleSelect={() => toggleItemSelection(item.id)}
@@ -486,8 +485,6 @@ export const CanonItems: React.FC = () => {
             {/* Item rows */}
             <Stack spacing="gap-1">
               {sortedItems.map(item => {
-                const aisle = aisles.find(a => a.id === item.aisleId);
-                const unit = units.find(u => u.id === item.preferredUnitId);
                 const isLinked = !!getCofidSource(item);
                 const isSelected = selectedItems.has(item.id);
 
@@ -495,8 +492,6 @@ export const CanonItems: React.FC = () => {
                   <ItemRow
                     key={item.id}
                     item={item}
-                    aisle={aisle}
-                    unit={unit}
                     isLinked={isLinked}
                     isSelected={isSelected}
                     onToggleSelect={() => toggleItemSelection(item.id)}
@@ -521,7 +516,6 @@ export const CanonItems: React.FC = () => {
       {showCreateDialog && (
         <CreateItemDialog
           aisles={aisles}
-          units={units}
           onSubmit={handleCreate}
           onCancel={() => setShowCreateDialog(false)}
         />
@@ -555,7 +549,6 @@ export const CanonItems: React.FC = () => {
         <SplitCanonItemDialog
           item={splitItem}
           aisles={aisles}
-          units={units}
           onSuccess={() => {
             setShowSplitDialog(false);
             setSplitItem(null);
@@ -579,7 +572,6 @@ export const CanonItems: React.FC = () => {
             itemA={itemA}
             itemB={itemB}
             aisles={aisles}
-            units={units}
             onSuccess={() => {
               setShowMergeDialog(false);
               setSelectedItems(new Set());
@@ -616,7 +608,6 @@ export const CanonItems: React.FC = () => {
         <ItemDetailSheet
           item={detailItem}
           aisles={aisles}
-          units={units}
           open={showDetailSheet}
           onOpenChange={(open) => {
             setShowDetailSheet(open);
@@ -633,8 +624,6 @@ export const CanonItems: React.FC = () => {
 
 interface ItemRowProps {
   item: CanonItem;
-  aisle?: Aisle;
-  unit?: Unit;
   isLinked: boolean;
   isSelected: boolean;
   onToggleSelect: () => void;
@@ -645,8 +634,6 @@ interface ItemRowProps {
 
 const ItemRow: React.FC<ItemRowProps> = ({
   item,
-  aisle,
-  unit,
   isLinked,
   isSelected,
   onToggleSelect,
@@ -654,7 +641,7 @@ const ItemRow: React.FC<ItemRowProps> = ({
   onDelete,
   onSplit,
 }) => {
-  const reviewHighlight = item.needsReview
+  const reviewHighlight = !item.approved
     ? 'border-l-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20'
     : '';
 
@@ -678,10 +665,10 @@ const ItemRow: React.FC<ItemRowProps> = ({
                 {item.name}
               </button>
               <p className="text-xs text-muted-foreground mt-1">
-                {aisle?.name || 'Unknown aisle'} • {unit?.name || 'Unknown unit'}
+                {item.aisle?.tier1 || 'Unknown aisle'} • {item.unit?.canonical_unit ?? '—'}
               </p>
               <div className="flex flex-wrap gap-1 mt-2">
-                {item.needsReview && (
+                {!item.approved && (
                   <Badge variant="outline" className="text-xs">
                     Needs Review
                   </Badge>
@@ -729,14 +716,14 @@ const ItemRow: React.FC<ItemRowProps> = ({
           </button>
         </div>
         <div className="w-32 text-xs text-muted-foreground truncate">
-          {aisle?.name || 'Unknown'}
+          {item.aisle?.tier1 || 'Unknown'}
         </div>
         <div className="w-24 text-xs text-muted-foreground truncate">
-          {unit?.name || 'Unknown'}
+          {item.unit?.canonical_unit ?? '—'}
         </div>
         <div className="w-20">
           <div className="flex flex-wrap gap-1">
-            {item.needsReview && (
+            {!item.approved && (
               <Badge variant="outline" className="text-xs">
                 Pending
               </Badge>
@@ -766,32 +753,30 @@ const ItemRow: React.FC<ItemRowProps> = ({
 
 interface CreateItemDialogProps {
   aisles: Aisle[];
-  units: Unit[];
-  onSubmit: (input: { name: string; aisleId: string; preferredUnitId: string }) => Promise<void>;
+  onSubmit: (input: { name: string; aisleId: string; unitType: 'mass' | 'volume' | 'count' }) => Promise<void>;
   onCancel: () => void;
 }
 
 const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
   aisles,
-  units,
   onSubmit,
   onCancel,
 }) => {
   const [name, setName] = useState('');
   const [aisleId, setAisleId] = useState('');
-  const [preferredUnitId, setPreferredUnitId] = useState('');
+  const [unitType, setUnitType] = useState<'mass' | 'volume' | 'count'>('mass');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const normalizedName = normalizeItemName(name);
-    if (!normalizedName || !aisleId || !preferredUnitId) {
-      softToast.error('All fields are required');
+    if (!normalizedName || !aisleId) {
+      softToast.error('Name and aisle are required');
       return;
     }
     setIsSubmitting(true);
     try {
-      await onSubmit({ name: normalizedName, aisleId, preferredUnitId });
+      await onSubmit({ name: normalizedName, aisleId, unitType });
     } finally {
       setIsSubmitting(false);
     }
@@ -831,21 +816,15 @@ const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="unit">Preferred Unit</Label>
-              <Select
-                value={preferredUnitId}
-                onValueChange={setPreferredUnitId}
-                disabled={isSubmitting}
-              >
-                <SelectTrigger id="unit">
-                  <SelectValue placeholder="Select unit" />
+              <Label htmlFor="unitType">Unit type</Label>
+              <Select value={unitType} onValueChange={(v) => setUnitType(v as 'mass' | 'volume' | 'count')} disabled={isSubmitting}>
+                <SelectTrigger id="unitType">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {units.map(unit => (
-                    <SelectItem key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="mass">Mass (g)</SelectItem>
+                  <SelectItem value="volume">Volume (ml)</SelectItem>
+                  <SelectItem value="count">Count (each)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -869,7 +848,6 @@ const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
 interface ItemDetailSheetProps {
   item: CanonItem;
   aisles: Aisle[];
-  units: Unit[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
@@ -878,7 +856,6 @@ interface ItemDetailSheetProps {
 const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
   item,
   aisles,
-  units,
   open,
   onOpenChange,
   onSaved,
@@ -886,8 +863,31 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
   // ── Edit state ───────────────────────────────────────────────────────────
   const [name, setName] = useState(item.name);
   const [aisleId, setAisleId] = useState(item.aisleId);
-  const [preferredUnitId, setPreferredUnitId] = useState(item.preferredUnitId);
+  const [unitType, setUnitType] = useState<'mass' | 'volume' | 'count'>(item.unit?.canonical_unit_type ?? 'mass');
+  const [density, setDensity] = useState<string>(item.unit?.density_g_per_ml != null ? String(item.unit.density_g_per_ml) : '');
+  // Count equivalents
+  const [ceSmall, setCeSmall] = useState<string>(item.unit?.count_equivalents?.small != null ? String(item.unit.count_equivalents.small) : '');
+  const [ceMedium, setCeMedium] = useState<string>(item.unit?.count_equivalents?.medium != null ? String(item.unit.count_equivalents.medium) : '');
+  const [ceLarge, setCeLarge] = useState<string>(item.unit?.count_equivalents?.large != null ? String(item.unit.count_equivalents.large) : '');
+  const [ceDefault, setCeDefault] = useState<string>(item.unit?.count_equivalents?.default_each_weight != null ? String(item.unit.count_equivalents.default_each_weight) : '');
+  // Volume equivalents
+  const [veTsp, setVeTsp] = useState<string>(item.unit?.volume_equivalents?.tsp != null ? String(item.unit.volume_equivalents.tsp) : '');
+  const [veTbsp, setVeTbsp] = useState<string>(item.unit?.volume_equivalents?.tbsp != null ? String(item.unit.volume_equivalents.tbsp) : '');
+  const [veCup, setVeCup] = useState<string>(item.unit?.volume_equivalents?.cup != null ? String(item.unit.volume_equivalents.cup) : '');
+  // Classification
+  const [itemType, setItemType] = useState<'ingredient' | 'product' | 'household'>(item.itemType ?? 'ingredient');
   const [isStaple, setIsStaple] = useState(item.isStaple);
+  const [synonymsText, setSynonymsText] = useState((item.synonyms ?? []).join(', '));
+  const [allergensText, setAllergensText] = useState((item.allergens ?? []).join(', '));
+  const [barcodesText, setBarcodesText] = useState((item.barcodes ?? []).join(', '));
+  const [notes, setNotes] = useState(item.metadata?.notes ?? '');
+  // Shopping
+  const [shoppingUnit, setShoppingUnit] = useState<'g' | 'ml' | 'each'>(item.shopping?.shopping_unit ?? 'g');
+  const [loose, setLoose] = useState(item.shopping?.loose ?? false);
+  const [packSizes, setPackSizes] = useState<Array<{ unit: 'g' | 'ml' | 'each'; size: string; description: string }>>(
+    (item.shopping?.pack_sizes ?? []).map(p => ({ unit: p.unit, size: String(p.size), description: p.description }))
+  );
+  const [hasShoppingData, setHasShoppingData] = useState(!!item.shopping);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ── CofID state ──────────────────────────────────────────────────────────
@@ -912,8 +912,25 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
   useEffect(() => {
     setName(item.name);
     setAisleId(item.aisleId);
-    setPreferredUnitId(item.preferredUnitId);
+    setUnitType(item.unit?.canonical_unit_type ?? 'mass');
+    setDensity(item.unit?.density_g_per_ml != null ? String(item.unit.density_g_per_ml) : '');
+    setCeSmall(item.unit?.count_equivalents?.small != null ? String(item.unit.count_equivalents.small) : '');
+    setCeMedium(item.unit?.count_equivalents?.medium != null ? String(item.unit.count_equivalents.medium) : '');
+    setCeLarge(item.unit?.count_equivalents?.large != null ? String(item.unit.count_equivalents.large) : '');
+    setCeDefault(item.unit?.count_equivalents?.default_each_weight != null ? String(item.unit.count_equivalents.default_each_weight) : '');
+    setVeTsp(item.unit?.volume_equivalents?.tsp != null ? String(item.unit.volume_equivalents.tsp) : '');
+    setVeTbsp(item.unit?.volume_equivalents?.tbsp != null ? String(item.unit.volume_equivalents.tbsp) : '');
+    setVeCup(item.unit?.volume_equivalents?.cup != null ? String(item.unit.volume_equivalents.cup) : '');
+    setItemType(item.itemType ?? 'ingredient');
     setIsStaple(item.isStaple);
+    setSynonymsText((item.synonyms ?? []).join(', '));
+    setAllergensText((item.allergens ?? []).join(', '));
+    setBarcodesText((item.barcodes ?? []).join(', '));
+    setNotes(item.metadata?.notes ?? '');
+    setShoppingUnit(item.shopping?.shopping_unit ?? 'g');
+    setLoose(item.shopping?.loose ?? false);
+    setPackSizes((item.shopping?.pack_sizes ?? []).map(p => ({ unit: p.unit, size: String(p.size), description: p.description })));
+    setHasShoppingData(!!item.shopping);
     setCofidDetail(null);
     setShowCofidSearch(false);
     setCofidSuggestions(null);
@@ -936,19 +953,60 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
 
   const handleSave = async () => {
     const normalizedName = normalizeItemName(name);
-    if (!normalizedName || !aisleId || !preferredUnitId) {
-      softToast.error('All fields are required');
+    if (!normalizedName || !aisleId) {
+      softToast.error('Name and aisle are required');
       return;
     }
     setIsSubmitting(true);
     try {
+      const canonicalUnit = unitType === 'mass' ? 'g' : unitType === 'volume' ? 'ml' : 'each';
+      const parsedDensity = density.trim() !== '' ? parseFloat(density) : null;
+      const unit: CanonItem['unit'] = {
+        canonical_unit_type: unitType,
+        canonical_unit: canonicalUnit,
+        density_g_per_ml: !isNaN(parsedDensity as number) && parsedDensity !== null ? parsedDensity : null,
+        ...(unitType === 'count' && (ceSmall || ceMedium || ceLarge || ceDefault) ? {
+          count_equivalents: {
+            small: ceSmall.trim() ? parseFloat(ceSmall) || null : null,
+            medium: ceMedium.trim() ? parseFloat(ceMedium) || null : null,
+            large: ceLarge.trim() ? parseFloat(ceLarge) || null : null,
+            default_each_weight: ceDefault.trim() ? parseFloat(ceDefault) || null : null,
+          },
+        } : {}),
+        ...(veTsp || veTbsp || veCup ? {
+          volume_equivalents: {
+            tsp: veTsp.trim() ? parseFloat(veTsp) || null : null,
+            tbsp: veTbsp.trim() ? parseFloat(veTbsp) || null : null,
+            cup: veCup.trim() ? parseFloat(veCup) || null : null,
+          },
+        } : item.unit?.volume_equivalents ? { volume_equivalents: item.unit.volume_equivalents } : {}),
+      };
+
+      const synonyms = synonymsText.split(',').map(s => s.trim()).filter(Boolean);
+      const allergens = allergensText.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      const barcodes = barcodesText.split(',').map(s => s.trim()).filter(Boolean);
+
+      const shopping = hasShoppingData ? {
+        shopping_unit: shoppingUnit,
+        loose,
+        pack_sizes: packSizes
+          .filter(p => p.size.trim() && p.description.trim())
+          .map(p => ({ unit: p.unit, size: parseFloat(p.size) || 0, description: p.description.trim() })),
+      } : undefined;
+
       await editCanonItem(item.id, {
         name: normalizedName,
         aisleId,
-        preferredUnitId,
+        unit,
+        itemType,
         isStaple,
+        synonyms,
+        allergens,
+        barcodes,
+        ...(shopping !== undefined ? { shopping } : {}),
+        ...(notes.trim() ? { metadata: { ...(item.metadata ?? {}), notes: notes.trim() } } : item.metadata ? { metadata: item.metadata } : {}),
       });
-      if (item.needsReview) {
+      if (!item.approved) {
         await approveItem(item.id);
         softToast.success('Item approved');
       } else {
@@ -1085,12 +1143,12 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
         <SheetHeader className="pb-4">
           <SheetTitle>{item.name}</SheetTitle>
           <SheetDescription>
-            {item.needsReview ? 'Pending review' : 'Approved'}
+            {!item.approved ? 'Pending review' : 'Approved'}
           </SheetDescription>
         </SheetHeader>
 
         <div className="space-y-6 pb-24">
-          {/* Editable fields */}
+          {/* ── Identity ── */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold">Item Details</h3>
             <div className="space-y-2">
@@ -1116,17 +1174,22 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <Label>Preferred Unit</Label>
-              <Combobox
-                options={units.map(u => ({ value: u.id, label: u.name }))}
-                value={preferredUnitId}
-                onValueChange={setPreferredUnitId}
-                placeholder="Select unit..."
-                searchPlaceholder="Filter units..."
-                emptyMessage="No units found."
-                disabled={isSubmitting}
-                className="w-full"
-              />
+              <Label>Item type</Label>
+              <div className="flex gap-2">
+                {(['ingredient', 'product', 'household'] as const).map(t => (
+                  <Button
+                    key={t}
+                    type="button"
+                    variant={itemType === t ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setItemType(t)}
+                    disabled={isSubmitting}
+                    className="flex-1 capitalize"
+                  >
+                    {t}
+                  </Button>
+                ))}
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <Label htmlFor="detail-staple">Staple item</Label>
@@ -1134,6 +1197,254 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
                 id="detail-staple"
                 checked={isStaple}
                 onCheckedChange={setIsStaple}
+                disabled={isSubmitting}
+              />
+            </div>
+          </section>
+
+          {/* ── Unit Intelligence ── */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold">Unit Intelligence</h3>
+            <div className="space-y-2">
+              <Label>Unit type</Label>
+              <div className="flex gap-2">
+                {(['mass', 'volume', 'count'] as const).map(type => (
+                  <Button
+                    key={type}
+                    type="button"
+                    variant={unitType === type ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setUnitType(type)}
+                    disabled={isSubmitting}
+                    className="flex-1"
+                  >
+                    {type === 'mass' ? 'Mass (g)' : type === 'volume' ? 'Volume (ml)' : 'Count (each)'}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {(unitType === 'mass' || unitType === 'volume') && (
+              <div className="space-y-2">
+                <Label htmlFor="detail-density">Density (g/ml)</Label>
+                <Input
+                  id="detail-density"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  placeholder="e.g. 0.91 for olive oil"
+                  value={density}
+                  onChange={e => setDensity(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
+            {unitType === 'count' && (
+              <div className="space-y-2">
+                <Label>Count equivalents (grams each)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    ['Small', ceSmall, setCeSmall],
+                    ['Medium', ceMedium, setCeMedium],
+                    ['Large', ceLarge, setCeLarge],
+                    ['Default / each', ceDefault, setCeDefault],
+                  ] as [string, string, (v: string) => void][]).map(([label, val, setter]) => (
+                    <div key={label} className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">{label}</Label>
+                      <Input
+                        type="number"
+                        step="1"
+                        min="0"
+                        placeholder="g"
+                        value={val}
+                        onChange={e => setter(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Volume equivalents <span className="font-normal text-muted-foreground">(g or ml)</span></Label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  ['tsp', veTsp, setVeTsp],
+                  ['tbsp', veTbsp, setVeTbsp],
+                  ['cup', veCup, setVeCup],
+                ] as [string, string, (v: string) => void][]).map(([label, val, setter]) => (
+                  <div key={label} className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">{label}</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="—"
+                      value={val}
+                      onChange={e => setter(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* ── Synonyms & Classification ── */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold">Names & Classification</h3>
+            <div className="space-y-2">
+              <Label htmlFor="detail-synonyms">
+                Synonyms
+                <span className="text-xs text-muted-foreground font-normal ml-1">(comma-separated)</span>
+              </Label>
+              <Input
+                id="detail-synonyms"
+                placeholder="e.g. Tomatoes, Cherry tomatoes"
+                value={synonymsText}
+                onChange={e => setSynonymsText(e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="detail-allergens">
+                Allergens
+                <span className="text-xs text-muted-foreground font-normal ml-1">(comma-separated)</span>
+              </Label>
+              <Input
+                id="detail-allergens"
+                placeholder="e.g. gluten, nuts, dairy"
+                value={allergensText}
+                onChange={e => setAllergensText(e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+          </section>
+
+          {/* ── Shopping Intelligence ── */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Shopping Intelligence</h3>
+              <Switch
+                checked={hasShoppingData}
+                onCheckedChange={setHasShoppingData}
+                disabled={isSubmitting}
+              />
+            </div>
+            {hasShoppingData && (
+              <>
+                <div className="space-y-2">
+                  <Label>Shopping unit</Label>
+                  <div className="flex gap-2">
+                    {(['g', 'ml', 'each'] as const).map(u => (
+                      <Button
+                        key={u}
+                        type="button"
+                        variant={shoppingUnit === u ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setShoppingUnit(u)}
+                        disabled={isSubmitting}
+                        className="flex-1"
+                      >
+                        {u}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label>Loose (buy individually)</Label>
+                  <Switch
+                    checked={loose}
+                    onCheckedChange={setLoose}
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Pack sizes</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPackSizes(ps => [...ps, { unit: shoppingUnit, size: '', description: '' }])}
+                      disabled={isSubmitting}
+                    >
+                      + Add
+                    </Button>
+                  </div>
+                  {packSizes.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No pack sizes defined.</p>
+                  )}
+                  {packSizes.map((ps, i) => (
+                    <div key={i} className="flex gap-2 items-start">
+                      <select
+                        value={ps.unit}
+                        onChange={e => setPackSizes(prev => prev.map((p, j) => j === i ? { ...p, unit: e.target.value as 'g' | 'ml' | 'each' } : p))}
+                        disabled={isSubmitting}
+                        className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                      >
+                        <option value="g">g</option>
+                        <option value="ml">ml</option>
+                        <option value="each">each</option>
+                      </select>
+                      <Input
+                        type="number"
+                        step="1"
+                        min="0"
+                        placeholder="Size"
+                        value={ps.size}
+                        onChange={e => setPackSizes(prev => prev.map((p, j) => j === i ? { ...p, size: e.target.value } : p))}
+                        disabled={isSubmitting}
+                        className="w-20"
+                      />
+                      <Input
+                        placeholder="e.g. 1kg bag"
+                        value={ps.description}
+                        onChange={e => setPackSizes(prev => prev.map((p, j) => j === i ? { ...p, description: e.target.value } : p))}
+                        disabled={isSubmitting}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPackSizes(prev => prev.filter((_, j) => j !== i))}
+                        disabled={isSubmitting}
+                        className="px-2 text-destructive hover:text-destructive"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+
+          {/* ── Metadata & Barcodes ── */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold">Metadata</h3>
+            <div className="space-y-2">
+              <Label htmlFor="detail-notes">Notes</Label>
+              <textarea
+                id="detail-notes"
+                rows={2}
+                placeholder="Freeform notes about this item..."
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                disabled={isSubmitting}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="detail-barcodes">
+                Barcodes
+                <span className="text-xs text-muted-foreground font-normal ml-1">(comma-separated)</span>
+              </Label>
+              <Input
+                id="detail-barcodes"
+                placeholder="e.g. 5000112637922, 0012345678905"
+                value={barcodesText}
+                onChange={e => setBarcodesText(e.target.value)}
                 disabled={isSubmitting}
               />
             </div>
@@ -1354,12 +1665,12 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                {item.needsReview ? 'Approving...' : 'Saving...'}
+                {!item.approved ? 'Approving...' : 'Saving...'}
               </>
             ) : (
               <>
-                {item.needsReview && <Check className="h-4 w-4 mr-2" />}
-                {item.needsReview ? 'Approve' : 'Save'}
+                {!item.approved && <Check className="h-4 w-4 mr-2" />}
+                {!item.approved ? 'Approve' : 'Save'}
               </>
             )}
           </Button>

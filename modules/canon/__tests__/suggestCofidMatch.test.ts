@@ -248,7 +248,7 @@ describe('CofID Match Suggestion', () => {
       };
 
       const match = buildCofidMatch(suggestedMatch, 'auto');
-      expect(match.candidates).toBeUndefined();
+      expect(Object.keys(match)).not.toContain('candidates');
     });
   });
 });
