@@ -22,6 +22,10 @@ import {
   seedCofidEmbeddings,
   seedItems,
   SeedResult,
+  getCanonItems,
+  loadFdcData,
+  enrichCanonItemsWithFdc,
+  type FdcEnrichmentResult,
 } from '../../api';
 
 // Import seed data files
@@ -41,16 +45,20 @@ interface SeedState {
   cofidItems: SeedStatus;
   cofidEmbeddings: SeedStatus;
   canonItems: SeedStatus;
+  fdcEnrichment: SeedStatus;
   aislesResult?: SeedResult;
   unitsResult?: SeedResult;
   cofidItemsResult?: { imported: number; failed: number; errors: Array<{ id: string; reason: string }> };
   cofidEmbeddingsResult?: { success: boolean; imported: number; skipped: number; errors: number };
   canonItemsResult?: { imported: number; failed: number; errors: Array<{ id: string; reason: string }> };
+  fdcEnrichmentResult?: FdcEnrichmentResult;
   // Progress tracking for large operations
   cofidItemsProgress?: { processed: number; total: number };
   canonItemsProgress?: { processed: number; total: number };
+  fdcEnrichmentProgress?: { processed: number; total: number };
   abortController?: AbortController;
   canonAbortController?: AbortController;
+  fdcAbortController?: AbortController;
 }
 
 export default function CanonSeeder() {
@@ -60,6 +68,7 @@ export default function CanonSeeder() {
     cofidItems: 'idle',
     cofidEmbeddings: 'idle',
     canonItems: 'idle',
+    fdcEnrichment: 'idle',
   });
   const canonFileRef = useRef<HTMLInputElement>(null);
 
@@ -277,6 +286,69 @@ export default function CanonSeeder() {
         toast.error(msg || 'Failed to import canon items');
       }
     }
+  };
+
+  const handleEnrichWithFdc = async () => {
+    const abortController = new AbortController();
+    setState(s => ({
+      ...s,
+      fdcEnrichment: 'seeding',
+      fdcAbortController: abortController,
+      fdcEnrichmentProgress: { processed: 0, total: 0 },
+    }));
+
+    try {
+      // Load canon items from Firestore
+      const canonItems = await getCanonItems();
+      setState(s => ({ ...s, fdcEnrichmentProgress: { processed: 0, total: canonItems.length } }));
+
+      if (abortController.signal.aborted) {
+        setState(s => ({ ...s, fdcEnrichment: 'cancelled', fdcEnrichmentProgress: undefined }));
+        return;
+      }
+
+      // Download FDC binary + index (cached in module scope after first load)
+      await loadFdcData();
+
+      const result = await enrichCanonItemsWithFdc(
+        canonItems,
+        (processed, total) => {
+          setState(s => ({ ...s, fdcEnrichmentProgress: { processed, total } }));
+        },
+        abortController.signal
+      );
+
+      setState(s => ({
+        ...s,
+        fdcEnrichment: result.success ? 'success' : 'error',
+        fdcEnrichmentResult: result,
+        fdcEnrichmentProgress: undefined,
+        fdcAbortController: undefined,
+      }));
+
+      if (result.success) {
+        toast.success(
+          `FDC enrichment complete: ${result.enriched} enriched, ${result.noMatch} no match${result.errors > 0 ? `, ${result.errors} errors` : ''}`
+        );
+      } else {
+        toast.error(result.message || 'FDC enrichment failed');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('cancelled') || msg.includes('aborted')) {
+        setState(s => ({ ...s, fdcEnrichment: 'cancelled', fdcEnrichmentProgress: undefined, fdcAbortController: undefined }));
+        toast.info('FDC enrichment cancelled');
+      } else {
+        console.error('Error enriching with FDC:', err);
+        setState(s => ({ ...s, fdcEnrichment: 'error', fdcEnrichmentProgress: undefined, fdcAbortController: undefined }));
+        toast.error(msg || 'FDC enrichment failed');
+      }
+    }
+  };
+
+  const handleCancelFdcEnrichment = () => {
+    state.fdcAbortController?.abort();
+    setState(s => ({ ...s, fdcEnrichment: 'cancelled', fdcAbortController: undefined }));
   };
 
   const handleSeedAll = async () => {
@@ -655,7 +727,83 @@ export default function CanonSeeder() {
         </Card>
       </div>
 
-          {/* Info Box */}
+        {/* FDC Enrichment */}
+        <Card className="p-4">
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-medium flex items-center gap-2">
+                FDC Portions Enrichment
+                {renderStatusIcon(state.fdcEnrichment)}
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Match canon items to USDA FDC foods to populate unit conversion fields
+              </p>
+            </div>
+
+            {state.fdcEnrichmentResult && (
+              <div className={`text-sm space-y-1 p-3 rounded border ${state.fdcEnrichmentResult.success ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800'}`}>
+                <div className={`font-medium ${state.fdcEnrichmentResult.success ? 'text-green-900 dark:text-green-100' : 'text-amber-900 dark:text-amber-100'}`}>
+                  {state.fdcEnrichmentResult.success ? '✓ Complete' : '⚠ Partial'}
+                </div>
+                <div className="text-muted-foreground">
+                  {state.fdcEnrichmentResult.enriched} enriched
+                  {state.fdcEnrichmentResult.noMatch > 0 && `, ${state.fdcEnrichmentResult.noMatch} no match`}
+                  {state.fdcEnrichmentResult.errors > 0 && `, ${state.fdcEnrichmentResult.errors} errors`}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleEnrichWithFdc}
+                disabled={state.fdcEnrichment === 'seeding'}
+                variant="outline"
+                className="flex-1"
+              >
+                {state.fdcEnrichment === 'seeding' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Enriching...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-4 w-4 mr-2" />
+                    Enrich with FDC
+                  </>
+                )}
+              </Button>
+              {state.fdcEnrichment === 'seeding' && (
+                <Button
+                  onClick={handleCancelFdcEnrichment}
+                  variant="destructive"
+                  size="sm"
+                  className="px-3"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {state.fdcEnrichment === 'seeding' && state.fdcEnrichmentProgress && state.fdcEnrichmentProgress.total > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {state.fdcEnrichmentProgress.processed} of {state.fdcEnrichmentProgress.total} items…
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {Math.round((state.fdcEnrichmentProgress.processed / state.fdcEnrichmentProgress.total) * 100)}%
+                  </span>
+                </div>
+                <Progress
+                  value={(state.fdcEnrichmentProgress.processed / state.fdcEnrichmentProgress.total) * 100}
+                  className="h-2"
+                />
+              </div>
+            )}
+          </div>
+        </Card>
+
+      {/* Info Box */}
       <Card className="p-4 bg-muted/50">
         <div className="text-sm space-y-2">
           <div className="font-medium">Seeding Order</div>
@@ -666,6 +814,7 @@ export default function CanonSeeder() {
             <li>CofID Group → Aisle Mappings (for CofID item resolution)</li>
             <li>CofID Items (with embeddings for semantic matching)</li>
             <li>CofID Embeddings (build local lookup and publish Firebase Storage master snapshot)</li>
+            <li>FDC Portions Enrichment (populate unit conversion fields from USDA portions data)</li>
           </ol>
           <div className="pt-2 border-t text-xs">
             ✓ All operations are idempotent and can be run multiple times safely

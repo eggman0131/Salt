@@ -7,7 +7,7 @@
  * Rule: UI imports ONLY from this file.
  */
 
-import { Aisle, Unit } from '../../types/contract';
+import { Aisle, Unit, UnitIntelligence } from '../../types/contract';
 import { CanonMatchEvent } from './types';
 import {
   fetchCanonAisles,
@@ -496,6 +496,34 @@ export async function getPerformanceStats(
 }> {
   return getMatchPerformanceStats(startDate, endDate);
 }
+
+// ── FDC Integration (food portions for quantity conversion) ───────────────────
+
+/**
+ * Download FDC embedding binary + JSON index from Firebase Storage into memory.
+ * Call this once before running `enrichCanonItemsWithFdc`.
+ */
+export async function loadFdcData() {
+  const { loadFdcData: fn } = await import('./data/fdc-provider');
+  return fn();
+}
+
+/**
+ * Enrich canon items with FDC portions data.
+ * Requires `loadFdcData()` to have been called first.
+ * Generates embeddings for all item names, finds the best FDC match for each,
+ * and writes unit conversion fields + externalSources link to Firestore.
+ */
+export async function enrichCanonItemsWithFdc(
+  canonItems: Array<{ id: string; name: string; unit: UnitIntelligence; externalSources?: unknown[] }>,
+  onProgress?: (processed: number, total: number) => void,
+  signal?: AbortSignal
+) {
+  const { enrichCanonItemsWithFdc: fn } = await import('./data/fdc-provider');
+  return fn(canonItems, onProgress, signal);
+}
+
+export type { FdcSearchResult, FdcPortion, FdcEnrichmentResult } from './data/fdc-provider';
 
 // ── Type re-exports ───────────────────────────────────────────────────────────
 
