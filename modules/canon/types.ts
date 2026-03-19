@@ -169,6 +169,8 @@ export const CanonMatchEventSchema = z.object({
     'lexical-match',         // Levenshtein distance matching
     'candidate-merge',       // Merging semantic + lexical results
     'final-selection',       // User selects a specific match
+    'fdc-data-load',         // FDC binary embeddings loaded into memory
+    'fdc-match',             // FDC cosine similarity search
   ]),
 
   // Entity being matched
@@ -191,7 +193,7 @@ export const CanonMatchEventSchema = z.object({
     topScore: z.number().optional(), // Best match score
     topMatchId: z.string().optional(), // Best match CofID ID
     topMatchName: z.string().optional(), // Best match name
-    method: z.enum(['exact', 'fuzzy', 'semantic', 'manual', 'merged']).optional(), // Match method
+    method: z.enum(['exact', 'fuzzy', 'semantic', 'manual', 'merged', 'fdc-matching']).optional(), // Match method
     embeddingGenerated: z.boolean().optional(), // Whether new embedding was created
     embeddingReused: z.boolean().optional(), // Whether existing embedding was reused
     // Near-miss candidates — top results considered but not chosen (match-decision events)

@@ -62,8 +62,8 @@ export const SplitCanonItemDialog: React.FC<Props> = ({
   // Step 1 state
   const [newName, setNewName] = useState('');
   const [newAisleId, setNewAisleId] = useState(item.aisleId);
-  const [newUnitType, setNewUnitType] = useState<'mass' | 'volume' | 'count'>(
-    item.unit?.canonical_unit_type ?? 'mass'
+  const [newCanonicalUnit, setNewCanonicalUnit] = useState<'g' | 'ml' | 'each'>(
+    item.unit?.canonical_unit ?? 'g'
   );
 
   // Step 2 state
@@ -126,8 +126,6 @@ export const SplitCanonItemDialog: React.FC<Props> = ({
     const normalizedName = normalizeItemName(newName);
     if (!normalizedName) return;
 
-    const canonicalUnit = newUnitType === 'mass' ? 'g' : newUnitType === 'volume' ? 'ml' : 'each';
-
     setIsSubmitting(true);
     try {
       await splitCanonItem(
@@ -135,7 +133,7 @@ export const SplitCanonItemDialog: React.FC<Props> = ({
         {
           name: normalizedName,
           aisleId: newAisleId,
-          unit: { canonical_unit_type: newUnitType, canonical_unit: canonicalUnit, density_g_per_ml: null },
+          unit: { canonical_unit: newCanonicalUnit, density_g_per_ml: null },
         },
         selectedIds
       );
@@ -201,16 +199,16 @@ export const SplitCanonItemDialog: React.FC<Props> = ({
             <div className="space-y-1.5">
               <Label>Unit type</Label>
               <div className="flex gap-2">
-                {(['mass', 'volume', 'count'] as const).map(type => (
+                {(['g', 'ml', 'each'] as const).map(unit => (
                   <Button
-                    key={type}
+                    key={unit}
                     type="button"
-                    variant={newUnitType === type ? 'default' : 'outline'}
+                    variant={newCanonicalUnit === unit ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setNewUnitType(type)}
+                    onClick={() => setNewCanonicalUnit(unit)}
                     className="flex-1"
                   >
-                    {type === 'mass' ? 'Mass (g)' : type === 'volume' ? 'Volume (ml)' : 'Count (each)'}
+                    {unit === 'g' ? 'Mass (g)' : unit === 'ml' ? 'Volume (ml)' : 'Count (each)'}
                   </Button>
                 ))}
               </div>

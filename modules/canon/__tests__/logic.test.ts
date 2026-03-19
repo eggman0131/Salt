@@ -34,7 +34,7 @@ import {
 } from '../logic/items';
 import { Aisle, Unit } from '../../../types/contract';
 
-const DEFAULT_UNIT: CanonItem['unit'] = { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null };
+const DEFAULT_UNIT: CanonItem['unit'] = { canonical_unit: 'g', density_g_per_ml: null };
 const DEFAULT_AISLE: CanonItem['aisle'] = { tier1: 'produce', tier2: 'fresh', tier3: 'food' };
 const BASE_ITEM = { normalisedName: '', synonyms: [] as string[], itemType: 'ingredient' as const, allergens: [] as string[], barcodes: [] as string[], externalSources: [] as CanonItem['externalSources'] };
 
@@ -470,7 +470,7 @@ describe('validateItemDoc', () => {
       normalisedName: 'carrot',
       aisleId: 'produce',
       aisle: { tier1: 'produce', tier2: 'fresh', tier3: 'food' },
-      unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+      unit: { canonical_unit: 'g', density_g_per_ml: null },
       approved: true,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
@@ -485,7 +485,7 @@ describe('validateItemDoc', () => {
       normalisedName: 'carrot',
       aisleId: 'produce',
       aisle: { tier1: 'produce', tier2: 'fresh', tier3: 'food' },
-      unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+      unit: { canonical_unit: 'g', density_g_per_ml: null },
       createdAt: '2024-01-01T00:00:00.000Z',
     };
     const result = validateItemDoc(doc);
@@ -502,7 +502,7 @@ describe('validateItemDoc', () => {
       normalisedName: '',
       aisleId: 'produce',
       aisle: { tier1: 'produce', tier2: 'fresh', tier3: 'food' },
-      unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+      unit: { canonical_unit: 'g', density_g_per_ml: null },
       createdAt: '2024-01-01T00:00:00.000Z',
     };
     const result = validateItemDoc(doc);

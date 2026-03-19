@@ -558,7 +558,7 @@ export async function matchAndLinkRecipeIngredient(
     const newCanonItem = await createCanonItem({
       name: ingredient.ingredientName,
       aisleId: inferredAisleId,
-      unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+      unit: { canonical_unit: 'g', density_g_per_ml: null },
       approved: false, // Always requires review
     });
 

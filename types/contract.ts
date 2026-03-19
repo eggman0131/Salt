@@ -128,33 +128,15 @@ export const AisleSnapshotSchema = z.object({
 });
 export type AisleSnapshot = z.infer<typeof AisleSnapshotSchema>;
 
-// Count-based size descriptors mapped to grams.
-// Used for produce and individually sold items ("2 large carrots" → 2 × large_weight).
-export const CountEquivalentsSchema = z.object({
-  small: z.number().nullable().default(null),
-  medium: z.number().nullable().default(null),
-  large: z.number().nullable().default(null),
-  default_each_weight: z.number().nullable().default(null), // fallback when size not specified
-});
-export type CountEquivalents = z.infer<typeof CountEquivalentsSchema>;
-
-// Spoon/cup volumes mapped to grams or ml for this specific ingredient.
-// Conversion is per-ingredient because density varies ("1 tbsp honey" ≠ "1 tbsp flour").
-export const VolumeEquivalentsSchema = z.object({
-  tsp: z.number().nullable().default(null),   // teaspoon → g or ml
-  tbsp: z.number().nullable().default(null),  // tablespoon → g or ml
-  cup: z.number().nullable().default(null),   // cup → g or ml
-});
-export type VolumeEquivalents = z.infer<typeof VolumeEquivalentsSchema>;
-
 // Per-ingredient unit & conversion intelligence.
 // Defines how this ingredient behaves in recipes and how quantities aggregate internally.
 export const UnitIntelligenceSchema = z.object({
-  canonical_unit_type: z.enum(['mass', 'volume', 'count']),
   canonical_unit: z.enum(['g', 'ml', 'each']),
   density_g_per_ml: z.number().nullable().default(null), // e.g. olive oil → 0.91, honey → 1.42
-  count_equivalents: CountEquivalentsSchema.optional(),
-  volume_equivalents: VolumeEquivalentsSchema.optional(),
+  // Maps any unit name or size qualifier to grams (or ml for volume-canonical items).
+  // Keys are canon unit IDs (e.g. 'tbsp', 'clove', 'rasher') or size descriptors
+  // ('small', 'medium', 'large', 'default'). Populated by FDC enrichment and manual entry.
+  unit_weights: z.record(z.string(), z.number()).optional(),
 });
 export type UnitIntelligence = z.infer<typeof UnitIntelligenceSchema>;
 

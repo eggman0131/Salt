@@ -77,7 +77,7 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
   // Edit step state — initialised when primary is chosen
   const [name, setName] = useState('');
   const [aisleId, setAisleId] = useState('');
-  const [unitType, setUnitType] = useState<'mass' | 'volume' | 'count'>('mass');
+  const [canonicalUnit, setCanonicalUnit] = useState<'g' | 'ml' | 'each'>('g');
   const [synonymsText, setSynonymsText] = useState('');
 
   // Load impact on open
@@ -109,7 +109,7 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
     // Pre-fill edit form from primary
     setName(primary.name);
     setAisleId(primary.aisleId);
-    setUnitType(primary.unit?.canonical_unit_type ?? 'mass');
+    setCanonicalUnit(primary.unit?.canonical_unit ?? 'g');
 
     // Union synonyms from both items, and always include the secondary's name
     const allSynonyms = Array.from(
@@ -134,7 +134,6 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
       return;
     }
 
-    const canonicalUnit = unitType === 'mass' ? 'g' : unitType === 'volume' ? 'ml' : 'each';
     const synonyms = synonymsText
       .split(',')
       .map(s => s.trim())
@@ -147,7 +146,6 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
         aisleId,
         unit: {
           ...(primary.unit ?? { density_g_per_ml: null }),
-          canonical_unit_type: unitType,
           canonical_unit: canonicalUnit,
         },
         synonyms,
@@ -366,17 +364,17 @@ export const MergeCanonItemsDialog: React.FC<Props> = ({
               <div className="space-y-1.5">
                 <Label>Unit type</Label>
                 <div className="flex gap-2">
-                  {(['mass', 'volume', 'count'] as const).map(type => (
+                  {(['g', 'ml', 'each'] as const).map(unit => (
                     <Button
-                      key={type}
+                      key={unit}
                       type="button"
-                      variant={unitType === type ? 'default' : 'outline'}
+                      variant={canonicalUnit === unit ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setUnitType(type)}
+                      onClick={() => setCanonicalUnit(unit)}
                       disabled={isSubmitting}
                       className="flex-1"
                     >
-                      {type === 'mass' ? 'Mass (g)' : type === 'volume' ? 'Volume (ml)' : 'Count (each)'}
+                      {unit === 'g' ? 'Mass (g)' : unit === 'ml' ? 'Volume (ml)' : 'Count (each)'}
                     </Button>
                   ))}
                 </div>

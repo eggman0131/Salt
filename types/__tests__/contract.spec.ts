@@ -394,7 +394,7 @@ describe('Contract Runtime Validation - CanonicalItem', () => {
     isStaple: true,
     aisleId: 'produce',
     aisle: { tier1: 'produce', tier2: 'fresh', tier3: 'food' },
-    unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+    unit: { canonical_unit: 'g', density_g_per_ml: null },
     synonyms: [],
     itemType: 'ingredient',
     allergens: [],
@@ -416,7 +416,7 @@ describe('Contract Runtime Validation - CanonicalItem', () => {
       isStaple: false,
       aisleId: 'produce',
       aisle: { tier1: 'produce', tier2: 'fresh', tier3: 'food' },
-      unit: { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+      unit: { canonical_unit: 'g', density_g_per_ml: null },
       createdAt: new Date().toISOString(),
     };
     const result = CanonicalItemSchema.safeParse(invalid);

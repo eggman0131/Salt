@@ -2,7 +2,7 @@
  * FDC Data Provider
  *
  * Client-side access to USDA FDC food portions data for enriching canon item
- * unit conversion fields (volume_equivalents, density_g_per_ml, count_equivalents).
+ * unit conversion fields (unit_weights, density_g_per_ml).
  *
  * Two search modes:
  *  - searchFdcLocal: downloads binary once per session, searches in-browser.
@@ -190,7 +190,7 @@ const ML_PER_UNIT: Record<string, number> = {
 
 /**
  * Map FDC food portions to a Firestore field-path patch for CanonicalItem.unit.
- * Returns only fields where the existing unit value is null.
+ * Returns only fields where the existing unit_weights value is absent.
  * Skips portions with a non-empty modifier (e.g. "packed", "drained") for primary fields.
  */
 export function mapFdcPortionsToUnitPatch(
@@ -200,25 +200,33 @@ export function mapFdcPortionsToUnitPatch(
   const patch: Record<string, number> = {};
 
   for (const p of portions) {
-    if (p.modifier !== '') continue;
-
     const perUnit = p.gramWeight / p.amount;
-    const name = p.measureUnit.name.toLowerCase().trim();
-    const abbr = p.measureUnit.abbreviation.toLowerCase().trim();
+    let name = p.measureUnit.name.toLowerCase().trim();
+    let abbr = p.measureUnit.abbreviation.toLowerCase().trim();
 
-    // volume_equivalents
+    // If measureUnit is "undetermined", try to extract unit from modifier
+    if (name === 'undetermined' || abbr === 'undetermined') {
+      const modLower = p.modifier.toLowerCase().trim();
+      if (modLower.includes('tbsp') || modLower.includes('tablespoon')) {
+        name = 'tablespoon'; abbr = 'tbsp';
+      } else if (modLower.includes('tsp') || modLower.includes('teaspoon')) {
+        name = 'teaspoon'; abbr = 'tsp';
+      } else if (modLower.includes('cup')) {
+        name = 'cup'; abbr = 'cup';
+      } else if (modLower.includes('racc')) {
+        name = 'racc'; abbr = 'racc';
+      } else if (modLower.includes('each') || modLower.includes('whole')) {
+        name = 'each'; abbr = 'each';
+      }
+    }
+
+    // unit_weights — volume measures
     if (name === 'tablespoon' || abbr === 'tbsp') {
-      if (existingUnit.volume_equivalents?.tbsp == null) {
-        patch['unit.volume_equivalents.tbsp'] = perUnit;
-      }
+      if (existingUnit.unit_weights?.tbsp == null) patch['unit.unit_weights.tbsp'] = perUnit;
     } else if (name === 'teaspoon' || abbr === 'tsp') {
-      if (existingUnit.volume_equivalents?.tsp == null) {
-        patch['unit.volume_equivalents.tsp'] = perUnit;
-      }
+      if (existingUnit.unit_weights?.tsp == null) patch['unit.unit_weights.tsp'] = perUnit;
     } else if (name === 'cup') {
-      if (existingUnit.volume_equivalents?.cup == null) {
-        patch['unit.volume_equivalents.cup'] = perUnit;
-      }
+      if (existingUnit.unit_weights?.cup == null) patch['unit.unit_weights.cup'] = perUnit;
     }
 
     // density_g_per_ml — inferred from fluid measures
@@ -227,12 +235,25 @@ export function mapFdcPortionsToUnitPatch(
       patch['unit.density_g_per_ml'] = p.gramWeight / (p.amount * mlFactor);
     }
 
-    // count_equivalents.medium — from RACC or per-item measures
-    if (
-      (name === 'racc' || name === 'each' || name === 'whole' || abbr === 'each') &&
-      existingUnit.count_equivalents?.medium == null
+    // unit_weights — count and size measures
+    if (name === 'racc' || abbr === 'racc') {
+      if (existingUnit.unit_weights?.medium == null) patch['unit.unit_weights.medium'] = perUnit;
+      if (existingUnit.unit_weights?.default == null) patch['unit.unit_weights.default'] = perUnit;
+    } else if (
+      name === 'each' || name === 'whole' || name === 'piece' || name === 'item' ||
+      name === 'fruit' || name === 'vegetable' || name === 'leaf' || name === 'clove' ||
+      abbr === 'each' || abbr === 'piece'
     ) {
-      patch['unit.count_equivalents.medium'] = perUnit;
+      const modLower = p.modifier.toLowerCase();
+      if (modLower.includes('small')) {
+        if (existingUnit.unit_weights?.small == null) patch['unit.unit_weights.small'] = perUnit;
+      } else if (modLower.includes('medium')) {
+        if (existingUnit.unit_weights?.medium == null) patch['unit.unit_weights.medium'] = perUnit;
+      } else if (modLower.includes('large')) {
+        if (existingUnit.unit_weights?.large == null) patch['unit.unit_weights.large'] = perUnit;
+      } else {
+        if (existingUnit.unit_weights?.default == null) patch['unit.unit_weights.default'] = perUnit;
+      }
     }
   }
 

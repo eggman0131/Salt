@@ -403,7 +403,7 @@ function deserializeCanonItem(id: string, data: Record<string, any>): CanonItem 
     synonyms: Array.isArray(data.synonyms) ? data.synonyms : [],
     aisleId: data.aisleId ?? 'uncategorised',
     aisle: data.aisle ?? { tier1: 'Uncategorised', tier2: 'Uncategorised', tier3: 'Uncategorised' },
-    unit: data.unit ?? { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null },
+    unit: data.unit ?? { canonical_unit: 'g', density_g_per_ml: null },
     shopping: data.shopping,
     isStaple: data.isStaple ?? false,
     itemType: data.itemType ?? 'ingredient',
@@ -458,11 +458,9 @@ export async function createCanonItem(input: {
   const aisleSnapshot = await resolveAisleSnapshot(input.aisleId);
 
   const unitData: UnitIntelligence = {
-    canonical_unit_type: input.unit?.canonical_unit_type ?? 'mass',
     canonical_unit: input.unit?.canonical_unit ?? 'g',
     density_g_per_ml: input.unit?.density_g_per_ml ?? null,
-    ...(input.unit?.count_equivalents !== undefined ? { count_equivalents: input.unit.count_equivalents } : {}),
-    ...(input.unit?.volume_equivalents !== undefined ? { volume_equivalents: input.unit.volume_equivalents } : {}),
+    ...(input.unit?.unit_weights !== undefined ? { unit_weights: input.unit.unit_weights } : {}),
   };
 
   const firestoreDoc = {
@@ -975,14 +973,8 @@ export async function linkFdcMatchToCanonItem(
   // Map FDC portions to unit intelligence patch
   const unitPatch = mapFdcPortionsToUnitPatch(
     fdcMatch.portions,
-    itemData.unit ?? { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null }
+    itemData.unit ?? { canonical_unit: 'g', density_g_per_ml: null }
   );
-
-  console.log('[linkFdcMatchToCanonItem] Unit patch generated:', {
-    portionCount: fdcMatch.portions.length,
-    patchEntries: Object.keys(unitPatch).length,
-    patch: unitPatch,
-  });
 
   const now = new Date().toISOString();
   const fdcSource: ExternalSourceLink = {
@@ -1008,12 +1000,38 @@ export async function linkFdcMatchToCanonItem(
     updatedAt: now,
   };
 
-  // Apply unit patch fields individually to Firestore path format
-  for (const [path, value] of Object.entries(unitPatch)) {
-    updatePayload[path] = value;
+  // Build nested unit object from patch paths
+  if (Object.keys(unitPatch).length > 0) {
+    const baseUnit = itemData.unit ?? { canonical_unit: 'g', density_g_per_ml: null };
+    const unitUpdate = { ...baseUnit };
+
+    // Rebuild unit object from flat patch paths (e.g., 'unit.unit_weights.tbsp' -> nested structure)
+    for (const [path, value] of Object.entries(unitPatch)) {
+      const parts = path.split('.');
+      if (parts[0] === 'unit') {
+        // Navigate/create nested structure
+        let current = unitUpdate;
+        for (let i = 1; i < parts.length - 1; i++) {
+          const part = parts[i];
+          if (!current[part]) {
+            current[part] = {};
+          }
+          current = current[part];
+        }
+        // Set final value
+        current[parts[parts.length - 1]] = value;
+      }
+    }
+
+    updatePayload.unit = unitUpdate;
   }
 
-  await updateDoc(docRef, updatePayload);
+  try {
+    await updateDoc(docRef, updatePayload);
+  } catch (error) {
+    console.error('[linkFdcMatchToCanonItem] Firestore update failed:', error);
+    throw error;
+  }
 
   logMatchEvent({
     eventType: 'final-selection',

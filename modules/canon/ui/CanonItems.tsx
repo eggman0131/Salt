@@ -11,10 +11,11 @@
  * Uses Salt design primitives for responsive, consistent layout.
  */
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   getCanonItems,
   getCanonAisles,
+  getCanonUnits,
   addCanonItem,
   editCanonItem,
   approveItem,
@@ -37,7 +38,7 @@ import {
 } from '../api';
 import type { CofIDItem } from '../types';
 import { onCanonItemsDeleted } from '../../recipes/api';
-import type { Aisle } from '@/types/contract';
+import type { Aisle, Unit } from '@/types/contract';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -90,6 +91,7 @@ export const CanonItems: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [items, setItems] = useState<CanonItem[]>([]);
   const [aisles, setAisles] = useState<Aisle[]>([]);
+  const [canonUnits, setCanonUnits] = useState<Unit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -150,16 +152,31 @@ export const CanonItems: React.FC = () => {
   const needsReviewCount = filterUnapprovedItems(items).length;
   const allItemsSelected = sortedItems.length > 0 && selectedItems.size === sortedItems.length;
 
+  // Use a ref so loadData can access the current detailItem without being a dependency
+  const detailItemRef = useRef(detailItem);
+  useEffect(() => { detailItemRef.current = detailItem; }, [detailItem]);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [itemsData, aislesData] = await Promise.all([
+      const [itemsData, aislesData, unitsData] = await Promise.all([
         getCanonItems(),
         getCanonAisles(),
+        getCanonUnits(),
       ]);
       setItems(itemsData);
       setAisles(aislesData);
+      setCanonUnits(unitsData);
+
+      // If we have a detail item open, refresh it from the newly loaded items
+      const current = detailItemRef.current;
+      if (current) {
+        const refreshedItem = itemsData.find(i => i.id === current.id);
+        if (refreshedItem) {
+          setDetailItem(refreshedItem);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -174,14 +191,13 @@ export const CanonItems: React.FC = () => {
   const handleCreate = async (input: {
     name: string;
     aisleId: string;
-    unitType: 'mass' | 'volume' | 'count';
+    canonicalUnit: 'g' | 'ml' | 'each';
   }) => {
-    const canonicalUnit = input.unitType === 'mass' ? 'g' : input.unitType === 'volume' ? 'ml' : 'each';
     try {
       await addCanonItem({
         name: input.name,
         aisleId: input.aisleId,
-        unit: { canonical_unit_type: input.unitType, canonical_unit: canonicalUnit, density_g_per_ml: null },
+        unit: { canonical_unit: input.canonicalUnit, density_g_per_ml: null },
         approved: false,
       });
       softToast.success('Item created successfully');
@@ -611,6 +627,7 @@ export const CanonItems: React.FC = () => {
         <ItemDetailSheet
           item={detailItem}
           aisles={aisles}
+          canonUnits={canonUnits}
           open={showDetailSheet}
           onOpenChange={(open) => {
             setShowDetailSheet(open);
@@ -756,7 +773,7 @@ const ItemRow: React.FC<ItemRowProps> = ({
 
 interface CreateItemDialogProps {
   aisles: Aisle[];
-  onSubmit: (input: { name: string; aisleId: string; unitType: 'mass' | 'volume' | 'count' }) => Promise<void>;
+  onSubmit: (input: { name: string; aisleId: string; canonicalUnit: 'g' | 'ml' | 'each' }) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -767,7 +784,7 @@ const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [aisleId, setAisleId] = useState('');
-  const [unitType, setUnitType] = useState<'mass' | 'volume' | 'count'>('mass');
+  const [canonicalUnit, setCanonicalUnit] = useState<'g' | 'ml' | 'each'>('g');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -779,7 +796,7 @@ const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
     }
     setIsSubmitting(true);
     try {
-      await onSubmit({ name: normalizedName, aisleId, unitType });
+      await onSubmit({ name: normalizedName, aisleId, canonicalUnit });
     } finally {
       setIsSubmitting(false);
     }
@@ -820,14 +837,14 @@ const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
             </div>
             <div className="space-y-2">
               <Label htmlFor="unitType">Unit type</Label>
-              <Select value={unitType} onValueChange={(v) => setUnitType(v as 'mass' | 'volume' | 'count')} disabled={isSubmitting}>
+              <Select value={canonicalUnit} onValueChange={(v) => setCanonicalUnit(v as 'g' | 'ml' | 'each')} disabled={isSubmitting}>
                 <SelectTrigger id="unitType">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="mass">Mass (g)</SelectItem>
-                  <SelectItem value="volume">Volume (ml)</SelectItem>
-                  <SelectItem value="count">Count (each)</SelectItem>
+                  <SelectItem value="g">Mass (g)</SelectItem>
+                  <SelectItem value="ml">Volume (ml)</SelectItem>
+                  <SelectItem value="each">Count (each)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -851,6 +868,7 @@ const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
 interface ItemDetailSheetProps {
   item: CanonItem;
   aisles: Aisle[];
+  canonUnits: Unit[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
@@ -859,6 +877,7 @@ interface ItemDetailSheetProps {
 const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
   item,
   aisles,
+  canonUnits,
   open,
   onOpenChange,
   onSaved,
@@ -866,17 +885,13 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
   // ── Edit state ───────────────────────────────────────────────────────────
   const [name, setName] = useState(item.name);
   const [aisleId, setAisleId] = useState(item.aisleId);
-  const [unitType, setUnitType] = useState<'mass' | 'volume' | 'count'>(item.unit?.canonical_unit_type ?? 'mass');
+  const [canonicalUnit, setCanonicalUnit] = useState<'g' | 'ml' | 'each'>(item.unit?.canonical_unit ?? 'g');
   const [density, setDensity] = useState<string>(item.unit?.density_g_per_ml != null ? String(item.unit.density_g_per_ml) : '');
-  // Count equivalents
-  const [ceSmall, setCeSmall] = useState<string>(item.unit?.count_equivalents?.small != null ? String(item.unit.count_equivalents.small) : '');
-  const [ceMedium, setCeMedium] = useState<string>(item.unit?.count_equivalents?.medium != null ? String(item.unit.count_equivalents.medium) : '');
-  const [ceLarge, setCeLarge] = useState<string>(item.unit?.count_equivalents?.large != null ? String(item.unit.count_equivalents.large) : '');
-  const [ceDefault, setCeDefault] = useState<string>(item.unit?.count_equivalents?.default_each_weight != null ? String(item.unit.count_equivalents.default_each_weight) : '');
-  // Volume equivalents
-  const [veTsp, setVeTsp] = useState<string>(item.unit?.volume_equivalents?.tsp != null ? String(item.unit.volume_equivalents.tsp) : '');
-  const [veTbsp, setVeTbsp] = useState<string>(item.unit?.volume_equivalents?.tbsp != null ? String(item.unit.volume_equivalents.tbsp) : '');
-  const [veCup, setVeCup] = useState<string>(item.unit?.volume_equivalents?.cup != null ? String(item.unit.volume_equivalents.cup) : '');
+  const [unitWeights, setUnitWeights] = useState<Array<{ key: string; value: string }>>(
+    Object.entries(item.unit?.unit_weights ?? {}).map(([key, value]) => ({ key, value: String(value) }))
+  );
+  const [newUnitKey, setNewUnitKey] = useState('');
+  const [newUnitValue, setNewUnitValue] = useState('');
   // Classification
   const [itemType, setItemType] = useState<'ingredient' | 'product' | 'household'>(item.itemType ?? 'ingredient');
   const [isStaple, setIsStaple] = useState(item.isStaple);
@@ -931,15 +946,11 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
   useEffect(() => {
     setName(item.name);
     setAisleId(item.aisleId);
-    setUnitType(item.unit?.canonical_unit_type ?? 'mass');
+    setCanonicalUnit(item.unit?.canonical_unit ?? 'g');
     setDensity(item.unit?.density_g_per_ml != null ? String(item.unit.density_g_per_ml) : '');
-    setCeSmall(item.unit?.count_equivalents?.small != null ? String(item.unit.count_equivalents.small) : '');
-    setCeMedium(item.unit?.count_equivalents?.medium != null ? String(item.unit.count_equivalents.medium) : '');
-    setCeLarge(item.unit?.count_equivalents?.large != null ? String(item.unit.count_equivalents.large) : '');
-    setCeDefault(item.unit?.count_equivalents?.default_each_weight != null ? String(item.unit.count_equivalents.default_each_weight) : '');
-    setVeTsp(item.unit?.volume_equivalents?.tsp != null ? String(item.unit.volume_equivalents.tsp) : '');
-    setVeTbsp(item.unit?.volume_equivalents?.tbsp != null ? String(item.unit.volume_equivalents.tbsp) : '');
-    setVeCup(item.unit?.volume_equivalents?.cup != null ? String(item.unit.volume_equivalents.cup) : '');
+    setUnitWeights(Object.entries(item.unit?.unit_weights ?? {}).map(([key, value]) => ({ key, value: String(value) })));
+    setNewUnitKey('');
+    setNewUnitValue('');
     setItemType(item.itemType ?? 'ingredient');
     setIsStaple(item.isStaple);
     setSynonymsText((item.synonyms ?? []).join(', '));
@@ -987,27 +998,18 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
     }
     setIsSubmitting(true);
     try {
-      const canonicalUnit = unitType === 'mass' ? 'g' : unitType === 'volume' ? 'ml' : 'each';
       const parsedDensity = density.trim() !== '' ? parseFloat(density) : null;
+      const unit_weights: Record<string, number> = {};
+      for (const { key, value } of unitWeights) {
+        const k = key.trim();
+        const v = parseFloat(value);
+        if (k && !isNaN(v) && v > 0) unit_weights[k] = v;
+      }
+
       const unit: CanonItem['unit'] = {
-        canonical_unit_type: unitType,
         canonical_unit: canonicalUnit,
         density_g_per_ml: !isNaN(parsedDensity as number) && parsedDensity !== null ? parsedDensity : null,
-        ...(unitType === 'count' && (ceSmall || ceMedium || ceLarge || ceDefault) ? {
-          count_equivalents: {
-            small: ceSmall.trim() ? parseFloat(ceSmall) || null : null,
-            medium: ceMedium.trim() ? parseFloat(ceMedium) || null : null,
-            large: ceLarge.trim() ? parseFloat(ceLarge) || null : null,
-            default_each_weight: ceDefault.trim() ? parseFloat(ceDefault) || null : null,
-          },
-        } : {}),
-        ...(veTsp || veTbsp || veCup ? {
-          volume_equivalents: {
-            tsp: veTsp.trim() ? parseFloat(veTsp) || null : null,
-            tbsp: veTbsp.trim() ? parseFloat(veTbsp) || null : null,
-            cup: veCup.trim() ? parseFloat(veCup) || null : null,
-          },
-        } : item.unit?.volume_equivalents ? { volume_equivalents: item.unit.volume_equivalents } : {}),
+        ...(Object.keys(unit_weights).length > 0 ? { unit_weights } : {}),
       };
 
       const synonyms = synonymsText.split(',').map(s => s.trim()).filter(Boolean);
@@ -1304,22 +1306,22 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
             <div className="space-y-2">
               <Label>Unit type</Label>
               <div className="flex gap-2">
-                {(['mass', 'volume', 'count'] as const).map(type => (
+                {(['g', 'ml', 'each'] as const).map(unit => (
                   <Button
-                    key={type}
+                    key={unit}
                     type="button"
-                    variant={unitType === type ? 'default' : 'outline'}
+                    variant={canonicalUnit === unit ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setUnitType(type)}
+                    onClick={() => setCanonicalUnit(unit)}
                     disabled={isSubmitting}
                     className="flex-1"
                   >
-                    {type === 'mass' ? 'Mass (g)' : type === 'volume' ? 'Volume (ml)' : 'Count (each)'}
+                    {unit === 'g' ? 'Mass (g)' : unit === 'ml' ? 'Volume (ml)' : 'Count (each)'}
                   </Button>
                 ))}
               </div>
             </div>
-            {(unitType === 'mass' || unitType === 'volume') && (
+            {canonicalUnit !== 'each' && (
               <div className="space-y-2">
                 <Label htmlFor="detail-density">Density (g/ml)</Label>
                 <Input
@@ -1334,53 +1336,87 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
                 />
               </div>
             )}
-            {unitType === 'count' && (
-              <div className="space-y-2">
-                <Label>Count equivalents (grams each)</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {([
-                    ['Small', ceSmall, setCeSmall],
-                    ['Medium', ceMedium, setCeMedium],
-                    ['Large', ceLarge, setCeLarge],
-                    ['Default / each', ceDefault, setCeDefault],
-                  ] as [string, string, (v: string) => void][]).map(([label, val, setter]) => (
-                    <div key={label} className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">{label}</Label>
+            {/* Unit Weights */}
+            <div className="space-y-2">
+              <Label>
+                Unit weights
+                <span className="font-normal text-muted-foreground ml-1">
+                  ({item.unit?.canonical_unit === 'ml' ? 'ml' : 'g'} per unit)
+                </span>
+              </Label>
+              {unitWeights.length > 0 && (
+                <div className="divide-y rounded-md border">
+                  {unitWeights.map((entry, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-1.5">
+                      <span className="flex-1 text-sm font-mono">{entry.key}</span>
                       <Input
                         type="number"
-                        step="1"
+                        step="0.1"
                         min="0"
-                        placeholder="g"
-                        value={val}
-                        onChange={e => setter(e.target.value)}
+                        value={entry.value}
+                        onChange={e => setUnitWeights(prev =>
+                          prev.map((uw, j) => j === i ? { ...uw, value: e.target.value } : uw)
+                        )}
                         disabled={isSubmitting}
+                        className="w-24 h-7 text-sm"
                       />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setUnitWeights(prev => prev.filter((_, j) => j !== i))}
+                        disabled={isSubmitting}
+                        className="px-2 h-7 text-muted-foreground hover:text-destructive"
+                      >
+                        ✕
+                      </Button>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Volume equivalents <span className="font-normal text-muted-foreground">(g or ml)</span></Label>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  ['tsp', veTsp, setVeTsp],
-                  ['tbsp', veTbsp, setVeTbsp],
-                  ['cup', veCup, setVeCup],
-                ] as [string, string, (v: string) => void][]).map(([label, val, setter]) => (
-                  <div key={label} className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">{label}</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      placeholder="—"
-                      value={val}
-                      onChange={e => setter(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                ))}
+              )}
+              <div className="flex gap-2">
+                <input
+                  list="unit-weight-keys"
+                  value={newUnitKey}
+                  onChange={e => setNewUnitKey(e.target.value)}
+                  placeholder="Unit name..."
+                  disabled={isSubmitting}
+                  className="flex-1 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+                <datalist id="unit-weight-keys">
+                  <option value="small" />
+                  <option value="medium" />
+                  <option value="large" />
+                  <option value="default" />
+                  <option value="each" />
+                  {canonUnits.map(u => <option key={u.id} value={u.id} />)}
+                </datalist>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={newUnitValue}
+                  onChange={e => setNewUnitValue(e.target.value)}
+                  placeholder="0"
+                  disabled={isSubmitting}
+                  className="w-24"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isSubmitting || !newUnitKey.trim() || !newUnitValue.trim()}
+                  onClick={() => {
+                    const k = newUnitKey.trim();
+                    const v = newUnitValue.trim();
+                    if (!k || !v) return;
+                    setUnitWeights(prev => [...prev.filter(uw => uw.key !== k), { key: k, value: v }]);
+                    setNewUnitKey('');
+                    setNewUnitValue('');
+                  }}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
               </div>
             </div>
           </section>
@@ -1548,7 +1584,7 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
 
           {/* CoFID Section */}
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold">CoFID Link</h3>
+            <h3 className="text-sm font-semibold">CoFID</h3>
             {localCofidSource ? (
               <div className="space-y-3">
                 <div className="space-y-2 text-sm">
@@ -1710,9 +1746,28 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
             )}
           </section>
 
+          {/* Nutritional Data — sourced from CoFID */}
+          {nutrition && typeof nutrition === 'object' && (
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold">Nutritional Data <span className="font-normal text-muted-foreground">(per 100g, from CoFID)</span></h3>
+              <div className="rounded-md border divide-y text-sm">
+                {Object.entries(NUTRIENT_LABELS).map(([key, label]) => {
+                  const val = (nutrition as any)[key];
+                  if (val == null) return null;
+                  return (
+                    <div key={key} className="flex justify-between px-3 py-1.5">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="font-mono">{typeof val === 'number' ? val.toFixed(1) : val}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* FDC Section */}
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold">FDC Data (Unit Intelligence)</h3>
+            <h3 className="text-sm font-semibold">FDC</h3>
             {localFdcSource ? (
               <div className="space-y-3">
                 <div className="space-y-2 text-sm">
@@ -1720,22 +1775,22 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
                     <span className="text-muted-foreground">FDC ID</span>
                     <span className="font-mono text-xs">{localFdcSource.externalId}</span>
                   </div>
+                  {(localFdcSource.properties as any)?.description && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">FDC name</span>
+                      <span className="font-medium text-right max-w-[60%]">{(localFdcSource.properties as any).description}</span>
+                    </div>
+                  )}
                   {localFdcSource.confidence != null && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Match confidence</span>
                       <span>{Math.round(localFdcSource.confidence * 100)}%</span>
                     </div>
                   )}
-                  {fdcDetail?.description && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Description</span>
-                      <span className="font-medium text-right max-w-[60%] text-xs">{fdcDetail.description}</span>
-                    </div>
-                  )}
-                  {fdcDetail?.dataType && (
+                  {(localFdcSource.properties as any)?.dataType && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Data type</span>
-                      <span className="text-xs">{fdcDetail.dataType}</span>
+                      <span className="text-xs text-muted-foreground">{(localFdcSource.properties as any).dataType}</span>
                     </div>
                   )}
                   {localFdcSource.syncedAt && (
@@ -1752,11 +1807,11 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={handleSuggestFdc}>
                     <Sparkles className="h-3 w-3 mr-1" />
-                    Replace Link
+                    Change Link
                   </Button>
                   <Button variant="outline" size="sm" onClick={handleUnlinkFdc}>
                     <Unlink className="h-3 w-3 mr-1" />
-                    Remove
+                    Unlink
                   </Button>
                 </div>
               </div>
@@ -1850,31 +1905,13 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
               </div>
             )}
           </section>
-          {nutrition && typeof nutrition === 'object' && (
-            <section className="space-y-3">
-              <h3 className="text-sm font-semibold">Nutritional Data <span className="font-normal text-muted-foreground">(per 100g)</span></h3>
-              <div className="rounded-md border divide-y text-sm">
-                {Object.entries(NUTRIENT_LABELS).map(([key, label]) => {
-                  const val = (nutrition as any)[key];
-                  if (val == null) return null;
-                  return (
-                    <div key={key} className="flex justify-between px-3 py-1.5">
-                      <span className="text-muted-foreground">{label}</span>
-                      <span className="font-mono">{typeof val === 'number' ? val.toFixed(1) : val}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
           {/* Other external sources */}
-          {item.externalSources && item.externalSources.filter(s => s.source !== 'cofid').length > 0 && (
+          {item.externalSources && item.externalSources.filter(s => s.source !== 'cofid' && s.source !== 'fdc').length > 0 && (
             <section className="space-y-3">
               <h3 className="text-sm font-semibold">Other External Sources</h3>
               <div className="space-y-2">
                 {item.externalSources
-                  .filter(s => s.source !== 'cofid')
+                  .filter(s => s.source !== 'cofid' && s.source !== 'fdc')
                   .map((src, i) => (
                     <div key={i} className="rounded-md border px-3 py-2 text-sm space-y-1">
                       <div className="flex justify-between">

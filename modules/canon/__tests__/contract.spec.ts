@@ -81,7 +81,7 @@ const UNITS_FIXTURE: Unit[] = [
   },
 ];
 
-const DEFAULT_UNIT = { canonical_unit_type: 'mass' as const, canonical_unit: 'g' as const, density_g_per_ml: null };
+const DEFAULT_UNIT = { canonical_unit: 'g' as const, density_g_per_ml: null };
 const DEFAULT_AISLE = { tier1: 'produce', tier2: 'fresh', tier3: 'food' };
 
 const CANONICAL_ITEMS_FIXTURE: CanonicalItem[] = [
