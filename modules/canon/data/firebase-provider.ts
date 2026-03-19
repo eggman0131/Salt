@@ -978,6 +978,12 @@ export async function linkFdcMatchToCanonItem(
     itemData.unit ?? { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null }
   );
 
+  console.log('[linkFdcMatchToCanonItem] Unit patch generated:', {
+    portionCount: fdcMatch.portions.length,
+    patchEntries: Object.keys(unitPatch).length,
+    patch: unitPatch,
+  });
+
   const now = new Date().toISOString();
   const fdcSource: ExternalSourceLink = {
     source: 'fdc',
