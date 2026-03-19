@@ -231,6 +231,8 @@ export async function getMatchPerformanceStats(
     'lexical-match': 0,
     'candidate-merge': 0,
     'final-selection': 0,
+    'fdc-data-load': 0,
+    'fdc-match': 0,
   };
 
   const counts: Record<CanonMatchEvent['eventType'], number> = {
@@ -242,6 +244,8 @@ export async function getMatchPerformanceStats(
     'lexical-match': 0,
     'candidate-merge': 0,
     'final-selection': 0,
+    'fdc-data-load': 0,
+    'fdc-match': 0,
   };
 
   let successfulMatches = 0;
