@@ -29,6 +29,9 @@ import {
   buildCofidMatch,
   getCofidItemById,
   getCanonCofidItems,
+  suggestFdcMatch,
+  linkFdcMatch,
+  unlinkFdcMatch,
   type CanonItem,
   type SuggestedMatch,
 } from '../api';
@@ -908,6 +911,22 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
     item.externalSources?.find(s => s.source === 'cofid') ?? null
   );
 
+  // ── FDC state ────────────────────────────────────────────────────────────
+  const [fdcDetail, setFdcDetail] = useState<any>(null);
+  const [isLoadingFdcDetail, setIsLoadingFdcDetail] = useState(false);
+  const [showFdcSearch, setShowFdcSearch] = useState(false);
+  const [fdcSuggestions, setFdcSuggestions] = useState<{
+    bestMatch: any | null;
+    candidates: any[];
+  } | null>(null);
+  const [isLoadingFdc, setIsLoadingFdc] = useState(false);
+  const [selectedFdcMatch, setSelectedFdcMatch] = useState<any>(null);
+  const [fdcSearchFilter, setFdcSearchFilter] = useState('');
+  // Track the current FDC source locally so unlink updates are immediate
+  const [localFdcSource, setLocalFdcSource] = useState(
+    item.externalSources?.find(s => s.source === 'fdc') ?? null
+  );
+
   // Reset state when item changes
   useEffect(() => {
     setName(item.name);
@@ -947,6 +966,15 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
         .catch(() => { /* non-critical */ })
         .finally(() => setIsLoadingCofidDetail(false));
     }
+
+    // Reset FDC state
+    setFdcDetail(null);
+    setShowFdcSearch(false);
+    setFdcSuggestions(null);
+    setSelectedFdcMatch(null);
+    setFdcSearchFilter('');
+    const fdcSource = item.externalSources?.find(s => s.source === 'fdc') ?? null;
+    setLocalFdcSource(fdcSource);
   }, [item]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -1091,6 +1119,61 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
     }
   };
 
+  // ── FDC Handlers ──────────────────────────────────────────────────────────
+
+  const handleSuggestFdc = async () => {
+    setShowFdcSearch(true);
+    setIsLoadingFdc(true);
+    setFdcSuggestions(null);
+    setSelectedFdcMatch(null);
+    setFdcSearchFilter('');
+    try {
+      const suggestions = await suggestFdcMatch(item.id);
+      setFdcSuggestions(suggestions);
+      if (suggestions.bestMatch) {
+        setSelectedFdcMatch(suggestions.bestMatch);
+      }
+    } catch (err) {
+      softToast.error(err instanceof Error ? err.message : 'Failed to suggest FDC matches');
+      setShowFdcSearch(false);
+    } finally {
+      setIsLoadingFdc(false);
+    }
+  };
+
+  const handleLinkFdc = async (match: any) => {
+    setIsLoadingFdc(true);
+    try {
+      await linkFdcMatch(item.id, match);
+      softToast.success(`Enriched from FDC: ${match.description}`);
+      setShowFdcSearch(false);
+      setFdcSuggestions(null);
+      setSelectedFdcMatch(null);
+      // Update local FDC state
+      setLocalFdcSource({
+        source: 'fdc',
+        externalId: match.fdcId,
+        confidence: match.score,
+      });
+      setFdcDetail(match);
+    } catch (err) {
+      softToast.error(err instanceof Error ? err.message : 'Failed to link FDC match');
+    } finally {
+      setIsLoadingFdc(false);
+    }
+  };
+
+  const handleUnlinkFdc = async () => {
+    try {
+      await unlinkFdcMatch(item.id);
+      softToast.success('FDC link removed');
+      setLocalFdcSource(null);
+      setFdcDetail(null);
+    } catch (err) {
+      softToast.error(err instanceof Error ? err.message : 'Failed to unlink FDC');
+    }
+  };
+
   // ── CofID search filtering ──────────────────────────────────────────────
   const filteredCandidates = useMemo(() => {
     if (!cofidSuggestions?.candidates) return [];
@@ -1107,6 +1190,14 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
       .filter(c => c.name.toLowerCase().includes(lower) && !suggestionIds.has(c.id))
       .slice(0, 30);
   }, [allCofidItems, cofidSearchFilter, cofidSuggestions?.candidates]);
+
+  // ── FDC search filtering ──────────────────────────────────────────────
+  const filteredFdcCandidates = useMemo(() => {
+    if (!fdcSuggestions?.candidates) return [];
+    if (!fdcSearchFilter.trim()) return fdcSuggestions.candidates;
+    const lower = fdcSearchFilter.toLowerCase();
+    return fdcSuggestions.candidates.filter(c => c.description.toLowerCase().includes(lower));
+  }, [fdcSuggestions?.candidates, fdcSearchFilter]);
 
   const cofidItemToMatch = (ci: CofIDItem): SuggestedMatch => ({
     cofidId: ci.id,
@@ -1139,16 +1230,17 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader className="pb-4">
+      <SheetContent className="w-full sm:max-w-lg flex flex-col">
+        <SheetHeader className="pb-4 flex-shrink-0">
           <SheetTitle>{item.name}</SheetTitle>
           <SheetDescription>
             {!item.approved ? 'Pending review' : 'Approved'}
           </SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-6 pb-24">
-          {/* ── Identity ── */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="space-y-6 pb-24">
+            {/* ── Identity ── */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold">Item Details</h3>
             <div className="space-y-2">
@@ -1614,7 +1706,146 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
             )}
           </section>
 
-          {/* Nutritional data */}
+          {/* FDC Section */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">FDC Data (Unit Intelligence)</h3>
+            {localFdcSource ? (
+              <div className="space-y-3">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">FDC ID</span>
+                    <span className="font-mono text-xs">{localFdcSource.externalId}</span>
+                  </div>
+                  {localFdcSource.confidence != null && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Match confidence</span>
+                      <span>{Math.round(localFdcSource.confidence * 100)}%</span>
+                    </div>
+                  )}
+                  {fdcDetail?.description && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Description</span>
+                      <span className="font-medium text-right max-w-[60%] text-xs">{fdcDetail.description}</span>
+                    </div>
+                  )}
+                  {fdcDetail?.dataType && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Data type</span>
+                      <span className="text-xs">{fdcDetail.dataType}</span>
+                    </div>
+                  )}
+                  {localFdcSource.syncedAt && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Synced</span>
+                      <span className="text-xs">
+                        {new Date(localFdcSource.syncedAt).toLocaleDateString('en-GB', {
+                          day: 'numeric', month: 'short', year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleSuggestFdc}>
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Replace Link
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleUnlinkFdc}>
+                    <Unlink className="h-3 w-3 mr-1" />
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">No FDC data linked. Link to auto-populate unit conversion data.</p>
+                {!showFdcSearch && (
+                  <Button variant="outline" size="sm" onClick={handleSuggestFdc}>
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Find FDC Match
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Inline FDC search */}
+            {showFdcSearch && (
+              <div className="space-y-3 rounded-md border p-3">
+                {isLoadingFdc ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="ml-2 text-sm text-muted-foreground">Finding FDC matches...</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* Search */}
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search FDC food database..."
+                        value={fdcSearchFilter}
+                        onChange={e => setFdcSearchFilter(e.target.value)}
+                        className="pl-9"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="max-h-[300px] overflow-y-auto space-y-2">
+                      {/* FDC suggestions */}
+                      {filteredFdcCandidates.length > 0 && (
+                        <div className="space-y-1">
+                          {fdcSearchFilter && <p className="text-xs font-medium text-muted-foreground">Matches</p>}
+                          {filteredFdcCandidates.map((match, idx) => (
+                            <button
+                              key={match.fdcId}
+                              onClick={() => setSelectedFdcMatch(match)}
+                              className={`w-full text-left px-3 py-2 rounded-md border transition-colors ${
+                                selectedFdcMatch?.fdcId === match.fdcId ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-medium text-sm truncate">{match.description}</span>
+                                {idx === 0 && !fdcSearchFilter && fdcSuggestions?.bestMatch?.fdcId === match.fdcId && (
+                                  <Badge variant="default" className="text-xs"><Sparkles className="h-3 w-3 mr-1" />Best match</Badge>
+                                )}
+                                <Badge variant="secondary" className="text-xs">{Math.round(match.score * 100)}% similarity</Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">{match.dataType} • {match.portions?.length ?? 0} portions</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {filteredFdcCandidates.length === 0 && (fdcSuggestions?.candidates?.length ?? 0) > 0 && fdcSearchFilter && (
+                        <p className="text-xs text-muted-foreground">No matches for this search.</p>
+                      )}
+
+                      {(fdcSuggestions?.candidates?.length ?? 0) === 0 && !fdcSearchFilter && (
+                        <div className="flex flex-col items-center justify-center py-4 text-center border border-dashed rounded-lg">
+                          <AlertCircle className="h-6 w-6 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">No FDC matches found.</p>
+                          <p className="text-xs text-muted-foreground mt-1">Search to find portion data for unit conversion.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 justify-end pt-1">
+                      <Button variant="ghost" size="sm" onClick={() => setShowFdcSearch(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => selectedFdcMatch && handleLinkFdc(selectedFdcMatch)}
+                        disabled={!selectedFdcMatch || isLoadingFdc}
+                      >
+                        {isLoadingFdc ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Link Selected'}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </section>
           {nutrition && typeof nutrition === 'object' && (
             <section className="space-y-3">
               <h3 className="text-sm font-semibold">Nutritional Data <span className="font-normal text-muted-foreground">(per 100g)</span></h3>
@@ -1655,9 +1886,10 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
             </section>
           )}
         </div>
+        </div>
 
         {/* Sticky footer */}
-        <div className="absolute bottom-0 left-0 right-0 border-t bg-background p-4 flex justify-end gap-2">
+        <div className="border-t bg-background p-4 flex justify-end gap-2 flex-shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>

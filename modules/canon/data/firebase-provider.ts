@@ -38,6 +38,12 @@ import {
   logMatchEvent,
   startTimer,
 } from './match-events-provider';
+import {
+  loadFdcData,
+  searchFdcLocal,
+  mapFdcPortionsToUnitPatch,
+  type FdcSearchResult,
+} from './fdc-provider';
 
 const CANON_AISLES_COLLECTION = 'canonAisles';
 const CANON_UNITS_COLLECTION = 'canonUnits';
@@ -455,8 +461,8 @@ export async function createCanonItem(input: {
     canonical_unit_type: input.unit?.canonical_unit_type ?? 'mass',
     canonical_unit: input.unit?.canonical_unit ?? 'g',
     density_g_per_ml: input.unit?.density_g_per_ml ?? null,
-    count_equivalents: input.unit?.count_equivalents,
-    volume_equivalents: input.unit?.volume_equivalents,
+    ...(input.unit?.count_equivalents !== undefined ? { count_equivalents: input.unit.count_equivalents } : {}),
+    ...(input.unit?.volume_equivalents !== undefined ? { volume_equivalents: input.unit.volume_equivalents } : {}),
   };
 
   const firestoreDoc = {
@@ -948,6 +954,190 @@ export async function suggestCofidForCanonItem(
   }
 
   return { bestMatch, candidates };
+}
+
+/**
+ * Link an FDC match to a canon item.
+ * Stores linkage, enriches unit intelligence from FDC portions data.
+ */
+export async function linkFdcMatchToCanonItem(
+  canonItemId: string,
+  fdcMatch: FdcSearchResult
+): Promise<void> {
+  const docRef = doc(db, CANON_ITEMS_COLLECTION, canonItemId);
+
+  const itemSnap = await getDoc(docRef);
+  const itemData = itemSnap.exists() ? itemSnap.data() : {};
+  const existingSources = Array.isArray(itemData.externalSources)
+    ? (itemData.externalSources as ExternalSourceLink[])
+    : undefined;
+
+  // Map FDC portions to unit intelligence patch
+  const unitPatch = mapFdcPortionsToUnitPatch(
+    fdcMatch.portions,
+    itemData.unit ?? { canonical_unit_type: 'mass', canonical_unit: 'g', density_g_per_ml: null }
+  );
+
+  const now = new Date().toISOString();
+  const fdcSource: ExternalSourceLink = {
+    source: 'fdc',
+    externalId: String(fdcMatch.fdcId),
+    confidence: fdcMatch.score,
+    properties: {
+      description: fdcMatch.description,
+      dataType: fdcMatch.dataType,
+      portions: fdcMatch.portions,
+    },
+    syncedAt: now,
+  };
+
+  const updatedSources = [
+    ...(existingSources ?? []).filter(source => source.source !== 'fdc'),
+    fdcSource,
+  ];
+
+  const updatePayload: Record<string, any> = {
+    externalSources: updatedSources,
+    lastSyncedAt: now,
+    updatedAt: now,
+  };
+
+  // Apply unit patch fields individually to Firestore path format
+  for (const [path, value] of Object.entries(unitPatch)) {
+    updatePayload[path] = value;
+  }
+
+  await updateDoc(docRef, updatePayload);
+
+  logMatchEvent({
+    eventType: 'final-selection',
+    entityType: 'canon-item',
+    entityId: canonItemId,
+    entityName: itemData?.name || 'unknown',
+    aisleId: itemData?.aisleId,
+    input: {},
+    output: {
+      topMatchId: String(fdcMatch.fdcId),
+      topScore: fdcMatch.score,
+      method: 'fdc-matching',
+    },
+    metrics: {
+      durationMs: 0,
+    },
+    metadata: {
+      dataType: fdcMatch.dataType,
+      description: fdcMatch.description,
+    },
+  });
+}
+
+/**
+ * Unlink FDC match from a canon item.
+ * Removes the FDC entry from externalSources.
+ */
+export async function unlinkFdcMatchFromCanonItem(
+  canonItemId: string
+): Promise<void> {
+  const docRef = doc(db, CANON_ITEMS_COLLECTION, canonItemId);
+
+  const itemSnap = await getDoc(docRef);
+  const itemData = itemSnap.exists() ? itemSnap.data() : {};
+  const existingSources = Array.isArray(itemData.externalSources)
+    ? (itemData.externalSources as ExternalSourceLink[])
+    : undefined;
+
+  await updateDoc(docRef, {
+    externalSources: (existingSources ?? []).filter(source => source.source !== 'fdc'),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Suggest FDC matches for a canon item.
+ *
+ * Workflow:
+ * 1. Fetch canon item
+ * 2. Load FDC data (embeddings + index)
+ * 3. Generate or reuse embedding for canon item name
+ * 4. Search FDC locally by vector similarity
+ * 5. Return best match + candidates
+ *
+ * Returns object with:
+ * - bestMatch: FdcSearchResult | null
+ * - candidates: FdcSearchResult[] (top 5)
+ */
+export async function suggestFdcForCanonItem(
+  canonItemId: string
+): Promise<{ bestMatch: FdcSearchResult | null; candidates: FdcSearchResult[] }> {
+  // 1. Fetch canon item
+  const canonItem = await fetchCanonItemById(canonItemId);
+  if (!canonItem) {
+    return { bestMatch: null, candidates: [] };
+  }
+
+  try {
+    // 2. Load FDC data (will use cache if already loaded)
+    const loadTimer = startTimer();
+    await loadFdcData();
+    const loadDuration = loadTimer();
+
+    logMatchEvent({
+      eventType: 'fdc-data-load',
+      entityType: 'canon-item',
+      entityId: canonItem.id,
+      entityName: canonItem.name,
+      aisleId: canonItem.aisleId,
+      input: {},
+      output: { entryCount: 0 }, // Actual count would require loadFdcData to return it
+      metrics: { durationMs: loadDuration },
+    });
+
+    // 3. Generate embedding for canon item name
+    const embeddingTimer = startTimer();
+    const queryEmbedding = await generateTextEmbedding(canonItem.name);
+    const embeddingDuration = embeddingTimer();
+
+    logMatchEvent({
+      eventType: 'embedding-generation',
+      entityType: 'canon-item',
+      entityId: canonItem.id,
+      entityName: canonItem.name,
+      aisleId: canonItem.aisleId,
+      input: { queryText: canonItem.name, embeddingDim: queryEmbedding?.length },
+      output: { embeddingGenerated: true, embeddingReused: false },
+      metrics: { durationMs: embeddingDuration },
+    });
+
+    // 4. Search FDC locally
+    const searchTimer = startTimer();
+    const candidates = searchFdcLocal(queryEmbedding, 5, 0.65);
+    const searchDuration = searchTimer();
+
+    logMatchEvent({
+      eventType: 'fdc-match',
+      entityType: 'canon-item',
+      entityId: canonItem.id,
+      entityName: canonItem.name,
+      aisleId: canonItem.aisleId,
+      input: { embeddingDim: queryEmbedding.length },
+      output: {
+        resultCount: candidates.length,
+        topScore: candidates[0]?.score,
+        topMatchId: String(candidates[0]?.fdcId),
+        topMatchName: candidates[0]?.description,
+        method: 'semantic',
+      },
+      metrics: { durationMs: searchDuration },
+      metadata: { threshold: 0.65 },
+    });
+
+    const bestMatch = candidates[0] ?? null;
+
+    return { bestMatch, candidates };
+  } catch (error) {
+    console.warn('[suggestFdcForCanonItem] FDC matching unavailable:', error);
+    return { bestMatch: null, candidates: [] };
+  }
 }
 
 // ── Seed Operations (batch writes) ───────────────────────────────────────────

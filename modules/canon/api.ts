@@ -27,6 +27,9 @@ import {
   linkCofidMatchToCanonItem,
   unlinkCofidMatchFromCanonItem,
   suggestCofidForCanonItem,
+  linkFdcMatchToCanonItem,
+  unlinkFdcMatchFromCanonItem,
+  suggestFdcForCanonItem,
   createCanonAisle,
   updateCanonAisle,
   deleteCanonAisle,
@@ -314,6 +317,35 @@ export async function unlinkCofidMatch(canonItemId: string): Promise<void> {
  */
 export async function getCofidItemById(id: string) {
   return fetchCofidItemById(id);
+}
+
+// ── FDC Integration ──────────────────────────────────────────────────────────
+
+/**
+ * Suggest FDC matches for a canon item.
+ * Returns best match + top 5 candidates with portion data.
+ */
+export async function suggestFdcMatch(canonItemId: string) {
+  return suggestFdcForCanonItem(canonItemId);
+}
+
+/**
+ * Link an FDC match to a canon item.
+ * Automatically enriches unit intelligence from FDC portions data.
+ */
+export async function linkFdcMatch(
+  canonItemId: string,
+  fdcMatch: any
+): Promise<void> {
+  return linkFdcMatchToCanonItem(canonItemId, fdcMatch);
+}
+
+/**
+ * Unlink FDC match from a canon item.
+ * Removes the fdc external source entry.
+ */
+export async function unlinkFdcMatch(canonItemId: string): Promise<void> {
+  return unlinkFdcMatchFromCanonItem(canonItemId);
 }
 
 // ── PR5: CofID Match Logic (pure helpers) ────────────────────────────────────
