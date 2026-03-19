@@ -1156,6 +1156,8 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
         confidence: match.score,
       });
       setFdcDetail(match);
+      // Refresh item data to show updated unit intelligence
+      await onSaved();
     } catch (err) {
       softToast.error(err instanceof Error ? err.message : 'Failed to link FDC match');
     } finally {
@@ -1169,6 +1171,8 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
       softToast.success('FDC link removed');
       setLocalFdcSource(null);
       setFdcDetail(null);
+      // Refresh item data to clear unit intelligence fields
+      await onSaved();
     } catch (err) {
       softToast.error(err instanceof Error ? err.message : 'Failed to unlink FDC');
     }
