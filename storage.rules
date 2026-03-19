@@ -35,5 +35,11 @@ service firebase.storage {
       allow read: if isAuthorized();
       allow write: if isAuthorized();
     }
+
+    // FDC (USDA Food Data Central) embeddings for item matching
+    match /fdc/embeddings/{allPaths=**} {
+      allow read: if isAuthorized();
+      allow write: if isAdmin();
+    }
   }
 }
