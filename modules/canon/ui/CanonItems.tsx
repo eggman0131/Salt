@@ -37,6 +37,7 @@ import {
   type SuggestedMatch,
 } from '../api';
 import type { CofIDItem } from '../types';
+import CofidMatchButton from './CofidMatchButton';
 import { onCanonItemsDeleted } from '../../recipes/api';
 import type { Aisle, Unit } from '@/types/contract';
 import { Button } from '@/components/ui/button';
@@ -1953,26 +1954,3 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
   );
 };
 
-// ── CofidMatchButton ─────────────────────────────────────────────────────────
-
-const CofidMatchButton: React.FC<{
-  name: string;
-  cofidId: string;
-  badge: React.ReactNode;
-  sub: string;
-  isSelected: boolean;
-  onSelect: () => void;
-}> = ({ name, badge, sub, isSelected, onSelect }) => (
-  <button
-    onClick={onSelect}
-    className={`w-full text-left px-3 py-2 rounded-md border transition-colors ${
-      isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
-    }`}
-  >
-    <div className="flex items-center gap-1.5 flex-wrap">
-      <span className="font-medium text-sm">{name}</span>
-      {badge}
-    </div>
-    <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
-  </button>
-);

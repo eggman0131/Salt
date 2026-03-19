@@ -350,13 +350,7 @@ export async function unlinkFdcMatch(canonItemId: string): Promise<void> {
 
 // ── PR5: CofID Match Logic (pure helpers) ────────────────────────────────────
 
-export {
-  suggestBestMatch,
-  rankCandidates,
-  buildCofidMatch,
-  normaliseForMatching,
-  levenshteinSimilarity,
-} from './logic/suggestCofidMatch';
+export { buildCofidMatch } from './logic/suggestCofidMatch';
 
 export type { SuggestedMatch } from './logic/suggestCofidMatch';
 
@@ -383,16 +377,35 @@ export async function generateCanonItemEmbeddings() {
   return generateFn();
 }
 
+/**
+ * Delete specific embeddings by their IDs from the local IndexedDB store.
+ */
+export async function deleteEmbeddings(ids: string[]): Promise<void> {
+  const { deleteEmbeddings: fn } = await import('./data/embeddings-provider');
+  return fn(ids);
+}
+
+/**
+ * Resolve a single canon item from Firestore and upsert its embedding in the lookup table.
+ */
+export async function upsertCanonItemEmbeddingById(
+  canonItemId: string
+): Promise<{ success: boolean; reused: boolean; message?: string }> {
+  const { upsertCanonItemEmbeddingById: fn } = await import('./data/embeddings-provider');
+  return fn(canonItemId);
+}
+
+/**
+ * Publish all local IndexedDB embeddings to the Firestore master snapshot.
+ */
+export async function publishLocalToMaster(): Promise<void> {
+  const { publishLocalToMaster: fn } = await import('./data/embeddings-provider');
+  return fn();
+}
+
 // ── PR6: Semantic Matching Logic (pure helpers) ──────────────────────────────
 
-export {
-  cosineSimilarity,
-  findSemanticMatches,
-  getBestSemanticMatch,
-  calculateCoverageStats,
-  groupCoverageByAisle,
-  validateEmbedding as validateEmbeddingDimension,
-} from './logic/embeddings';
+export { groupCoverageByAisle } from './logic/embeddings';
 
 export type { SemanticMatch } from './logic/embeddings';
 
@@ -556,6 +569,7 @@ export async function enrichCanonItemsWithFdc(
 }
 
 export type { FdcSearchResult, FdcPortion, FdcEnrichmentResult } from './data/fdc-provider';
+export { mapFdcPortionsToUnitPatch } from './logic/fdc';
 
 // ── Type re-exports ───────────────────────────────────────────────────────────
 

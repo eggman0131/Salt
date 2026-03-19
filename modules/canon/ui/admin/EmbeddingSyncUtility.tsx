@@ -6,13 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle2, RefreshCw, Trash2, UploadCloud, FileSearch } from 'lucide-react';
-import { fetchCanonItems } from '../../data/firebase-provider';
-import { 
-  fetchEmbeddingsFromLookup, 
-  deleteEmbeddings, 
-  upsertCanonItemEmbeddingById, 
-  publishLocalToMaster 
-} from '../../data/embeddings-provider';
+import {
+  getCanonItems as fetchCanonItems,
+  getEmbeddingsFromLookup as fetchEmbeddingsFromLookup,
+  deleteEmbeddings,
+  upsertCanonItemEmbeddingById,
+  publishLocalToMaster,
+} from '../../api';
 
 interface AnalysisReport {
   missingLocal: string[]; // Canon Item IDs that have no local 'canon' embedding

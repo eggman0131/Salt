@@ -41,9 +41,9 @@ import {
 import {
   loadFdcData,
   searchFdcLocal,
-  mapFdcPortionsToUnitPatch,
   type FdcSearchResult,
 } from './fdc-provider';
+import { mapFdcPortionsToUnitPatch } from '../logic/fdc';
 
 const CANON_AISLES_COLLECTION = 'canonAisles';
 const CANON_UNITS_COLLECTION = 'canonUnits';
