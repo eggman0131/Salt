@@ -73,7 +73,7 @@ STRICT RULES:
 1. Maintain the professional Chef tone and British/Metric standards.
 2. If updating, do not rewrite steps that aren't being changed.
 3. TECHNICAL MAPPING: You must provide 'stepIngredients'. This is an array of arrays where each inner array contains the 0-indexed indices of ingredients used in that specific instruction step. 
-4. WORKFLOW ADVICE: Provide technical warnings for safety or complex techniques (e.g. "Don't overmix the batter"). Use 'stepAlerts' to map these warnings to specific steps.
+4. TECHNICAL WARNINGS: Only add stepAlerts where genuinely needed — safety hazards, critical timing, or technique errors that would ruin the dish. Most steps will not need one. Do NOT add a warning to every step.
 
 RETURN JSON (MANDATORY SCHEMA):
 {
@@ -88,7 +88,7 @@ RETURN JSON (MANDATORY SCHEMA):
   "servings": "4",
   "complexity": "Intermediate",
   "stepIngredients": [[0, 1], [1, 2]],
-  "stepAlerts": {"0": "Alert text", "1": "Another alert"}
+  "stepAlerts": {"1": "Do not overmix or the batter will toughen"}
 }
 
 CRITICAL JSON REQUIREMENTS:
@@ -203,7 +203,7 @@ RETURN JSON (MANDATORY SCHEMA):
   "servings": "4",
   "complexity": "Intermediate",
   "stepIngredients": [[0, 1], [1, 2]],
-  "stepAlerts": {"0": "Alert text if needed"}
+  "stepAlerts": {"1": "Only include where there is a genuine safety or technique risk — omit entirely if none apply"}
 }`
 };
 

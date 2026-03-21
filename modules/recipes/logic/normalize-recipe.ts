@@ -70,13 +70,15 @@ export function normalizeInstructions(instructions: any[]): RecipeInstruction[] 
 /**
  * Convert instructions to RecipeInstruction objects while migrating old format (Issue #57).
  * Embeds step-specific ingredients and warnings directly in instruction objects.
+ *
+ * stepWarnings is a sparse array where stepWarnings[stepIdx] is the warning string for that step
+ * (or undefined if there is none). Derived from the AI's stepAlerts dict format: {"0": "text", "2": "text"}.
  */
 export function normalizeInstructionsWithMigration(
   instructions: any[],
   allIngredients: any[],
   stepIngredients: any[][],
-  stepAlerts: any[][],
-  technicalWarnings: string[],
+  stepWarnings: (string | undefined)[],
   _recipeId: string
 ): RecipeInstruction[] {
   if (!Array.isArray(instructions)) return [];
@@ -104,11 +106,9 @@ export function normalizeInstructionsWithMigration(
         .filter((ing) => ing !== undefined);
     }
 
-    if (stepAlerts[stepIdx] && Array.isArray(stepAlerts[stepIdx])) {
-      const stepAlertIndices = stepAlerts[stepIdx] as number[];
-      baseInstruction.technicalWarnings = stepAlertIndices
-        .map((idx) => technicalWarnings[idx])
-        .filter((warning) => warning !== undefined);
+    const warning = stepWarnings[stepIdx];
+    if (warning) {
+      baseInstruction.technicalWarnings = [warning];
     }
 
     return baseInstruction;
@@ -194,26 +194,27 @@ export function normalizeRecipeData(raw: any): Partial<Recipe> {
   );
 
   const stepIngredients = normalized.stepIngredients || [];
-  const stepAlerts = normalized.stepAlerts || [];
-  const warnings = normalized.workflowAdvice?.technicalWarnings || [];
+
+  // AI returns stepAlerts as a dict {"0": "warning text", "2": "warning text"}.
+  // Convert to a sparse array indexed by step number.
+  const stepAlertsRaw = normalized.stepAlerts || {};
+  const stepWarnings: (string | undefined)[] = [];
+  if (typeof stepAlertsRaw === 'object' && !Array.isArray(stepAlertsRaw)) {
+    Object.entries(stepAlertsRaw).forEach(([k, v]) => {
+      if (typeof v === 'string') stepWarnings[Number(k)] = v;
+    });
+  }
 
   normalized.instructions = normalizeInstructionsWithMigration(
     normalized.instructions,
     normalized.ingredients,
     stepIngredients,
-    stepAlerts,
-    warnings,
+    stepWarnings,
     normalized.id || 'unknown'
   );
 
   delete normalized.stepIngredients;
   delete normalized.stepAlerts;
-  if (normalized.workflowAdvice) {
-    delete normalized.workflowAdvice.technicalWarnings;
-    if (Object.keys(normalized.workflowAdvice).length === 0) {
-      delete normalized.workflowAdvice;
-    }
-  }
 
   return normalized;
 }

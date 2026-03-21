@@ -31,7 +31,14 @@ import { ImageEditor } from '../../../shared/components/ImageEditor';
 import { softToast } from '../../../lib/soft-toast';
 import { systemBackend } from '../../../shared/backend/system-backend';
 import { buildManualEditSummary, createHistoryEntry } from '../api';
-import { addRecipeToList, getDefaultShoppingList } from '../../shopping-list';
+import { addRecipeToList, getDefaultShoppingList, getShoppingLists } from '../../shopping-list';
+import type { ShoppingList } from '../../../types/contract';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -149,17 +156,7 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
               <span className="text-muted-foreground mt-1">•</span>
               <span className="flex items-start gap-2">
                 <span>
-                  {ingredient.quantity && ingredient.unit && (
-                    <span className="font-medium">
-                      {ingredient.quantity} {ingredient.unit}{' '}
-                    </span>
-                  )}
-                  {ingredient.ingredientName}
-                  {ingredient.preparation && (
-                    <span className="text-muted-foreground">
-                      {' '}({ingredient.preparation})
-                    </span>
-                  )}
+                  {ingredient.raw}
                 </span>
                 {ingredient.canonicalItemId ? (
                   <div className="shrink-0 text-green-600 dark:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
@@ -245,57 +242,16 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
                 {index + 1}
               </span>
               <div className="flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm leading-relaxed pt-0.5">{instr.text}</p>
-                  
-                  {/* Step Technical Warnings Popover */}
-                  {instr.technicalWarnings && instr.technicalWarnings.length > 0 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button className="shrink-0 text-warning hover:text-warning/80 transition-colors p-1 -m-1">
-                          <AlertTriangle className="w-5 h-5" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent 
-                        side="top" 
-                        align="end" 
-                        className="w-72 p-0 overflow-hidden border-orange-200/50 shadow-lg shadow-orange-500/10"
-                      >
-                        <div className="p-3 bg-[color-mix(in_oklab,var(--warning)_10%,var(--background))]">
-                          <div className="flex items-center gap-2 mb-2">
-                            <AlertTriangle className="w-5 h-5 text-warning" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-warning-foreground">Technical Warning</span>
-                          </div>
-                          <ul className="space-y-2">
-                            {instr.technicalWarnings.map((warning, idx) => (
-                              <li key={idx} className="text-xs text-warning-foreground font-medium leading-normal">
-                                {warning}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </div>
-
-                {/* Step-specific ingredients */}
-                {instr.ingredients && instr.ingredients.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {instr.ingredients.map((ingredient, ingIdx) => (
-                      <span
-                        key={ingredient.id}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted text-muted-foreground text-xs"
-                      >
-                        {ingredient.quantity && ingredient.unit && (
-                          <span className="font-medium">
-                            {ingredient.quantity} {ingredient.unit}
-                          </span>
-                        )}
-                        <span>{ingredient.ingredientName}</span>
-                      </span>
+                <p className="text-sm leading-relaxed pt-0.5">{instr.text}</p>
+                {instr.technicalWarnings && instr.technicalWarnings.length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {instr.technicalWarnings.map((warning, idx) => (
+                      <li key={idx} className="flex items-start gap-1.5 text-xs text-warning-foreground font-medium leading-normal">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-warning" />
+                        {warning}
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 )}
               </div>
             </li>
@@ -426,6 +382,11 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
   const [pendingRestoreEntry, setPendingRestoreEntry] = useState<RecipeHistoryEntry | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [activeTab, setActiveTab] = useState<'recipe' | 'chef' | 'cook' | 'assist'>('recipe');
+  const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>([]);
+
+  useEffect(() => {
+    getShoppingLists().then(setShoppingLists).catch(() => {});
+  }, []);
 
   // Scroll to top when recipe opens or changes (before paint)
   useLayoutEffect(() => {
@@ -616,10 +577,10 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
     setChatTop(rect.top);
   };
 
-  const handleAddToShoppingList = async () => {
+  const handleAddToShoppingList = async (listId?: string) => {
     try {
-      const list = await getDefaultShoppingList();
-      await addRecipeToList(recipe.id, list.id);
+      const id = listId ?? (await getDefaultShoppingList()).id;
+      await addRecipeToList(recipe.id, id);
       softToast.success('Added to shopping list');
     } catch (e) {
       console.error(e);
@@ -719,14 +680,31 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                     Back to Recipes
                   </Button>
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={handleAddToShoppingList}
-                      className="h-9 w-9"
-                      title="Add to Shopping List"
-                    >
-                      <ShoppingBag className="w-5 h-5" />
-                    </Button>
+                    {shoppingLists.length > 1 ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="h-9 w-9" title="Add to Shopping List">
+                            <ShoppingBag className="w-5 h-5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {shoppingLists.map(list => (
+                            <DropdownMenuItem key={list.id} onClick={() => handleAddToShoppingList(list.id)}>
+                              {list.name}{list.isDefault ? ' (default)' : ''}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleAddToShoppingList()}
+                        className="h-9 w-9"
+                        title="Add to Shopping List"
+                      >
+                        <ShoppingBag className="w-5 h-5" />
+                      </Button>
+                    )}
                     <Button 
                       variant="outline" 
                       onClick={() => setIsHistoryOpen(true)}
@@ -834,15 +812,33 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                 Back to Recipes
               </Button>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={handleAddToShoppingList}
-                  className="h-9 w-9 md:w-auto md:h-10 md:px-4"
-                  title="Add to Shopping List"
-                >
-                  <ShoppingBag className="w-5 h-5 md:mr-2" />
-                  <span className="hidden md:inline">Add to List</span>
-                </Button>
+                {shoppingLists.length > 1 ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="h-9 w-9 md:w-auto md:h-10 md:px-4" title="Add to Shopping List">
+                        <ShoppingBag className="w-5 h-5 md:mr-2" />
+                        <span className="hidden md:inline">Add to List</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {shoppingLists.map(list => (
+                        <DropdownMenuItem key={list.id} onClick={() => handleAddToShoppingList(list.id)}>
+                          {list.name}{list.isDefault ? ' (default)' : ''}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleAddToShoppingList()}
+                    className="h-9 w-9 md:w-auto md:h-10 md:px-4"
+                    title="Add to Shopping List"
+                  >
+                    <ShoppingBag className="w-5 h-5 md:mr-2" />
+                    <span className="hidden md:inline">Add to List</span>
+                  </Button>
+                )}
                 <Button 
                   variant="outline" 
                   onClick={() => setIsHistoryOpen(true)}
