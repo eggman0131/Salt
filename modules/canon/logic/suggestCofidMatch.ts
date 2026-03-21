@@ -5,7 +5,8 @@
  * All functions are synchronous, deterministic, and fully testable.
  */
 
-import type { CofIDItem } from '../types';
+// Minimal shape required by the matching functions — NamedItem satisfies this.
+type NamedItem = { id: string; name: string };
 
 export interface CofidMatch {
   status: 'auto' | 'manual';
@@ -74,7 +75,7 @@ export function levenshteinSimilarity(a: string, b: string): number {
  */
 export function tryExactMatch(
   canonName: string,
-  cofidItem: CofIDItem
+  cofidItem: NamedItem
 ): SuggestedMatch | null {
   const normCanon = normaliseForMatching(canonName);
   const normCofid = normaliseForMatching(cofidItem.name);
@@ -98,7 +99,7 @@ export function tryExactMatch(
  */
 export function tryFuzzyMatch(
   canonName: string,
-  cofidItem: CofIDItem,
+  cofidItem: NamedItem,
   threshold: number = 0.75
 ): SuggestedMatch | null {
   const normCanon = normaliseForMatching(canonName);
@@ -157,7 +158,7 @@ export function tryFuzzyMatch(
  */
 export function suggestBestMatch(
   canonName: string,
-  candidates: CofIDItem[]
+  candidates: NamedItem[]
 ): SuggestedMatch | null {
   // Try exact match first
   for (const candidate of candidates) {
@@ -184,7 +185,7 @@ export function suggestBestMatch(
  */
 export function rankCandidates(
   canonName: string,
-  candidates: CofIDItem[],
+  candidates: NamedItem[],
   limit: number = 5
 ): SuggestedMatch[] {
   const matches: SuggestedMatch[] = [];

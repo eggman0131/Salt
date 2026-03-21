@@ -25,7 +25,6 @@ import {
 } from 'firebase/firestore';
 import { CanonItem, ExternalSourceLink } from '../logic/items';
 import { suggestBestMatch, rankCandidates, tryExactMatch, tryFuzzyMatch, buildCofidMatch, type SuggestedMatch } from '../logic/suggestCofidMatch';
-import { findSemanticMatches } from '../logic/embeddings';
 import {
   fetchEmbeddingsFromLookup,
   generateTextEmbedding,
@@ -34,6 +33,12 @@ import {
   deleteEmbeddings,
   clearCanonEmbeddings,
 } from './embeddings-provider';
+import {
+  loadCofidData,
+  getCofidIndex,
+  searchCofidByEmbedding,
+  type CofidSearchResult,
+} from './cofid-provider';
 import {
   logMatchEvent,
   startTimer,
@@ -778,15 +783,15 @@ export async function suggestCofidForCanonItem(
     return { bestMatch: null, candidates: [] };
   }
 
-  // 2. Fetch all CofID items
-  const cofidItems = await fetchCanonCofidItems() as CofIDItem[];
+  // 2. Load CoFID index from Storage (cached after first load)
+  await loadCofidData();
+  const cofidIndex = getCofidIndex();
 
-  // 3. Get lexical candidates — full pool
+  // 3. Get lexical candidates using the cached index
   const lexicalTimer = startTimer();
-  let lexicalCandidates = rankCandidates(canonItem.name, cofidItems, 8);
+  const lexicalCandidates = rankCandidates(canonItem.name, cofidIndex, 8);
   const lexicalDuration = lexicalTimer();
 
-  // Log lexical matching event
   logMatchEvent({
     eventType: 'lexical-match',
     entityType: 'canon-item',
@@ -795,8 +800,8 @@ export async function suggestCofidForCanonItem(
     aisleId: canonItem.aisleId,
     input: {
       queryText: canonItem.name,
-      candidateCount: cofidItems.length,
-      aisleFiltered: true,
+      candidateCount: cofidIndex.length,
+      aisleFiltered: false,
     },
     output: {
       resultCount: lexicalCandidates.length,
@@ -805,22 +810,15 @@ export async function suggestCofidForCanonItem(
       topMatchName: lexicalCandidates[0]?.name,
       method: lexicalCandidates[0]?.method,
     },
-    metrics: {
-      durationMs: lexicalDuration,
-    },
+    metrics: { durationMs: lexicalDuration },
   });
 
-  // 5. Semantic ranking — searches ALL CoFID embeddings (no aisle filter).
-  //    Aisle-bounded search caused poor results because CoFID food groups are broad
-  //    and don't align cleanly with shopping aisles. The embedding distance is a
-  //    better signal than aisle membership here.
+  // 4. Semantic ranking via Cloud Function (no client-side embedding corpus needed)
   let semanticCandidates: SuggestedMatch[] = [];
   try {
-    // Load all embeddings — no aisle filter
-    const allLookupEntries = await fetchEmbeddingsFromLookup();
-
-    // Resolve query embedding from the global lookup or generate fresh
+    // Resolve query embedding: reuse cached canon embedding or generate fresh
     const embeddingTimer = startTimer();
+    const allLookupEntries = await fetchEmbeddingsFromLookup();
     const cachedQueryEmbedding = resolveQueryEmbeddingFromLookup(
       canonItem.name,
       canonItem.id,
@@ -849,21 +847,14 @@ export async function suggestCofidForCanonItem(
 
     if (queryEmbedding) {
       const semanticTimer = startTimer();
-      // No aisle filter — higher threshold (0.65) to compensate for broader pool
-      const semanticMatches = findSemanticMatches(
-        queryEmbedding,
-        allLookupEntries,
-        undefined,   // no aisle filter
-        0.65,
-        15
-      ).filter(match => match.kind === 'cofid');
+      const cfResults = await searchCofidByEmbedding(queryEmbedding, 15);
 
-      semanticCandidates = semanticMatches.map(match => ({
-        cofidId: match.refId,
+      semanticCandidates = cfResults.map((match: CofidSearchResult) => ({
+        cofidId: match.id,
         name: match.name,
-        score: match.similarity,
+        score: match.score,
         method: 'semantic' as const,
-        reason: match.reason,
+        reason: `Semantic match via Cloud Function (${(match.score * 100).toFixed(0)}% similarity)`,
       }));
       const semanticDuration = semanticTimer();
 
@@ -873,11 +864,7 @@ export async function suggestCofidForCanonItem(
         entityId: canonItem.id,
         entityName: canonItem.name,
         aisleId: canonItem.aisleId,
-        input: {
-          embeddingDim: queryEmbedding.length,
-          candidateCount: allLookupEntries.length,
-          aisleFiltered: false,
-        },
+        input: { embeddingDim: queryEmbedding.length, aisleFiltered: false },
         output: {
           resultCount: semanticCandidates.length,
           topScore: semanticCandidates[0]?.score,
@@ -938,7 +925,7 @@ export async function suggestCofidForCanonItem(
     },
   });
 
-  const bestMatch = candidates[0] ?? suggestBestMatch(canonItem.name, cofidItems);
+  const bestMatch = candidates[0] ?? suggestBestMatch(canonItem.name, cofidIndex);
 
   // Auto-link when the best match has high confidence (≥ 0.85)
   const AUTO_LINK_THRESHOLD = 0.85;

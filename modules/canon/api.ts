@@ -271,15 +271,19 @@ export {
   validateItemDoc,
 } from './logic/items';
 
+export { levenshteinSimilarity } from './logic/suggestCofidMatch';
 
-// ── CofID Data (for admin tools) ──────────────────────────────────────────────
+
+// ── CoFID index ───────────────────────────────────────────────────────────────
 
 /**
- * Fetch all CofID items (for diagnostics and reporting).
+ * Load the CoFID index from Firebase Storage (cached after first call).
+ * Returns { id, name, group }[] — suitable for client-side filtering.
  */
-export async function getCanonCofidItems() {
-  const { fetchCanonCofidItems } = await import('./data/firebase-provider');
-  return fetchCanonCofidItems();
+export async function loadCofidIndex(): Promise<Array<{ id: string; name: string; group: string }>> {
+  const { loadCofidData, getCofidIndex } = await import('./data/cofid-provider');
+  await loadCofidData();
+  return getCofidIndex();
 }
 
 // ── PR5: CofID Integration ───────────────────────────────────────────────────
@@ -327,6 +331,15 @@ export async function getCofidItemById(id: string) {
  */
 export async function suggestFdcMatch(canonItemId: string) {
   return suggestFdcForCanonItem(canonItemId);
+}
+
+/**
+ * Re-run FDC semantic search using a custom query string.
+ * The FDC binary is already loaded after the first suggestFdcMatch call.
+ */
+export async function searchFdcByText(text: string, topK?: number) {
+  const { searchFdcByText: fn } = await import('./data/fdc-provider');
+  return fn(text, topK);
 }
 
 /**

@@ -14,6 +14,7 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   getCanonItems,
+  getCanonItemById,
   getCanonAisles,
   getCanonUnits,
   addCanonItem,
@@ -24,10 +25,12 @@ import {
   sortItems,
   filterUnapprovedItems,
   normalizeItemName,
+  levenshteinSimilarity,
   type CanonItem,
 } from '../api';
 import { CofidLinkSection } from './CofidLinkSection';
 import { FdcLinkSection } from './FdcLinkSection';
+import { LinkedIngredientRefs } from './LinkedIngredientRefs';
 import { onCanonItemsDeleted } from '../../recipes/api';
 import type { Aisle, Unit } from '@/types/contract';
 import { Button } from '@/components/ui/button';
@@ -101,6 +104,10 @@ export const CanonItems: React.FC = () => {
 
   const getCofidSource = (item: CanonItem) =>
     item.externalSources?.find(source => source.source === 'cofid');
+  const getFdcSource = (item: CanonItem) =>
+    item.externalSources?.find(source => source.source === 'fdc');
+  const getUnitWeightsCount = (item: CanonItem) =>
+    Object.keys(item.unit?.unit_weights ?? {}).length;
 
   // ── Search / Filter ──────────────────────────────────────────────────────
   const filteredItems = useMemo(() => {
@@ -172,6 +179,21 @@ export const CanonItems: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  // Lightweight refresh for link/unlink — only re-fetches the open item
+  const refreshDetailItem = useCallback(async () => {
+    const current = detailItemRef.current;
+    if (!current) return;
+    try {
+      const refreshed = await getCanonItemById(current.id);
+      if (refreshed) {
+        setDetailItem(refreshed);
+        setItems(prev => prev.map(i => i.id === refreshed.id ? refreshed : i));
+      }
+    } catch {
+      // Non-critical — fall back silently
     }
   }, []);
 
@@ -456,12 +478,16 @@ export const CanonItems: React.FC = () => {
                 <Stack spacing="gap-1">
                   {groupItems.map(item => {
                     const isLinked = !!getCofidSource(item);
+                    const hasFdc = !!getFdcSource(item);
+                    const unitWeightsCount = getUnitWeightsCount(item);
                     const isSelected = selectedItems.has(item.id);
                     return (
                       <ItemRow
                         key={item.id}
                         item={item}
                         isLinked={isLinked}
+                        hasFdc={hasFdc}
+                        unitWeightsCount={unitWeightsCount}
                         isSelected={isSelected}
                         onToggleSelect={() => toggleItemSelection(item.id)}
                         onOpenDetail={() => handleOpenDetail(item)}
@@ -488,7 +514,7 @@ export const CanonItems: React.FC = () => {
               <div className="flex-1 ml-4">Item Name</div>
               <div className="w-32">Aisle</div>
               <div className="w-24">Unit</div>
-              <div className="w-20">Status</div>
+              <div className="w-36">Data quality</div>
               <div className="w-20 text-right">Actions</div>
             </div>
 
@@ -496,6 +522,8 @@ export const CanonItems: React.FC = () => {
             <Stack spacing="gap-1">
               {sortedItems.map(item => {
                 const isLinked = !!getCofidSource(item);
+                const hasFdc = !!getFdcSource(item);
+                const unitWeightsCount = getUnitWeightsCount(item);
                 const isSelected = selectedItems.has(item.id);
 
                 return (
@@ -503,6 +531,8 @@ export const CanonItems: React.FC = () => {
                     key={item.id}
                     item={item}
                     isLinked={isLinked}
+                    hasFdc={hasFdc}
+                    unitWeightsCount={unitWeightsCount}
                     isSelected={isSelected}
                     onToggleSelect={() => toggleItemSelection(item.id)}
                     onOpenDetail={() => handleOpenDetail(item)}
@@ -526,8 +556,13 @@ export const CanonItems: React.FC = () => {
       {showCreateDialog && (
         <CreateItemDialog
           aisles={aisles}
+          items={items}
           onSubmit={handleCreate}
           onCancel={() => setShowCreateDialog(false)}
+          onSelectExisting={(item) => {
+            setShowCreateDialog(false);
+            handleOpenDetail(item);
+          }}
         />
       )}
 
@@ -625,6 +660,7 @@ export const CanonItems: React.FC = () => {
             if (!open) setDetailItem(null);
           }}
           onSaved={loadData}
+          onLinkChanged={refreshDetailItem}
         />
       )}
     </Page>
@@ -636,6 +672,8 @@ export const CanonItems: React.FC = () => {
 interface ItemRowProps {
   item: CanonItem;
   isLinked: boolean;
+  hasFdc: boolean;
+  unitWeightsCount: number;
   isSelected: boolean;
   onToggleSelect: () => void;
   onOpenDetail: () => void;
@@ -646,6 +684,8 @@ interface ItemRowProps {
 const ItemRow: React.FC<ItemRowProps> = ({
   item,
   isLinked,
+  hasFdc,
+  unitWeightsCount,
   isSelected,
   onToggleSelect,
   onOpenDetail,
@@ -680,15 +720,19 @@ const ItemRow: React.FC<ItemRowProps> = ({
               </p>
               <div className="flex flex-wrap gap-1 mt-2">
                 {!item.approved && (
-                  <Badge variant="outline" className="text-xs">
-                    Needs Review
-                  </Badge>
+                  <Badge variant="outline" className="text-xs">Needs Review</Badge>
                 )}
                 {isLinked && (
                   <Badge variant="secondary" className="text-xs flex items-center gap-1">
                     <Link className="h-2.5 w-2.5" />
-                    CofID
+                    CoFID
                   </Badge>
+                )}
+                {hasFdc && (
+                  <Badge variant="secondary" className="text-xs">FDC</Badge>
+                )}
+                {unitWeightsCount > 0 && (
+                  <Badge variant="outline" className="text-xs text-muted-foreground">{unitWeightsCount} weights</Badge>
                 )}
               </div>
             </div>
@@ -732,18 +776,22 @@ const ItemRow: React.FC<ItemRowProps> = ({
         <div className="w-24 text-xs text-muted-foreground truncate">
           {item.unit?.canonical_unit ?? '—'}
         </div>
-        <div className="w-20">
+        <div className="w-36">
           <div className="flex flex-wrap gap-1">
             {!item.approved && (
-              <Badge variant="outline" className="text-xs">
-                Pending
-              </Badge>
+              <Badge variant="outline" className="text-xs">Pending</Badge>
             )}
             {isLinked && (
               <Badge variant="secondary" className="text-xs flex items-center gap-1">
                 <Link className="h-2.5 w-2.5" />
-                CofID
+                CoFID
               </Badge>
+            )}
+            {hasFdc && (
+              <Badge variant="secondary" className="text-xs">FDC</Badge>
+            )}
+            {unitWeightsCount > 0 && (
+              <Badge variant="outline" className="text-xs text-muted-foreground">{unitWeightsCount}w</Badge>
             )}
           </div>
         </div>
@@ -764,19 +812,59 @@ const ItemRow: React.FC<ItemRowProps> = ({
 
 interface CreateItemDialogProps {
   aisles: Aisle[];
+  items: CanonItem[];
   onSubmit: (input: { name: string; aisleId: string; canonicalUnit: 'g' | 'ml' | 'each' }) => Promise<void>;
   onCancel: () => void;
+  onSelectExisting: (item: CanonItem) => void;
 }
+
+const SIMILARITY_WARN = 0.75;
+const SIMILARITY_SHOW = 0.60;
 
 const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
   aisles,
+  items,
   onSubmit,
   onCancel,
+  onSelectExisting,
 }) => {
   const [name, setName] = useState('');
   const [aisleId, setAisleId] = useState('');
   const [canonicalUnit, setCanonicalUnit] = useState<'g' | 'ml' | 'each'>('g');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ── Similarity check ────────────────────────────────────────────────────
+
+  const similarItems = useMemo(() => {
+    const normalized = normalizeItemName(name);
+    if (!normalized || normalized.length < 2) return [];
+    const lower = normalized.toLowerCase();
+
+    return items
+      .map(item => {
+        const itemLower = item.name.toLowerCase().trim();
+        if (itemLower === lower) return { item, score: 1.0 };
+        // Containment bonus: "onion" matches "spring onion", "onion powder" etc.
+        if (itemLower.includes(lower) || lower.includes(itemLower)) {
+          const score = Math.max(
+            0.8,
+            Math.min(lower.length, itemLower.length) / Math.max(lower.length, itemLower.length)
+          );
+          return { item, score };
+        }
+        const score = levenshteinSimilarity(lower, itemLower);
+        if (score >= SIMILARITY_SHOW) return { item, score };
+        return null;
+      })
+      .filter((x): x is { item: CanonItem; score: number } => x !== null)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+  }, [name, items]);
+
+  const hasExactMatch = similarItems[0]?.score === 1.0;
+  const hasStrongMatch = similarItems[0]?.score >= SIMILARITY_WARN;
+
+  // ── Submit ──────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -793,9 +881,11 @@ const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
     }
   };
 
+  const aisleMap = useMemo(() => new Map(aisles.map(a => [a.id, a.name])), [aisles]);
+
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Create Canon Item</DialogTitle>
         </DialogHeader>
@@ -809,8 +899,49 @@ const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Tomatoes"
                 disabled={isSubmitting}
+                autoFocus
               />
             </div>
+
+            {/* Similar items warning */}
+            {similarItems.length > 0 && (
+              <div className={`rounded-md border p-3 space-y-2 text-sm ${
+                hasExactMatch
+                  ? 'border-destructive/50 bg-destructive/5'
+                  : hasStrongMatch
+                  ? 'border-amber-500/50 bg-amber-500/5'
+                  : 'border-border bg-muted/30'
+              }`}>
+                <p className={`font-medium text-xs ${
+                  hasExactMatch ? 'text-destructive' : hasStrongMatch ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'
+                }`}>
+                  {hasExactMatch ? 'This item already exists' : 'Similar items found'}
+                </p>
+                <div className="space-y-1">
+                  {similarItems.map(({ item, score }) => (
+                    <div key={item.id} className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="font-medium truncate block">{item.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {aisleMap.get(item.aisleId) ?? item.aisleId} · {Math.round(score * 100)}% similar
+                          {!item.approved && <span className="ml-1 text-amber-600">(pending)</span>}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 h-7 text-xs"
+                        onClick={() => onSelectExisting(item)}
+                      >
+                        Open
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="aisle">Aisle</Label>
               <Select value={aisleId} onValueChange={setAisleId} disabled={isSubmitting}>
@@ -844,8 +975,18 @@ const CreateItemDialog: React.FC<CreateItemDialogProps> = ({
             <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              variant={hasExactMatch ? 'destructive' : 'default'}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : hasExactMatch ? (
+                'Create Anyway'
+              ) : (
+                'Create'
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -863,6 +1004,7 @@ interface ItemDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
+  onLinkChanged?: () => Promise<void>;
 }
 
 const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
@@ -872,6 +1014,7 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
   open,
   onOpenChange,
   onSaved,
+  onLinkChanged,
 }) => {
   // ── Edit state ───────────────────────────────────────────────────────────
   const [name, setName] = useState(item.name);
@@ -1049,6 +1192,8 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
               />
             </div>
           </section>
+
+          <LinkedIngredientRefs item={item} />
 
           {/* ── Unit Intelligence ── */}
           <section className="space-y-4">
@@ -1332,8 +1477,8 @@ const ItemDetailSheet: React.FC<ItemDetailSheetProps> = ({
             </div>
           </section>
 
-          <CofidLinkSection item={item} onLinked={onSaved} onUnlinked={onSaved} />
-          <FdcLinkSection item={item} onLinked={onSaved} onUnlinked={onSaved} />
+          <CofidLinkSection item={item} onLinked={onLinkChanged ?? onSaved} onUnlinked={onLinkChanged ?? onSaved} />
+          <FdcLinkSection item={item} onLinked={onLinkChanged ?? onSaved} onUnlinked={onLinkChanged ?? onSaved} />
           {/* Other external sources */}
           {item.externalSources && item.externalSources.filter(s => s.source !== 'cofid' && s.source !== 'fdc').length > 0 && (
             <section className="space-y-3">

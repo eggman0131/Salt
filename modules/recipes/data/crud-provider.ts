@@ -24,6 +24,8 @@ import {
 } from 'firebase/firestore';
 import { debugLogger } from '../../../shared/backend/debug-logger';
 import { getCookGuidesForRecipe, deleteCookGuide } from '../../../modules/assist-mode/api';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../../shared/backend/firebase';
 import {
   convertTimestamps,
   decodeRecipeFromFirestore,
@@ -197,6 +199,7 @@ export async function createRecipeInStore(
     ...normalized,
     id,
     imagePath,
+    matchingStatus: 'pending' as const,
     createdAt: new Date().toISOString(),
     createdBy: auth.currentUser?.email || 'unknown',
   };
@@ -210,70 +213,20 @@ export async function createRecipeInStore(
 
   onProgress?.({ stage: 'Categorising recipe', percentage: 50 });
   const categoryIds = await categorizeRecipe(newRecipe as Recipe);
-  const postProcessUpdates: any = {};
 
   if (categoryIds.length > 0) {
-    postProcessUpdates.categoryIds = categoryIds;
-  }
-
-  if (
-    Array.isArray(newRecipe.ingredients) &&
-    (newRecipe.ingredients as any[]).length > 0
-  ) {
-    onProgress?.({ stage: 'Matching ingredients', percentage: 60 });
-    const processedIngredients = await matchIngredients(
-      newRecipe.ingredients as any,
-      id,
-      onProgress
-        ? (progress) => {
-            const ingredientWeight = 30;
-            const base = 60;
-            const mapped =
-              base + Math.round((progress.percentage / 100) * ingredientWeight);
-            onProgress({
-              stage: 'Matching ingredients',
-              current: progress.current,
-              total: progress.total,
-              percentage: mapped,
-            });
-          }
-        : undefined
-    );
-    postProcessUpdates.ingredients = processedIngredients;
-
-    if (Array.isArray(newRecipe.instructions)) {
-      const ingredientMap = new Map(
-        processedIngredients.map((ing) => [ing.id, ing])
-      );
-      postProcessUpdates.instructions = (newRecipe.instructions as any[]).map(
-        (instr: any) => {
-          if (instr.ingredients && Array.isArray(instr.ingredients)) {
-            return {
-              ...instr,
-              ingredients: instr.ingredients
-                .map((ing: any) => ingredientMap.get(ing.id) || ing)
-                .filter((ing: any) => ing !== undefined),
-            };
-          }
-          return instr;
-        }
-      );
-    }
-  }
-
-  if (Object.keys(postProcessUpdates).length > 0) {
     onProgress?.({ stage: 'Finalising recipe', percentage: 95 });
-    const sanitizedUpdates = sanitizeRecipeEmbeddingsForStorage(postProcessUpdates);
+    const sanitizedUpdates = sanitizeRecipeEmbeddingsForStorage({ categoryIds });
     await updateDoc(
       doc(db, 'recipes', id),
       cleanUndefinedValues(sanitizedUpdates)
     );
-    onProgress?.({ stage: 'Recipe saved', percentage: 100 });
-    return { ...newRecipe, ...postProcessUpdates } as Recipe;
   }
 
+  // Ingredient matching is handled server-side by the matchRecipeOnCreate Cloud Function
+  // which fires automatically on recipe creation. matchingStatus: 'pending' signals the UI.
   onProgress?.({ stage: 'Recipe saved', percentage: 100 });
-  return newRecipe as Recipe;
+  return { ...newRecipe, categoryIds: categoryIds.length > 0 ? categoryIds : undefined } as Recipe;
 }
 
 // ==================== UPDATE ====================
@@ -472,47 +425,25 @@ export async function repairStoredRecipe(
   const recipe = await fetchRecipeById(recipeId);
   if (!recipe) throw new Error(`Recipe not found: ${recipeId}`);
 
-  const updates: Partial<Recipe> = {};
-
   if (options.categorize) {
     const categoryIds = await categorizeRecipe(recipe);
     if (categoryIds.length > 0) {
-      updates.categoryIds = categoryIds;
+      await updateRecipeInStore(recipeId, { categoryIds });
     }
   }
 
-  if (
-    options.relinkIngredients &&
-    Array.isArray(recipe.ingredients) &&
-    recipe.ingredients.length > 0
-  ) {
-    const processedIngredients = await matchIngredients(
-      recipe.ingredients,
-      recipeId
+  if (options.relinkIngredients) {
+    // Delegate ingredient matching to the server-side CF (avoids 57s client-side run)
+    const relink = httpsCallable<{ recipeId: string }, { success: boolean; message?: string }>(
+      functions,
+      'relinkRecipeIngredients'
     );
-    updates.ingredients = processedIngredients;
-
-    if (Array.isArray(recipe.instructions)) {
-      const ingredientMap = new Map(
-        processedIngredients.map((ing) => [ing.id, ing])
-      );
-      updates.instructions = (recipe.instructions as any[]).map((instr: any) => {
-        if (instr.ingredients && Array.isArray(instr.ingredients)) {
-          return {
-            ...instr,
-            ingredients: instr.ingredients
-              .map((ing: any) => ingredientMap.get(ing.id) || ing)
-              .filter((ing: any) => ing !== undefined),
-          };
-        }
-        return instr;
-      });
+    const result = await relink({ recipeId });
+    if (!result.data.success) {
+      throw new Error(result.data.message ?? 'Relinking failed');
     }
   }
 
-  if (Object.keys(updates).length > 0) {
-    return updateRecipeInStore(recipeId, updates);
-  }
-
-  return recipe;
+  // Return the latest state from Firestore (CF may have updated ingredients)
+  return (await fetchRecipeById(recipeId)) ?? recipe;
 }

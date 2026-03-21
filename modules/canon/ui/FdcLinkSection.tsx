@@ -7,9 +7,10 @@
  * Imports only from api.ts.
  */
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   suggestFdcMatch,
+  searchFdcByText,
   linkFdcMatch,
   unlinkFdcMatch,
   type CanonItem,
@@ -32,13 +33,12 @@ interface FdcLinkSectionProps {
 
 export const FdcLinkSection: React.FC<FdcLinkSectionProps> = ({ item, onLinked, onUnlinked }) => {
   const [showFdcSearch, setShowFdcSearch] = useState(false);
-  const [fdcSuggestions, setFdcSuggestions] = useState<{
-    bestMatch: any | null;
-    candidates: any[];
-  } | null>(null);
+  const [fdcCandidates, setFdcCandidates] = useState<any[]>([]);
+  const [fdcBestMatchId, setFdcBestMatchId] = useState<number | null>(null);
   const [isLoadingFdc, setIsLoadingFdc] = useState(false);
+  const [isReSearching, setIsReSearching] = useState(false);
   const [selectedFdcMatch, setSelectedFdcMatch] = useState<any>(null);
-  const [fdcSearchFilter, setFdcSearchFilter] = useState('');
+  const [fdcSearchQuery, setFdcSearchQuery] = useState('');
   const [localFdcSource, setLocalFdcSource] = useState(
     item.externalSources?.find(s => s.source === 'fdc') ?? null
   );
@@ -46,32 +46,26 @@ export const FdcLinkSection: React.FC<FdcLinkSectionProps> = ({ item, onLinked, 
   // Reset state when item changes
   useEffect(() => {
     setShowFdcSearch(false);
-    setFdcSuggestions(null);
+    setFdcCandidates([]);
+    setFdcBestMatchId(null);
     setSelectedFdcMatch(null);
-    setFdcSearchFilter('');
+    setFdcSearchQuery('');
     setLocalFdcSource(item.externalSources?.find(s => s.source === 'fdc') ?? null);
   }, [item]);
-
-  // ── Search filtering ─────────────────────────────────────────────────────
-
-  const filteredFdcCandidates = useMemo(() => {
-    if (!fdcSuggestions?.candidates) return [];
-    if (!fdcSearchFilter.trim()) return fdcSuggestions.candidates;
-    const lower = fdcSearchFilter.toLowerCase();
-    return fdcSuggestions.candidates.filter(c => c.description.toLowerCase().includes(lower));
-  }, [fdcSuggestions?.candidates, fdcSearchFilter]);
 
   // ── Handlers ────────────────────────────────────────────────────────────
 
   const handleSuggestFdc = async () => {
     setShowFdcSearch(true);
     setIsLoadingFdc(true);
-    setFdcSuggestions(null);
+    setFdcCandidates([]);
+    setFdcBestMatchId(null);
     setSelectedFdcMatch(null);
-    setFdcSearchFilter('');
+    setFdcSearchQuery(item.name);
     try {
       const suggestions = await suggestFdcMatch(item.id);
-      setFdcSuggestions(suggestions);
+      setFdcCandidates(suggestions.candidates);
+      setFdcBestMatchId(suggestions.bestMatch?.fdcId ?? null);
       if (suggestions.bestMatch) {
         setSelectedFdcMatch(suggestions.bestMatch);
       }
@@ -83,13 +77,30 @@ export const FdcLinkSection: React.FC<FdcLinkSectionProps> = ({ item, onLinked, 
     }
   };
 
+  const handleReSearch = async () => {
+    const q = fdcSearchQuery.trim();
+    if (!q) return;
+    setIsReSearching(true);
+    setSelectedFdcMatch(null);
+    setFdcBestMatchId(null);
+    try {
+      const results = await searchFdcByText(q);
+      setFdcCandidates(results);
+      if (results[0]) setSelectedFdcMatch(results[0]);
+    } catch (err) {
+      softToast.error(err instanceof Error ? err.message : 'FDC search failed');
+    } finally {
+      setIsReSearching(false);
+    }
+  };
+
   const handleLinkFdc = async (match: any) => {
     setIsLoadingFdc(true);
     try {
       await linkFdcMatch(item.id, match);
       softToast.success(`Enriched from FDC: ${match.description}`);
       setShowFdcSearch(false);
-      setFdcSuggestions(null);
+      setFdcCandidates([]);
       setSelectedFdcMatch(null);
       setLocalFdcSource({
         source: 'fdc',
@@ -189,22 +200,32 @@ export const FdcLinkSection: React.FC<FdcLinkSectionProps> = ({ item, onLinked, 
             </div>
           ) : (
             <>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search FDC food database..."
-                  value={fdcSearchFilter}
-                  onChange={e => setFdcSearchFilter(e.target.value)}
-                  className="pl-9"
-                  autoFocus
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search FDC food database..."
+                    value={fdcSearchQuery}
+                    onChange={e => setFdcSearchQuery(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleReSearch(); }}
+                    className="pl-9"
+                    autoFocus
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReSearch}
+                  disabled={isReSearching || !fdcSearchQuery.trim()}
+                >
+                  {isReSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                </Button>
               </div>
 
-              <div className="max-h-[300px] overflow-y-auto space-y-2">
-                {filteredFdcCandidates.length > 0 && (
+              <div className="max-h-75 overflow-y-auto space-y-2">
+                {fdcCandidates.length > 0 && (
                   <div className="space-y-1">
-                    {fdcSearchFilter && <p className="text-xs font-medium text-muted-foreground">Matches</p>}
-                    {filteredFdcCandidates.map((match, idx) => (
+                    {fdcCandidates.map((match, idx) => (
                       <button
                         key={match.fdcId}
                         onClick={() => setSelectedFdcMatch(match)}
@@ -214,7 +235,7 @@ export const FdcLinkSection: React.FC<FdcLinkSectionProps> = ({ item, onLinked, 
                       >
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-medium text-sm truncate">{match.description}</span>
-                          {idx === 0 && !fdcSearchFilter && fdcSuggestions?.bestMatch?.fdcId === match.fdcId && (
+                          {idx === 0 && fdcBestMatchId === match.fdcId && (
                             <Badge variant="default" className="text-xs"><Sparkles className="h-3 w-3 mr-1" />Best match</Badge>
                           )}
                           <Badge variant="secondary" className="text-xs">{Math.round(match.score * 100)}% similarity</Badge>
@@ -225,15 +246,11 @@ export const FdcLinkSection: React.FC<FdcLinkSectionProps> = ({ item, onLinked, 
                   </div>
                 )}
 
-                {filteredFdcCandidates.length === 0 && (fdcSuggestions?.candidates?.length ?? 0) > 0 && fdcSearchFilter && (
-                  <p className="text-xs text-muted-foreground">No matches for this search.</p>
-                )}
-
-                {(fdcSuggestions?.candidates?.length ?? 0) === 0 && !fdcSearchFilter && (
+                {fdcCandidates.length === 0 && !isReSearching && (
                   <div className="flex flex-col items-center justify-center py-4 text-center border border-dashed rounded-lg">
                     <AlertCircle className="h-6 w-6 text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground">No FDC matches found.</p>
-                    <p className="text-xs text-muted-foreground mt-1">Search to find portion data for unit conversion.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Edit the search query and press Enter to try different terms.</p>
                   </div>
                 )}
               </div>

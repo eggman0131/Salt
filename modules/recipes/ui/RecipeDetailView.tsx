@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
-import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle, Wrench, Check, GripHorizontal, Minimize2, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Clock, Users, ChefHat, Upload, RefreshCw, X, Book, HandHelping, Flame, AlertTriangle, Wrench, Check, GripHorizontal, Minimize2, ShoppingBag, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import {
   Popover,
@@ -345,6 +345,42 @@ const RecipeDetailContent: React.FC<RecipeDetailContentProps> = ({
     </CardContent>
   </Card>
 );
+
+// ── Matching status banner ─────────────────────────────────────────────────
+
+const MatchingStatusBanner: React.FC<{ recipe: Recipe; onRepair?: (recipe: Recipe) => void }> = ({ recipe, onRepair }) => {
+  if (!recipe.matchingStatus || recipe.matchingStatus === 'matched') return null;
+
+  if (recipe.matchingStatus === 'matching' || recipe.matchingStatus === 'pending') {
+    return (
+      <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+        <span>Matching ingredients to kitchen database…</span>
+      </div>
+    );
+  }
+
+  if (recipe.matchingStatus === 'failed') {
+    return (
+      <div className="flex items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
+        <div className="flex items-center gap-2 text-destructive">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{recipe.matchingError ?? 'Ingredient matching failed.'}</span>
+        </div>
+        {onRepair && (
+          <Button variant="outline" size="sm" onClick={() => onRepair(recipe)} className="h-7 text-xs shrink-0">
+            <Wrench className="h-3 w-3 mr-1" />
+            Retry
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+};
+
+// ── RecipeDetailView ───────────────────────────────────────────────────────
 
 interface RecipeDetailViewProps {
   recipe: Recipe;
@@ -727,7 +763,8 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
                     </Button>
                   </div>
                 </div>
-                <RecipeDetailContent 
+                <MatchingStatusBanner recipe={recipe} onRepair={onRepair} />
+                <RecipeDetailContent
                   recipe={recipe}
                   categories={categories}
                   recipeCategories={recipeCategories}
@@ -915,7 +952,8 @@ export const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({
               </div>
 
               {/* Recipe Detail - Column 1 */}
-              <RecipeDetailContent 
+              <MatchingStatusBanner recipe={recipe} onRepair={onRepair} />
+              <RecipeDetailContent
                 recipe={recipe}
                 categories={categories}
                 recipeCategories={recipeCategories}

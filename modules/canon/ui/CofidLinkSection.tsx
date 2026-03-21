@@ -15,11 +15,10 @@ import {
   unlinkCofidMatch,
   buildCofidMatch,
   getCofidItemById,
-  getCanonCofidItems,
+  loadCofidIndex,
   type CanonItem,
   type SuggestedMatch,
 } from '../api';
-import type { CofIDItem } from '../types';
 import CofidMatchButton from './CofidMatchButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,7 +63,7 @@ export const CofidLinkSection: React.FC<CofidLinkSectionProps> = ({ item, onLink
   const [isLoadingCofid, setIsLoadingCofid] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<SuggestedMatch | null>(null);
   const [cofidSearchFilter, setCofidSearchFilter] = useState('');
-  const [allCofidItems, setAllCofidItems] = useState<CofIDItem[]>([]);
+  const [allCofidItems, setAllCofidItems] = useState<Array<{ id: string; name: string; group: string }>>([]);
   const [isLoadingAllCofid, setIsLoadingAllCofid] = useState(false);
   const [localCofidSource, setLocalCofidSource] = useState(
     item.externalSources?.find(s => s.source === 'cofid') ?? null
@@ -107,7 +106,7 @@ export const CofidLinkSection: React.FC<CofidLinkSectionProps> = ({ item, onLink
       .slice(0, 30);
   }, [allCofidItems, cofidSearchFilter, cofidSuggestions?.candidates]);
 
-  const cofidItemToMatch = (ci: CofIDItem): SuggestedMatch => ({
+  const cofidItemToMatch = (ci: { id: string; name: string }): SuggestedMatch => ({
     cofidId: ci.id,
     name: ci.name,
     score: 1.0,
@@ -138,8 +137,8 @@ export const CofidLinkSection: React.FC<CofidLinkSectionProps> = ({ item, onLink
           if (allCofidItems.length === 0) {
             setIsLoadingAllCofid(true);
             try {
-              const items = await getCanonCofidItems();
-              setAllCofidItems(items as CofIDItem[]);
+              const index = await loadCofidIndex();
+              setAllCofidItems(index);
             } catch { /* non-critical */ }
             finally { setIsLoadingAllCofid(false); }
           }

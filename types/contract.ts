@@ -380,6 +380,8 @@ export const RecipeSchema = z.object({
   source: z.string().optional(),
   createdAt: z.string(),
   createdBy: z.string(),
+  matchingStatus: z.enum(['pending', 'matching', 'matched', 'failed']).optional(),
+  matchingError: z.string().optional(),
 });
 export type Recipe = z.infer<typeof RecipeSchema>;
 

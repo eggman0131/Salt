@@ -15,7 +15,7 @@ import { ref, getDownloadURL } from 'firebase/storage';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, auth, storage } from '../../../shared/backend/firebase';
 import type { UnitIntelligence } from '../../../types/contract';
-import { generateTextEmbeddingsBatch } from './embeddings-provider';
+import { generateTextEmbeddingsBatch, generateTextEmbedding } from './embeddings-provider';
 import { mapFdcPortionsToUnitPatch } from '../logic/fdc';
 import type { FdcPortion } from '../logic/fdc';
 
@@ -141,6 +141,18 @@ export function searchFdcLocal(
     ...cachedIndex![row],
     score,
   }));
+}
+
+/**
+ * Re-search FDC using a custom text query instead of the canon item name.
+ * Requires `loadFdcData()` to have been called first (data already in memory).
+ */
+export async function searchFdcByText(
+  text: string,
+  topK: number = DEFAULT_TOP_K
+): Promise<FdcSearchResult[]> {
+  const embedding = await generateTextEmbedding(text);
+  return searchFdcLocal(embedding, topK, RUNTIME_THRESHOLD);
 }
 
 /**

@@ -14,6 +14,7 @@ import * as admin from 'firebase-admin';
 import { GoogleGenAI, GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 import { embedBatch } from './embedBatch';
 import { searchFdc } from './searchFdc';
+import { searchCofid } from './searchCofid';
 
 // Initialize Firebase Admin SDK
 const app = admin.initializeApp();
@@ -515,3 +516,5 @@ export const cloudFetchRecipeUrlHttp = functions.https.onRequest(
 // Re-export from separate modules
 export { embedBatch };
 export { searchFdc };
+export { searchCofid };
+export { matchRecipeOnCreate, relinkRecipeIngredients } from './matchRecipeIngredients';

@@ -1,5 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Guard: index.ts initialises admin first; this module may be loaded standalone in tests
 if (admin.apps.length === 0) {
@@ -8,8 +10,11 @@ if (admin.apps.length === 0) {
 
 const auth = admin.auth();
 
-const STORAGE_BIN_PATH = 'fdc/embeddings/combined-v1.bin';
-const STORAGE_JSON_PATH = 'fdc/embeddings/combined-v1.json';
+// FDC data bundled with the function package (loaded from local filesystem)
+const DATA_DIR = path.join(__dirname, '..', 'data', 'fdc');
+const LOCAL_BIN_PATH = path.join(DATA_DIR, 'combined-v1.bin');
+const LOCAL_JSON_PATH = path.join(DATA_DIR, 'combined-v1.json');
+
 const DIM = 768;
 const DEFAULT_TOP_K = 5;
 const DEFAULT_THRESHOLD = 0.70;
@@ -33,14 +38,11 @@ interface FdcIndexEntry {
 let cachedBin: Float32Array | null = null;
 let cachedIndex: FdcIndexEntry[] | null = null;
 
-async function loadFdcData(): Promise<void> {
+function loadFdcData(): void {
   if (cachedBin && cachedIndex) return;
 
-  const bucket = admin.storage().bucket();
-  const [[binBuffer], [jsonBuffer]] = await Promise.all([
-    bucket.file(STORAGE_BIN_PATH).download(),
-    bucket.file(STORAGE_JSON_PATH).download(),
-  ]);
+  const binBuffer = fs.readFileSync(LOCAL_BIN_PATH);
+  const jsonBuffer = fs.readFileSync(LOCAL_JSON_PATH, 'utf-8');
 
   // Convert Node.js Buffer to Float32Array, respecting the buffer's byte offset
   const ab = binBuffer.buffer.slice(
@@ -48,9 +50,9 @@ async function loadFdcData(): Promise<void> {
     binBuffer.byteOffset + binBuffer.byteLength
   );
   cachedBin = new Float32Array(ab);
-  cachedIndex = JSON.parse(jsonBuffer.toString('utf-8')) as FdcIndexEntry[];
+  cachedIndex = JSON.parse(jsonBuffer) as FdcIndexEntry[];
 
-  console.log(`[searchFdc] Loaded ${cachedIndex.length} FDC entries (${Math.round(binBuffer.length / 1024 / 1024)} MB)`);
+  console.log(`[searchFdc] Loaded ${cachedIndex.length} FDC entries from bundled data (${Math.round(binBuffer.length / 1024 / 1024)} MB)`);
 }
 
 function cosineSearch(
@@ -124,7 +126,7 @@ export const searchFdc = functions.https.onRequest(
     }
 
     try {
-      await loadFdcData();
+      loadFdcData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load FDC data';
       res.status(500).json({ error: `FDC data unavailable: ${message}` });

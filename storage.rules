@@ -41,5 +41,12 @@ service firebase.storage {
       allow read: if isAuthorized();
       allow write: if isAdmin();
     }
+    
+    // CoFID embeddings for item matching
+    match /cofid/embeddings/{allPaths=**} {
+      allow read: if isAuthorized();
+      allow write: if isAdmin();
+    }
+
   }
 }

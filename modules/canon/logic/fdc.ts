@@ -46,56 +46,99 @@ export function mapFdcPortionsToUnitPatch(
     let name = p.measureUnit.name.toLowerCase().trim();
     let abbr = p.measureUnit.abbreviation.toLowerCase().trim();
 
-    // If measureUnit is "undetermined", try to extract unit from modifier
+    // Skip pure weight units — their gram-per-unit values are fixed constants, not food data
+    const WEIGHT_UNITS = new Set(['gram', 'g', 'ounce', 'oz', 'pound', 'lb', 'kilogram', 'kg', 'milligram', 'mg', 'cup']);
+    if (WEIGHT_UNITS.has(name) || WEIGHT_UNITS.has(abbr)) continue;
+
+    // If measureUnit is "undetermined", try to resolve from modifier before continuing
     if (name === 'undetermined' || abbr === 'undetermined') {
       const modLower = p.modifier.toLowerCase().trim();
       if (modLower.includes('tbsp') || modLower.includes('tablespoon')) {
         name = 'tablespoon'; abbr = 'tbsp';
       } else if (modLower.includes('tsp') || modLower.includes('teaspoon')) {
         name = 'teaspoon'; abbr = 'tsp';
-      } else if (modLower.includes('cup')) {
-        name = 'cup'; abbr = 'cup';
       } else if (modLower.includes('racc')) {
         name = 'racc'; abbr = 'racc';
       } else if (modLower.includes('each') || modLower.includes('whole')) {
         name = 'each'; abbr = 'each';
+      } else if (modLower.startsWith('slice')) {
+        name = 'slice'; abbr = 'slice';
+      } else if (modLower.startsWith('large')) {
+        name = 'large'; abbr = 'large';
+      } else if (modLower.startsWith('medium')) {
+        name = 'medium'; abbr = 'medium';
+      } else if (modLower.startsWith('small')) {
+        name = 'small'; abbr = 'small';
+      } else {
+        // Last resort: use the first word of the modifier as the key (e.g. "rings" → "ring")
+        const firstWord = modLower.split(/[\s,(]/)[0];
+        if (!firstWord) continue;
+        // Naive depluralize: strip trailing 's' only if word is > 3 chars (avoids "as"→"a")
+        name = (firstWord.length > 3 && firstWord.endsWith('s')) ? firstWord.slice(0, -1) : firstWord;
+        abbr = name;
       }
     }
 
-    // unit_weights — volume measures
-    if (name === 'tablespoon' || abbr === 'tbsp') {
-      if (existingUnit.unit_weights?.tbsp == null) patch['unit.unit_weights.tbsp'] = perUnit;
-    } else if (name === 'teaspoon' || abbr === 'tsp') {
-      if (existingUnit.unit_weights?.tsp == null) patch['unit.unit_weights.tsp'] = perUnit;
-    } else if (name === 'cup') {
-      if (existingUnit.unit_weights?.cup == null) patch['unit.unit_weights.cup'] = perUnit;
-    }
-
-    // density_g_per_ml — inferred from fluid measures
+    // density_g_per_ml — inferred from fluid measures (before unit_weights so we don't also store tbsp etc. for fluids)
     const mlFactor = ML_PER_UNIT[name] ?? ML_PER_UNIT[abbr];
-    if (mlFactor !== undefined && existingUnit.density_g_per_ml == null) {
-      patch['unit.density_g_per_ml'] = p.gramWeight / (p.amount * mlFactor);
+    if (mlFactor !== undefined) {
+      if (existingUnit.density_g_per_ml == null) {
+        patch['unit.density_g_per_ml'] = p.gramWeight / (p.amount * mlFactor);
+      }
+      continue; // fluid portions don't also need a unit_weights entry
     }
 
-    // unit_weights — count and size measures
-    if (name === 'racc' || abbr === 'racc') {
+    // unit_weights — normalised key
+    let key: string;
+    if (name === 'tablespoon' || abbr === 'tbsp') {
+      key = 'tbsp';
+    } else if (name === 'teaspoon' || abbr === 'tsp') {
+      key = 'tsp';
+    } else if (name === 'racc' || abbr === 'racc') {
+      // RACC = reference amount customarily consumed → treat as medium/default serving
       if (existingUnit.unit_weights?.medium == null) patch['unit.unit_weights.medium'] = perUnit;
       if (existingUnit.unit_weights?.default == null) patch['unit.unit_weights.default'] = perUnit;
-    } else if (
-      name === 'each' || name === 'whole' || name === 'piece' || name === 'item' ||
-      name === 'fruit' || name === 'vegetable' || name === 'leaf' || name === 'clove' ||
-      abbr === 'each' || abbr === 'piece'
-    ) {
+      continue;
+    } else if (name === 'slice' || abbr === 'slice') {
+      // Slices come in sizes — derive a suffixed key from the modifier
+      const modLower = p.modifier.toLowerCase();
+      if (modLower.includes('thin') || modLower.includes('small')) {
+        key = 'slice_thin';
+      } else if (modLower.includes('large') || modLower.includes('thick')) {
+        key = 'slice_large';
+      } else {
+        key = 'slice';
+      }
+    } else {
+      // For everything else use the unit name directly as the key.
+      // Prefer abbreviation when it's a short, clean token; fall back to name.
+      key = (abbr && abbr.length <= 6 && abbr !== name) ? abbr : name;
+      // Normalise spaces to underscores for Firestore field paths
+      key = key.replace(/\s+/g, '_');
+    }
+
+    // For count-like units, check modifier for size variants
+    const COUNT_UNITS = new Set([
+      'each', 'whole', 'piece', 'item', 'fruit', 'vegetable', 'leaf', 'clove',
+      'stalk', 'spear', 'ear', 'head', 'link', 'patty', 'fillet', 'filet',
+      'egg', 'strip', 'segment',
+    ]);
+    if (COUNT_UNITS.has(name) || COUNT_UNITS.has(abbr)) {
       const modLower = p.modifier.toLowerCase();
       if (modLower.includes('small')) {
-        if (existingUnit.unit_weights?.small == null) patch['unit.unit_weights.small'] = perUnit;
+        key = 'small';
       } else if (modLower.includes('medium')) {
-        if (existingUnit.unit_weights?.medium == null) patch['unit.unit_weights.medium'] = perUnit;
+        key = 'medium';
       } else if (modLower.includes('large')) {
-        if (existingUnit.unit_weights?.large == null) patch['unit.unit_weights.large'] = perUnit;
+        key = 'large';
       } else {
-        if (existingUnit.unit_weights?.default == null) patch['unit.unit_weights.default'] = perUnit;
+        key = 'default';
       }
+    }
+
+    const existingValue = (existingUnit.unit_weights as Record<string, number> | undefined)?.[key];
+    if (existingValue == null && patch[`unit.unit_weights.${key}`] == null) {
+      patch[`unit.unit_weights.${key}`] = perUnit;
     }
   }
 
