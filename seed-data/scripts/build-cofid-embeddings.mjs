@@ -3,11 +3,14 @@
 /**
  * Build CoFID Embeddings
  *
+ * NOTE: This script has already been run. The outputs are committed to
+ * seed-data/cofid/ and uploaded to Firebase Storage. It is kept for
+ * reference only. Running it again requires cofid-items.backup.v1.json
+ * which is no longer tracked in this repo.
+ *
  * Reads pre-computed embeddings from the CoFID backup JSON and packs them
  * into the same binary format used by FDC: a Float32Array .bin + a JSON index.
  * Uploads both to Firebase Storage.
- *
- * No embedding generation is performed — embeddings are read from the backup.
  *
  * PREREQUISITES:
  *   gcloud auth application-default login

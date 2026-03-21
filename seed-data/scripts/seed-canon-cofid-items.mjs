@@ -3,6 +3,10 @@
 /**
  * Seed CofID Items into canonCofidItems Collection
  *
+ * NOTE: This script has already been run. CofID items are in Firestore.
+ * It is kept for reference only. Running it again requires
+ * cofid-items.backup.v1.json which is no longer tracked in this repo.
+ *
  * USAGE:
  *   node seed-canon-cofid-items.mjs [--dry-run]
  *

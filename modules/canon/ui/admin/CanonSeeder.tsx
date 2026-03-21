@@ -18,8 +18,6 @@ import {
   prepareUnitForFirestore,
   seedCanonAisles,
   seedCanonUnits,
-  seedCofidItems,
-  seedCofidEmbeddings,
   seedItems,
   SeedResult,
   getCanonItems,
@@ -31,10 +29,7 @@ import {
 // Import seed data files
 import aislesData from '@/seed-data/canon-aisles.json';
 import unitsData from '@/seed-data/canon-units.json';
-import cofidItemsData from '@/seed-data/cofid-items.backup.v1.json';
 import canonItemsData from '@/seed-data/canon-items-combined.json';
-// Type the CofID items as array (it's either [{ id, data }] from backup or [CofIDItem])
-const cofidItemsArray = (cofidItemsData as any[]) || [];
 const canonItemsArray = (canonItemsData as any[]) || [];
 
 type SeedStatus = 'idle' | 'seeding' | 'success' | 'error' | 'cancelled';
@@ -42,21 +37,15 @@ type SeedStatus = 'idle' | 'seeding' | 'success' | 'error' | 'cancelled';
 interface SeedState {
   aisles: SeedStatus;
   units: SeedStatus;
-  cofidItems: SeedStatus;
-  cofidEmbeddings: SeedStatus;
   canonItems: SeedStatus;
   fdcEnrichment: SeedStatus;
   aislesResult?: SeedResult;
   unitsResult?: SeedResult;
-  cofidItemsResult?: { imported: number; failed: number; errors: Array<{ id: string; reason: string }> };
-  cofidEmbeddingsResult?: { success: boolean; imported: number; skipped: number; errors: number };
   canonItemsResult?: { imported: number; failed: number; errors: Array<{ id: string; reason: string }> };
   fdcEnrichmentResult?: FdcEnrichmentResult;
   // Progress tracking for large operations
-  cofidItemsProgress?: { processed: number; total: number };
   canonItemsProgress?: { processed: number; total: number };
   fdcEnrichmentProgress?: { processed: number; total: number };
-  abortController?: AbortController;
   canonAbortController?: AbortController;
   fdcAbortController?: AbortController;
 }
@@ -65,8 +54,6 @@ export default function CanonSeeder() {
   const [state, setState] = useState<SeedState>({
     aisles: 'idle',
     units: 'idle',
-    cofidItems: 'idle',
-    cofidEmbeddings: 'idle',
     canonItems: 'idle',
     fdcEnrichment: 'idle',
   });
@@ -136,70 +123,6 @@ export default function CanonSeeder() {
     }
   };
 
-
-  const handleSeedCofidItems = async () => {
-    const abortController = new AbortController();
-    setState(s => ({ ...s, cofidItems: 'seeding', abortController, cofidItemsProgress: { processed: 0, total: cofidItemsArray.length } }));
-
-    try {
-      const result = await seedCofidItems(
-        cofidItemsArray,
-        (processed, total) => {
-          setState(s => ({ ...s, cofidItemsProgress: { processed, total } }));
-        },
-        abortController.signal
-      );
-
-      if (result.imported > 0) {
-        setState(s => ({ ...s, cofidItems: 'success', cofidItemsResult: result, cofidItemsProgress: undefined }));
-        toast.success(`Seeded ${result.imported} CofID items${result.failed > 0 ? ` (${result.failed} failed)` : ''}`);
-      } else {
-        setState(s => ({ ...s, cofidItems: 'error', cofidItemsResult: result, cofidItemsProgress: undefined }));
-        toast.error(`Failed to seed CofID items (${result.failed} errors)`);
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('cancelled')) {
-        setState(s => ({ ...s, cofidItems: 'cancelled', cofidItemsProgress: undefined }));
-        toast.info('CofID items seeding cancelled');
-      } else {
-        console.error('Error seeding CofID items:', error);
-        toast.error(msg || 'Failed to seed CofID items');
-        setState(s => ({ ...s, cofidItems: 'error', cofidItemsProgress: undefined }));
-      }
-    }
-  };
-
-  const handleCancelCofidItems = () => {
-    state.abortController?.abort();
-    setState(s => ({ ...s, cofidItems: 'cancelled', abortController: undefined }));
-  };
-
-  const handleSeedCofidEmbeddings = async () => {
-    setState(s => ({ ...s, cofidEmbeddings: 'seeding' }));
-
-    try {
-      const result = await seedCofidEmbeddings(cofidItemsArray);
-
-      if (result.success && result.imported > 0) {
-        setState(s => ({ ...s, cofidEmbeddings: 'success', cofidEmbeddingsResult: result }));
-        toast.success(
-          `Imported ${result.imported} CofID embeddings${result.skipped > 0 ? ` (${result.skipped} skipped)` : ''}`
-        );
-      } else if (result.success && result.imported === 0) {
-        setState(s => ({ ...s, cofidEmbeddings: 'error', cofidEmbeddingsResult: result }));
-        toast.info(result.message || 'No embeddings to import');
-      } else {
-        setState(s => ({ ...s, cofidEmbeddings: 'error', cofidEmbeddingsResult: result }));
-        toast.error(result.message || `Failed to import embeddings (${result.errors} errors)`);
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.error('Error seeding CofID embeddings:', error);
-      setState(s => ({ ...s, cofidEmbeddings: 'error' }));
-      toast.error(msg || 'Failed to seed CofID embeddings');
-    }
-  };
 
   const handleSeedCanonItems = async (file: File) => {
     const abortController = new AbortController();
@@ -354,8 +277,6 @@ export default function CanonSeeder() {
   const handleSeedAll = async () => {
     await handleSeedAisles();
     await handleSeedUnits();
-    await handleSeedCofidItems();
-    await handleSeedCofidEmbeddings();
   };
 
   const renderStatusIcon = (status: SeedStatus) => {
@@ -390,21 +311,19 @@ export default function CanonSeeder() {
               Seed Everything
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Seed all collections in order: aisles → units → CofID items → embeddings
+              Seed all collections in order: aisles → units
             </p>
           </div>
           <Button
             onClick={handleSeedAll}
             disabled={
               state.aisles === 'seeding' ||
-              state.units === 'seeding' ||
-              state.cofidItems === 'seeding'
+              state.units === 'seeding'
             }
             className="gap-2"
           >
             {(state.aisles === 'seeding' ||
-              state.units === 'seeding' ||
-              state.cofidItems === 'seeding') ? (
+              state.units === 'seeding') ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Seeding...
@@ -422,6 +341,7 @@ export default function CanonSeeder() {
       {/* Individual Seed Cards - 2x2 Grid */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Aisles */}
+
         <Card className="p-4">
           <div className="space-y-4">
             <div>
@@ -507,123 +427,6 @@ export default function CanonSeeder() {
           </div>
         </Card>
 
-        {/* CofID Items */}
-        <Card className="p-4">
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium flex items-center gap-2">
-                CofID Items
-                {renderStatusIcon(state.cofidItems)}
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                {cofidItemsArray.length} items ready (with embeddings)
-              </p>
-            </div>
-
-            {state.cofidItemsResult && (
-              <div className="text-sm space-y-1 p-3 bg-green-50 dark:bg-green-950 rounded border border-green-200 dark:border-green-800">
-                <div className="font-medium text-green-900 dark:text-green-100">✓ Seeded</div>
-                <div className="text-muted-foreground">
-                  {state.cofidItemsResult.imported} items
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                onClick={handleSeedCofidItems}
-                disabled={state.cofidItems === 'seeding'}
-                variant="outline"
-                className="flex-1"
-              >
-                {state.cofidItems === 'seeding' ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Seeding...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Seed CofID Items
-                  </>
-                )}
-              </Button>
-              {state.cofidItems === 'seeding' && (
-                <Button
-                  onClick={handleCancelCofidItems}
-                  variant="destructive"
-                  size="sm"
-                  className="px-3"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-
-            {state.cofidItems === 'seeding' && state.cofidItemsProgress && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    Importing {state.cofidItemsProgress.processed} of {state.cofidItemsProgress.total} items...
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {state.cofidItemsProgress.total > 0
-                      ? Math.round((state.cofidItemsProgress.processed / state.cofidItemsProgress.total) * 100)
-                      : 0}%
-                  </span>
-                </div>
-                <Progress
-                  value={(state.cofidItemsProgress.processed / state.cofidItemsProgress.total) * 100}
-                  className="h-2"
-                />
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* CofID Embeddings */}
-        <Card className="p-4">
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium flex items-center gap-2">
-                CofID Embeddings
-                {renderStatusIcon(state.cofidEmbeddings)}
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Semantic matching vectors from backup file
-              </p>
-            </div>
-
-            {state.cofidEmbeddingsResult && (
-              <div className="text-sm space-y-1 p-3 bg-green-50 dark:bg-green-950 rounded border border-green-200 dark:border-green-800">
-                <div className="font-medium text-green-900 dark:text-green-100">✓ Imported</div>
-                <div className="text-muted-foreground">
-                  {state.cofidEmbeddingsResult.imported} embeddings
-                  {state.cofidEmbeddingsResult.skipped > 0 && ` (${state.cofidEmbeddingsResult.skipped} skipped)`}
-                </div>
-              </div>
-            )}
-
-            <Button
-              onClick={handleSeedCofidEmbeddings}
-              disabled={state.cofidEmbeddings === 'seeding'}
-              variant="outline"
-              className="w-full"
-            >
-              {state.cofidEmbeddings === 'seeding' ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Database className="h-4 w-4 mr-2" />
-                  Seed CofID Embeddings
-                </>
-              )}
-            </Button>
-          </div>
-        </Card>
         {/* Canon Items */}
         <Card className="p-4">
           <div className="space-y-4">
@@ -811,9 +614,6 @@ export default function CanonSeeder() {
             <li>Canon Aisles (foundational reference data)</li>
             <li>Canon Units (foundational reference data)</li>
             <li>Canon Items (ingredient and product data from seed generation)</li>
-            <li>CofID Group → Aisle Mappings (for CofID item resolution)</li>
-            <li>CofID Items (with embeddings for semantic matching)</li>
-            <li>CofID Embeddings (build local lookup and publish Firebase Storage master snapshot)</li>
             <li>FDC Portions Enrichment (populate unit conversion fields from USDA portions data)</li>
           </ol>
           <div className="pt-2 border-t text-xs">
