@@ -185,6 +185,30 @@ export async function searchFdcByEmbedding(
   return data.matches ?? [];
 }
 
+// ── Auto-link on canon item creation ─────────────────────────────────────────
+
+/**
+ * Attempt to auto-link a newly created canon item to the best FDC match.
+ *
+ * Uses the searchFdc Cloud Function — no binary download required.
+ * Skips silently if no match meets the threshold or if the CF is unavailable.
+ * Intended to be called fire-and-forget from createCanonItem.
+ */
+export async function autoLinkFdcOnCreate(item: {
+  id: string;
+  name: string;
+  unit: UnitIntelligence;
+}): Promise<void> {
+  const embedding = await generateTextEmbedding(item.name);
+  const matches = await searchFdcByEmbedding(embedding, 3);
+
+  if (matches.length === 0 || matches[0].score < ENRICH_THRESHOLD) return;
+
+  const topMatch = matches[0];
+  const unitPatch = mapFdcPortionsToUnitPatch(topMatch.portions, item.unit);
+  await writeFdcLinkToCanonItem(item.id, topMatch, unitPatch, []);
+}
+
 // ── Canon item FDC enrichment (full pipeline) ────────────────────────────────
 
 /**

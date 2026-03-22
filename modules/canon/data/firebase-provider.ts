@@ -46,6 +46,7 @@ import {
 import {
   loadFdcData,
   searchFdcLocal,
+  autoLinkFdcOnCreate,
   type FdcSearchResult,
 } from './fdc-provider';
 import { mapFdcPortionsToUnitPatch } from '../logic/fdc';
@@ -53,13 +54,7 @@ import { mapFdcPortionsToUnitPatch } from '../logic/fdc';
 const CANON_AISLES_COLLECTION = 'canonAisles';
 const CANON_UNITS_COLLECTION = 'canonUnits';
 const CANON_ITEMS_COLLECTION = 'canonItems';
-const CANON_COFID_ITEMS_COLLECTION = 'canonCofidItems';
 
-function getCofidSourceFromExternalSources(
-  externalSources?: ExternalSourceLink[]
-): ExternalSourceLink | undefined {
-  return externalSources?.find(source => source.source === 'cofid');
-}
 
 function withCofidSource(
   existingSources: ExternalSourceLink[] | undefined,
@@ -504,6 +499,11 @@ export async function createCanonItem(input: {
     console.warn('[createCanonItem] Failed to upsert embedding (non-blocking):', error);
   }
 
+  // Attempt FDC auto-link — fire-and-forget, non-blocking.
+  autoLinkFdcOnCreate(createdItem).catch(err =>
+    console.warn('[createCanonItem] FDC auto-link failed (non-blocking):', err)
+  );
+
   return createdItem;
 }
 
@@ -552,41 +552,13 @@ export async function updateCanonItem(
 
 /**
  * Approve a canon item (set needsReview = false).
- * If linked to CofID, copy nutrients into externalSources[].properties.nutrition.
  */
 export async function approveCanonItem(id: string): Promise<void> {
   const docRef = doc(db, CANON_ITEMS_COLLECTION, id);
-  
-  // Get current item data to check for a linked CoFID source.
-  const itemSnap = await getDoc(docRef);
-  if (!itemSnap.exists()) {
-    throw new Error(`Canon item ${id} not found`);
-  }
-
-  const itemData = itemSnap.data();
-  const existingSources = Array.isArray(itemData.externalSources)
-    ? (itemData.externalSources as ExternalSourceLink[])
-    : undefined;
-  const cofidSource = getCofidSourceFromExternalSources(existingSources);
-
-  const updates: any = {
+  await updateDoc(docRef, {
     approved: true,
     updatedAt: new Date().toISOString(),
-  };
-
-  // If linked to a CofID item, copy nutrients to source-specific properties.
-  if (cofidSource?.externalId) {
-    const cofidItem = await fetchCofidItemById(cofidSource.externalId);
-    if (cofidItem?.nutrients) {
-      updates.externalSources = withCofidSource(existingSources, cofidSource.externalId, {
-        nutrition: cofidItem.nutrients,
-        nutritionImportedAt: new Date().toISOString(),
-      });
-      updates.lastSyncedAt = new Date().toISOString();
-    }
-  }
-
-  await updateDoc(docRef, updates);
+  });
 }
 
 /**
@@ -648,44 +620,6 @@ export async function deleteAllCanonItems(): Promise<void> {
   }
 }
 
-// ── CofID Items Read ──────────────────────────────────────────────────────────
-
-/**
- * Fetch all CofID items from canonCofidItems collection.
- * Used for diagnostics, matching, and linking.
- */
-export async function fetchCanonCofidItems(): Promise<any[]> {
-  const snapshot = await getDocs(collection(db, CANON_COFID_ITEMS_COLLECTION));
-  const items: any[] = [];
-
-  snapshot.forEach(docSnap => {
-    items.push({
-      id: docSnap.id,
-      ...docSnap.data(),
-    });
-  });
-
-  return items;
-}
-
-/**
- * Get a single CofID item by ID.
- * Used when linking or copying nutrients.
- */
-export async function fetchCofidItemById(id: string): Promise<any | null> {
-  const docRef = doc(db, CANON_COFID_ITEMS_COLLECTION, id);
-  const docSnap = await getDoc(docRef);
-
-  if (!docSnap.exists()) {
-    return null;
-  }
-
-  return {
-    id: docSnap.id,
-    ...docSnap.data(),
-  };
-}
-
 /**
  * Link a CofID match to a canon item.
  * Stores linkage and metadata in the CoFID external source record.
@@ -703,16 +637,9 @@ export async function linkCofidMatchToCanonItem(
     ? (itemData.externalSources as ExternalSourceLink[])
     : undefined;
 
-  // Fetch nutrition data from the CoFID item and store it alongside the match metadata.
-  const cofidItem = await fetchCofidItemById(cofidId);
-  const nutritionProps = cofidItem?.nutrients
-    ? { nutrition: cofidItem.nutrients, nutritionImportedAt: new Date().toISOString() }
-    : {};
-
   await updateDoc(docRef, {
     externalSources: withCofidSource(existingSources, cofidId, {
       match: matchMetadata,
-      ...nutritionProps,
     }),
     lastSyncedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -1276,87 +1203,3 @@ export async function seedCanonItems(
   return results;
 }
 
-/**
- * Batch write CofID items to canonCofidItems collection.
- * Handles both direct CofIDItem objects and the backup format { id, data: {...} }
- * 
- * Chunks writes into smaller batches to avoid "Request Entity Too Large" errors.
- * Each batch processes max 50 items to keep payload under limits.
- * 
- * @param items Raw items from backup file or CofIDItem objects
- * @param onProgress Callback for progress tracking (processed, total)
- * @param signal AbortSignal for cancellation
- */
-export async function seedCofidItems(
-  items: any[],
-  onProgress?: (processed: number, total: number) => void,
-  signal?: AbortSignal
-): Promise<{ imported: number; failed: number; errors: Array<{ id: string; reason: string }> }> {
-  const BATCH_SIZE = 50; // Items per Firestore batch (keeps payload small)
-  const results = { imported: 0, failed: 0, errors: [] as Array<{ id: string; reason: string }> };
-
-  // Validate and transform items first (don't write invalid ones)
-  // NOTE: Embeddings are NOT stored here - they go to canonEmbeddingLookup via seedCofidEmbeddings
-  const validItems: Array<{
-    id: string;
-    name: string;
-    group: string;
-    nutrients: any;
-    importedAt: string;
-  }> = [];
-
-  for (const rawItem of items) {
-    if (signal?.aborted) throw new Error('Seeding cancelled by user');
-
-    const item = rawItem.data ? rawItem.data : rawItem;
-
-    if (!item.id || !item.name || !item.group || !item.importedAt) {
-      results.errors.push({
-        id: item.id || 'unknown',
-        reason: 'Missing required fields (id, name, group, importedAt)',
-      });
-      results.failed++;
-      continue;
-    }
-
-    validItems.push({
-      id: item.id,
-      name: item.name,
-      group: item.group,
-      nutrients: item.nutrients ?? null,
-      importedAt: item.importedAt,
-    });
-  }
-
-  // Write in chunks to avoid payload size errors
-  for (let i = 0; i < validItems.length; i += BATCH_SIZE) {
-    if (signal?.aborted) throw new Error('Seeding cancelled by user');
-
-    const chunk = validItems.slice(i, i + BATCH_SIZE);
-    const batch = writeBatch(db);
-
-    for (const item of chunk) {
-      const docRef = doc(db, CANON_COFID_ITEMS_COLLECTION, item.id);
-      batch.set(docRef, item);
-    }
-
-    try {
-      await batch.commit();
-      results.imported += chunk.length;
-      onProgress?.(results.imported, validItems.length);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[seedCofidItems] Batch write failed at index ${i}:`, errorMsg);
-      
-      for (const item of chunk) {
-        results.errors.push({
-          id: item.id,
-          reason: `Batch write failed: ${errorMsg}`,
-        });
-        results.failed++;
-      }
-    }
-  }
-
-  return results;
-}

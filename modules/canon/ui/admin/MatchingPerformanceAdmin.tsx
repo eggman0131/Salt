@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { getMatchEvents } from '../../api';
+import { getMatchEvents, getCanonItems } from '../../api';
 import type { CanonMatchEvent } from '../../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,7 +81,7 @@ function getDateBounds(range: DateRange): { startDate: Date; endDate: Date } {
   return { startDate: start, endDate: end };
 }
 
-function buildSessions(events: CanonMatchEvent[]): SessionSummary[] {
+function buildSessions(events: CanonMatchEvent[], itemNames: Map<string, string>): SessionSummary[] {
   const byBatch = new Map<string, CanonMatchEvent[]>();
 
   for (const e of events) {
@@ -118,7 +118,7 @@ function buildSessions(events: CanonMatchEvent[]): SessionSummary[] {
         entityName: decisionEvent.entityName,
         batchIndex: decisionEvent.metrics.batchIndex ?? 0,
         decision: out.decision ?? 'no_match',
-        topMatchName: out.topMatchName ?? out.canonItemId,
+        topMatchName: out.topMatchName ?? itemNames.get(out.canonItemId) ?? out.canonItemId,
         topScore: out.topScore,
         scoreGap: out.scoreGap,
         stage: out.stage,
@@ -173,6 +173,7 @@ const STAGE_ABBREV: Record<string, string> = {
 export const MatchingPerformanceAdmin: React.FC = () => {
   const { refreshTrigger } = useAdminRefresh();
   const [events, setEvents] = useState<CanonMatchEvent[]>([]);
+  const [itemNames, setItemNames] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('7d');
 
@@ -180,8 +181,12 @@ export const MatchingPerformanceAdmin: React.FC = () => {
     setIsLoading(true);
     try {
       const { startDate, endDate } = getDateBounds(dateRange);
-      const data = await getMatchEvents({ startDate, endDate, limit: 2000 });
+      const [data, items] = await Promise.all([
+        getMatchEvents({ startDate, endDate, limit: 2000 }),
+        getCanonItems(),
+      ]);
       setEvents(data);
+      setItemNames(new Map(items.map(item => [item.id, item.name])));
     } catch {
       softToast.error('Failed to load match events');
     } finally {
@@ -191,7 +196,7 @@ export const MatchingPerformanceAdmin: React.FC = () => {
 
   useEffect(() => { loadData(); }, [loadData, refreshTrigger]);
 
-  const sessions = useMemo(() => buildSessions(events), [events]);
+  const sessions = useMemo(() => buildSessions(events, itemNames), [events, itemNames]);
 
   const handleExportCSV = () => {
     const decisions = events.filter(e => e.eventType === 'match-decision');
@@ -274,10 +279,10 @@ export const MatchingPerformanceAdmin: React.FC = () => {
             <SessionsView sessions={sessions} />
           </TabsContent>
           <TabsContent value="history" className="mt-6">
-            <ItemHistoryView events={events} />
+            <ItemHistoryView events={events} itemNames={itemNames} />
           </TabsContent>
           <TabsContent value="performance" className="mt-6">
-            <PerformanceView events={events} />
+            <PerformanceView events={events} itemNames={itemNames} />
           </TabsContent>
         </Tabs>
       )}
@@ -411,6 +416,28 @@ const IngredientRow: React.FC<{ decision: MatchDecision }> = ({ decision: d }) =
             )}
           </div>
 
+          {/* Candidates — near-misses for unmatched, runner-ups for matched */}
+          {!expanded && d.candidates && d.candidates.length > 0 && (
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {d.decision === 'create_new_canon' && (
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wide shrink-0">near</span>
+              )}
+              {d.decision === 'use_existing_canon' && d.candidates.length > 1 && (
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wide shrink-0">also</span>
+              )}
+              {(d.decision === 'create_new_canon'
+                ? d.candidates
+                : d.candidates.slice(1)
+              ).slice(0, 3).map((c, i) => (
+                <span key={i} className="inline-flex items-center gap-1 text-xs">
+                  <span className="text-muted-foreground">{c.name}</span>
+                  <span className={`font-mono text-[10px] ${scoreColor(c.score)}`}>{(c.score * 100).toFixed(0)}%</span>
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 font-normal">{c.method}</Badge>
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* Pipeline stage timing chips */}
           {d.stageEvents.length > 0 && (
             <div className="flex items-center gap-1 mt-1 flex-wrap">
@@ -532,7 +559,7 @@ const StageRow: React.FC<{
 
 // ── Item History View ─────────────────────────────────────────────────────────
 
-const ItemHistoryView: React.FC<{ events: CanonMatchEvent[] }> = ({ events }) => {
+const ItemHistoryView: React.FC<{ events: CanonMatchEvent[]; itemNames: Map<string, string> }> = ({ events, itemNames }) => {
   const [query, setQuery] = useState('');
 
   const decisionEvents = useMemo(
@@ -587,8 +614,10 @@ const ItemHistoryView: React.FC<{ events: CanonMatchEvent[] }> = ({ events }) =>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium">{e.entityName}</span>
-                    {dec === 'use_existing_canon' && out.topMatchName && (
-                      <span className="text-xs text-muted-foreground">→ {out.topMatchName}</span>
+                    {dec === 'use_existing_canon' && (out.topMatchName || out.canonItemId) && (
+                      <span className="text-xs text-muted-foreground">
+                        → {out.topMatchName ?? itemNames.get(out.canonItemId) ?? out.canonItemId}
+                      </span>
                     )}
                     {out.topScore != null && (
                       <span className={`text-xs font-mono ${scoreColor(out.topScore)}`}>
@@ -632,7 +661,7 @@ const ItemHistoryView: React.FC<{ events: CanonMatchEvent[] }> = ({ events }) =>
 
 // ── Performance View ──────────────────────────────────────────────────────────
 
-const PerformanceView: React.FC<{ events: CanonMatchEvent[] }> = ({ events }) => {
+const PerformanceView: React.FC<{ events: CanonMatchEvent[]; itemNames: Map<string, string> }> = ({ events, itemNames }) => {
   const decisions = events.filter(e => e.eventType === 'match-decision');
   const total = decisions.length;
 
@@ -757,7 +786,9 @@ const PerformanceView: React.FC<{ events: CanonMatchEvent[] }> = ({ events }) =>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{e.entityName}</span>
-                      <span className="text-xs text-muted-foreground">→ {out.topMatchName ?? out.canonItemId}</span>
+                      <span className="text-xs text-muted-foreground">
+                        → {out.topMatchName ?? itemNames.get(out.canonItemId) ?? out.canonItemId}
+                      </span>
                     </div>
                     {e.metrics.sessionLabel && (
                       <p className="text-xs text-muted-foreground">{e.metrics.sessionLabel}</p>

@@ -14,7 +14,7 @@ import {
   linkCofidMatch,
   unlinkCofidMatch,
   buildCofidMatch,
-  getCofidItemById,
+  getCofidEntryById,
   loadCofidIndex,
   type CanonItem,
   type SuggestedMatch,
@@ -53,8 +53,6 @@ interface CofidLinkSectionProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const CofidLinkSection: React.FC<CofidLinkSectionProps> = ({ item, onLinked, onUnlinked }) => {
-  const [cofidDetail, setCofidDetail] = useState<any>(null);
-  const [isLoadingCofidDetail, setIsLoadingCofidDetail] = useState(false);
   const [showCofidSearch, setShowCofidSearch] = useState(false);
   const [cofidSuggestions, setCofidSuggestions] = useState<{
     bestMatch: SuggestedMatch | null;
@@ -71,21 +69,12 @@ export const CofidLinkSection: React.FC<CofidLinkSectionProps> = ({ item, onLink
 
   // Reset state when item changes
   useEffect(() => {
-    setCofidDetail(null);
     setShowCofidSearch(false);
     setCofidSuggestions(null);
     setSelectedMatch(null);
     setCofidSearchFilter('');
     const source = item.externalSources?.find(s => s.source === 'cofid') ?? null;
     setLocalCofidSource(source);
-
-    if (source?.externalId) {
-      setIsLoadingCofidDetail(true);
-      getCofidItemById(source.externalId)
-        .then(detail => setCofidDetail(detail))
-        .catch(() => { /* non-critical */ })
-        .finally(() => setIsLoadingCofidDetail(false));
-    }
   }, [item]);
 
   // ── Search filtering ────────────────────────────────────────────────────
@@ -114,10 +103,14 @@ export const CofidLinkSection: React.FC<CofidLinkSectionProps> = ({ item, onLink
     reason: 'Manual selection from CoFID database',
   });
 
-  // ── Nutrition data ──────────────────────────────────────────────────────
+  // ── CoFID detail + nutrition ────────────────────────────────────────────
+  // Synchronous — index is bundled statically, no loading required.
+  const cofidDetail = localCofidSource?.externalId
+    ? getCofidEntryById(localCofidSource.externalId)
+    : null;
 
   const nutrition =
-    (cofidDetail?.nutrients && typeof cofidDetail.nutrients === 'object' ? cofidDetail.nutrients : null)
+    cofidDetail?.nutrients
     ?? (localCofidSource?.properties && typeof localCofidSource.properties === 'object'
         ? (localCofidSource.properties as any).nutrition
         : null);
@@ -166,10 +159,6 @@ export const CofidLinkSection: React.FC<CofidLinkSectionProps> = ({ item, onLink
       setCofidSuggestions(null);
       setSelectedMatch(null);
       setLocalCofidSource({ source: 'cofid', externalId: match.cofidId });
-      try {
-        const detail = await getCofidItemById(match.cofidId);
-        setCofidDetail(detail);
-      } catch { /* non-critical */ }
       await onLinked();
     } catch (err) {
       softToast.error(err instanceof Error ? err.message : 'Failed to link CofID match');
@@ -183,7 +172,6 @@ export const CofidLinkSection: React.FC<CofidLinkSectionProps> = ({ item, onLink
       await unlinkCofidMatch(item.id);
       softToast.success('CofID link removed');
       setLocalCofidSource(null);
-      setCofidDetail(null);
       await onUnlinked();
     } catch (err) {
       softToast.error(err instanceof Error ? err.message : 'Failed to unlink CofID');
@@ -203,12 +191,6 @@ export const CofidLinkSection: React.FC<CofidLinkSectionProps> = ({ item, onLink
                 <span className="text-muted-foreground">CoFID ID</span>
                 <span className="font-mono text-xs">{localCofidSource.externalId}</span>
               </div>
-              {isLoadingCofidDetail && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span className="text-xs">Loading CoFID details...</span>
-                </div>
-              )}
               {cofidDetail && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">CoFID name</span>

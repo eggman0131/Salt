@@ -191,6 +191,11 @@ function shouldAutoLink(candidates: MatchCandidate[]): boolean {
   const topScore = candidates[0].score;
   if (topScore < AUTO_LINK_THRESHOLD) return false;
 
+  // Exact name match (score == 1.0) is unambiguous — skip the gap check.
+  // As the canon grows, semantic search returns many near-neighbours that
+  // tighten the gap and would otherwise block obvious matches.
+  if (topScore === 1.0) return true;
+
   // If only one candidate, auto-link
   if (candidates.length === 1) return true;
 

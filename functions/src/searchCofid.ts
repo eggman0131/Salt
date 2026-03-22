@@ -19,11 +19,27 @@ const DIM = 768;
 const DEFAULT_TOP_K = 5;
 const DEFAULT_THRESHOLD = 0.65;
 
+interface CofidNutrients {
+  energyKcal?: number | null;
+  energyKj?: number | null;
+  protein?: number | null;
+  fat?: number | null;
+  carbs?: number | null;
+  sugars?: number | null;
+  fibre?: number | null;
+  water?: number | null;
+  salt?: number | null;
+  cholesterol?: number | null;
+  satFatPer100gFood?: number | null;
+  satFatPer100gFat?: number | null;
+}
+
 interface CofidIndexEntry {
   row: number;
   id: string;
   name: string;
   group: string;
+  nutrients: CofidNutrients | null;
 }
 
 // Module-scope cache — survives warm Cloud Function invocations

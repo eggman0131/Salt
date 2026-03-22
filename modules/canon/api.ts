@@ -9,6 +9,7 @@
 
 import { Aisle, Unit, UnitIntelligence } from '../../types/contract';
 import { CanonMatchEvent } from './types';
+import { getCofidIndex, getCofidEntryById as getCofidEntryByIdSync, type CofidIndexEntry } from './data/cofid-provider';
 import {
   fetchCanonAisles,
   fetchCanonUnits,
@@ -23,7 +24,6 @@ import {
   seedAisles,
   seedUnits,
   seedCanonItems as seedCanonItemsFn,
-  fetchCofidItemById,
   linkCofidMatchToCanonItem,
   unlinkCofidMatchFromCanonItem,
   suggestCofidForCanonItem,
@@ -276,14 +276,20 @@ export { levenshteinSimilarity } from './logic/suggestCofidMatch';
 
 // ── CoFID index ───────────────────────────────────────────────────────────────
 
+export type { CofidIndexEntry, CofidNutrients, CofidSearchResult } from './data/cofid-provider';
+
 /**
- * Load the CoFID index from Firebase Storage (cached after first call).
- * Returns { id, name, group }[] — suitable for client-side filtering.
+ * Return the full CoFID index. Synchronous — bundled statically at build time.
  */
-export async function loadCofidIndex(): Promise<Array<{ id: string; name: string; group: string }>> {
-  const { loadCofidData, getCofidIndex } = await import('./data/cofid-provider');
-  await loadCofidData();
+export function loadCofidIndex(): CofidIndexEntry[] {
   return getCofidIndex();
+}
+
+/**
+ * Look up a single CoFID entry by ID. Synchronous — no loading required.
+ */
+export function getCofidEntryById(cofidId: string): CofidIndexEntry | null {
+  return getCofidEntryByIdSync(cofidId);
 }
 
 // ── PR5: CofID Integration ───────────────────────────────────────────────────
@@ -316,12 +322,6 @@ export async function unlinkCofidMatch(canonItemId: string): Promise<void> {
   return unlinkCofidMatchFromCanonItem(canonItemId);
 }
 
-/**
- * Get a single CofID item by ID (for displaying linked item details).
- */
-export async function getCofidItemById(id: string) {
-  return fetchCofidItemById(id);
-}
 
 // ── FDC Integration ──────────────────────────────────────────────────────────
 
@@ -464,26 +464,6 @@ export async function seedItems(
   return seedCanonItemsFn(items, onProgress, signal);
 }
 
-/**
- * Batch seed CofID items into canonCofidItems collection.
- * Idempotent — uses setDoc with item.id as document ID.
- */
-export async function seedCofidItems(
-  items: any[],
-  onProgress?: (processed: number, total: number) => void,
-  signal?: AbortSignal
-): Promise<{ imported: number; failed: number; errors: Array<{ id: string; reason: string }> }> {
-  const { seedCofidItems: seedFn } = await import('./data/firebase-provider');
-  return seedFn(items, onProgress, signal);
-}
-
-/**
- * Seed CofID embeddings directly from backup file data.
- */
-export async function seedCofidEmbeddings(rawItems: any[]) {
-  const { seedCofidEmbeddings: seedFn } = await import('./data/embeddings-provider');
-  return seedFn(rawItems);
-}
 
 // ── PR4-A: AI Parse (pure logic) ─────────────────────────────────────────────
 
